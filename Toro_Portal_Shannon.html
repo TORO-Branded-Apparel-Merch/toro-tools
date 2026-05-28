@@ -7,90 +7,89 @@
 <style>
 :root{
   --red:#C41E1E;--red-light:#fff0f0;--green:#1a7f4b;--bg:#F7F7F8;
-  --surface:#fff;--border:#E2E3E6;--border2:#ccc;
-  --text:#1a1a1f;--text2:#444;--text3:#888;--brown:#7B3F00;
-  --radius:10px;--radius-sm:6px;
+  --surface:#fff;--border:#E2E3E6;--border2:#ccc;--text:#1a1a1f;
+  --text2:#444;--text3:#888;--brown:#7B3F00;--radius:10px;--radius-sm:6px;
+  --orange:#C46A1E;
 }
 *{box-sizing:border-box;margin:0;padding:0}
 body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:var(--bg);color:var(--text);min-height:100vh}
 .topbar{background:#1a1a2e;border-bottom:3px solid var(--red);padding:14px 28px;display:flex;align-items:center;justify-content:space-between}
 .topbar h1{color:#fff;font-size:17px;font-weight:700}
 .rep-badge{background:var(--red);color:#fff;font-size:12px;font-weight:700;padding:3px 10px;border-radius:10px;margin-left:12px}
-.container{max-width:1100px;margin:0 auto;padding:24px}
-.drop-zone{border:2px dashed var(--border2);border-radius:var(--radius);padding:32px;text-align:center;cursor:pointer;transition:all .2s;background:var(--surface);margin-bottom:20px}
+.container{max-width:1140px;margin:0 auto;padding:24px}
+.drop-zone{border:2px dashed var(--border2);border-radius:var(--radius);padding:28px;text-align:center;cursor:pointer;transition:all .2s;background:var(--surface);margin-bottom:20px}
 .drop-zone:hover,.drop-zone.over{border-color:var(--red);background:var(--red-light)}
-.drop-zone h2{font-size:15px;color:var(--text2);margin-bottom:4px}
-.drop-zone p{font-size:12px;color:var(--text3)}
-.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;margin-bottom:20px}
-.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:14px 16px}
-.card-lbl{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--text3);margin-bottom:5px}
-.card-val{font-size:22px;font-weight:700}
-.green{color:var(--green)}.brown{color:var(--brown)}.red{color:var(--red)}
-.action-bar{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:12px 16px;display:none;align-items:center;justify-content:space-between;margin-bottom:16px;gap:8px;flex-wrap:wrap}
-.period-section{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);margin-bottom:16px;overflow:hidden}
-.period-hdr{padding:11px 16px;background:#f0f4ff;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between}
-.period-hdr strong{font-size:13px;color:#1a1a6e}
-.drag-hint{font-size:10px;color:#888;font-weight:400}
-table{width:100%;border-collapse:collapse;font-size:13px}
-th{padding:7px 14px;text-align:left;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--text3);border-bottom:1px solid var(--border);background:var(--bg)}
+.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:20px}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:12px 14px}
+.card-lbl{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--text3);margin-bottom:4px}
+.card-val{font-size:20px;font-weight:700}
+.green{color:var(--green)}.brown{color:var(--brown)}.red{color:var(--red)}.orange{color:var(--orange)}
+.section-block{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);margin-bottom:16px;overflow:hidden}
+.section-hdr{padding:11px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;font-size:13px;font-weight:700}
+.section-hdr.ready{background:#1a7f4b;color:#fff}
+.section-hdr.approval{background:#7B3F00;color:#fff}
+.section-hdr.active{background:#1a1a2e;color:#fff}
+.section-hdr.archive{background:var(--bg);color:var(--text3)}
+table{width:100%;border-collapse:collapse;font-size:12px}
+th{padding:7px 10px;text-align:left;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--text3);border-bottom:1px solid var(--border);background:var(--bg)}
 th.r,td.r{text-align:right}
-td{padding:9px 14px;border-bottom:1px solid #f5f5f5;vertical-align:middle}
-tr.quote-row{cursor:grab}
-tr.quote-row:hover td{background:#fafafa}
-tr.dragging{opacity:.4}
-tr.drag-over td{background:#e8f0fe;border-top:2px solid var(--red)}
-.mg-pill{display:inline-block;padding:2px 7px;border-radius:8px;font-size:11px;font-weight:700}
+td{padding:8px 10px;border-bottom:1px solid #f5f5f5;vertical-align:middle}
+tr:hover td{background:#fafafa}
+.mg-pill{display:inline-block;padding:1px 6px;border-radius:8px;font-size:10px;font-weight:700}
 .mg-green{background:#e6f4ee;color:var(--green)}
 .mg-yellow{background:#FFF8E1;color:#7A4F00}
 .mg-red{background:#FFEBEB;color:var(--red)}
 .btn{padding:6px 12px;font-size:12px;font-weight:700;border-radius:6px;cursor:pointer;border:none;transition:all .15s}
 .btn-primary{background:var(--red);color:#fff}.btn-primary:hover{background:#a51818}
+.btn-green{background:var(--green);color:#fff}
 .btn-outline{background:#fff;border:1px solid var(--border2);color:var(--text2)}.btn-outline:hover{border-color:var(--red);color:var(--red)}
 .btn-sm{padding:3px 8px;font-size:11px}
-.empty{padding:32px;text-align:center;color:var(--text3);font-size:13px}
-.amended-badge{font-size:10px;background:#fff3cd;color:#7a5500;padding:1px 6px;border-radius:6px;font-weight:700;margin-left:4px}
-.adj-badge{font-size:10px;background:#e8f4fd;color:#1a6ec7;padding:1px 6px;border-radius:6px;font-weight:700;margin-left:4px}
-.approval-warn{background:#FFEBEB;border:1px solid #E24B4A;border-radius:6px;padding:8px 12px;font-size:12px;font-weight:600;color:#A32D2D;margin:10px 16px}
-.period-totals{display:flex;gap:20px;padding:8px 16px;background:#f8f8f8;border-top:1px solid var(--border);font-size:12px;flex-wrap:wrap}
-.del-btn{background:none;border:none;cursor:pointer;color:#ccc;font-size:13px;padding:2px 4px}.del-btn:hover{color:var(--red)}
-.adj-panel{background:#f8fbff;border-top:1px solid var(--border);padding:12px 16px}
-.adj-row{display:grid;grid-template-columns:1fr 100px 110px auto;gap:8px;align-items:center;margin-bottom:6px}
-.adj-input{padding:5px 8px;font-size:12px;border:1px solid var(--border2);border-radius:4px;width:100%}
-.archived-section summary{padding:8px 16px;font-size:12px;color:var(--text3);cursor:pointer;background:#f8f8f8;user-select:none;list-style:none}
-.archived-section summary::-webkit-details-marker{display:none}
+.empty{padding:24px;text-align:center;color:var(--text3);font-size:13px}
+.status-checks{display:flex;gap:12px;flex-wrap:wrap}
+.status-check{display:flex;align-items:center;gap:4px;font-size:11px;color:var(--text3);cursor:pointer;padding:3px 0}
+.status-check input{width:13px;height:13px;accent-color:var(--green);cursor:pointer}
+.status-check.checked{color:var(--green);font-weight:700}
+.status-badge{display:inline-block;font-size:10px;font-weight:700;padding:2px 7px;border-radius:8px}
+.badge-waiting{background:#FFF3E0;color:var(--orange)}
+.badge-approved{background:#e6f4ee;color:var(--green)}
+.badge-rejected{background:#FFEBEB;color:var(--red)}
+.badge-needs{background:#FFF8E1;color:#7A4F00}
+.rejection-note{background:#FFEBEB;border-left:3px solid var(--red);padding:6px 10px;font-size:11px;color:#a32d2d;margin-top:4px;border-radius:0 4px 4px 0}
+.summary-bar{padding:10px 16px;background:#f0faf4;border-top:1px solid var(--border);font-size:12px;display:flex;gap:20px;flex-wrap:wrap}
+.locked-badge{font-size:10px;background:#e8e8e8;color:#888;padding:1px 6px;border-radius:6px;margin-left:4px}
+details summary{padding:10px 16px;cursor:pointer;font-size:12px;color:var(--text3);user-select:none;list-style:none}
+details summary::-webkit-details-marker{display:none}
 </style>
 </head>
 <body>
 
 <!-- Password gate -->
 <div id="gate" style="position:fixed;inset:0;background:#1a1a2e;display:flex;align-items:center;justify-content:center;z-index:9999">
-  <div style="background:#fff;border-radius:12px;padding:40px 48px;max-width:380px;width:90%;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,.4)">
-    <div style="font-size:32px;margin-bottom:12px">&#128274;</div>
-    <div style="font-size:22px;font-weight:700;color:#1a1a2e;margin-bottom:4px">TORO</div>
-    <div style="font-size:14px;color:#888;margin-bottom:28px">Shannon Commission Portal</div>
+  <div style="background:#fff;border-radius:12px;padding:36px 44px;max-width:360px;width:90%;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,.4)">
+    <div style="font-size:28px;margin-bottom:10px">&#128274;</div>
+    <div style="font-size:20px;font-weight:700;color:#1a1a2e;margin-bottom:4px">TORO</div>
+    <div style="font-size:13px;color:#888;margin-bottom:24px">Shannon Commission Portal</div>
     <input id="pw-input" type="password" placeholder="Enter password"
-      style="width:100%;padding:11px 14px;font-size:15px;border:2px solid #e2e3e6;border-radius:8px;margin-bottom:12px;box-sizing:border-box;outline:none"
+      style="width:100%;padding:10px 12px;font-size:14px;border:2px solid #e2e3e6;border-radius:8px;margin-bottom:10px;box-sizing:border-box;outline:none"
       onkeydown="if(event.key==='Enter')checkPw()"
       onfocus="this.style.borderColor='#C41E1E'" onblur="this.style.borderColor='#e2e3e6'">
-    <div id="pw-msg" style="font-size:13px;color:#C41E1E;min-height:18px;margin-bottom:12px"></div>
-    <button onclick="checkPw()" style="width:100%;padding:11px;background:#C41E1E;color:#fff;font-size:15px;font-weight:700;border:none;border-radius:8px;cursor:pointer">Unlock</button>
-    <div style="margin-top:20px;border-top:1px solid #f0f0f0;padding-top:16px">
-      <a href="#" onclick="showChangePw();return false" style="font-size:12px;color:#888;text-decoration:none">Change my password</a>
+    <div id="pw-msg" style="font-size:12px;color:#C41E1E;min-height:16px;margin-bottom:10px"></div>
+    <button onclick="checkPw()" style="width:100%;padding:10px;background:#C41E1E;color:#fff;font-size:14px;font-weight:700;border:none;border-radius:8px;cursor:pointer">Unlock</button>
+    <div style="margin-top:16px;border-top:1px solid #f0f0f0;padding-top:12px">
+      <a href="#" onclick="showChangePw();return false" style="font-size:11px;color:#888;text-decoration:none">Change my password</a>
     </div>
   </div>
 </div>
-
-<!-- Change password modal -->
 <div id="change-pw-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);align-items:center;justify-content:center;z-index:10000">
-  <div style="background:#fff;border-radius:12px;padding:32px 40px;max-width:360px;width:90%">
-    <div style="font-size:18px;font-weight:700;margin-bottom:20px">Change password</div>
-    <input id="pw-current" type="password" placeholder="Current password" style="width:100%;padding:10px 12px;font-size:14px;border:1px solid #ccc;border-radius:6px;margin-bottom:10px;box-sizing:border-box">
-    <input id="pw-new" type="password" placeholder="New password (min 6 characters)" style="width:100%;padding:10px 12px;font-size:14px;border:1px solid #ccc;border-radius:6px;margin-bottom:10px;box-sizing:border-box">
-    <input id="pw-confirm" type="password" placeholder="Confirm new password" style="width:100%;padding:10px 12px;font-size:14px;border:1px solid #ccc;border-radius:6px;margin-bottom:10px;box-sizing:border-box">
-    <div id="change-msg" style="font-size:12px;color:#C41E1E;min-height:16px;margin-bottom:10px"></div>
+  <div style="background:#fff;border-radius:12px;padding:28px 36px;max-width:340px;width:90%">
+    <div style="font-size:16px;font-weight:700;margin-bottom:16px">Change password</div>
+    <input id="pw-current" type="password" placeholder="Current password" style="width:100%;padding:9px 11px;font-size:13px;border:1px solid #ccc;border-radius:6px;margin-bottom:8px;box-sizing:border-box">
+    <input id="pw-new" type="password" placeholder="New password (min 6 chars)" style="width:100%;padding:9px 11px;font-size:13px;border:1px solid #ccc;border-radius:6px;margin-bottom:8px;box-sizing:border-box">
+    <input id="pw-confirm" type="password" placeholder="Confirm new password" style="width:100%;padding:9px 11px;font-size:13px;border:1px solid #ccc;border-radius:6px;margin-bottom:8px;box-sizing:border-box">
+    <div id="change-msg" style="font-size:11px;color:#C41E1E;min-height:14px;margin-bottom:8px"></div>
     <div style="display:flex;gap:8px">
-      <button onclick="submitChangePw()" style="flex:1;padding:10px;background:#C41E1E;color:#fff;font-weight:700;border:none;border-radius:6px;cursor:pointer">Save</button>
-      <button onclick="hideChangePw()" style="flex:1;padding:10px;background:#f0f0f0;color:#333;font-weight:700;border:none;border-radius:6px;cursor:pointer">Cancel</button>
+      <button onclick="submitChangePw()" style="flex:1;padding:9px;background:#C41E1E;color:#fff;font-weight:700;border:none;border-radius:6px;cursor:pointer">Save</button>
+      <button onclick="hideChangePw()" style="flex:1;padding:9px;background:#f0f0f0;color:#333;font-weight:700;border:none;border-radius:6px;cursor:pointer">Cancel</button>
     </div>
   </div>
 </div>
@@ -106,84 +105,54 @@ tr.drag-over td{background:#e8f0fe;border-top:2px solid var(--red)}
 <div class="container">
   <div class="drop-zone" id="drop-zone" onclick="document.getElementById('file-input').click()">
     <input type="file" id="file-input" multiple accept=".json" style="display:none">
-    <div style="font-size:28px;margin-bottom:8px">&#128190;</div>
-    <h2>Drop exported quote files here</h2>
-    <p>Click anywhere or drag and drop .json files from the TORO Quote Builder</p>
+    <div style="font-size:24px;margin-bottom:6px">&#128190;</div>
+    <div style="font-size:14px;font-weight:700;color:var(--text2);margin-bottom:4px">Drop exported quote files here</div>
+    <div style="font-size:11px;color:var(--text3)">Click or drag .json files from the TORO Quote Builder</div>
   </div>
 
   <div class="cards" id="summary-cards"></div>
-
-  <div class="action-bar" id="action-bar">
-    <span style="font-size:13px;font-weight:600;color:var(--text2)">Ready to submit to Stephen?</span>
-    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
-      <button class="btn btn-outline btn-sm" onclick="clearLocalData()" title="Clear local cache and reload from Firebase">&#8635; Reset</button>
-      <button class="btn btn-primary" onclick="exportAllPeriods()">&#128190; Export all commission reports</button>
-    </div>
-  </div>
-
-  <div id="main-content">
-    <div class="period-section"><div class="empty">Loading your data...</div></div>
-  </div>
+  <div id="main-content"><div class="section-block"><div class="empty">Loading...</div></div></div>
 </div>
 
 <script>
 const REP = 'Shannon';
-const STORAGE_KEY = 'toro_portal_shannon';
+const STORAGE_KEY = 'toro_portal_shannon_v3';
 const PW_KEY = 'toro_pw_shannon';
 const DEFAULT_PW = 'Toro#Kw9mP';
-const MAX_ATTEMPTS = 5;
-const WARN_AT = 3;
 const LOCK_KEY = 'toro_lock_shannon';
 const ATTEMPTS_KEY = 'toro_attempts_shannon';
 let quotes = [];
-let dragSrc = null;
-let _fbReady = false;
+let fbListenerActive = false;
 
 // ── Password ──────────────────────────────────────────────────────────────
-function getStoredPw() { return localStorage.getItem(PW_KEY) || DEFAULT_PW; }
-function getAttempts() { return parseInt(localStorage.getItem(ATTEMPTS_KEY)||'0'); }
-function setAttempts(n) { localStorage.setItem(ATTEMPTS_KEY, n); }
-function isLocked() { return localStorage.getItem(LOCK_KEY) === 'locked'; }
-
-function checkPw() {
-  if(isLocked()) { document.getElementById('pw-msg').textContent='Account locked. Contact your administrator.'; return; }
-  const val = document.getElementById('pw-input').value;
-  if(val === getStoredPw()) {
-    setAttempts(0);
-    document.getElementById('gate').style.display='none';
-  } else {
-    const attempts = getAttempts() + 1;
-    setAttempts(attempts);
-    const remaining = MAX_ATTEMPTS - attempts;
-    if(attempts >= MAX_ATTEMPTS) {
-      localStorage.setItem(LOCK_KEY,'locked');
-      document.getElementById('pw-msg').textContent='Account locked after 5 failed attempts.';
-      document.getElementById('pw-input').disabled=true;
-    } else if(attempts >= WARN_AT) {
-      document.getElementById('pw-msg').textContent='Incorrect. '+remaining+' attempt'+(remaining===1?'':'s')+' remaining.';
-    } else {
-      document.getElementById('pw-msg').textContent='Incorrect password. Please try again.';
-    }
-    document.getElementById('pw-input').value='';
-    document.getElementById('pw-input').focus();
+function getStoredPw(){ return localStorage.getItem(PW_KEY)||DEFAULT_PW; }
+function getAttempts(){ return parseInt(localStorage.getItem(ATTEMPTS_KEY)||'0'); }
+function setAttempts(n){ localStorage.setItem(ATTEMPTS_KEY,n); }
+function isLocked(){ return localStorage.getItem(LOCK_KEY)==='locked'; }
+function checkPw(){
+  if(isLocked()){ document.getElementById('pw-msg').textContent='Account locked. Contact your administrator.'; return; }
+  const val=document.getElementById('pw-input').value;
+  if(val===getStoredPw()){ setAttempts(0); document.getElementById('gate').style.display='none'; }
+  else{
+    const a=getAttempts()+1; setAttempts(a);
+    const rem=5-a;
+    if(a>=5){ localStorage.setItem(LOCK_KEY,'locked'); document.getElementById('pw-msg').textContent='Account locked after 5 failed attempts.'; document.getElementById('pw-input').disabled=true; }
+    else if(a>=3){ document.getElementById('pw-msg').textContent='Incorrect. '+rem+' attempt'+(rem===1?'':'s')+' remaining.'; }
+    else{ document.getElementById('pw-msg').textContent='Incorrect password. Please try again.'; }
+    document.getElementById('pw-input').value=''; document.getElementById('pw-input').focus();
   }
 }
-function showChangePw() { document.getElementById('change-pw-modal').style.display='flex'; }
-function hideChangePw() { document.getElementById('change-pw-modal').style.display='none'; }
-function submitChangePw() {
-  const current=document.getElementById('pw-current').value;
-  const newPw=document.getElementById('pw-new').value;
-  const confirm=document.getElementById('pw-confirm').value;
-  const msg=document.getElementById('change-msg');
-  if(current!==getStoredPw()) { msg.textContent='Current password is incorrect.'; return; }
-  if(newPw.length<6) { msg.textContent='New password must be at least 6 characters.'; return; }
-  if(newPw!==confirm) { msg.textContent='New passwords do not match.'; return; }
-  localStorage.setItem(PW_KEY,newPw);
-  msg.style.color='#1a7f4b';
-  msg.textContent='Password changed successfully.';
+function showChangePw(){ document.getElementById('change-pw-modal').style.display='flex'; }
+function hideChangePw(){ document.getElementById('change-pw-modal').style.display='none'; }
+function submitChangePw(){
+  const c=document.getElementById('pw-current').value,n=document.getElementById('pw-new').value,cf=document.getElementById('pw-confirm').value,m=document.getElementById('change-msg');
+  if(c!==getStoredPw()){ m.textContent='Current password incorrect.'; return; }
+  if(n.length<6){ m.textContent='Min 6 characters.'; return; }
+  if(n!==cf){ m.textContent='Passwords do not match.'; return; }
+  localStorage.setItem(PW_KEY,n); m.style.color='#1a7f4b'; m.textContent='Password changed.';
   setTimeout(hideChangePw,1500);
 }
-if(isLocked()) { document.getElementById('pw-msg').textContent='Account locked. Contact your administrator.'; document.getElementById('pw-input').disabled=true; }
+if(isLocked()){ document.getElementById('pw-msg').textContent='Account locked.'; document.getElementById('pw-input').disabled=true; }
 
 // ── Firebase ──────────────────────────────────────────────────────────────
 // ── Firebase Integration ─────────────────────────────────────────────────
@@ -262,62 +231,60 @@ function fbStopListening(path) {
   }
 }
 
+const FB_PATH='quotes/'+REP.toLowerCase();
 
-const FB_PATH = 'quotes/' + REP.toLowerCase();
-let fbListenerActive = false;
-
-async function saveToFirebase(q) {
-  const key = q.quoteNum ? q.quoteNum.replace(/[.#$\/\[\]]/g,'_') : (q._fbKey||'q_'+Date.now());
-  q._fbKey = key;
-  await fbSet(FB_PATH+'/'+key, q);
+async function fbSave(q){
+  const key=q.quoteNum?q.quoteNum.replace(/[.#$\/\[\]]/g,'_'):(q._fbKey||'q_'+Date.now());
+  q._fbKey=key;
+  await fbSet(FB_PATH+'/'+key,q);
 }
-
-async function deleteFromFirebase(q) {
-  const key = q.quoteNum ? q.quoteNum.replace(/[.#$\/\[\]]/g,'_') : q._fbKey;
+async function fbDelete(q){
+  const key=q.quoteNum?q.quoteNum.replace(/[.#$\/\[\]]/g,'_'):q._fbKey;
   if(!key) return;
-  await fbSet(FB_PATH+'/'+key, null);
+  await fbSet(FB_PATH+'/'+key,null);
 }
-
-async function loadFromFirebase() {
-  const data = await fbGet(FB_PATH);
-  // Firebase is source of truth — replace local data entirely
-  if(data) {
-    const fbQuotes = Object.values(data).filter(q=>q&&q.totalSell);
-    quotes = fbQuotes;
-  } else {
-    quotes = [];
-  }
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(quotes));
+async function loadFromFirebase(){
+  const data=await fbGet(FB_PATH);
+  quotes=data?Object.values(data).filter(q=>q&&q.totalSell):[];
+  localStorage.setItem(STORAGE_KEY,JSON.stringify(quotes));
   render();
 }
-
-function startListeners() {
+function startListeners(){
   if(fbListenerActive) return;
-  fbListenerActive = true;
-  let firstEvent = true;
-  fbListen(FB_PATH, event => {
+  fbListenerActive=true;
+  let first=true;
+  fbListen(FB_PATH,event=>{
     if(!event||!event.data) return;
-    if(firstEvent) { firstEvent=false; return; } // skip initial state, already loaded
+    if(first){ first=false; return; }
     loadFromFirebase();
   });
-  fbListen('paid', event => {
+  // Listen for approval updates from dashboard
+  fbListen('approvals',event=>{
     if(!event||!event.data||typeof event.data!=='object') return;
     let changed=false;
     Object.entries(event.data).forEach(([key,val])=>{
       if(!val) return;
-      const idx=quotes.findIndex(q=>q.quoteNum&&q.quoteNum.replace(/[.#$\/\[\]]/g,'_')===key);
-      if(idx>=0&&val.rep===REP) { quotes[idx].paid=val.paid; quotes[idx].paidDate=val.paidDate; changed=true; }
+      const idx=quotes.findIndex(q=>q._fbKey===key||q.quoteNum&&q.quoteNum.replace(/[.#$\/\[\]]/g,'_')===key);
+      if(idx>=0){
+        quotes[idx].approvalStatus=val.status;
+        quotes[idx].approvalNote=val.note||'';
+        if(val.status==='approved') quotes[idx].marginApproved=true;
+        changed=true;
+      }
     });
-    if(changed) { localStorage.setItem(STORAGE_KEY,JSON.stringify(quotes)); render(); }
+    if(changed){ localStorage.setItem(STORAGE_KEY,JSON.stringify(quotes)); render(); }
   });
-}
-
-function clearLocalData() {
-  if(!confirm('Clear local cache and reload from Firebase?')) return;
-  localStorage.removeItem(STORAGE_KEY);
-  quotes=[];
-  render();
-  loadFromFirebase();
+  // Listen for paid status from dashboard
+  fbListen('paid',event=>{
+    if(!event||!event.data||typeof event.data!=='object') return;
+    let changed=false;
+    Object.entries(event.data).forEach(([key,val])=>{
+      if(!val) return;
+      const idx=quotes.findIndex(q=>q._fbKey===key);
+      if(idx>=0&&val.rep===REP){ quotes[idx].paid=val.paid; quotes[idx].paidDate=val.paidDate; changed=true; }
+    });
+    if(changed){ localStorage.setItem(STORAGE_KEY,JSON.stringify(quotes)); render(); }
+  });
 }
 
 // ── File loading ──────────────────────────────────────────────────────────
@@ -328,378 +295,295 @@ dz.addEventListener('dragleave',()=>dz.classList.remove('over'));
 dz.addEventListener('drop',e=>{e.preventDefault();dz.classList.remove('over');loadFiles([...e.dataTransfer.files])});
 fi.addEventListener('change',()=>{loadFiles([...fi.files]);fi.value=''});
 
-function loadFiles(files) {
+function loadFiles(files){
   files.forEach(f=>{
     if(!f.name.endsWith('.json')) return;
     const r=new FileReader();
     r.onload=async e=>{
-      try {
+      try{
         const q=JSON.parse(e.target.result);
         if(!q.totalSell) return;
-        if(q.rep&&q.rep!==REP) { alert('This quote belongs to '+q.rep+', not Shannon.'); return; }
-        q.rep=REP;
-        q.loadedAt=new Date().toISOString();
+        if(q.rep&&q.rep!==REP){ alert('This quote belongs to '+q.rep+', not Shannon.'); return; }
+        q.rep=REP; q.loadedAt=new Date().toISOString();
         if(!q.adjustments) q.adjustments=[];
-        if(q.quoteNum) {
+        // Status fields
+        if(!q.statusChecks) q.statusChecks={quoteApproved:false,orderCompleted:false,paidByClient:false,readyForPayment:false};
+        if(!q.workflowStatus) q.workflowStatus='active'; // active|needsApproval|waitingApproval|submittedCommission|archived
+        // Handle re-import of a quote needing correction (reset approval)
+        if(q.quoteNum){
           const existing=quotes.findIndex(x=>x.quoteNum===q.quoteNum);
-          if(existing>=0) {
-            q.adjustments=quotes[existing].adjustments||[];
-            if(!q.paid&&quotes[existing].paid) { q.paid=quotes[existing].paid; q.paidDate=quotes[existing].paidDate; }
-            q.amended=true; q.originalSell=quotes[existing].totalSell; q.originalRepComm=quotes[existing].totalRepComm;
+          if(existing>=0){
+            const old=quotes[existing];
+            q.adjustments=old.adjustments||[];
+            q.statusChecks=old.statusChecks||q.statusChecks;
+            // Reset approval if was rejected
+            if(old.approvalStatus==='rejected'){
+              q.approvalStatus=''; q.marginApproved=false; q.workflowStatus='active';
+              await fbSet('approvals/'+q._fbKey,null); // clear old rejection
+            } else {
+              q.approvalStatus=old.approvalStatus||'';
+              q.marginApproved=old.marginApproved||false;
+            }
             quotes.splice(existing,1);
           }
         }
+        // Check if needs margin approval
+        if(q.needsApproval&&!q.marginApproved&&!q.approvalStatus){
+          q.workflowStatus='needsApproval';
+        }
         quotes.push(q);
-        await saveToFirebase(q);
+        await fbSave(q);
         localStorage.setItem(STORAGE_KEY,JSON.stringify(quotes));
         render();
-      } catch(err) { console.error('Parse error:',err); }
+      } catch(err){ console.error(err); }
     };
     r.readAsText(f);
   });
 }
 
-// ── Adjustments ───────────────────────────────────────────────────────────
-function toggleAdj(idx) {
-  const row=document.getElementById('adj_row_'+idx);
-  const panel=document.getElementById('adj_panel_'+idx);
-  if(!panel) return;
-  const show=panel.style.display==='none'||panel.style.display==='';
-  if(row) row.style.display=show?'':'none';
-  panel.style.display=show?'':'none';
-}
-
-function addAdjRow(idx) {
-  if(!quotes[idx].adjustments) quotes[idx].adjustments=[];
-  quotes[idx].adjustments.push({desc:'',amount:0,type:'cost'});
-  saveToFirebase(quotes[idx]);
+// ── Status updates ────────────────────────────────────────────────────────
+async function toggleStatus(qIdx,field){
+  if(quotes[qIdx].workflowStatus==='submittedCommission'||quotes[qIdx].workflowStatus==='archived') return;
+  if(!quotes[qIdx].statusChecks) quotes[qIdx].statusChecks={quoteApproved:false,orderCompleted:false,paidByClient:false,readyForPayment:false};
+  quotes[qIdx].statusChecks[field]=!quotes[qIdx].statusChecks[field];
+  await fbSave(quotes[qIdx]);
   localStorage.setItem(STORAGE_KEY,JSON.stringify(quotes));
   render();
-  setTimeout(()=>{
-    const row=document.getElementById('adj_row_'+idx);
-    const panel=document.getElementById('adj_panel_'+idx);
-    if(row) row.style.display='';
-    if(panel) panel.style.display='';
-    renderAdjSummary(idx);
-  },50);
 }
 
-function updateAdj(idx,adjIdx,field,val) {
-  if(!quotes[idx].adjustments) quotes[idx].adjustments=[];
-  quotes[idx].adjustments[adjIdx][field]=field==='amount'?parseFloat(val)||0:val;
-  recalcQuote(idx);
-  saveToFirebase(quotes[idx]); // fire and forget
+async function submitForApproval(qIdx){
+  quotes[qIdx].workflowStatus='waitingApproval';
+  quotes[qIdx].approvalStatus='waiting';
+  // Write to Firebase approvals path so dashboard picks it up
+  const key=quotes[qIdx]._fbKey||quotes[qIdx].quoteNum;
+  await fbSet('approvals/'+key,{
+    quoteNum:quotes[qIdx].quoteNum, quoteName:quotes[qIdx].quoteName,
+    rep:REP, status:'waiting', requestedAt:new Date().toISOString(),
+    sell:quotes[qIdx].totalSell, margin:quotes[qIdx].avgMargin,
+    commissionSplit:quotes[qIdx].commissionSplit
+  });
+  await fbSave(quotes[qIdx]);
   localStorage.setItem(STORAGE_KEY,JSON.stringify(quotes));
   render();
-  setTimeout(()=>{
-    const row=document.getElementById('adj_row_'+idx);
-    const panel=document.getElementById('adj_panel_'+idx);
-    if(row) row.style.display='';
-    if(panel) panel.style.display='';
-    renderAdjSummary(idx);
-  },50);
 }
 
-function removeAdj(idx,adjIdx) {
-  quotes[idx].adjustments.splice(adjIdx,1);
-  recalcQuote(idx);
-  saveToFirebase(quotes[idx]);
-  localStorage.setItem(STORAGE_KEY,JSON.stringify(quotes));
-  render();
-  if((quotes[idx].adjustments||[]).length) {
-    setTimeout(()=>{
-      const row=document.getElementById('adj_row_'+idx);
-      const panel=document.getElementById('adj_panel_'+idx);
-      if(row) row.style.display='';
-      if(panel) panel.style.display='';
-      renderAdjSummary(idx);
-    },50);
+async function submitForCommission(period){
+  const readyQuotes=quotes.filter(q=>q.statusChecks&&q.statusChecks.readyForPayment&&q.workflowStatus==='active'&&(q.marginApproved||!q.needsApproval));
+  if(!readyQuotes.length){ alert('No quotes ready for submission.'); return; }
+  if(!confirm('Submit '+readyQuotes.length+' quote'+(readyQuotes.length!==1?'s':'')+' for commission? They will be locked and archived.')) return;
+  const submittedAt=new Date().toISOString();
+  for(const q of readyQuotes){
+    q.workflowStatus='submittedCommission';
+    q.submittedAt=submittedAt;
+    q.locked=true;
+    await fbSave(q);
+    // Write to commissionSubmissions for dashboard
+    const key=q._fbKey||q.quoteNum;
+    await fbSet('commissionSubmissions/'+REP.toLowerCase()+'/'+key,{
+      ...q, submittedAt, rep:REP
+    });
   }
-}
-
-function recalcQuote(idx) {
-  const q=quotes[idx];
-  const adjs=q.adjustments||[];
-  let costAdj=0,sellAdj=0;
-  adjs.forEach(a=>{ if(a.type==='cost') costAdj+=a.amount||0; else sellAdj+=a.amount||0; });
-  const adjNet=(q.totalNetCost||0)+costAdj;
-  const adjSell=(q.totalSell||0)+sellAdj;
-  const adjGP=adjSell-adjNet;
-  const adjMg=adjSell>0?Math.round((1-adjNet/adjSell)*1000)/10:0;
-  const origGP=(q.totalSell||0)-(q.totalNetCost||0);
-  const repRate=origGP>0?(q.totalRepComm||0)/origGP:0;
-  q._adjNet=adjNet; q._adjSell=adjSell; q._adjGP=adjGP; q._adjMg=adjMg;
-  q._adjRepComm=adjGP>0?adjGP*repRate:0;
-  q._hasAdj=adjs.length>0;
-}
-
-function renderAdjSummary(idx) {
-  const el=document.getElementById('adj_summary_'+idx);
-  if(!el) return;
-  const q=quotes[idx];
-  const adjs=q.adjustments||[];
-  if(!adjs.length) { el.innerHTML=''; return; }
-  recalcQuote(idx);
-  el.innerHTML=`<div style="font-size:12px;color:var(--text3);margin-top:6px">
-    Adjusted sell: <strong>${fmt(q._adjSell)}</strong> &nbsp;
-    Adj margin: <strong>${pct(q._adjMg)}</strong> &nbsp;
-    Adj commission: <strong style="color:var(--brown)">${fmt(q._adjRepComm)}</strong>
-  </div>`;
-}
-
-// ── Delete ────────────────────────────────────────────────────────────────
-async function deleteQuote(idx) {
-  if(!confirm('Remove this quote?')) return;
-  const q=quotes[idx];
-  quotes.splice(idx,1);
   localStorage.setItem(STORAGE_KEY,JSON.stringify(quotes));
   render();
-  fbListenerActive=false; // pause listener during delete
-  await deleteFromFirebase(q);
-  setTimeout(()=>{ fbListenerActive=true; },2000);
 }
 
-// ── Export ────────────────────────────────────────────────────────────────
-function exportAllPeriods() {
-  const periods=[...new Set(quotes.map(q=>q.commissionReport).filter(Boolean))];
-  if(!periods.length) { alert('No quotes with commission periods loaded.'); return; }
-  periods.forEach(p=>exportPeriod(p));
-}
-
-function exportPeriod(period) {
-  const qs=quotes.filter(q=>q.commissionReport===period);
-  quotes.forEach((q,i)=>{ if(q._hasAdj) recalcQuote(i); });
-  const bundle={
-    type:'commission_bundle', rep:REP, period,
-    exportedAt:new Date().toLocaleDateString('en-US',{month:'long',day:'numeric',year:'numeric'}),
-    quotes:qs.map(q=>{
-      const hasAdj=q._hasAdj;
-      return {...q,
-        totalSell:hasAdj?q._adjSell:q.totalSell,
-        totalNetCost:hasAdj?q._adjNet:q.totalNetCost,
-        grossProfit:hasAdj?q._adjGP:q.grossProfit,
-        avgMargin:hasAdj?q._adjMg:q.avgMargin,
-        totalRepComm:hasAdj?q._adjRepComm:q.totalRepComm,
-        originalSell:q.totalSell, originalRepComm:q.totalRepComm,
-        adjustments:q.adjustments||[]
-      };
-    }),
-    totals:{
-      totalSell:qs.reduce((a,q)=>a+(q._hasAdj?q._adjSell:q.totalSell||0),0),
-      repPayout:qs.reduce((a,q)=>a+(q._hasAdj?q._adjRepComm:q.totalRepComm||0),0),
-    }
-  };
-  const fname='TORO_Commission_Shannon_'+period.replace(/[^a-z0-9]/gi,'_')+'.json';
-  const blob=new Blob([JSON.stringify(bundle,null,2)],{type:'application/json'});
+// ── Export quote back to builder ──────────────────────────────────────────
+function exportToBuilder(qIdx){
+  const q=quotes[qIdx];
+  const blob=new Blob([JSON.stringify(q,null,2)],{type:'application/json'});
   const a=document.createElement('a');
-  a.href=URL.createObjectURL(blob); a.download=fname; a.click();
+  const name='TORO_Edit_'+(q.quoteNum||'quote')+'_'+(q.quoteName||'').replace(/[^a-z0-9]/gi,'_')+'.json';
+  a.href=URL.createObjectURL(blob); a.download=name; a.click();
   URL.revokeObjectURL(a.href);
 }
 
-// ── Drag to reorder ───────────────────────────────────────────────────────
-function initDrag() {
-  document.querySelectorAll('tr.quote-row').forEach(row=>{
-    row.draggable=true;
-    row.addEventListener('dragstart',e=>{ dragSrc=row; row.classList.add('dragging'); e.dataTransfer.effectAllowed='move'; });
-    row.addEventListener('dragend',()=>{ row.classList.remove('dragging'); document.querySelectorAll('tr.quote-row').forEach(r=>r.classList.remove('drag-over')); });
-    row.addEventListener('dragover',e=>{ e.preventDefault(); if(row!==dragSrc){ document.querySelectorAll('tr.quote-row').forEach(r=>r.classList.remove('drag-over')); row.classList.add('drag-over'); } });
-    row.addEventListener('drop',e=>{
-      e.preventDefault();
-      if(dragSrc&&row!==dragSrc){
-        const si=parseInt(dragSrc.dataset.idx), ti=parseInt(row.dataset.idx);
-        const sq=quotes[si], tq=quotes[ti];
-        if(sq.commissionReport===tq.commissionReport){
-          quotes.splice(si,1);
-          const nt=quotes.findIndex(q=>q===tq);
-          quotes.splice(nt,0,sq);
-          localStorage.setItem(STORAGE_KEY,JSON.stringify(quotes));
-          render();
-        }
-      }
-    });
-  });
+// ── Export commission bundle ──────────────────────────────────────────────
+function exportBundle(){
+  const submitted=quotes.filter(q=>q.workflowStatus==='submittedCommission'||q.workflowStatus==='archived');
+  if(!submitted.length){ alert('No submitted quotes to export.'); return; }
+  const bundle={type:'commission_bundle',rep:REP,exportedAt:new Date().toLocaleString(),quotes:submitted,
+    totals:{totalSell:submitted.reduce((a,q)=>a+(q.totalSell||0),0),repPayout:submitted.reduce((a,q)=>a+(q.totalRepComm||0),0)}
+  };
+  const blob=new Blob([JSON.stringify(bundle,null,2)],{type:'application/json'});
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(blob);
+  a.download='TORO_Commission_Shannon_'+new Date().toLocaleDateString('en-US').replace(/\//g,'-')+'.json';
+  a.click(); URL.revokeObjectURL(a.href);
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────
 const fmt=v=>'$'+parseFloat(v||0).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
 const pct=v=>(Math.round((v||0)*10)/10)+'%';
 
-function paidBadge(q) {
-  if(q.paid) return `<span style="background:#e6f4ee;color:var(--green);font-size:11px;font-weight:700;padding:2px 7px;border-radius:8px">&#10003; ${q.paidDate||'Paid'}</span>`;
-  return `<span style="background:#f5f5f5;color:#888;font-size:11px;padding:2px 7px;border-radius:8px">Pending</span>`;
+function approvalBadge(q){
+  if(q.workflowStatus==='waitingApproval') return '<span class="status-badge badge-waiting">Waiting for Approval</span>';
+  if(q.approvalStatus==='approved'||q.marginApproved) return '<span class="status-badge badge-approved">Approved</span>';
+  if(q.approvalStatus==='rejected') return '<span class="status-badge badge-rejected">Rejected</span>';
+  if(q.workflowStatus==='needsApproval') return '<span class="status-badge badge-needs">Needs Approval</span>';
+  return '';
+}
+
+function statusChecksHtml(q,idx){
+  const locked=q.locked||q.workflowStatus==='submittedCommission'||q.workflowStatus==='archived';
+  const sc=q.statusChecks||{};
+  const checks=[
+    ['quoteApproved','Quote Approved'],
+    ['orderCompleted','Order Completed'],
+    ['paidByClient','Paid by Client'],
+    ['readyForPayment','Ready for Payment']
+  ];
+  return checks.map(([field,label])=>{
+    const checked=sc[field]||false;
+    const dis=locked?'disabled style="opacity:.5;cursor:not-allowed"':'style="cursor:pointer"';
+    return `<label class="status-check ${checked?'checked':''}" ${locked?'':'onclick="toggleStatus('+idx+',\''+field+'\')"'}>
+      <input type="checkbox" ${checked?'checked':''} ${locked?'disabled':''} onclick="if(!event.target.disabled)toggleStatus(${idx},\'${field}\')">
+      ${label}
+    </label>`;
+  }).join('');
+}
+
+function quoteRow(q,idx,locked){
+  const mg=q.avgMargin||0;
+  const mgC=mg<30?'mg-red':mg<35?'mg-yellow':'mg-green';
+  const name=q.quoteName||(q.quoteNum?'#'+q.quoteNum:'Unnamed');
+  return `<tr>
+    <td>
+      <div style="font-weight:700;font-size:13px">${name}${locked?'<span class="locked-badge">LOCKED</span>':''}</div>
+      ${q.quoteNum?'<div style="font-size:10px;color:var(--text3)">#'+q.quoteNum+'</div>':''}
+      ${q.ihd?'<div style="font-size:10px;color:var(--text3)">IHD: '+q.ihd+'</div>':''}
+      ${q.commissionReport?'<div style="font-size:10px;color:var(--text3)">Period: '+q.commissionReport+'</div>':''}
+      ${q.approvalStatus==='rejected'&&q.approvalNote?'<div class="rejection-note">&#9888; '+q.approvalNote+'</div>':''}
+    </td>
+    <td class="r">${fmt(q.totalNetCost)}</td>
+    <td class="r">${fmt(q.totalSell)}</td>
+    <td class="r"><span class="mg-pill ${mgC}">${pct(mg)}</span></td>
+    <td class="r" style="color:var(--brown);font-weight:700">${fmt(q.totalRepComm)}</td>
+    <td style="font-size:11px">${q.commissionSplit==='standard'?'Standard':q.commissionSplit==='ho_75_25'?'H/O 75/25':q.commissionSplit==='ho_50_50'?'H/O 50/50':q.commissionSplit==='ho_25_75'?'H/O 25/75':'Standard'}</td>
+    <td>
+      ${approvalBadge(q)}
+      ${!locked?statusChecksHtml(q,idx):''}
+    </td>
+    <td style="white-space:nowrap">
+      ${!locked&&q.workflowStatus==='needsApproval'?'<button class="btn btn-sm" style="background:var(--orange);color:#fff" onclick="submitForApproval('+idx+')">Submit for Approval</button>':''}
+      ${!locked?'<button class="btn btn-outline btn-sm" onclick="exportToBuilder('+idx+')" title="Export to Quote Builder for editing">&#9998; Edit</button>':''}
+      ${locked?'<button class="btn btn-outline btn-sm" onclick="exportToBuilder('+idx+')" title="Export for reference">&#128190; Export</button>':''}
+    </td>
+  </tr>`;
 }
 
 // ── Render ────────────────────────────────────────────────────────────────
-function render() {
+function render(){
   const status=document.getElementById('status-text');
   const cards=document.getElementById('summary-cards');
   const main=document.getElementById('main-content');
-  const bar=document.getElementById('action-bar');
 
-  quotes.forEach((q,i)=>{ if((q.adjustments||[]).length) recalcQuote(i); });
-
-  if(!quotes.length) {
+  if(!quotes.length){
     status.textContent='No quotes loaded';
     cards.innerHTML='';
-    if(bar) bar.style.display='none';
-    main.innerHTML='<div class="period-section"><div class="empty">Drop exported quotes above to get started</div></div>';
+    main.innerHTML='<div class="section-block"><div class="empty">Drop exported quotes above to get started</div></div>';
     return;
   }
 
   status.textContent=quotes.length+' quote'+(quotes.length!==1?'s':'')+' loaded';
-  if(bar) bar.style.display='flex';
 
-  const totSell=quotes.reduce((a,q)=>a+(q._hasAdj?q._adjSell:q.totalSell||0),0);
-  const totNet=quotes.reduce((a,q)=>a+(q._hasAdj?q._adjNet:q.totalNetCost||0),0);
-  const totRep=quotes.reduce((a,q)=>a+(q._hasAdj?q._adjRepComm:q.totalRepComm||0),0);
+  // Categorize
+  const needsApproval=quotes.filter((q,i)=>q.workflowStatus==='needsApproval'||q.workflowStatus==='waitingApproval'||q.approvalStatus==='rejected');
+  const readyForSub=quotes.filter((q,i)=>q.statusChecks&&q.statusChecks.readyForPayment&&q.workflowStatus==='active'&&(q.marginApproved||!q.needsApproval));
+  const active=quotes.filter((q,i)=>q.workflowStatus==='active'&&!(q.statusChecks&&q.statusChecks.readyForPayment));
+  const archived=quotes.filter((q,i)=>q.workflowStatus==='submittedCommission'||q.workflowStatus==='archived');
+
+  // Summary cards
+  const allActive=[...readyForSub,...active];
+  const totSell=allActive.reduce((a,q)=>a+(q.totalSell||0),0);
+  const totNet=allActive.reduce((a,q)=>a+(q.totalNetCost||0),0);
+  const totRep=allActive.reduce((a,q)=>a+(q.totalRepComm||0),0);
   const totGP=totSell-totNet;
   const avgMg=totSell>0?Math.round((1-totNet/totSell)*1000)/10:0;
-  const mgCl=avgMg<30?'red':avgMg<35?'':' green';
 
   cards.innerHTML=`
-    <div class="card"><div class="card-lbl">Total quotes</div><div class="card-val">${quotes.length}</div></div>
+    <div class="card"><div class="card-lbl">Active quotes</div><div class="card-val">${allActive.length}</div></div>
     <div class="card"><div class="card-lbl">Total sell</div><div class="card-val green">${fmt(totSell)}</div></div>
     <div class="card"><div class="card-lbl">Gross profit</div><div class="card-val green">${fmt(totGP)}</div></div>
-    <div class="card"><div class="card-lbl">Avg margin</div><div class="card-val ${mgCl}">${pct(avgMg)}</div></div>
+    <div class="card"><div class="card-lbl">Avg margin</div><div class="card-val ${avgMg<30?'red':avgMg<35?'orange':'green'}">${pct(avgMg)}</div></div>
     <div class="card"><div class="card-lbl">My commission</div><div class="card-val brown">${fmt(totRep)}</div></div>
+    ${needsApproval.length?'<div class="card"><div class="card-lbl">Needs attention</div><div class="card-val red">'+needsApproval.length+'</div></div>':''}
   `;
 
-  const periods={};
-  quotes.forEach((q,i)=>{
-    const p=q.commissionReport||'No period set';
-    if(!periods[p]) periods[p]=[];
-    periods[p].push({...q,_idx:i});
-  });
-
-  const monthOrder={January:0,February:1,March:2,April:3,May:4,June:5,July:6,August:7,September:8,October:9,November:10,December:11};
-  const sortedPeriods=Object.keys(periods).sort((a,b)=>{
-    if(a==='No period set') return 1;
-    if(b==='No period set') return -1;
-    const pa=a.split(' '), pb=b.split(' ');
-    const ma=monthOrder[pa[0]]??0, mb=monthOrder[pb[0]]??0;
-    return ma!==mb?ma-mb:parseInt(pa[1]||0)-parseInt(pb[1]||0);
-  });
-
+  const TH='<thead><tr><th>Project</th><th class="r">Cost</th><th class="r">Sell</th><th class="r">Margin</th><th class="r">Commission</th><th>Split</th><th>Status</th><th></th></tr></thead>';
   let html='';
-  sortedPeriods.forEach(period=>{
-    const qs=periods[period];
-    const activeQs=qs.filter(q=>!q.paid);
-    const paidQs=qs.filter(q=>q.paid);
-    const pSell=qs.reduce((a,q)=>a+(q._hasAdj?q._adjSell:q.totalSell||0),0);
-    const pNet=qs.reduce((a,q)=>a+(q._hasAdj?q._adjNet:q.totalNetCost||0),0);
-    const pRep=qs.reduce((a,q)=>a+(q._hasAdj?q._adjRepComm:q.totalRepComm||0),0);
-    const pMg=pSell>0?Math.round((1-pNet/pSell)*1000)/10:0;
-    const pMgClass=pMg<30?'mg-red':pMg<35?'mg-yellow':'mg-green';
-    const hasApproval=qs.some(q=>q.needsApproval);
 
-    html+=`<div class="period-section">
-      <div class="period-hdr">
-        <strong>&#128197; ${period} <span class="drag-hint">drag rows to reorder</span></strong>
-        <button class="btn btn-primary btn-sm" onclick="exportPeriod('${period}')">&#128190; Export commission report</button>
+  // ── Needs approval section ──────────────────────────────────────────────
+  if(needsApproval.length){
+    html+=`<div class="section-block">
+      <div class="section-hdr approval">
+        <span>&#9888; Approval Required (${needsApproval.length})</span>
       </div>
-      ${hasApproval?'<div class="approval-warn">&#9888; One or more quotes have lines below 30% margin</div>':''}
-      <table><thead><tr>
-        <th>Quote</th><th>IHD</th><th>Split</th>
-        <th class="r">Sell</th><th class="r">GP</th><th class="r">Margin</th>
-        <th class="r">My commission</th><th>Status</th><th></th>
-      </tr></thead><tbody>`;
+      <table>${TH}<tbody>`;
+    needsApproval.forEach(q=>{ const i=quotes.indexOf(q); html+=quoteRow(q,i,false); });
+    html+=`</tbody></table></div>`;
+  }
 
-    activeQs.forEach(q=>{
-      const qIdx=q._idx;
-      const sell=q._hasAdj?q._adjSell:q.totalSell||0;
-      const gp=q._hasAdj?q._adjGP:(q.grossProfit||0);
-      const mg=q._hasAdj?q._adjMg:(q.avgMargin||0);
-      const rep=q._hasAdj?q._adjRepComm:(q.totalRepComm||0);
-      const mgC=mg<30?'mg-red':mg<35?'mg-yellow':'mg-green';
-      const sl=q.commissionSplit==='standard'?'Standard':q.commissionSplit==='ho_75_25'?'H/O 75/25':q.commissionSplit==='ho_50_50'?'H/O 50/50':q.commissionSplit==='ho_25_75'?'H/O 25/75':'Standard';
-      const name=q.quoteName||(q.quoteNum?'#'+q.quoteNum:'Unnamed');
-      const badges=(q.amended?'<span class="amended-badge">AMENDED</span>':'')+(q._hasAdj?'<span class="adj-badge">ADJUSTED</span>':'');
-      const adjs=q.adjustments||[];
+  // ── Ready for submission ────────────────────────────────────────────────
+  if(readyForSub.length){
+    const subSell=readyForSub.reduce((a,q)=>a+(q.totalSell||0),0);
+    const subNet=readyForSub.reduce((a,q)=>a+(q.totalNetCost||0),0);
+    const subRep=readyForSub.reduce((a,q)=>a+(q.totalRepComm||0),0);
+    const subMg=subSell>0?Math.round((1-subNet/subSell)*1000)/10:0;
+    html+=`<div class="section-block">
+      <div class="section-hdr ready">
+        <span>&#9989; Ready for Commission Submission (${readyForSub.length})</span>
+        <button class="btn btn-sm" style="background:#fff;color:var(--green);font-weight:700" onclick="submitForCommission()">Submit for Commission</button>
+      </div>
+      <div style="padding:8px 16px;background:#e6f4ee;border-bottom:1px solid #c8e6c9;font-size:12px;display:flex;gap:20px;flex-wrap:wrap">
+        <span>Quotes: <strong>${readyForSub.length}</strong></span>
+        <span>Total sell: <strong>${fmt(subSell)}</strong></span>
+        <span>Gross profit: <strong>${fmt(subSell-subNet)}</strong></span>
+        <span>Avg margin: <strong><span class="mg-pill ${subMg<30?'mg-red':subMg<35?'mg-yellow':'mg-green'}">${pct(subMg)}</span></strong></span>
+        <span>My commission: <strong style="color:var(--brown)">${fmt(subRep)}</strong></span>
+      </div>
+      <table>${TH}<tbody>`;
+    readyForSub.forEach(q=>{ const i=quotes.indexOf(q); html+=quoteRow(q,i,false); });
+    html+=`</tbody></table></div>`;
+  }
 
-      html+=`<tr class="quote-row" draggable="true" data-idx="${qIdx}">
-        <td><strong>${name}</strong>${badges}${q.quoteNum&&q.quoteName?`<br><span style="font-size:11px;color:var(--text3)">#${q.quoteNum}</span>`:''}</td>
-        <td style="font-size:12px">${q.ihd||'N/A'}</td>
-        <td style="font-size:12px">${sl}</td>
-        <td class="r">${fmt(sell)}</td>
-        <td class="r">${fmt(gp)}</td>
-        <td class="r"><span class="mg-pill ${mgC}">${pct(mg)}</span></td>
-        <td class="r" style="color:var(--brown);font-weight:700">${fmt(rep)}</td>
-        <td>${paidBadge(q)}</td>
-        <td style="white-space:nowrap">
-          <button class="btn btn-outline btn-sm" onclick="toggleAdj(${qIdx});event.stopPropagation()">+ Adj</button>
-          <button class="del-btn" onclick="deleteQuote(${qIdx})">&#10005;</button>
-        </td>
-      </tr>
-      <tr id="adj_row_${qIdx}" style="display:${adjs.length?'':'none'}">
-        <td colspan="9" style="padding:0">
-          <div class="adj-panel" id="adj_panel_${qIdx}" style="display:${adjs.length?'':'none'}">
-            <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--text3);margin-bottom:8px">Misc adjustments</div>
-            ${adjs.map((a,ai)=>`
-            <div class="adj-row">
-              <input class="adj-input" value="${a.desc}" placeholder="Description (e.g. CC fee)" onchange="updateAdj(${qIdx},${ai},'desc',this.value)">
-              <input class="adj-input" type="number" step="0.01" value="${a.amount}" onchange="updateAdj(${qIdx},${ai},'amount',this.value)" style="text-align:right">
-              <select class="adj-input" onchange="updateAdj(${qIdx},${ai},'type',this.value)">
-                <option value="cost" ${a.type==='cost'?'selected':''}>Cost (reduces margin)</option>
-                <option value="sell" ${a.type==='sell'?'selected':''}>Sell (increases margin)</option>
-              </select>
-              <button class="del-btn" onclick="removeAdj(${qIdx},${ai})">&#10005;</button>
-            </div>`).join('')}
-            <button class="btn btn-outline btn-sm" onclick="addAdjRow(${qIdx})">+ Add line</button>
-            <div id="adj_summary_${qIdx}"></div>
-          </div>
-        </td>
-      </tr>`;
-    });
+  // ── Active quotes ───────────────────────────────────────────────────────
+  if(active.length){
+    html+=`<div class="section-block">
+      <div class="section-hdr active">
+        <span>&#128203; Active Quotes (${active.length})</span>
+      </div>
+      <table>${TH}<tbody>`;
+    active.forEach(q=>{ const i=quotes.indexOf(q); html+=quoteRow(q,i,false); });
+    html+=`</tbody></table></div>`;
+  }
 
-    html+=`</tbody></table>`;
+  // ── Archive ─────────────────────────────────────────────────────────────
+  if(archived.length){
+    const arcSell=archived.reduce((a,q)=>a+(q.totalSell||0),0);
+    const arcRep=archived.reduce((a,q)=>a+(q.totalRepComm||0),0);
+    html+=`<div class="section-block">
+      <details>
+        <summary style="background:var(--bg);font-weight:700;color:var(--text3)">
+          &#128229; Archived / Submitted (${archived.length}) &nbsp;
+          <span style="font-weight:400;font-size:11px">Total sell: ${fmt(arcSell)} | Commission: ${fmt(arcRep)}</span>
+          <button class="btn btn-outline btn-sm" style="margin-left:12px;font-size:10px" onclick="event.preventDefault();exportBundle()">&#128190; Export bundle</button>
+        </summary>
+        <table>${TH}<tbody>`;
+    archived.forEach(q=>{ const i=quotes.indexOf(q); html+=quoteRow(q,i,true); });
+    html+=`</tbody></table></details></div>`;
+  }
 
-    // Archived (paid) section
-    if(paidQs.length) {
-      html+=`<details class="archived-section">
-        <summary>&#128229; ${paidQs.length} paid quote${paidQs.length!==1?'s':''} (archived)</summary>
-        <table style="opacity:.7"><tbody>`;
-      paidQs.forEach(q=>{
-        const sell=q._hasAdj?q._adjSell:q.totalSell||0;
-        const rep=q._hasAdj?q._adjRepComm:(q.totalRepComm||0);
-        const name=q.quoteName||(q.quoteNum?'#'+q.quoteNum:'Unnamed');
-        html+=`<tr style="background:#f0faf4">
-          <td><strong>${name}</strong></td>
-          <td style="font-size:12px">${q.ihd||'N/A'}</td>
-          <td class="r">${fmt(sell)}</td>
-          <td class="r" style="color:var(--brown)">${fmt(rep)}</td>
-          <td><span style="color:var(--green);font-size:11px;font-weight:700">&#10003; ${q.paidDate||'Paid'}</span></td>
-        </tr>`;
-      });
-      html+=`</tbody></table></details>`;
-    }
-
-    html+=`<div class="period-totals">
-      <span>Period totals</span>
-      <span>Sell: <strong>${fmt(pSell)}</strong></span>
-      <span>GP: <strong>${fmt(pSell-pNet)}</strong></span>
-      <span>Margin: <strong><span class="mg-pill ${pMgClass}">${pct(pMg)}</span></strong></span>
-      <span>My commission: <strong style="color:var(--brown)">${fmt(pRep)}</strong></span>
-    </div></div>`;
-  });
-
+  if(!html) html='<div class="section-block"><div class="empty">Drop exported quotes above to get started</div></div>';
   main.innerHTML=html;
-  initDrag();
-  quotes.forEach((q,i)=>{ if((q.adjustments||[]).length) renderAdjSummary(i); });
-  quotes.forEach((q,i)=>{
-    if((q.adjustments||[]).length) {
-      const r=document.getElementById('adj_row_'+i);
-      if(r) r.style.display='';
-    }
-  });
 }
 
 // ── Init ──────────────────────────────────────────────────────────────────
-async function init() {
-  // Load from Firebase as source of truth
+async function init(){
+  localStorage.removeItem('toro_portal_shannon'); // clear old v1/v2 data
+  localStorage.removeItem('toro_portal_shannon_v2');
   await loadFromFirebase();
   startListeners();
 }
-
 init();
 </script>
 </body>
