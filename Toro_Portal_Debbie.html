@@ -182,6 +182,15 @@
 
 
 
+
+function clearLocalData(){
+  if(!confirm('Clear all local data? This will reload from Firebase.')) return;
+  localStorage.removeItem(STORAGE_KEY);
+  quotes = [];
+  render();
+  load(); // reload from Firebase
+}
+
 </script>
 
 
@@ -797,6 +806,15 @@ load();
 
 
 
+
+
+function clearLocalData(){
+  if(!confirm('Clear all local data? This will reload from Firebase.')) return;
+  localStorage.removeItem(STORAGE_KEY);
+  quotes = [];
+  render();
+  load(); // reload from Firebase
+}
 
 </script>
 </body>
