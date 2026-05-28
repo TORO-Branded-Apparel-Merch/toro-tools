@@ -368,11 +368,26 @@ let quotes = [];
 let dragSrc = null;
 
 async function load(){
+  // Start with localStorage as quick initial render
   try{ quotes = JSON.parse(localStorage.getItem(STORAGE_KEY)||'[]'); }
   catch(e){ quotes = []; }
   render();
-  // Load latest from Firebase and start real-time listeners
-  await loadFromFirebase();
+  // Firebase is source of truth — fully replace local data with Firebase data
+  const firebaseData = await fbGet(FB_PATH);
+  if (firebaseData) {
+    const fbQuotes = Object.values(firebaseData).filter(q => q && q.totalSell);
+    if (fbQuotes.length) {
+      // Firebase has data — use it as the definitive list
+      quotes = fbQuotes;
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(quotes));
+      render();
+    }
+  } else {
+    // Firebase is empty — clear localStorage too so old data doesn't persist
+    quotes = [];
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(quotes));
+    render();
+  }
   startFirebaseListener();
   startPaidListener();
 }
