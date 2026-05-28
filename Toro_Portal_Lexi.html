@@ -695,7 +695,9 @@ function render() {
 
 // ── Init ──────────────────────────────────────────────────────────────────
 async function init() {
-  // Load from Firebase as source of truth
+  // Force clear any stale local data — Firebase is source of truth
+  localStorage.removeItem(STORAGE_KEY);
+  quotes = [];
   await loadFromFirebase();
   startListeners();
 }
