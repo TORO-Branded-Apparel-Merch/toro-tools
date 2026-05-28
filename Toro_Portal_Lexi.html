@@ -308,14 +308,23 @@ async function loadFromFirebase() {
   const data = await fbGet(FB_PATH);
   if (!data) return;
   const incoming = Object.values(data).filter(Boolean);
+  if (!incoming.length) return; // Nothing in Firebase yet
+  let changed = false;
   incoming.forEach(q => {
     if (!q.totalSell) return;
     const idx = quotes.findIndex(x => x.quoteNum && x.quoteNum === q.quoteNum);
-    if (idx >= 0) quotes[idx] = q;
-    else quotes.push(q);
+    if (idx >= 0) {
+      quotes[idx] = q;
+      changed = true;
+    } else {
+      quotes.push(q);
+      changed = true;
+    }
   });
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(quotes));
-  render();
+  if (changed) {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(quotes));
+    render();
+  }
 }
 
 function startFirebaseListener() {
