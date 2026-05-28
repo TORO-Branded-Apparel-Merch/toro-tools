@@ -1,0 +1,529 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Toro Amy Commission Portal</title>
+<style>
+  :root{{
+    --red:#C41E1E;--red-light:#fff0f0;--green:#1a7f4b;--bg:#F7F7F8;
+    --surface:#fff;--border:#E2E3E6;--border2:#ccc;
+    --text:#1a1a1f;--text2:#444;--text3:#888;--brown:#7B3F00;
+    --radius:10px;--radius-sm:6px;
+  }}
+  *{{box-sizing:border-box;margin:0;padding:0}}
+  body{{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:var(--bg);color:var(--text);min-height:100vh}}
+  .topbar{{background:#1a1a2e;border-bottom:3px solid var(--red);padding:14px 28px;display:flex;align-items:center;justify-content:space-between}}
+  .topbar h1{{color:#fff;font-size:17px;font-weight:700}}
+  .rep-badge{{background:var(--red);color:#fff;font-size:12px;font-weight:700;padding:3px 10px;border-radius:10px;margin-left:12px}}
+  .sub{{color:#888;font-size:12px}}
+  .container{{max-width:1100px;margin:0 auto;padding:24px}}
+  .drop-zone{{border:2px dashed var(--border2);border-radius:var(--radius);padding:28px;text-align:center;cursor:pointer;transition:all .2s;background:var(--surface);margin-bottom:20px}}
+  .drop-zone:hover,.drop-zone.over{{border-color:var(--red);background:var(--red-light)}}
+  .drop-zone h2{{font-size:15px;color:var(--text2);margin-bottom:4px}}
+  .drop-zone p{{font-size:12px;color:var(--text3)}}
+  .cards{{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;margin-bottom:20px}}
+  .card{{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:14px 16px}}
+  .card-lbl{{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--text3);margin-bottom:5px}}
+  .card-val{{font-size:22px;font-weight:700}}
+  .green{{color:var(--green)}}.brown{{color:var(--brown)}}.red{{color:var(--red)}}
+  .period-section{{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);margin-bottom:16px;overflow:hidden}}
+  .period-hdr{{padding:11px 16px;background:#f0f4ff;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between}}
+  .period-hdr strong{{font-size:13px;color:#1a1a6e;display:flex;align-items:center;gap:6px}}
+  .drag-hint{{font-size:10px;color:#888;font-weight:400}}
+  table{{width:100%;border-collapse:collapse;font-size:13px}}
+  th{{padding:7px 14px;text-align:left;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--text3);border-bottom:1px solid var(--border);background:var(--bg)}}
+  th.r,td.r{{text-align:right}}
+  td{{padding:9px 14px;border-bottom:1px solid #f5f5f5;vertical-align:middle}}
+  tr.quote-row{{cursor:grab;transition:background .1s}}
+  tr.quote-row:hover td{{background:#fafafa}}
+  tr.quote-row.dragging{{opacity:.4;cursor:grabbing}}
+  tr.quote-row.drag-over td{{background:#e8f0fe;border-top:2px solid var(--red)}}
+  .mg-pill{{display:inline-block;padding:2px 7px;border-radius:8px;font-size:11px;font-weight:700}}
+  .mg-green{{background:#e6f4ee;color:var(--green)}}
+  .mg-yellow{{background:#FFF8E1;color:#7A4F00}}
+  .mg-red{{background:#FFEBEB;color:var(--red)}}
+  .btn{{padding:6px 12px;font-size:12px;font-weight:700;border-radius:6px;cursor:pointer;border:none;transition:all .15s}}
+  .btn-primary{{background:var(--red);color:#fff}}.btn-primary:hover{{background:#a51818}}
+  .btn-outline{{background:#fff;border:1px solid var(--border2);color:var(--text2)}}.btn-outline:hover{{border-color:var(--red);color:var(--red)}}
+  .btn-sm{{padding:3px 8px;font-size:11px}}
+  .empty{{padding:32px;text-align:center;color:var(--text3);font-size:13px}}
+  .amended-badge{{font-size:10px;background:#fff3cd;color:#7a5500;padding:1px 6px;border-radius:6px;font-weight:700;margin-left:4px}}
+  .adj-badge{{font-size:10px;background:#e8f4fd;color:#1a6ec7;padding:1px 6px;border-radius:6px;font-weight:700;margin-left:4px}}
+  .approval-warn{{background:#FFEBEB;border:1px solid #E24B4A;border-radius:6px;padding:8px 12px;font-size:12px;font-weight:600;color:#A32D2D;margin:10px 16px}}
+  .period-totals{{display:flex;gap:20px;padding:8px 16px;background:#f8f8f8;border-top:1px solid var(--border);font-size:12px;flex-wrap:wrap}}
+  .del-btn{{background:none;border:none;cursor:pointer;color:#ccc;font-size:13px;padding:2px 4px}}.del-btn:hover{{color:var(--red)}}
+  .adj-panel{{background:#f8fbff;border-top:1px solid var(--border);padding:12px 16px}}
+  .adj-row{{display:grid;grid-template-columns:1fr 100px 110px auto;gap:8px;align-items:center;margin-bottom:6px}}
+  .adj-input{{padding:5px 8px;font-size:12px;border:1px solid var(--border2);border-radius:4px;width:100%}}
+  .adj-total{{font-size:12px;color:var(--text3);margin-top:6px}}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div style="display:flex;align-items:center">
+    <h1>Toro Commission Portal</h1>
+    <span class="rep-badge">Amy</span>
+  </div>
+  <span class="sub" id="status-text">Loading...</span>
+</div>
+
+<div class="container">
+  <div class="drop-zone" id="drop-zone" onclick="document.getElementById('file-input').click()">
+    <input type="file" id="file-input" multiple accept=".json">
+    <h2>Drop exported quote files here</h2>
+    <p>Export from the Toro Quote Builder, then drag here to track commissions</p>
+  </div>
+  <div id="summary-cards" class="cards"></div>
+  <div id="main-content"></div>
+</div>
+
+<script>
+const REP = 'Amy';
+const STORAGE_KEY = 'toro_portal_amy';
+let quotes = [];
+let dragSrc = null;
+
+function load(){
+  try{ quotes = JSON.parse(localStorage.getItem(STORAGE_KEY)||'[]'); }
+  catch(e){ quotes = []; }
+  render();
+}
+
+function save(){
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(quotes));
+  // GOOGLE SHEETS STUB: await writeToSheet(quotes);
+}
+
+// ── File loading ─────────────────────────────────────────────────────────
+const dz = document.getElementById('drop-zone');
+const fi = document.getElementById('file-input');
+dz.addEventListener('dragover', e=>{e.preventDefault();dz.classList.add('over')});
+dz.addEventListener('dragleave', ()=>dz.classList.remove('over'));
+dz.addEventListener('drop', e=>{e.preventDefault();dz.classList.remove('over');loadFiles([...e.dataTransfer.files])});
+fi.addEventListener('change', ()=>{loadFiles([...fi.files]);fi.value=''});
+
+function loadFiles(files){
+  files.forEach(f=>{
+    if(!f.name.endsWith('.json')) return;
+    const r = new FileReader();
+    r.onload = e=>{
+      try{
+        const q = JSON.parse(e.target.result);
+        if(!q.totalSell) return;
+        if(q.rep && q.rep !== REP){
+          alert('This quote belongs to ' + q.rep + ', not Amy.');
+          return;
+        }
+        q.rep = REP;
+        q.loadedAt = new Date().toISOString();
+        if(!q.adjustments) q.adjustments = [];
+        if(q.quoteNum){
+          const existing = quotes.findIndex(x=>x.quoteNum===q.quoteNum);
+          if(existing>=0){
+            // Preserve adjustments from existing quote
+            q.adjustments = quotes[existing].adjustments || [];
+            q.amended = true;
+            q.originalSell = quotes[existing].totalSell;
+            q.originalRepComm = quotes[existing].totalRepComm;
+            quotes.splice(existing,1);
+          }
+        }
+        quotes.push(q);
+        save();
+        render();
+      }catch(e){ console.error(e); }
+    };
+    r.readAsText(f);
+  });
+}
+
+function deleteQuote(idx){
+  if(!confirm('Remove this quote?')) return;
+  quotes.splice(idx,1);
+  save(); render();
+}
+
+// ── Adjustments ──────────────────────────────────────────────────────────
+function toggleAdj(idx){
+  const panel = document.getElementById('adj_panel_'+idx);
+  if(panel) panel.style.display = panel.style.display==='none'?'':'none';
+}
+
+function addAdjRow(idx){
+  const q = quotes[idx];
+  if(!q.adjustments) q.adjustments=[];
+  q.adjustments.push({desc:'',amount:0,type:'cost'});
+  save(); render();
+  // Reopen the panel
+  setTimeout(()=>{
+    const panel=document.getElementById('adj_panel_'+idx);
+    if(panel) panel.style.display='';
+  },50);
+}
+
+function updateAdj(idx, adjIdx, field, val){
+  if(!quotes[idx].adjustments) quotes[idx].adjustments=[];
+  if(!quotes[idx].adjustments[adjIdx]) quotes[idx].adjustments[adjIdx]={desc:'',amount:0,type:'cost'};
+  quotes[idx].adjustments[adjIdx][field] = field==='amount'?parseFloat(val)||0:val;
+  // Recalc commission for this quote
+  recalcQuote(idx);
+  save(); renderAdjSummary(idx);
+}
+
+function removeAdj(idx, adjIdx){
+  quotes[idx].adjustments.splice(adjIdx,1);
+  recalcQuote(idx);
+  writeQuoteToSheet(quotes[idx]);
+  save(); render();
+}
+
+function recalcQuote(idx){
+  const q = quotes[idx];
+  const adjs = q.adjustments||[];
+  let costAdj=0, sellAdj=0;
+  adjs.forEach(a=>{
+    if(a.type==='cost') costAdj+=a.amount||0;
+    else sellAdj+=a.amount||0;
+  });
+  // Adjusted figures
+  const adjNet = (q.totalNetCost||0) + costAdj;
+  const adjSell = (q.totalSell||0) + sellAdj;
+  const adjGP = adjSell - adjNet;
+  const adjMg = adjSell>0?Math.round((1-adjNet/adjSell)*1000)/10:0;
+  // Recalc rep commission at same split rate
+  const origGP = (q.totalSell||0)-(q.totalNetCost||0);
+  const repRate = origGP>0?(q.totalRepComm||0)/origGP:0;
+  q._adjNet = adjNet;
+  q._adjSell = adjSell;
+  q._adjGP = adjGP;
+  q._adjMg = adjMg;
+  q._adjRepComm = adjGP>0?adjGP*repRate:0;
+  q._hasAdj = adjs.length>0;
+}
+
+function renderAdjSummary(idx){
+  const el = document.getElementById('adj_summary_'+idx);
+  if(!el) return;
+  const q=quotes[idx];
+  const adjs=q.adjustments||[];
+  if(!adjs.length){el.innerHTML='';return;}
+  recalcQuote(idx);
+  el.innerHTML=`<div class="adj-total">
+    Adjusted sell: <strong>${fmt(q._adjSell)}</strong> &nbsp;·&nbsp;
+    Adj margin: <strong>${pct(q._adjMg)}</strong> &nbsp;·&nbsp;
+    Adj commission: <strong style="color:var(--brown)">${fmt(q._adjRepComm)}</strong>
+  </div>`;
+}
+
+// ── Export ────────────────────────────────────────────────────────────────
+function exportPeriod(period){
+  const qs = quotes.filter(q=>q.commissionReport===period);
+  qs.forEach(q=>{ if(q._hasAdj) recalcQuote(quotes.indexOf(q)); });
+  const bundle = {
+    type:'commission_bundle', rep:REP, period, 
+    exportedAt:new Date().toLocaleDateString('en-US',{month:'long',day:'numeric',year:'numeric'}),
+    quotes: qs.map(q=>{
+      const hasAdj=q._hasAdj;
+      return {
+        ...q,
+        totalSell: hasAdj?q._adjSell:q.totalSell,
+        totalNetCost: hasAdj?q._adjNet:q.totalNetCost,
+        grossProfit: hasAdj?q._adjGP:q.grossProfit,
+        avgMargin: hasAdj?q._adjMg:q.avgMargin,
+        totalRepComm: hasAdj?q._adjRepComm:q.totalRepComm,
+        originalSell: q.totalSell,
+        originalRepComm: q.totalRepComm,
+        adjustments: q.adjustments||[]
+      };
+    }),
+    totals:{
+      totalSell: qs.reduce((a,q)=>a+(q._hasAdj?q._adjSell:q.totalSell||0),0),
+      grossProfit: qs.reduce((a,q)=>a+(q._hasAdj?q._adjGP:q.grossProfit||0),0),
+      repPayout: qs.reduce((a,q)=>a+(q._hasAdj?q._adjRepComm:q.totalRepComm||0),0),
+    }
+  };
+  const fname='Toro_Commission_Amy_'+period.replace(/[^a-z0-9]/gi,'_')+'.json';
+  const blob=new Blob([JSON.stringify(bundle,null,2)],{type:'application/json'});
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(blob); a.download=fname; a.click();
+  URL.revokeObjectURL(a.href);
+}
+
+// ── Drag and drop reordering ──────────────────────────────────────────────
+function initDrag(){
+  document.querySelectorAll('tr.quote-row').forEach(row=>{
+    row.addEventListener('dragstart', e=>{
+      dragSrc=row;
+      row.classList.add('dragging');
+      e.dataTransfer.effectAllowed='move';
+    });
+    row.addEventListener('dragend', ()=>{
+      row.classList.remove('dragging');
+      document.querySelectorAll('tr.quote-row').forEach(r=>r.classList.remove('drag-over'));
+    });
+    row.addEventListener('dragover', e=>{
+      e.preventDefault();
+      if(row!==dragSrc){
+        document.querySelectorAll('tr.quote-row').forEach(r=>r.classList.remove('drag-over'));
+        row.classList.add('drag-over');
+      }
+    });
+    row.addEventListener('drop', e=>{
+      e.preventDefault();
+      if(dragSrc && row!==dragSrc){
+        const srcIdx=parseInt(dragSrc.dataset.idx);
+        const tgtIdx=parseInt(row.dataset.idx);
+        // Reorder within same period
+        const srcQ=quotes[srcIdx];
+        const tgtQ=quotes[tgtIdx];
+        if(srcQ.commissionReport===tgtQ.commissionReport){
+          quotes.splice(srcIdx,1);
+          const newTgt=quotes.findIndex(q=>q===tgtQ);
+          quotes.splice(newTgt,0,srcQ);
+          save(); render();
+        }
+      }
+    });
+  });
+}
+
+// ── Render ────────────────────────────────────────────────────────────────
+const fmt=v=>'$'+parseFloat(v||0).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
+const pct=v=>(Math.round((v||0)*10)/10)+'%';
+
+function render(){
+  const status=document.getElementById('status-text');
+  const cards=document.getElementById('summary-cards');
+  const main=document.getElementById('main-content');
+
+  // Recalc all adjusted quotes
+  quotes.forEach((q,i)=>{ if((q.adjustments||[]).length) recalcQuote(i); });
+
+  if(!quotes.length){
+    status.textContent='No quotes loaded';
+    cards.innerHTML='';
+    main.innerHTML='<div class="period-section"><div class="empty">Drop exported quotes above to get started</div></div>';
+    return;
+  }
+
+  status.textContent=quotes.length+' quote'+(quotes.length!==1?'s':'')+' loaded';
+
+  // Summary cards using adjusted values where applicable
+  const totSell=quotes.reduce((a,q)=>a+(q._hasAdj?q._adjSell:q.totalSell||0),0);
+  const totNet=quotes.reduce((a,q)=>a+(q._hasAdj?q._adjNet:q.totalNetCost||0),0);
+  const totRep=quotes.reduce((a,q)=>a+(q._hasAdj?q._adjRepComm:q.totalRepComm||0),0);
+  const totGP=totSell-totNet;
+  const avgMg=totSell>0?Math.round((1-totNet/totSell)*1000)/10:0;
+  const mgClass=avgMg<30?'red':avgMg<35?'':' green';
+
+  cards.innerHTML=`
+    <div class="card"><div class="card-lbl">Total quotes</div><div class="card-val">${quotes.length}</div></div>
+    <div class="card"><div class="card-lbl">Total sell</div><div class="card-val green">${fmt(totSell)}</div></div>
+    <div class="card"><div class="card-lbl">Gross profit</div><div class="card-val green">${fmt(totGP)}</div></div>
+    <div class="card"><div class="card-lbl">Avg margin</div><div class="card-val ${mgClass}">${pct(avgMg)}</div></div>
+    <div class="card"><div class="card-lbl">My commission</div><div class="card-val brown">${fmt(totRep)}</div></div>
+  `;
+
+  // Group and auto-sort by commission period date
+  const periods={};
+  quotes.forEach((q,i)=>{
+    const p=q.commissionReport||'No period set';
+    if(!periods[p]) periods[p]=[];
+    periods[p].push({...q,_idx:i});
+  });
+
+  // Sort periods chronologically
+  const sortedPeriods=Object.keys(periods).sort((a,b)=>{
+    const parseDate=s=>{
+      if(s==='No period set') return new Date('9999-12-31');
+      const months={January:0,February:1,March:2,April:3,May:4,June:5,
+        July:6,August:7,September:8,October:9,November:10,December:11};
+      const parts=s.split(' ');
+      if(parts.length>=2){
+        const m=months[parts[0]];
+        const d=parseInt(parts[1]);
+        const y=parts[2]?parseInt(parts[2]):2026;
+        if(m!==undefined) return new Date(y,m,d);
+      }
+      return new Date(s);
+    };
+    return parseDate(a)-parseDate(b);
+  });
+
+  let html='';
+  sortedPeriods.forEach(period=>{
+    const qs=periods[period];
+    const pSell=qs.reduce((a,q)=>a+(q._hasAdj?q._adjSell:q.totalSell||0),0);
+    const pNet=qs.reduce((a,q)=>a+(q._hasAdj?q._adjNet:q.totalNetCost||0),0);
+    const pRep=qs.reduce((a,q)=>a+(q._hasAdj?q._adjRepComm:q.totalRepComm||0),0);
+    const pMg=pSell>0?Math.round((1-pNet/pSell)*1000)/10:0;
+    const pMgClass=pMg<30?'mg-red':pMg<35?'mg-yellow':'mg-green';
+    const hasApproval=qs.some(q=>q.needsApproval);
+
+    html+=`<div class="period-section">
+      <div class="period-hdr">
+        <strong>&#128197; ${period} <span class="drag-hint">· drag rows to reorder</span></strong>
+        <button class="btn btn-primary btn-sm" onclick="exportPeriod('${period}')">&#128190; Export commission report</button>
+      </div>
+      ${hasApproval?`<div class="approval-warn">&#9888; One or more quotes have lines below 30% margin</div>`:''}
+      <table><thead><tr>
+        <th>Quote</th><th>IHD</th><th>Split</th>
+        <th class="r">Sell</th><th class="r">GP</th><th class="r">Margin</th>
+        <th class="r">My commission</th><th></th>
+      </tr></thead><tbody>`;
+
+    qs.forEach(q=>{
+      const qIdx=q._idx;
+      const sell=q._hasAdj?q._adjSell:q.totalSell||0;
+      const gp=q._hasAdj?q._adjGP:(q.grossProfit||0);
+      const mg=q._hasAdj?q._adjMg:(q.avgMargin||0);
+      const rep=q._hasAdj?q._adjRepComm:(q.totalRepComm||0);
+      const mgC=mg<30?'mg-red':mg<35?'mg-yellow':'mg-green';
+      const splitLabel=q.commissionSplit==='standard'?'Standard':
+        q.commissionSplit==='ho_75_25'?'H/O 75/25':
+        q.commissionSplit==='ho_50_50'?'H/O 50/50':
+        q.commissionSplit==='ho_25_75'?'H/O 25/75':'Standard';
+      const name=q.quoteName||(q.quoteNum?'#'+q.quoteNum:'Unnamed');
+      const badges=(q.amended?`<span class="amended-badge">AMENDED</span>`:'')+
+                   (q._hasAdj?`<span class="adj-badge">ADJUSTED</span>`:'');
+      const adjs=q.adjustments||[];
+      const hasPanel=adjs.length>0;
+
+      html+=`<tr class="quote-row" draggable="true" data-idx="${qIdx}">
+        <td><strong>${name}</strong>${badges}${q.quoteNum&&q.quoteName?`<br><span style="font-size:11px;color:var(--text3)">#${q.quoteNum}</span>`:''}</td>
+        <td style="font-size:12px">${q.ihd||'N/A'}</td>
+        <td style="font-size:12px">${splitLabel}</td>
+        <td class="r">${fmt(sell)}</td>
+        <td class="r">${fmt(gp)}</td>
+        <td class="r"><span class="mg-pill ${mgC}">${pct(mg)}</span></td>
+        <td class="r" style="color:var(--brown);font-weight:700">${fmt(rep)}</td>
+        <td style="white-space:nowrap">
+          <button class="btn btn-outline btn-sm" onclick="toggleAdj(${qIdx});event.stopPropagation()" title="Adjustments">&#43; Adj</button>
+          <button class="del-btn" onclick="deleteQuote(${qIdx})" title="Remove">&#10005;</button>
+        </td>
+      </tr>
+      <tr id="adj_row_${qIdx}" style="display:${hasPanel?'':'none'}">
+        <td colspan="8" style="padding:0">
+          <div class="adj-panel" id="adj_panel_${qIdx}" style="display:${hasPanel?'':'none'}">
+            <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--text3);margin-bottom:8px">Misc adjustments</div>
+            ${adjs.map((a,ai)=>`
+            <div class="adj-row">
+              <input class="adj-input" value="${a.desc}" placeholder="Description (e.g. CC fee, reprint)" onchange="updateAdj(${qIdx},${ai},'desc',this.value)">
+              <input class="adj-input" type="number" step="0.01" value="${a.amount}" onchange="updateAdj(${qIdx},${ai},'amount',this.value)" style="text-align:right">
+              <select class="adj-input" onchange="updateAdj(${qIdx},${ai},'type',this.value)">
+                <option value="cost" ${a.type==='cost'?'selected':''}>Cost (reduces margin)</option>
+                <option value="sell" ${a.type==='sell'?'selected':''}>Sell (increases margin)</option>
+              </select>
+              <button class="del-btn" onclick="removeAdj(${qIdx},${ai})">&#10005;</button>
+            </div>`).join('')}
+            <button class="btn btn-outline btn-sm" onclick="addAdjRow(${qIdx})">&#43; Add line</button>
+            <div id="adj_summary_${qIdx}"></div>
+          </div>
+        </td>
+      </tr>`;
+    });
+
+    const pGP=pSell-pNet;
+    html+=`</tbody></table>
+      <div class="period-totals">
+        <span>Period totals &nbsp;</span>
+        <span>Sell: <strong>${fmt(pSell)}</strong></span>
+        <span>GP: <strong>${fmt(pGP)}</strong></span>
+        <span>Margin: <strong><span class="mg-pill ${pMgClass}">${pct(pMg)}</span></strong></span>
+        <span>My commission: <strong style="color:var(--brown)">${fmt(pRep)}</strong></span>
+      </div>
+    </div>`;
+  });
+
+  main.innerHTML=html;
+  
+  // Init drag-drop and adj summaries
+  initDrag();
+  quotes.forEach((q,i)=>{ if((q.adjustments||[]).length) renderAdjSummary(i); });
+  // Show adj rows that have panels
+  quotes.forEach((q,i)=>{
+    if((q.adjustments||[]).length){
+      const r=document.getElementById('adj_row_'+i);
+      if(r) r.style.display='';
+    }
+  });
+}
+
+load();
+
+// ── Google Sheets Integration ────────────────────────────────────────────
+// Replace these two values after completing the Google Cloud setup:
+const SHEETS_API_KEY    = 'YOUR_API_KEY_HERE';
+const SPREADSHEET_ID    = 'YOUR_SPREADSHEET_ID_HERE';
+
+function sheetsConfigured() {
+  return SHEETS_API_KEY !== 'YOUR_API_KEY_HERE' && SPREADSHEET_ID !== 'YOUR_SPREADSHEET_ID_HERE';
+}
+
+async function writeQuoteToSheet(q) {
+  if (!sheetsConfigured()) return; // silently skip until configured
+  const row = [
+    q.quoteNum || '',
+    q.quoteName || '',
+    q.rep || '',
+    q.ihd || '',
+    q.commissionReport || '',
+    q.commissionSplit || 'standard',
+    q.hasAM ? 'Yes' : 'No',
+    q._hasAdj ? (q._adjSell || 0) : (q.totalSell || 0),
+    q._hasAdj ? (q._adjNet || 0) : (q.totalNetCost || 0),
+    q._hasAdj ? (q._adjGP || 0) : (q.grossProfit || 0),
+    q._hasAdj ? (q._adjMg || 0) : (q.avgMargin || 0),
+    q._hasAdj ? (q._adjRepComm || 0) : (q.totalRepComm || 0),
+    q._hasAdj ? (q._adjSell - q._adjRepComm || 0) : (q.totalHouseProfit || 0),
+    q.totalAM || 0,
+    q.amended ? 'Yes' : 'No',
+    (q.adjustments || []).length > 0 ? 'Yes' : 'No',
+    new Date().toLocaleString()
+  ];
+
+  const repName = q.rep || REP;
+  const range = encodeURIComponent(`${repName}!A:A`);
+
+  try {
+    // 1. Find existing row by quote number (column A)
+    const findUrl = `https://sheets.googleapis.com/v4/spreadsheets/${SPREADSHEET_ID}/values/${range}?key=${SHEETS_API_KEY}`;
+    const findRes = await fetch(findUrl);
+    const findData = await findRes.json();
+    const values = findData.values || [];
+    let targetRow = null;
+    if (q.quoteNum) {
+      for (let i = 1; i < values.length; i++) {
+        if (values[i][0] === q.quoteNum) { targetRow = i + 1; break; }
+      }
+    }
+
+    const writeRange = targetRow
+      ? encodeURIComponent(`${repName}!A${targetRow}:Q${targetRow}`)
+      : encodeURIComponent(`${repName}!A${values.length + 1}:Q${values.length + 1}`);
+
+    const writeUrl = `https://sheets.googleapis.com/v4/spreadsheets/${SPREADSHEET_ID}/values/${writeRange}?valueInputOption=USER_ENTERED&key=${SHEETS_API_KEY}`;
+    await fetch(writeUrl, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ values: [row] })
+    });
+  } catch(e) {
+    console.warn('Sheets write failed (will retry on next save):', e.message);
+  }
+}
+
+async function writeAllQuotesToSheet() {
+  if (!sheetsConfigured()) return;
+  for (const q of quotes) {
+    if ((q.adjustments || []).length) recalcQuote(quotes.indexOf(q));
+    await writeQuoteToSheet(q);
+    await new Promise(r => setTimeout(r, 150)); // rate limit
+  }
+}
+
+</script>
+</body>
+</html>
