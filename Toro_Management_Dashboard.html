@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Toro — Management Dashboard</title>
+<title>TORO Management Dashboard</title>
 <style>
   :root{
     --red:#C41E1E;--green:#1a7f4b;--bg:#F7F7F8;--surface:#fff;
@@ -37,6 +37,7 @@
   td{padding:9px 14px;border-bottom:1px solid #f5f5f5;vertical-align:middle}
   tr:last-child td{border-bottom:none}
   tr:hover td{background:#fafafa}
+  tr.paid-row td{background:#f0faf4;color:#888;}
   .mg-pill{display:inline-block;padding:2px 7px;border-radius:8px;font-size:11px;font-weight:700}
   .mg-green{background:#e6f4ee;color:var(--green)}
   .mg-yellow{background:#FFF8E1;color:#7A4F00}
@@ -56,142 +57,77 @@
   .tab-panel{display:none}
   .tab-panel.active{display:block}
 </style>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js">
+function exportPaidUpdates(){
+  const paidQuotes = quotes.filter(q=>q.paid && q.paidDate);
+  if(!paidQuotes.length){ alert('No paid quotes to export.'); return; }
+  
+  // Group by rep and create one bundle per rep
+  const byRep = {};
+  paidQuotes.forEach(q=>{
+    if(!byRep[q.rep]) byRep[q.rep]=[];
+    byRep[q.rep].push({
+      quoteNum: q.quoteNum,
+      quoteName: q.quoteName,
+      rep: q.rep,
+      paid: true,
+      paidDate: q.paidDate,
+      // Include full quote data so portal can match and update
+      totalSell: q.totalSell,
+      totalNetCost: q.totalNetCost,
+      grossProfit: q.grossProfit,
+      avgMargin: q.avgMargin,
+      totalRepComm: q.totalRepComm,
+      totalHouseProfit: q.totalHouseProfit,
+      totalAM: q.totalAM,
+      commissionReport: q.commissionReport,
+      ihd: q.ihd,
+      commissionSplit: q.commissionSplit,
+      hasAM: q.hasAM,
+      adjustments: q.adjustments||[]
+    });
+  });
+
+  Object.entries(byRep).forEach(([rep, qs])=>{
+    const bundle = {
+      type: 'commission_bundle',
+      subtype: 'paid_update',
+      rep,
+      exportedAt: new Date().toLocaleString(),
+      quotes: qs,
+      totals: { repPayout: qs.reduce((a,q)=>a+(q.totalRepComm||0),0) }
+    };
+    const blob = new Blob([JSON.stringify(bundle,null,2)],{type:'application/json'});
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'TORO_PaidUpdate_'+rep+'_'+new Date().toLocaleDateString('en-US').replace(/\//g,'-')+'.json';
+    a.click();
+    URL.revokeObjectURL(a.href);
+  });
+}
+
+
+
+
+</script>
 </head>
 <body>
-<!-- Password gate -->
-<div id="gate" style="position:fixed;inset:0;background:#1a1a2e;display:flex;align-items:center;justify-content:center;z-index:9999">
-  <div style="background:#fff;border-radius:12px;padding:40px 48px;max-width:380px;width:90%;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,.4)">
-    <div style="font-size:32px;margin-bottom:12px">&#128274;</div>
-    <div style="font-size:22px;font-weight:700;color:#1a1a2e;margin-bottom:4px">Toro</div>
-    <div style="font-size:14px;color:#888;margin-bottom:28px">Management Dashboard</div>
-    <input id="pw-input" type="password" placeholder="Enter password"
-      style="width:100%;padding:11px 14px;font-size:15px;border:2px solid #e2e3e6;border-radius:8px;margin-bottom:12px;box-sizing:border-box;outline:none"
-      onkeydown="if(event.key==='Enter')checkPw()"
-      onfocus="this.style.borderColor='#C41E1E'" onblur="this.style.borderColor='#e2e3e6'">
-    <div id="pw-msg" style="font-size:13px;color:#C41E1E;min-height:18px;margin-bottom:12px"></div>
-    <button onclick="checkPw()"
-      style="width:100%;padding:11px;background:#C41E1E;color:#fff;font-size:15px;font-weight:700;border:none;border-radius:8px;cursor:pointer">
-      Unlock
-    </button>
-    <div style="margin-top:20px;border-top:1px solid #f0f0f0;padding-top:16px">
-      <a href="#" onclick="showChangePw();return false" style="font-size:12px;color:#888;text-decoration:none">Change my password</a>
-    </div>
-  </div>
-</div>
-
-<!-- Change password modal -->
-<div id="change-pw-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);display:none;align-items:center;justify-content:center;z-index:10000">
-  <div style="background:#fff;border-radius:12px;padding:32px 40px;max-width:360px;width:90%">
-    <div style="font-size:18px;font-weight:700;margin-bottom:20px">Change password</div>
-    <input id="pw-current" type="password" placeholder="Current password"
-      style="width:100%;padding:10px 12px;font-size:14px;border:1px solid #ccc;border-radius:6px;margin-bottom:10px;box-sizing:border-box">
-    <input id="pw-new" type="password" placeholder="New password (min 6 characters)"
-      style="width:100%;padding:10px 12px;font-size:14px;border:1px solid #ccc;border-radius:6px;margin-bottom:10px;box-sizing:border-box">
-    <input id="pw-confirm" type="password" placeholder="Confirm new password"
-      style="width:100%;padding:10px 12px;font-size:14px;border:1px solid #ccc;border-radius:6px;margin-bottom:10px;box-sizing:border-box">
-    <div id="change-msg" style="font-size:12px;color:#C41E1E;min-height:16px;margin-bottom:10px"></div>
-    <div style="display:flex;gap:8px">
-      <button onclick="submitChangePw()"
-        style="flex:1;padding:10px;background:#C41E1E;color:#fff;font-weight:700;border:none;border-radius:6px;cursor:pointer">Save</button>
-      <button onclick="hideChangePw()"
-        style="flex:1;padding:10px;background:#f0f0f0;color:#333;font-weight:700;border:none;border-radius:6px;cursor:pointer">Cancel</button>
-    </div>
-  </div>
-</div>
-
-<script>
-(function(){
-  const PW_KEY = 'toro_pw_management';
-  const DEFAULT_PW = 'Toro#Mv3kG';
-  const MAX_ATTEMPTS = 5;
-  const WARN_AT = 3;
-  const LOCK_KEY = 'toro_lock_management';
-  const ATTEMPTS_KEY = 'toro_attempts_management';
-
-  function getStoredPw(){ return localStorage.getItem(PW_KEY) || DEFAULT_PW; }
-  function getAttempts(){ return parseInt(localStorage.getItem(ATTEMPTS_KEY)||'0'); }
-  function setAttempts(n){ localStorage.setItem(ATTEMPTS_KEY, n); }
-  function isLocked(){ return localStorage.getItem(LOCK_KEY) === 'locked'; }
-
-  function checkPw(){
-    if(isLocked()){
-      document.getElementById('pw-msg').textContent = 'Account locked after 5 failed attempts. Contact your administrator to reset.';
-      return;
-    }
-    const val = document.getElementById('pw-input').value;
-    if(val === getStoredPw()){
-      setAttempts(0);
-      document.getElementById('gate').style.display = 'none';
-    } else {
-      const attempts = getAttempts() + 1;
-      setAttempts(attempts);
-      const remaining = MAX_ATTEMPTS - attempts;
-      if(attempts >= MAX_ATTEMPTS){
-        localStorage.setItem(LOCK_KEY, 'locked');
-        document.getElementById('pw-msg').textContent = 'Account locked after 5 failed attempts. Contact your administrator to reset.';
-        document.getElementById('pw-input').disabled = true;
-      } else if(attempts >= WARN_AT){
-        document.getElementById('pw-msg').textContent = 'Incorrect password. ' + remaining + ' attempt' + (remaining===1?'':'s') + ' remaining before lockout.';
-      } else {
-        document.getElementById('pw-msg').textContent = 'Incorrect password. Please try again.';
-      }
-      document.getElementById('pw-input').value = '';
-      document.getElementById('pw-input').focus();
-    }
-  }
-
-  function showChangePw(){
-    document.getElementById('change-pw-modal').style.display = 'flex';
-    document.getElementById('pw-current').value = '';
-    document.getElementById('pw-new').value = '';
-    document.getElementById('pw-confirm').value = '';
-    document.getElementById('change-msg').textContent = '';
-  }
-  function hideChangePw(){
-    document.getElementById('change-pw-modal').style.display = 'none';
-  }
-  function submitChangePw(){
-    const current = document.getElementById('pw-current').value;
-    const newPw = document.getElementById('pw-new').value;
-    const confirm = document.getElementById('pw-confirm').value;
-    const msg = document.getElementById('change-msg');
-    if(current !== getStoredPw()){ msg.textContent='Current password is incorrect.'; return; }
-    if(newPw.length < 6){ msg.textContent='New password must be at least 6 characters.'; return; }
-    if(newPw !== confirm){ msg.textContent='New passwords do not match.'; return; }
-    localStorage.setItem(PW_KEY, newPw);
-    msg.style.color = '#1a7f4b';
-    msg.textContent = 'Password changed successfully.';
-    setTimeout(hideChangePw, 1500);
-  }
-
-  // Expose functions globally
-  window.checkPw = checkPw;
-  window.showChangePw = showChangePw;
-  window.hideChangePw = hideChangePw;
-  window.submitChangePw = submitChangePw;
-
-  // Check lock state on load
-  if(isLocked()){
-    document.getElementById('pw-msg').textContent = 'Account locked after 5 failed attempts. Contact your administrator to reset.';
-    document.getElementById('pw-input').disabled = true;
-  }
-})();
-</script>
-
 
 <div class="topbar">
-  <h1>&#9733; Toro — Management Dashboard</h1>
+  <h1>&#9733; Toro Management Dashboard</h1>
   <span id="last-updated">No data loaded</span>
 </div>
 
 <div class="container">
 
-  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
-    <p style="font-size:13px;color:#666">Drop individual quote exports or commission bundles, or sync live from Google Sheets.</p>
-    <button id="sync-btn" onclick="loadFromSheets()" style="padding:8px 16px;background:#1a1a2e;color:#fff;border:none;border-radius:6px;font-size:13px;font-weight:700;cursor:pointer">Sync from Sheets</button>
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;flex-wrap:wrap;gap:8px">
+    <p style="font-size:13px;color:#666">Drop individual quote exports or commission bundles below.</p>
+    <button onclick="downloadExcel()" id="dl-btn" style="padding:8px 14px;background:#1a7f4b;color:#fff;border:none;border-radius:6px;font-size:13px;font-weight:700;cursor:pointer">&#128229; Download Excel</button>
+      <button onclick="exportPaidUpdates()" style="padding:8px 14px;background:#1a4a8a;color:#fff;border:none;border-radius:6px;font-size:13px;font-weight:700;cursor:pointer" title="Export paid status for reps to import">&#10003; Export paid updates</button>
   </div>
+
   <div class="drop-zone" id="drop-zone" onclick="document.getElementById('file-input').click()">
-    <input type="file" id="file-input" multiple accept=".json">
+    <input type="file" id="file-input" multiple accept=".json" style="display:none">
     <h2>Drop exported quote files here</h2>
     <p>Drop individual quote exports OR commission bundle files from rep portals</p>
   </div>
@@ -199,7 +135,6 @@
   <div id="summary-cards" class="cards" style="display:none"></div>
 
   <div id="main-content" style="display:none">
-
     <div class="section">
       <div class="tabs" id="tabs">
         <div class="tab active" data-tab="by-rep">By rep</div>
@@ -208,17 +143,14 @@
         <div class="tab" data-tab="approval">Needs approval</div>
       </div>
 
-      <!-- By Rep -->
       <div class="tab-panel active" id="panel-by-rep">
         <div id="rep-table-wrap"></div>
       </div>
 
-      <!-- By Period -->
       <div class="tab-panel" id="panel-by-period">
         <div id="period-table-wrap"></div>
       </div>
 
-      <!-- All Quotes -->
       <div class="tab-panel" id="panel-all-quotes">
         <div class="filter-row">
           <select class="filter" id="filter-rep" onchange="renderAll()">
@@ -233,7 +165,6 @@
         <div id="quotes-table-wrap"></div>
       </div>
 
-      <!-- Needs Approval -->
       <div class="tab-panel" id="panel-approval">
         <div id="approval-table-wrap"></div>
       </div>
@@ -267,20 +198,30 @@ function loadFiles(files){
     const r=new FileReader();
     r.onload=e=>{
       try{
-        const q=JSON.parse(e.target.result);
-        if(!q.rep||!q.totalSell) return;
-        // Deduplicate by quoteNum if present
-        if(q.quoteNum){
-          quotes=quotes.filter(x=>x.quoteNum!==q.quoteNum);
-        }
-        quotes.push(q);
-        loaded++;
-      }catch(e){}
+        const data=JSON.parse(e.target.result);
+        // Handle commission bundle from rep portal
+        const incoming=data.type==='commission_bundle'?data.quotes:[data];
+        incoming.forEach(q=>{
+          if(!q.totalSell) return;
+          // Tag bundle source
+          if(data.type==='commission_bundle'){
+            q._bundle=true;
+            q._bundleRep=data.rep;
+            q._bundlePeriod=data.period;
+            q._bundleExportedAt=data.exportedAt;
+          }
+          // Deduplicate by quoteNum
+          if(q.quoteNum){
+            quotes=quotes.filter(x=>x.quoteNum!==q.quoteNum);
+          }
+          quotes.push(q);
+          loaded++;
+        });
+      }catch(err){ console.error('Parse error:', err); }
       if(loaded>0){
         localStorage.setItem('toro_quotes',JSON.stringify(quotes));
         render();
-if(sheetsConfigured()) loadFromSheets();
-      }
+              }
     };
     r.readAsText(f);
   });
@@ -291,7 +232,6 @@ function clearData(){
   quotes=[];
   localStorage.removeItem('toro_quotes');
   render();
-if(sheetsConfigured()) loadFromSheets();
 }
 
 function clearFilters(){
@@ -400,15 +340,25 @@ function renderByPeriod(periods){
   let html=`<table><thead><tr>
     <th>Commission report date</th><th class="r">Quotes</th><th class="r">Total sell</th>
     <th class="r">Gross profit</th><th class="r">Avg margin</th><th class="r">Rep payouts</th>
+    <th class="r">Paid</th><th></th>
   </tr></thead><tbody>`;
   periods.forEach(per=>{
     const qs=quotes.filter(q=>q.commissionReport===per);
+    const paidQs=qs.filter(q=>q.paid);
+    const allPaid=qs.length>0&&paidQs.length===qs.length;
+    const somePaid=paidQs.length>0&&!allPaid;
     const sell=qs.reduce((a,q)=>a+(q.totalSell||0),0);
     const net=qs.reduce((a,q)=>a+(q.totalNetCost||0),0);
     const gp=qs.reduce((a,q)=>a+(q.grossProfit||0),0);
     const rc=qs.reduce((a,q)=>a+(q.totalRepComm||0),0);
     const mg=sell>0?Math.round((1-net/sell)*1000)/10:0;
     const mgClass=mg<30?'mg-red':mg<35?'mg-yellow':'mg-green';
+    const paidBadge=allPaid
+      ?'<span style="background:#e6f4ee;color:#1a7f4b;font-size:11px;font-weight:700;padding:2px 8px;border-radius:8px">&#10003; All paid</span>'
+      :somePaid
+      ?'<span style="background:#fff3cd;color:#7a5500;font-size:11px;font-weight:700;padding:2px 8px;border-radius:8px">'+paidQs.length+'/'+qs.length+' paid</span>'
+      :'<span style="background:#f5f5f5;color:#888;font-size:11px;padding:2px 8px;border-radius:8px">Unpaid</span>';
+        const markAllBtn = allPaid ? '' : markAllPaidBtn(per);
     html+=`<tr>
       <td><strong style="color:var(--red)">&#128197; ${per}</strong></td>
       <td class="r">${qs.length}</td>
@@ -416,6 +366,8 @@ function renderByPeriod(periods){
       <td class="r">${fmt(gp)}</td>
       <td class="r"><span class="mg-pill ${mgClass}">${pct(mg)}</span></td>
       <td class="r" style="color:var(--brown);font-weight:700">${fmt(rc)}</td>
+      <td class="r">${paidBadge}</td>
+      <td>${markAllBtn}</td>
     </tr>`;
   });
   html+=`</tbody></table>`;
@@ -433,24 +385,25 @@ function renderAll(){
   let html=`<table><thead><tr>
     <th>Quote</th><th>Rep</th><th>Source</th><th>IHD</th><th>Commission report</th>
     <th class="r">Net cost</th><th class="r">Sell</th><th class="r">Margin</th>
-    <th class="r">GP</th><th class="r">Rep payout</th><th></th>
+    <th class="r">GP</th><th class="r">Rep payout</th><th>Paid</th><th></th>
   </tr></thead><tbody>`;
   qs.sort((a,b)=>(a.commissionReport||'').localeCompare(b.commissionReport||'')).forEach(q=>{
     const mg=q.avgMargin||0;
     const mgClass=mg<30?'mg-red':mg<35?'mg-yellow':'mg-green';
     const name=q.quoteName||(q.quoteNum?'Quote #'+q.quoteNum:'Unnamed');
-    html+=`<tr>
+    html+=`<tr class='${q.paid?"paid-row":""}'>
       <td><strong>${name}</strong>${q.quoteNum?`<br><span style="font-size:11px;color:var(--text3)">#${q.quoteNum}</span>`:''}</td>
-      <td>${q.rep||'—'}</td>
+      <td>${q.rep||'N/A'}</td>
       <td style="font-size:11px">${q._bundle?`<span style="background:#e8f0fe;color:#1a6ec7;padding:1px 6px;border-radius:6px;font-weight:700">Bundle</span>`:'<span style="color:var(--text3)">Direct</span>'}</td>
-      <td style="font-size:12px">${q.ihd||'—'}</td>
-      <td style="font-size:12px;color:var(--red)">${q.commissionReport||'—'}</td>
+      <td style="font-size:12px">${q.ihd||'N/A'}</td>
+      <td style="font-size:12px;color:var(--red)">${q.commissionReport||'N/A'}</td>
       <td class="r">${fmt(q.totalNetCost)}</td>
       <td class="r">${fmt(q.totalSell)}</td>
       <td class="r"><span class="mg-pill ${mgClass}">${pct(mg)}</span></td>
       <td class="r">${fmt(q.grossProfit)}</td>
       <td class="r" style="color:var(--brown);font-weight:700">${fmt(q.totalRepComm)}</td>
       <td>${q.needsApproval?'<span class="approval-flag">&#9888; Approval</span>':''}</td>
+      <td style="white-space:nowrap">${paidCell(q)}</td>
     </tr>`;
   });
   html+=`</tbody></table>`;
@@ -470,9 +423,9 @@ function renderApproval(){
     const lowLines=(q.lines||[]).filter(l=>l.margin<30).map(l=>`${l.name} (${pct(l.margin)})`).join(', ');
     html+=`<tr>
       <td><strong>${q.quoteName||q.quoteNum||'Unnamed'}</strong></td>
-      <td>${q.rep||'—'}</td>
-      <td>${q.ihd||'—'}</td>
-      <td style="color:var(--red)">${q.commissionReport||'—'}</td>
+      <td>${q.rep||'N/A'}</td>
+      <td>${q.ihd||'N/A'}</td>
+      <td style="color:var(--red)">${q.commissionReport||'N/A'}</td>
       <td class="r">${fmt(q.totalSell)}</td>
       <td class="r"><span class="mg-pill mg-red">${pct(q.avgMargin)}</span></td>
       <td style="font-size:12px;color:var(--text3)">${lowLines}</td>
@@ -482,66 +435,364 @@ function renderApproval(){
   wrap.innerHTML=html;
 }
 
-// Init
-render();
-if(sheetsConfigured()) loadFromSheets();
+// ── Firebase Integration ─────────────────────────────────────────────────
+// Uses Firebase Realtime Database for real-time sync across all devices
+const FIREBASE_DB_URL = "https://toro-commission-318b4-default-rtdb.firebaseio.com";
 
-// ── Google Sheets Integration ────────────────────────────────────────────
-const SHEETS_API_KEY = 'YOUR_API_KEY_HERE';
-const SPREADSHEET_ID = 'YOUR_SPREADSHEET_ID_HERE';
-const REPS_LIST = ['Shannon','Stephen','Julia','Lexi','Amy','Debbie'];
-
-function sheetsConfigured(){
-  return SHEETS_API_KEY!=='YOUR_API_KEY_HERE' && SPREADSHEET_ID!=='YOUR_SPREADSHEET_ID_HERE';
+// Firebase REST API helpers — no SDK needed, works in plain HTML
+async function fbGet(path) {
+  try {
+    const res = await fetch(`${FIREBASE_DB_URL}/${path}.json`);
+    if (!res.ok) return null;
+    return await res.json();
+  } catch(e) { console.warn('Firebase read failed:', e.message); return null; }
 }
 
-async function loadFromSheets(){
-  if(!sheetsConfigured()) return;
-  const btn = document.getElementById('sync-btn');
-  if(btn){ btn.textContent='Syncing...'; btn.disabled=true; }
-  try{
-    let allQuotes = [];
-    for(const rep of REPS_LIST){
-      const range = encodeURIComponent(`${rep}!A2:Q1000`);
-      const url = `https://sheets.googleapis.com/v4/spreadsheets/${SPREADSHEET_ID}/values/${range}?key=${SHEETS_API_KEY}`;
-      const res = await fetch(url);
-      const data = await res.json();
-      const rows = data.values || [];
-      rows.forEach(r => {
-        if(!r[0] && !r[1]) return; // skip empty rows
-        allQuotes.push({
-          quoteNum: r[0]||'', quoteName: r[1]||'', rep: r[2]||rep,
-          ihd: r[3]||'', commissionReport: r[4]||'',
-          commissionSplit: r[5]||'standard', hasAM: r[6]==='Yes',
-          totalSell: parseFloat(r[7])||0, totalNetCost: parseFloat(r[8])||0,
-          grossProfit: parseFloat(r[9])||0, avgMargin: parseFloat(r[10])||0,
-          totalRepComm: parseFloat(r[11])||0, totalHouseProfit: parseFloat(r[12])||0,
-          totalAM: parseFloat(r[13])||0,
-          amended: r[14]==='Yes', _hasAdj: r[15]==='Yes',
-          _source: 'sheets'
-        });
-      });
-    }
-    // Merge: sheets data takes priority over locally loaded files
-    // Keep any locally loaded quotes not in sheets (no quoteNum match)
-    const sheetNums = new Set(allQuotes.map(q=>q.quoteNum).filter(Boolean));
-    const localOnly = quotes.filter(q=>q._source!=='sheets'&&(!q.quoteNum||!sheetNums.has(q.quoteNum)));
-    quotes = [...allQuotes, ...localOnly];
-    localStorage.setItem('toro_quotes', JSON.stringify(quotes));
-    document.getElementById('last-updated').textContent =
-      quotes.length+' quotes loaded from Sheets';
-    render();
-if(sheetsConfigured()) loadFromSheets();
-  } catch(e){
-    console.error('Sheets read failed:', e);
-    document.getElementById('last-updated').textContent = 'Sync failed — check API key';
-  } finally {
-    if(btn){ btn.textContent='Sync from Sheets'; btn.disabled=false; }
+async function fbSet(path, data) {
+  try {
+    const res = await fetch(`${FIREBASE_DB_URL}/${path}.json`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data)
+    });
+    return res.ok;
+  } catch(e) { console.warn('Firebase write failed:', e.message); return false; }
+}
+
+async function fbPatch(path, data) {
+  try {
+    const res = await fetch(`${FIREBASE_DB_URL}/${path}.json`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data)
+    });
+    return res.ok;
+  } catch(e) { console.warn('Firebase patch failed:', e.message); return false; }
+}
+
+// Long-polling for real-time updates (SSE/EventSource)
+let fbListeners = {};
+function fbListen(path, callback) {
+  // Stop any existing listener on this path
+  if (fbListeners[path]) {
+    fbListeners[path].close();
+  }
+  try {
+    const es = new EventSource(
+      `${FIREBASE_DB_URL}/${path}.json`
+    );
+    es.addEventListener('put', e => {
+      try { callback(JSON.parse(e.data)); } catch(err) {}
+    });
+    es.addEventListener('patch', e => {
+      try { callback(JSON.parse(e.data)); } catch(err) {}
+    });
+    es.onerror = () => {
+      // Reconnect after 5 seconds on error
+      setTimeout(() => fbListen(path, callback), 5000);
+    };
+    fbListeners[path] = es;
+  } catch(e) {
+    console.warn('Firebase listener failed:', e.message);
+    // Fallback: poll every 10 seconds
+    fbListeners[path] = { close: () => {} };
+    setInterval(async () => {
+      const data = await fbGet(path);
+      if (data) callback({ data });
+    }, 10000);
   }
 }
 
-// Auto-sync every 60 seconds when configured
-if(sheetsConfigured()) setInterval(loadFromSheets, 60000);
+function fbStopListening(path) {
+  if (fbListeners[path]) {
+    fbListeners[path].close();
+    delete fbListeners[path];
+  }
+}
+
+
+// ── Firebase sync for dashboard ──────────────────────────────────────────
+async function loadAllFromFirebase() {
+  const btn = document.getElementById('sync-btn');
+  if(btn){ btn.textContent='Syncing...'; btn.disabled=true; }
+  try {
+    const REPS_FB = ['Shannon','Stephen','Julia','Lexi','Amy','Debbie'];
+    let allQuotes = [];
+    for (const rep of REPS_FB) {
+      const data = await fbGet('quotes/' + rep.toLowerCase());
+      if (!data) continue;
+      Object.values(data).filter(Boolean).forEach(q => {
+        if (!q.totalSell) return;
+        allQuotes.push(q);
+      });
+    }
+    const paidData = await fbGet('paid');
+    if (paidData) {
+      allQuotes.forEach(q => {
+        const key = q.quoteNum ? q.quoteNum.replace(/[.#$\/\[\]]/g, '_') : null;
+        if (key && paidData[key]) {
+          q.paid = paidData[key].paid;
+          q.paidDate = paidData[key].paidDate;
+        }
+      });
+    }
+    if (allQuotes.length) {
+      quotes = allQuotes;
+      localStorage.setItem('toro_quotes', JSON.stringify(quotes));
+      document.getElementById('last-updated').textContent =
+        quotes.length + ' quotes synced';
+      render();
+    }
+  } catch(e) { console.error('Firebase sync failed:', e); }
+  finally { if(btn){ btn.textContent='Sync from Firebase'; btn.disabled=false; } }
+}
+
+async function writePaidToFirebase(quoteNum, rep, paidDate) {
+  if (!quoteNum) return;
+  const key = quoteNum.replace(/[.#$\/\[\]]/g, '_');
+  await fbSet('paid/' + key, { quoteNum, rep, paid: !!paidDate, paidDate: paidDate||'' });
+  await fbPatch('quotes/' + rep.toLowerCase() + '/' + key, { paid: !!paidDate, paidDate: paidDate||'' });
+}
+
+function startDashboardListener() {
+  fbListen('quotes', () => { loadAllFromFirebase(); });
+  fbListen('paid', event => {
+    if (!event || !event.data || typeof event.data !== 'object') return;
+    let changed = false;
+    Object.entries(event.data).forEach(([key, val]) => {
+      if (!val) return;
+      const qIdx = quotes.findIndex(q => q.quoteNum && q.quoteNum.replace(/[.#$\/\[\]]/g, '_') === key);
+      if (qIdx >= 0) { quotes[qIdx].paid = val.paid; quotes[qIdx].paidDate = val.paidDate; changed = true; }
+    });
+    if (changed) { localStorage.setItem('toro_quotes', JSON.stringify(quotes)); render(); }
+  });
+}
+
+// Init
+render();
+loadAllFromFirebase();
+startDashboardListener();
+
+
+// ── Paid status ───────────────────────────────────────────────────────────
+async function markPaid(quoteNum, rep, paidDate){
+  // Update in local quotes array
+  const q = quotes.find(x=>x.quoteNum===quoteNum && x.rep===rep);
+  if(q){
+    q.paidDate = paidDate;
+    q.paid = !!paidDate;
+    localStorage.setItem('toro_quotes', JSON.stringify(quotes));
+  }
+
+  render();
+}
+
+function promptPaid(quoteNum, rep, currentDate){
+  const d = prompt('Enter paid date (e.g. May 31):', currentDate||'');
+  if(d===null) return; // cancelled
+  markPaid(quoteNum, rep, d.trim());
+}
+
+function clearPaid(quoteNum, rep){
+  if(!confirm('Mark this quote as unpaid?')) return;
+  markPaid(quoteNum, rep, '');
+}
+
+
+function paidCell(q){
+  if(q.paid){
+    return '<span style="background:#e6f4ee;color:#1a7f4b;padding:2px 8px;border-radius:8px;font-size:11px;font-weight:700;cursor:pointer" onclick="clearPaid(\''+q.quoteNum+'\',\''+q.rep+'\')" title="Click to mark unpaid">&#10003; '+(q.paidDate||'Paid')+'</span>';
+  }
+  return '<button onclick="promptPaid(\''+q.quoteNum+'\',\''+q.rep+'\',\''+( q.paidDate||'')+'\')" style="font-size:11px;padding:2px 8px;border:1px solid #ccc;border-radius:6px;background:#fff;cursor:pointer;color:#888">Mark paid</button>';
+}
+
+
+async function markAllPaid(period){
+  const d = prompt('Enter paid date for all quotes in ' + period + ':', '');
+  if(d === null) return;
+  const date = d.trim();
+  if(!date){ alert('Please enter a date.'); return; }
+  const qs = quotes.filter(q=>q.commissionReport===period && !q.paid);
+  if(!qs.length){ alert('All quotes in this period are already marked paid.'); return; }
+  for(const q of qs){
+    await markPaid(q.quoteNum, q.rep, date);
+  }
+}
+
+
+function markAllPaidBtn(per){
+  return '<button onclick="markAllPaid(this.dataset.per)" data-per="'+per+'" style="font-size:11px;padding:3px 10px;border:1px solid #ccc;border-radius:6px;background:#fff;cursor:pointer;color:#444;white-space:nowrap">Mark all paid</button>';
+}
+
+
+function downloadExcel(){
+  if(!quotes.length){ alert('No data loaded yet.'); return; }
+  const btn = document.getElementById('dl-btn');
+  if(btn){ btn.textContent='Building...'; btn.disabled=true; }
+
+  try{
+    const wb = XLSX.utils.book_new();
+    const REPS = ['Shannon','Stephen','Julia','Lexi','Amy','Debbie'];
+    const HEADERS = ['Quote #','Quote Name','Rep','IHD','Commission Period',
+      'Commission Split','Has AM','Total Sell','Net Cost','Gross Profit',
+      'Avg Margin %','Rep Payout','House Profit','AM Payout',
+      'Amended','Has Adjustments','Last Updated','Paid Date','Paid'];
+
+    // Summary sheet
+    const summaryData = [
+      ['TORO Commission Summary'],
+      ['Generated: ' + new Date().toLocaleString()],
+      [],
+      ['Rep','Quotes','Total Sell','Gross Profit','Avg Margin %','Rep Payout','House Profit','AM Payout']
+    ];
+    REPS.forEach(rep => {
+      const qs = quotes.filter(q=>q.rep===rep);
+      if(!qs.length) return;
+      const sell = qs.reduce((a,q)=>a+(q.totalSell||0),0);
+      const net  = qs.reduce((a,q)=>a+(q.totalNetCost||0),0);
+      const gp   = qs.reduce((a,q)=>a+(q.grossProfit||0),0);
+      const rc   = qs.reduce((a,q)=>a+(q.totalRepComm||0),0);
+      const hp   = qs.reduce((a,q)=>a+(q.totalHouseProfit||0),0);
+      const am   = qs.reduce((a,q)=>a+(q.totalAM||0),0);
+      const mg   = sell>0?Math.round((1-net/sell)*1000)/10:0;
+      summaryData.push([rep, qs.length, sell, gp, mg/100, rc, hp, am]);
+    });
+    // Totals row
+    const allSell = quotes.reduce((a,q)=>a+(q.totalSell||0),0);
+    const allNet  = quotes.reduce((a,q)=>a+(q.totalNetCost||0),0);
+    const allGP   = quotes.reduce((a,q)=>a+(q.grossProfit||0),0);
+    const allRC   = quotes.reduce((a,q)=>a+(q.totalRepComm||0),0);
+    const allHP   = quotes.reduce((a,q)=>a+(q.totalHouseProfit||0),0);
+    const allAM   = quotes.reduce((a,q)=>a+(q.totalAM||0),0);
+    const allMg   = allSell>0?Math.round((1-allNet/allSell)*1000)/10:0;
+    summaryData.push(['TOTAL', quotes.length, allSell, allGP, allMg/100, allRC, allHP, allAM]);
+
+    const wsSummary = XLSX.utils.aoa_to_sheet(summaryData);
+    // Format currency and percent columns
+    const fmtCurrency = '"$"#,##0.00';
+    const fmtPct = '0.0%';
+    for(let r=4; r<=summaryData.length; r++){
+      ['C','D','F','G','H'].forEach(col => {
+        const cell = wsSummary[col+r];
+        if(cell) cell.z = fmtCurrency;
+      });
+      const pctCell = wsSummary['E'+r];
+      if(pctCell) pctCell.z = fmtPct;
+    }
+    wsSummary['!cols'] = [{wch:14},{wch:10},{wch:14},{wch:14},{wch:12},{wch:14},{wch:14},{wch:12}];
+    XLSX.utils.book_append_sheet(wb, wsSummary, 'Summary');
+
+    // One sheet per rep with all their quotes
+    REPS.forEach(rep => {
+      const qs = quotes.filter(q=>q.rep===rep);
+      if(!qs.length) return;
+      const rows = [HEADERS];
+      qs.sort((a,b)=>(a.commissionReport||'').localeCompare(b.commissionReport||'')).forEach(q=>{
+        rows.push([
+          q.quoteNum||'', q.quoteName||'', q.rep||'', q.ihd||'', q.commissionReport||'',
+          q.commissionSplit||'standard', q.hasAM?'Yes':'No',
+          q.totalSell||0, q.totalNetCost||0, q.grossProfit||0,
+          (q.avgMargin||0)/100,
+          q.totalRepComm||0, q.totalHouseProfit||0, q.totalAM||0,
+          q.amended?'Yes':'No', (q.adjustments||[]).length>0?'Yes':'No',
+          q.loadedAt ? new Date(q.loadedAt).toLocaleString() : '',
+          q.paidDate||'', q.paid?'Yes':'No'
+        ]);
+      });
+      const ws = XLSX.utils.aoa_to_sheet(rows);
+      // Format columns
+      for(let r=2; r<=rows.length; r++){
+        ['H','I','J','L','M','N'].forEach(col=>{ const c=ws[col+r]; if(c) c.z='"$"#,##0.00'; });
+        const pc=ws['K'+r]; if(pc) pc.z='0.0%';
+      }
+      ws['!cols']=[{wch:10},{wch:22},{wch:10},{wch:12},{wch:16},{wch:14},{wch:8},
+        {wch:12},{wch:12},{wch:12},{wch:10},{wch:12},{wch:12},{wch:10},
+        {wch:8},{wch:14},{wch:20},{wch:12},{wch:6}];
+      XLSX.utils.book_append_sheet(wb, ws, rep);
+    });
+
+    // All quotes sheet
+    const allRows = [HEADERS];
+    quotes.sort((a,b)=>(a.commissionReport||'').localeCompare(b.commissionReport||'')).forEach(q=>{
+      allRows.push([
+        q.quoteNum||'', q.quoteName||'', q.rep||'', q.ihd||'', q.commissionReport||'',
+        q.commissionSplit||'standard', q.hasAM?'Yes':'No',
+        q.totalSell||0, q.totalNetCost||0, q.grossProfit||0,
+        (q.avgMargin||0)/100,
+        q.totalRepComm||0, q.totalHouseProfit||0, q.totalAM||0,
+        q.amended?'Yes':'No', (q.adjustments||[]).length>0?'Yes':'No',
+        q.loadedAt ? new Date(q.loadedAt).toLocaleString() : '',
+        q.paidDate||'', q.paid?'Yes':'No'
+      ]);
+    });
+    const wsAll = XLSX.utils.aoa_to_sheet(allRows);
+    wsAll['!cols']=[{wch:10},{wch:22},{wch:10},{wch:12},{wch:16},{wch:14},{wch:8},
+      {wch:12},{wch:12},{wch:12},{wch:10},{wch:12},{wch:12},{wch:10},
+      {wch:8},{wch:14},{wch:20},{wch:12},{wch:6}];
+    XLSX.utils.book_append_sheet(wb, wsAll, 'All Quotes');
+
+    const date = new Date().toLocaleDateString('en-US',{month:'2-digit',day:'2-digit',year:'numeric'}).replace(/\//g,'-');
+    XLSX.writeFile(wb, 'TORO_Commission_Data_'+date+'.xlsx');
+
+  } catch(err){
+    console.error('Excel export failed:', err);
+    alert('Export failed: ' + err.message);
+  } finally {
+    if(btn){ btn.textContent='\u2913 Download Excel'; btn.disabled=false; }
+  }
+}
+
+
+function exportPaidUpdates(){
+  const paidQuotes = quotes.filter(q=>q.paid && q.paidDate);
+  if(!paidQuotes.length){ alert('No paid quotes to export.'); return; }
+  
+  // Group by rep and create one bundle per rep
+  const byRep = {};
+  paidQuotes.forEach(q=>{
+    if(!byRep[q.rep]) byRep[q.rep]=[];
+    byRep[q.rep].push({
+      quoteNum: q.quoteNum,
+      quoteName: q.quoteName,
+      rep: q.rep,
+      paid: true,
+      paidDate: q.paidDate,
+      // Include full quote data so portal can match and update
+      totalSell: q.totalSell,
+      totalNetCost: q.totalNetCost,
+      grossProfit: q.grossProfit,
+      avgMargin: q.avgMargin,
+      totalRepComm: q.totalRepComm,
+      totalHouseProfit: q.totalHouseProfit,
+      totalAM: q.totalAM,
+      commissionReport: q.commissionReport,
+      ihd: q.ihd,
+      commissionSplit: q.commissionSplit,
+      hasAM: q.hasAM,
+      adjustments: q.adjustments||[]
+    });
+  });
+
+  Object.entries(byRep).forEach(([rep, qs])=>{
+    const bundle = {
+      type: 'commission_bundle',
+      subtype: 'paid_update',
+      rep,
+      exportedAt: new Date().toLocaleString(),
+      quotes: qs,
+      totals: { repPayout: qs.reduce((a,q)=>a+(q.totalRepComm||0),0) }
+    };
+    const blob = new Blob([JSON.stringify(bundle,null,2)],{type:'application/json'});
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'TORO_PaidUpdate_'+rep+'_'+new Date().toLocaleDateString('en-US').replace(/\//g,'-')+'.json';
+    a.click();
+    URL.revokeObjectURL(a.href);
+  });
+}
+
+
+
 
 </script>
 </body>

@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Toro Amy Commission Portal</title>
+<title>TORO Amy Commission Portal</title>
 <style>
   :root{{
     --red:#C41E1E;--red-light:#fff0f0;--green:#1a7f4b;--bg:#F7F7F8;
@@ -64,8 +64,8 @@
 <div id="gate" style="position:fixed;inset:0;background:#1a1a2e;display:flex;align-items:center;justify-content:center;z-index:9999">
   <div style="background:#fff;border-radius:12px;padding:40px 48px;max-width:380px;width:90%;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,.4)">
     <div style="font-size:32px;margin-bottom:12px">&#128274;</div>
-    <div style="font-size:22px;font-weight:700;color:#1a1a2e;margin-bottom:4px">Toro</div>
-    <div style="font-size:14px;color:#888;margin-bottom:28px">Amy — Commission Portal</div>
+    <div style="font-size:22px;font-weight:700;color:#1a1a2e;margin-bottom:4px">TORO</div>
+    <div style="font-size:14px;color:#888;margin-bottom:28px">Amy Commission Portal</div>
     <input id="pw-input" type="password" placeholder="Enter password"
       style="width:100%;padding:11px 14px;font-size:15px;border:2px solid #e2e3e6;border-radius:8px;margin-bottom:12px;box-sizing:border-box;outline:none"
       onkeydown="if(event.key==='Enter')checkPw()"
@@ -178,12 +178,16 @@
     document.getElementById('pw-input').disabled = true;
   }
 })();
+
+
+
+
 </script>
 
 
 <div class="topbar">
   <div style="display:flex;align-items:center">
-    <h1>Toro Commission Portal</h1>
+    <h1>TORO Commission Portal</h1>
     <span class="rep-badge">Amy</span>
   </div>
   <span class="sub" id="status-text">Loading...</span>
@@ -193,7 +197,7 @@
   <div class="drop-zone" id="drop-zone" onclick="document.getElementById('file-input').click()">
     <input type="file" id="file-input" multiple accept=".json">
     <h2>Drop exported quote files here</h2>
-    <p>Export from the Toro Quote Builder, then drag here to track commissions</p>
+    <p>Export from the TORO Quote Builder, then drag here. Re-import commission bundles from Stephen to update paid status.</p>
   </div>
   <div id="summary-cards" class="cards"></div>
   <div id="main-content"></div>
@@ -201,14 +205,156 @@
 
 <script>
 const REP = 'Amy';
+// ── Firebase Integration ─────────────────────────────────────────────────
+// Uses Firebase Realtime Database for real-time sync across all devices
+const FIREBASE_DB_URL = "https://toro-commission-318b4-default-rtdb.firebaseio.com";
+
+// Firebase REST API helpers — no SDK needed, works in plain HTML
+async function fbGet(path) {
+  try {
+    const res = await fetch(`${FIREBASE_DB_URL}/${path}.json`);
+    if (!res.ok) return null;
+    return await res.json();
+  } catch(e) { console.warn('Firebase read failed:', e.message); return null; }
+}
+
+async function fbSet(path, data) {
+  try {
+    const res = await fetch(`${FIREBASE_DB_URL}/${path}.json`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data)
+    });
+    return res.ok;
+  } catch(e) { console.warn('Firebase write failed:', e.message); return false; }
+}
+
+async function fbPatch(path, data) {
+  try {
+    const res = await fetch(`${FIREBASE_DB_URL}/${path}.json`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data)
+    });
+    return res.ok;
+  } catch(e) { console.warn('Firebase patch failed:', e.message); return false; }
+}
+
+// Long-polling for real-time updates (SSE/EventSource)
+let fbListeners = {};
+function fbListen(path, callback) {
+  // Stop any existing listener on this path
+  if (fbListeners[path]) {
+    fbListeners[path].close();
+  }
+  try {
+    const es = new EventSource(
+      `${FIREBASE_DB_URL}/${path}.json`
+    );
+    es.addEventListener('put', e => {
+      try { callback(JSON.parse(e.data)); } catch(err) {}
+    });
+    es.addEventListener('patch', e => {
+      try { callback(JSON.parse(e.data)); } catch(err) {}
+    });
+    es.onerror = () => {
+      // Reconnect after 5 seconds on error
+      setTimeout(() => fbListen(path, callback), 5000);
+    };
+    fbListeners[path] = es;
+  } catch(e) {
+    console.warn('Firebase listener failed:', e.message);
+    // Fallback: poll every 10 seconds
+    fbListeners[path] = { close: () => {} };
+    setInterval(async () => {
+      const data = await fbGet(path);
+      if (data) callback({ data });
+    }, 10000);
+  }
+}
+
+function fbStopListening(path) {
+  if (fbListeners[path]) {
+    fbListeners[path].close();
+    delete fbListeners[path];
+  }
+}
+
+
+// ── Firebase sync ────────────────────────────────────────────────────────
+const FB_PATH = 'quotes/' + REP.toLowerCase();
+
+async function saveToFirebase(q) {
+  const key = q.quoteNum
+    ? q.quoteNum.replace(/[.#$/\[\]]/g, '_')
+    : 'q_' + Date.now();
+  await fbSet(FB_PATH + '/' + key, q);
+}
+
+async function deleteFromFirebase(q) {
+  if (!q.quoteNum) return;
+  const key = q.quoteNum.replace(/[.#$/\[\]]/g, '_');
+  await fbSet(FB_PATH + '/' + key, null);
+}
+
+async function loadFromFirebase() {
+  const data = await fbGet(FB_PATH);
+  if (!data) return;
+  const incoming = Object.values(data).filter(Boolean);
+  incoming.forEach(q => {
+    if (!q.totalSell) return;
+    const idx = quotes.findIndex(x => x.quoteNum && x.quoteNum === q.quoteNum);
+    if (idx >= 0) quotes[idx] = q;
+    else quotes.push(q);
+  });
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(quotes));
+  render();
+}
+
+function startFirebaseListener() {
+  fbListen(FB_PATH, event => {
+    if (!event || !event.data) return;
+    loadFromFirebase();
+  });
+}
+
+function startPaidListener() {
+  fbListen('paid', event => {
+    if (!event || !event.data) return;
+    const paidData = event.data;
+    if (typeof paidData !== 'object') return;
+    let changed = false;
+    Object.entries(paidData).forEach(([key, val]) => {
+      if (!val) return;
+      const qIdx = quotes.findIndex(q =>
+        q.quoteNum && q.quoteNum.replace(/[.#$/\[\]]/g, '_') === key
+      );
+      if (qIdx >= 0 && val.rep === REP) {
+        if (quotes[qIdx].paid !== val.paid || quotes[qIdx].paidDate !== val.paidDate) {
+          quotes[qIdx].paid = val.paid;
+          quotes[qIdx].paidDate = val.paidDate;
+          changed = true;
+        }
+      }
+    });
+    if (changed) {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(quotes));
+      render();
+    }
+  });
+}
 const STORAGE_KEY = 'toro_portal_amy';
 let quotes = [];
 let dragSrc = null;
 
-function load(){
+async function load(){
   try{ quotes = JSON.parse(localStorage.getItem(STORAGE_KEY)||'[]'); }
   catch(e){ quotes = []; }
   render();
+  // Load latest from Firebase and start real-time listeners
+  await loadFromFirebase();
+  startFirebaseListener();
+  startPaidListener();
 }
 
 function save(){
@@ -228,7 +374,7 @@ function loadFiles(files){
   files.forEach(f=>{
     if(!f.name.endsWith('.json')) return;
     const r = new FileReader();
-    r.onload = e=>{
+    r.onload = async e=>{
       try{
         const q = JSON.parse(e.target.result);
         if(!q.totalSell) return;
@@ -242,8 +388,12 @@ function loadFiles(files){
         if(q.quoteNum){
           const existing = quotes.findIndex(x=>x.quoteNum===q.quoteNum);
           if(existing>=0){
-            // Preserve adjustments from existing quote
+            // Preserve adjustments and paid status from existing quote
             q.adjustments = quotes[existing].adjustments || [];
+            if(!q.paid && quotes[existing].paid){
+              q.paid = quotes[existing].paid;
+              q.paidDate = quotes[existing].paidDate;
+            }
             q.amended = true;
             q.originalSell = quotes[existing].totalSell;
             q.originalRepComm = quotes[existing].totalRepComm;
@@ -251,7 +401,8 @@ function loadFiles(files){
           }
         }
         quotes.push(q);
-        save();
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(quotes));
+        await saveToFirebase(q);
         render();
       }catch(e){ console.error(e); }
     };
@@ -259,10 +410,13 @@ function loadFiles(files){
   });
 }
 
-function deleteQuote(idx){
+async function deleteQuote(idx){
   if(!confirm('Remove this quote?')) return;
+  const q = quotes[idx];
   quotes.splice(idx,1);
-  save(); render();
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(quotes));
+  await deleteFromFirebase(q);
+  render();
 }
 
 // ── Adjustments ──────────────────────────────────────────────────────────
@@ -295,8 +449,9 @@ function updateAdj(idx, adjIdx, field, val){
 function removeAdj(idx, adjIdx){
   quotes[idx].adjustments.splice(adjIdx,1);
   recalcQuote(idx);
-  writeQuoteToSheet(quotes[idx]);
-  save(); render();
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(quotes));
+  saveToFirebase(quotes[idx]); // fire and forget
+  render();
 }
 
 function recalcQuote(idx){
@@ -545,9 +700,44 @@ function render(){
       </tr>`;
     });
 
+    // Archived (paid) section
+    if(paidQs.length>0){
+      html+=`</tbody></table>`;
+      html+=`<details style="border-top:1px solid var(--border)">
+        <summary style="padding:8px 16px;font-size:12px;color:var(--text3);cursor:pointer;background:#f8f8f8;user-select:none">
+          &#128229; ${paidQs.length} paid quote${paidQs.length!==1?'s':''} (archived)
+        </summary>
+        <table style="opacity:.7"><thead><tr>
+          <th>Quote</th><th>IHD</th><th>Split</th>
+          <th class="r">Sell</th><th class="r">GP</th><th class="r">Margin</th>
+          <th class="r">My commission</th><th>Paid</th>
+        </tr></thead><tbody>`;
+      paidQs.forEach(q=>{
+        const sell=q._hasAdj?q._adjSell:q.totalSell||0;
+        const mg=q._hasAdj?q._adjMg:(q.avgMargin||0);
+        const rep2=q._hasAdj?q._adjRepComm:(q.totalRepComm||0);
+        const gp2=(q._hasAdj?q._adjGP:(q.grossProfit||0));
+        const mgC=mg<30?'mg-red':mg<35?'mg-yellow':'mg-green';
+        const name=q.quoteName||(q.quoteNum?'#'+q.quoteNum:'Unnamed');
+        html+=`<tr style="background:#f0faf4">
+          <td><strong>${name}</strong></td>
+          <td style="font-size:12px">${q.ihd||'N/A'}</td>
+          <td style="font-size:12px">${q.commissionSplit==='standard'?'Standard':q.commissionSplit}</td>
+          <td class="r">${fmt(sell)}</td>
+          <td class="r">${fmt(gp2)}</td>
+          <td class="r"><span class="mg-pill ${mgC}">${pct(mg)}</span></td>
+          <td class="r" style="color:var(--brown);font-weight:700">${fmt(rep2)}</td>
+          <td style="font-size:11px;color:#1a7f4b;font-weight:700">&#10003; ${q.paidDate||'Paid'}</td>
+        </tr>`;
+      });
+      html+=`</tbody></table></details>`;
+    } else {
+      html+=`</tbody></table>`;
+    }
     const pGP=pSell-pNet;
-    html+=`</tbody></table>
-      <div class="period-totals">
+    html+=`<div class="period-totals" style="display:none"><div>`;
+    html=html.slice(0,-12); // remove the placeholder
+    html+=`<div class="period-totals">
         <span>Period totals &nbsp;</span>
         <span>Sell: <strong>${fmt(pSell)}</strong></span>
         <span>GP: <strong>${fmt(pGP)}</strong></span>
@@ -573,76 +763,8 @@ function render(){
 
 load();
 
-// ── Google Sheets Integration ────────────────────────────────────────────
-// Replace these two values after completing the Google Cloud setup:
-const SHEETS_API_KEY    = 'YOUR_API_KEY_HERE';
-const SPREADSHEET_ID    = 'YOUR_SPREADSHEET_ID_HERE';
 
-function sheetsConfigured() {
-  return SHEETS_API_KEY !== 'YOUR_API_KEY_HERE' && SPREADSHEET_ID !== 'YOUR_SPREADSHEET_ID_HERE';
-}
 
-async function writeQuoteToSheet(q) {
-  if (!sheetsConfigured()) return; // silently skip until configured
-  const row = [
-    q.quoteNum || '',
-    q.quoteName || '',
-    q.rep || '',
-    q.ihd || '',
-    q.commissionReport || '',
-    q.commissionSplit || 'standard',
-    q.hasAM ? 'Yes' : 'No',
-    q._hasAdj ? (q._adjSell || 0) : (q.totalSell || 0),
-    q._hasAdj ? (q._adjNet || 0) : (q.totalNetCost || 0),
-    q._hasAdj ? (q._adjGP || 0) : (q.grossProfit || 0),
-    q._hasAdj ? (q._adjMg || 0) : (q.avgMargin || 0),
-    q._hasAdj ? (q._adjRepComm || 0) : (q.totalRepComm || 0),
-    q._hasAdj ? (q._adjSell - q._adjRepComm || 0) : (q.totalHouseProfit || 0),
-    q.totalAM || 0,
-    q.amended ? 'Yes' : 'No',
-    (q.adjustments || []).length > 0 ? 'Yes' : 'No',
-    new Date().toLocaleString()
-  ];
-
-  const repName = q.rep || REP;
-  const range = encodeURIComponent(`${repName}!A:A`);
-
-  try {
-    // 1. Find existing row by quote number (column A)
-    const findUrl = `https://sheets.googleapis.com/v4/spreadsheets/${SPREADSHEET_ID}/values/${range}?key=${SHEETS_API_KEY}`;
-    const findRes = await fetch(findUrl);
-    const findData = await findRes.json();
-    const values = findData.values || [];
-    let targetRow = null;
-    if (q.quoteNum) {
-      for (let i = 1; i < values.length; i++) {
-        if (values[i][0] === q.quoteNum) { targetRow = i + 1; break; }
-      }
-    }
-
-    const writeRange = targetRow
-      ? encodeURIComponent(`${repName}!A${targetRow}:Q${targetRow}`)
-      : encodeURIComponent(`${repName}!A${values.length + 1}:Q${values.length + 1}`);
-
-    const writeUrl = `https://sheets.googleapis.com/v4/spreadsheets/${SPREADSHEET_ID}/values/${writeRange}?valueInputOption=USER_ENTERED&key=${SHEETS_API_KEY}`;
-    await fetch(writeUrl, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ values: [row] })
-    });
-  } catch(e) {
-    console.warn('Sheets write failed (will retry on next save):', e.message);
-  }
-}
-
-async function writeAllQuotesToSheet() {
-  if (!sheetsConfigured()) return;
-  for (const q of quotes) {
-    if ((q.adjustments || []).length) recalcQuote(quotes.indexOf(q));
-    await writeQuoteToSheet(q);
-    await new Promise(r => setTimeout(r, 150)); // rate limit
-  }
-}
 
 </script>
 </body>
