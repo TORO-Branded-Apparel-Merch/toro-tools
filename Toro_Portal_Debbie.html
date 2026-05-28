@@ -60,6 +60,126 @@
 </style>
 </head>
 <body>
+<!-- Password gate -->
+<div id="gate" style="position:fixed;inset:0;background:#1a1a2e;display:flex;align-items:center;justify-content:center;z-index:9999">
+  <div style="background:#fff;border-radius:12px;padding:40px 48px;max-width:380px;width:90%;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,.4)">
+    <div style="font-size:32px;margin-bottom:12px">&#128274;</div>
+    <div style="font-size:22px;font-weight:700;color:#1a1a2e;margin-bottom:4px">Toro</div>
+    <div style="font-size:14px;color:#888;margin-bottom:28px">Debbie — Commission Portal</div>
+    <input id="pw-input" type="password" placeholder="Enter password"
+      style="width:100%;padding:11px 14px;font-size:15px;border:2px solid #e2e3e6;border-radius:8px;margin-bottom:12px;box-sizing:border-box;outline:none"
+      onkeydown="if(event.key==='Enter')checkPw()"
+      onfocus="this.style.borderColor='#C41E1E'" onblur="this.style.borderColor='#e2e3e6'">
+    <div id="pw-msg" style="font-size:13px;color:#C41E1E;min-height:18px;margin-bottom:12px"></div>
+    <button onclick="checkPw()"
+      style="width:100%;padding:11px;background:#C41E1E;color:#fff;font-size:15px;font-weight:700;border:none;border-radius:8px;cursor:pointer">
+      Unlock
+    </button>
+    <div style="margin-top:20px;border-top:1px solid #f0f0f0;padding-top:16px">
+      <a href="#" onclick="showChangePw();return false" style="font-size:12px;color:#888;text-decoration:none">Change my password</a>
+    </div>
+  </div>
+</div>
+
+<!-- Change password modal -->
+<div id="change-pw-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);display:none;align-items:center;justify-content:center;z-index:10000">
+  <div style="background:#fff;border-radius:12px;padding:32px 40px;max-width:360px;width:90%">
+    <div style="font-size:18px;font-weight:700;margin-bottom:20px">Change password</div>
+    <input id="pw-current" type="password" placeholder="Current password"
+      style="width:100%;padding:10px 12px;font-size:14px;border:1px solid #ccc;border-radius:6px;margin-bottom:10px;box-sizing:border-box">
+    <input id="pw-new" type="password" placeholder="New password (min 6 characters)"
+      style="width:100%;padding:10px 12px;font-size:14px;border:1px solid #ccc;border-radius:6px;margin-bottom:10px;box-sizing:border-box">
+    <input id="pw-confirm" type="password" placeholder="Confirm new password"
+      style="width:100%;padding:10px 12px;font-size:14px;border:1px solid #ccc;border-radius:6px;margin-bottom:10px;box-sizing:border-box">
+    <div id="change-msg" style="font-size:12px;color:#C41E1E;min-height:16px;margin-bottom:10px"></div>
+    <div style="display:flex;gap:8px">
+      <button onclick="submitChangePw()"
+        style="flex:1;padding:10px;background:#C41E1E;color:#fff;font-weight:700;border:none;border-radius:6px;cursor:pointer">Save</button>
+      <button onclick="hideChangePw()"
+        style="flex:1;padding:10px;background:#f0f0f0;color:#333;font-weight:700;border:none;border-radius:6px;cursor:pointer">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+  const PW_KEY = 'toro_pw_debbie';
+  const DEFAULT_PW = 'Toro#Xp8sN';
+  const MAX_ATTEMPTS = 5;
+  const WARN_AT = 3;
+  const LOCK_KEY = 'toro_lock_debbie';
+  const ATTEMPTS_KEY = 'toro_attempts_debbie';
+
+  function getStoredPw(){ return localStorage.getItem(PW_KEY) || DEFAULT_PW; }
+  function getAttempts(){ return parseInt(localStorage.getItem(ATTEMPTS_KEY)||'0'); }
+  function setAttempts(n){ localStorage.setItem(ATTEMPTS_KEY, n); }
+  function isLocked(){ return localStorage.getItem(LOCK_KEY) === 'locked'; }
+
+  function checkPw(){
+    if(isLocked()){
+      document.getElementById('pw-msg').textContent = 'Account locked after 5 failed attempts. Contact your administrator to reset.';
+      return;
+    }
+    const val = document.getElementById('pw-input').value;
+    if(val === getStoredPw()){
+      setAttempts(0);
+      document.getElementById('gate').style.display = 'none';
+    } else {
+      const attempts = getAttempts() + 1;
+      setAttempts(attempts);
+      const remaining = MAX_ATTEMPTS - attempts;
+      if(attempts >= MAX_ATTEMPTS){
+        localStorage.setItem(LOCK_KEY, 'locked');
+        document.getElementById('pw-msg').textContent = 'Account locked after 5 failed attempts. Contact your administrator to reset.';
+        document.getElementById('pw-input').disabled = true;
+      } else if(attempts >= WARN_AT){
+        document.getElementById('pw-msg').textContent = 'Incorrect password. ' + remaining + ' attempt' + (remaining===1?'':'s') + ' remaining before lockout.';
+      } else {
+        document.getElementById('pw-msg').textContent = 'Incorrect password. Please try again.';
+      }
+      document.getElementById('pw-input').value = '';
+      document.getElementById('pw-input').focus();
+    }
+  }
+
+  function showChangePw(){
+    document.getElementById('change-pw-modal').style.display = 'flex';
+    document.getElementById('pw-current').value = '';
+    document.getElementById('pw-new').value = '';
+    document.getElementById('pw-confirm').value = '';
+    document.getElementById('change-msg').textContent = '';
+  }
+  function hideChangePw(){
+    document.getElementById('change-pw-modal').style.display = 'none';
+  }
+  function submitChangePw(){
+    const current = document.getElementById('pw-current').value;
+    const newPw = document.getElementById('pw-new').value;
+    const confirm = document.getElementById('pw-confirm').value;
+    const msg = document.getElementById('change-msg');
+    if(current !== getStoredPw()){ msg.textContent='Current password is incorrect.'; return; }
+    if(newPw.length < 6){ msg.textContent='New password must be at least 6 characters.'; return; }
+    if(newPw !== confirm){ msg.textContent='New passwords do not match.'; return; }
+    localStorage.setItem(PW_KEY, newPw);
+    msg.style.color = '#1a7f4b';
+    msg.textContent = 'Password changed successfully.';
+    setTimeout(hideChangePw, 1500);
+  }
+
+  // Expose functions globally
+  window.checkPw = checkPw;
+  window.showChangePw = showChangePw;
+  window.hideChangePw = hideChangePw;
+  window.submitChangePw = submitChangePw;
+
+  // Check lock state on load
+  if(isLocked()){
+    document.getElementById('pw-msg').textContent = 'Account locked after 5 failed attempts. Contact your administrator to reset.';
+    document.getElementById('pw-input').disabled = true;
+  }
+})();
+</script>
+
 
 <div class="topbar">
   <div style="display:flex;align-items:center">

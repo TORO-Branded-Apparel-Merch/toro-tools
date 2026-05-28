@@ -1,0 +1,548 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Toro — Management Dashboard</title>
+<style>
+  :root{
+    --red:#C41E1E;--green:#1a7f4b;--bg:#F7F7F8;--surface:#fff;
+    --border:#E2E3E6;--border2:#ccc;--text:#1a1a1f;--text2:#444;--text3:#888;
+    --brown:#7B3F00;--radius:10px;--radius-sm:6px;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:var(--bg);color:var(--text);min-height:100vh}
+  .topbar{background:#1a1a2e;border-bottom:3px solid var(--red);padding:14px 28px;display:flex;align-items:center;justify-content:space-between}
+  .topbar h1{color:#fff;font-size:18px;font-weight:700;letter-spacing:.02em}
+  .topbar span{color:#888;font-size:12px}
+  .container{max-width:1200px;margin:0 auto;padding:28px 24px}
+  .drop-zone{border:2px dashed var(--border2);border-radius:var(--radius);padding:40px;text-align:center;cursor:pointer;transition:all .2s;background:var(--surface);margin-bottom:24px}
+  .drop-zone:hover,.drop-zone.over{border-color:var(--red);background:#fff8f8}
+  .drop-zone h2{font-size:16px;color:var(--text2);margin-bottom:6px}
+  .drop-zone p{font-size:13px;color:var(--text3)}
+  .drop-zone input{display:none}
+  .cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:14px;margin-bottom:24px}
+  .card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:16px 18px}
+  .card-lbl{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--text3);margin-bottom:6px}
+  .card-val{font-size:24px;font-weight:700}
+  .card-val.green{color:var(--green)}
+  .card-val.red{color:var(--red)}
+  .card-val.brown{color:var(--brown)}
+  .section{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);margin-bottom:20px;overflow:hidden}
+  .section-hdr{padding:12px 18px;border-bottom:1px solid var(--border);font-size:13px;font-weight:700;display:flex;align-items:center;justify-content:space-between}
+  .section-hdr .badge{font-size:11px;font-weight:600;padding:2px 8px;border-radius:10px;background:var(--bg);color:var(--text3);border:1px solid var(--border)}
+  table{width:100%;border-collapse:collapse;font-size:13px}
+  th{padding:8px 14px;text-align:left;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--text3);border-bottom:1px solid var(--border);background:var(--bg)}
+  th.r,td.r{text-align:right}
+  td{padding:9px 14px;border-bottom:1px solid #f5f5f5;vertical-align:middle}
+  tr:last-child td{border-bottom:none}
+  tr:hover td{background:#fafafa}
+  .mg-pill{display:inline-block;padding:2px 7px;border-radius:8px;font-size:11px;font-weight:700}
+  .mg-green{background:#e6f4ee;color:var(--green)}
+  .mg-yellow{background:#FFF8E1;color:#7A4F00}
+  .mg-red{background:#FFEBEB;color:var(--red)}
+  .approval-flag{background:#FFEBEB;color:var(--red);padding:2px 7px;border-radius:8px;font-size:10px;font-weight:700}
+  .clear-btn{font-size:12px;padding:4px 10px;border:1px solid var(--border2);border-radius:6px;background:var(--surface);cursor:pointer;color:var(--text2)}
+  .clear-btn:hover{border-color:var(--red);color:var(--red)}
+  .empty{padding:40px;text-align:center;color:var(--text3);font-size:13px}
+  .rep-bar{display:flex;align-items:center;gap:8px;margin-bottom:4px}
+  .rep-bar-inner{height:8px;border-radius:4px;background:var(--red);min-width:2px;transition:width .4s}
+  .rep-bar-label{font-size:12px;color:var(--text2);white-space:nowrap}
+  .filter-row{display:flex;gap:10px;flex-wrap:wrap;padding:10px 18px;border-bottom:1px solid var(--border);background:var(--bg)}
+  select.filter{padding:5px 10px;font-size:12px;border:1px solid var(--border2);border-radius:6px;background:#fff}
+  .tabs{display:flex;border-bottom:1px solid var(--border)}
+  .tab{padding:10px 18px;font-size:13px;font-weight:600;cursor:pointer;border-bottom:2px solid transparent;color:var(--text3)}
+  .tab.active{color:var(--red);border-bottom-color:var(--red)}
+  .tab-panel{display:none}
+  .tab-panel.active{display:block}
+</style>
+</head>
+<body>
+<!-- Password gate -->
+<div id="gate" style="position:fixed;inset:0;background:#1a1a2e;display:flex;align-items:center;justify-content:center;z-index:9999">
+  <div style="background:#fff;border-radius:12px;padding:40px 48px;max-width:380px;width:90%;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,.4)">
+    <div style="font-size:32px;margin-bottom:12px">&#128274;</div>
+    <div style="font-size:22px;font-weight:700;color:#1a1a2e;margin-bottom:4px">Toro</div>
+    <div style="font-size:14px;color:#888;margin-bottom:28px">Management Dashboard</div>
+    <input id="pw-input" type="password" placeholder="Enter password"
+      style="width:100%;padding:11px 14px;font-size:15px;border:2px solid #e2e3e6;border-radius:8px;margin-bottom:12px;box-sizing:border-box;outline:none"
+      onkeydown="if(event.key==='Enter')checkPw()"
+      onfocus="this.style.borderColor='#C41E1E'" onblur="this.style.borderColor='#e2e3e6'">
+    <div id="pw-msg" style="font-size:13px;color:#C41E1E;min-height:18px;margin-bottom:12px"></div>
+    <button onclick="checkPw()"
+      style="width:100%;padding:11px;background:#C41E1E;color:#fff;font-size:15px;font-weight:700;border:none;border-radius:8px;cursor:pointer">
+      Unlock
+    </button>
+    <div style="margin-top:20px;border-top:1px solid #f0f0f0;padding-top:16px">
+      <a href="#" onclick="showChangePw();return false" style="font-size:12px;color:#888;text-decoration:none">Change my password</a>
+    </div>
+  </div>
+</div>
+
+<!-- Change password modal -->
+<div id="change-pw-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);display:none;align-items:center;justify-content:center;z-index:10000">
+  <div style="background:#fff;border-radius:12px;padding:32px 40px;max-width:360px;width:90%">
+    <div style="font-size:18px;font-weight:700;margin-bottom:20px">Change password</div>
+    <input id="pw-current" type="password" placeholder="Current password"
+      style="width:100%;padding:10px 12px;font-size:14px;border:1px solid #ccc;border-radius:6px;margin-bottom:10px;box-sizing:border-box">
+    <input id="pw-new" type="password" placeholder="New password (min 6 characters)"
+      style="width:100%;padding:10px 12px;font-size:14px;border:1px solid #ccc;border-radius:6px;margin-bottom:10px;box-sizing:border-box">
+    <input id="pw-confirm" type="password" placeholder="Confirm new password"
+      style="width:100%;padding:10px 12px;font-size:14px;border:1px solid #ccc;border-radius:6px;margin-bottom:10px;box-sizing:border-box">
+    <div id="change-msg" style="font-size:12px;color:#C41E1E;min-height:16px;margin-bottom:10px"></div>
+    <div style="display:flex;gap:8px">
+      <button onclick="submitChangePw()"
+        style="flex:1;padding:10px;background:#C41E1E;color:#fff;font-weight:700;border:none;border-radius:6px;cursor:pointer">Save</button>
+      <button onclick="hideChangePw()"
+        style="flex:1;padding:10px;background:#f0f0f0;color:#333;font-weight:700;border:none;border-radius:6px;cursor:pointer">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+  const PW_KEY = 'toro_pw_management';
+  const DEFAULT_PW = 'Toro#Mv3kG';
+  const MAX_ATTEMPTS = 5;
+  const WARN_AT = 3;
+  const LOCK_KEY = 'toro_lock_management';
+  const ATTEMPTS_KEY = 'toro_attempts_management';
+
+  function getStoredPw(){ return localStorage.getItem(PW_KEY) || DEFAULT_PW; }
+  function getAttempts(){ return parseInt(localStorage.getItem(ATTEMPTS_KEY)||'0'); }
+  function setAttempts(n){ localStorage.setItem(ATTEMPTS_KEY, n); }
+  function isLocked(){ return localStorage.getItem(LOCK_KEY) === 'locked'; }
+
+  function checkPw(){
+    if(isLocked()){
+      document.getElementById('pw-msg').textContent = 'Account locked after 5 failed attempts. Contact your administrator to reset.';
+      return;
+    }
+    const val = document.getElementById('pw-input').value;
+    if(val === getStoredPw()){
+      setAttempts(0);
+      document.getElementById('gate').style.display = 'none';
+    } else {
+      const attempts = getAttempts() + 1;
+      setAttempts(attempts);
+      const remaining = MAX_ATTEMPTS - attempts;
+      if(attempts >= MAX_ATTEMPTS){
+        localStorage.setItem(LOCK_KEY, 'locked');
+        document.getElementById('pw-msg').textContent = 'Account locked after 5 failed attempts. Contact your administrator to reset.';
+        document.getElementById('pw-input').disabled = true;
+      } else if(attempts >= WARN_AT){
+        document.getElementById('pw-msg').textContent = 'Incorrect password. ' + remaining + ' attempt' + (remaining===1?'':'s') + ' remaining before lockout.';
+      } else {
+        document.getElementById('pw-msg').textContent = 'Incorrect password. Please try again.';
+      }
+      document.getElementById('pw-input').value = '';
+      document.getElementById('pw-input').focus();
+    }
+  }
+
+  function showChangePw(){
+    document.getElementById('change-pw-modal').style.display = 'flex';
+    document.getElementById('pw-current').value = '';
+    document.getElementById('pw-new').value = '';
+    document.getElementById('pw-confirm').value = '';
+    document.getElementById('change-msg').textContent = '';
+  }
+  function hideChangePw(){
+    document.getElementById('change-pw-modal').style.display = 'none';
+  }
+  function submitChangePw(){
+    const current = document.getElementById('pw-current').value;
+    const newPw = document.getElementById('pw-new').value;
+    const confirm = document.getElementById('pw-confirm').value;
+    const msg = document.getElementById('change-msg');
+    if(current !== getStoredPw()){ msg.textContent='Current password is incorrect.'; return; }
+    if(newPw.length < 6){ msg.textContent='New password must be at least 6 characters.'; return; }
+    if(newPw !== confirm){ msg.textContent='New passwords do not match.'; return; }
+    localStorage.setItem(PW_KEY, newPw);
+    msg.style.color = '#1a7f4b';
+    msg.textContent = 'Password changed successfully.';
+    setTimeout(hideChangePw, 1500);
+  }
+
+  // Expose functions globally
+  window.checkPw = checkPw;
+  window.showChangePw = showChangePw;
+  window.hideChangePw = hideChangePw;
+  window.submitChangePw = submitChangePw;
+
+  // Check lock state on load
+  if(isLocked()){
+    document.getElementById('pw-msg').textContent = 'Account locked after 5 failed attempts. Contact your administrator to reset.';
+    document.getElementById('pw-input').disabled = true;
+  }
+})();
+</script>
+
+
+<div class="topbar">
+  <h1>&#9733; Toro — Management Dashboard</h1>
+  <span id="last-updated">No data loaded</span>
+</div>
+
+<div class="container">
+
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+    <p style="font-size:13px;color:#666">Drop individual quote exports or commission bundles, or sync live from Google Sheets.</p>
+    <button id="sync-btn" onclick="loadFromSheets()" style="padding:8px 16px;background:#1a1a2e;color:#fff;border:none;border-radius:6px;font-size:13px;font-weight:700;cursor:pointer">Sync from Sheets</button>
+  </div>
+  <div class="drop-zone" id="drop-zone" onclick="document.getElementById('file-input').click()">
+    <input type="file" id="file-input" multiple accept=".json">
+    <h2>Drop exported quote files here</h2>
+    <p>Drop individual quote exports OR commission bundle files from rep portals</p>
+  </div>
+
+  <div id="summary-cards" class="cards" style="display:none"></div>
+
+  <div id="main-content" style="display:none">
+
+    <div class="section">
+      <div class="tabs" id="tabs">
+        <div class="tab active" data-tab="by-rep">By rep</div>
+        <div class="tab" data-tab="by-period">By commission period</div>
+        <div class="tab" data-tab="all-quotes">All quotes</div>
+        <div class="tab" data-tab="approval">Needs approval</div>
+      </div>
+
+      <!-- By Rep -->
+      <div class="tab-panel active" id="panel-by-rep">
+        <div id="rep-table-wrap"></div>
+      </div>
+
+      <!-- By Period -->
+      <div class="tab-panel" id="panel-by-period">
+        <div id="period-table-wrap"></div>
+      </div>
+
+      <!-- All Quotes -->
+      <div class="tab-panel" id="panel-all-quotes">
+        <div class="filter-row">
+          <select class="filter" id="filter-rep" onchange="renderAll()">
+            <option value="">All reps</option>
+          </select>
+          <select class="filter" id="filter-period" onchange="renderAll()">
+            <option value="">All periods</option>
+          </select>
+          <button class="clear-btn" onclick="clearFilters()">Clear filters</button>
+          <button class="clear-btn" style="margin-left:auto" onclick="clearData()">Clear all data</button>
+        </div>
+        <div id="quotes-table-wrap"></div>
+      </div>
+
+      <!-- Needs Approval -->
+      <div class="tab-panel" id="panel-approval">
+        <div id="approval-table-wrap"></div>
+      </div>
+
+    </div>
+  </div>
+
+</div>
+
+<script>
+let quotes = JSON.parse(localStorage.getItem('toro_quotes')||'[]');
+const fmt = v => '$'+parseFloat(v||0).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
+const pct = v => (Math.round((v||0)*10)/10)+'%';
+
+// ── File loading ────────────────────────────────────────────────────────
+const dz = document.getElementById('drop-zone');
+const fi = document.getElementById('file-input');
+
+dz.addEventListener('dragover', e=>{e.preventDefault();dz.classList.add('over')});
+dz.addEventListener('dragleave', ()=>dz.classList.remove('over'));
+dz.addEventListener('drop', e=>{
+  e.preventDefault(); dz.classList.remove('over');
+  loadFiles([...e.dataTransfer.files]);
+});
+fi.addEventListener('change', ()=>{ loadFiles([...fi.files]); fi.value=''; });
+
+function loadFiles(files){
+  let loaded=0;
+  files.forEach(f=>{
+    if(!f.name.endsWith('.json')) return;
+    const r=new FileReader();
+    r.onload=e=>{
+      try{
+        const q=JSON.parse(e.target.result);
+        if(!q.rep||!q.totalSell) return;
+        // Deduplicate by quoteNum if present
+        if(q.quoteNum){
+          quotes=quotes.filter(x=>x.quoteNum!==q.quoteNum);
+        }
+        quotes.push(q);
+        loaded++;
+      }catch(e){}
+      if(loaded>0){
+        localStorage.setItem('toro_quotes',JSON.stringify(quotes));
+        render();
+if(sheetsConfigured()) loadFromSheets();
+      }
+    };
+    r.readAsText(f);
+  });
+}
+
+function clearData(){
+  if(!confirm('Clear all loaded quote data?')) return;
+  quotes=[];
+  localStorage.removeItem('toro_quotes');
+  render();
+if(sheetsConfigured()) loadFromSheets();
+}
+
+function clearFilters(){
+  document.getElementById('filter-rep').value='';
+  document.getElementById('filter-period').value='';
+  renderAll();
+}
+
+// ── Tabs ────────────────────────────────────────────────────────────────
+document.querySelectorAll('.tab').forEach(t=>{
+  t.addEventListener('click',()=>{
+    document.querySelectorAll('.tab').forEach(x=>x.classList.remove('active'));
+    document.querySelectorAll('.tab-panel').forEach(x=>x.classList.remove('active'));
+    t.classList.add('active');
+    document.getElementById('panel-'+t.dataset.tab).classList.add('active');
+  });
+});
+
+// ── Main render ─────────────────────────────────────────────────────────
+function render(){
+  const cards = document.getElementById('summary-cards');
+  const main = document.getElementById('main-content');
+  const upd = document.getElementById('last-updated');
+
+  if(!quotes.length){
+    cards.style.display='none';
+    main.style.display='none';
+    upd.textContent='No data loaded';
+    return;
+  }
+
+  cards.style.display='';
+  main.style.display='';
+  upd.textContent=quotes.length+' quote'+(quotes.length!==1?'s':'')+' loaded';
+
+  const totSell=quotes.reduce((a,q)=>a+(q.totalSell||0),0);
+  const totNet=quotes.reduce((a,q)=>a+(q.totalNetCost||0),0);
+  const totGP=quotes.reduce((a,q)=>a+(q.grossProfit||0),0);
+  const totRep=quotes.reduce((a,q)=>a+(q.totalRepComm||0),0);
+  const totHouse=quotes.reduce((a,q)=>a+(q.totalHouseProfit||0),0);
+  const avgMg=totSell>0?Math.round((1-totNet/totSell)*1000)/10:0;
+
+  cards.innerHTML=`
+    <div class="card"><div class="card-lbl">Total quotes</div><div class="card-val">${quotes.length}</div></div>
+    <div class="card"><div class="card-lbl">Total sell</div><div class="card-val green">${fmt(totSell)}</div></div>
+    <div class="card"><div class="card-lbl">Gross profit</div><div class="card-val green">${fmt(totGP)}</div></div>
+    <div class="card"><div class="card-lbl">Avg margin</div><div class="card-val ${avgMg<30?'red':avgMg<35?'':'green'}">${pct(avgMg)}</div></div>
+    <div class="card"><div class="card-lbl">House profit</div><div class="card-val">${fmt(totHouse)}</div></div>
+    <div class="card"><div class="card-lbl">Rep commissions</div><div class="card-val brown">${fmt(totRep)}</div></div>
+    <div class="card"><div class="card-lbl">Needs approval</div><div class="card-val ${quotes.filter(q=>q.needsApproval).length>0?'red':''}">${quotes.filter(q=>q.needsApproval).length}</div></div>
+  `;
+
+  // Populate filter dropdowns
+  const reps=[...new Set(quotes.map(q=>q.rep).filter(Boolean))].sort();
+  const periods=[...new Set(quotes.map(q=>q.commissionReport).filter(Boolean))].sort();
+  const repSel=document.getElementById('filter-rep');
+  const perSel=document.getElementById('filter-period');
+  const repVal=repSel.value, perVal=perSel.value;
+  repSel.innerHTML='<option value="">All reps</option>'+reps.map(r=>`<option ${r===repVal?'selected':''}>${r}</option>`).join('');
+  perSel.innerHTML='<option value="">All periods</option>'+periods.map(p=>`<option ${p===perVal?'selected':''}>${p}</option>`).join('');
+
+  renderByRep(reps, totSell);
+  renderByPeriod(periods);
+  renderAll();
+  renderApproval();
+}
+
+function renderByRep(reps, totSell){
+  const wrap=document.getElementById('rep-table-wrap');
+  if(!reps.length){wrap.innerHTML='<div class="empty">No data</div>';return;}
+  let html=`<table><thead><tr>
+    <th>Rep</th><th class="r">Quotes</th><th class="r">Total sell</th>
+    <th class="r">Gross profit</th><th class="r">Avg margin</th>
+    <th class="r">Rep payout</th><th class="r">House profit</th><th class="r">Share of sales</th>
+  </tr></thead><tbody>`;
+  reps.forEach(rep=>{
+    const qs=quotes.filter(q=>q.rep===rep);
+    const sell=qs.reduce((a,q)=>a+(q.totalSell||0),0);
+    const net=qs.reduce((a,q)=>a+(q.totalNetCost||0),0);
+    const gp=qs.reduce((a,q)=>a+(q.grossProfit||0),0);
+    const rc=qs.reduce((a,q)=>a+(q.totalRepComm||0),0);
+    const hp=qs.reduce((a,q)=>a+(q.totalHouseProfit||0),0);
+    const mg=sell>0?Math.round((1-net/sell)*1000)/10:0;
+    const share=totSell>0?Math.round(sell/totSell*1000)/10:0;
+    const mgClass=mg<30?'mg-red':mg<35?'mg-yellow':'mg-green';
+    html+=`<tr>
+      <td><strong>${rep}</strong></td>
+      <td class="r">${qs.length}</td>
+      <td class="r">${fmt(sell)}</td>
+      <td class="r">${fmt(gp)}</td>
+      <td class="r"><span class="mg-pill ${mgClass}">${pct(mg)}</span></td>
+      <td class="r" style="color:var(--brown);font-weight:700">${fmt(rc)}</td>
+      <td class="r">${fmt(hp)}</td>
+      <td class="r">
+        <div class="rep-bar"><div class="rep-bar-inner" style="width:${Math.max(share,1)}px"></div><span class="rep-bar-label">${share}%</span></div>
+      </td>
+    </tr>`;
+  });
+  html+=`</tbody></table>`;
+  wrap.innerHTML=html;
+}
+
+function renderByPeriod(periods){
+  const wrap=document.getElementById('period-table-wrap');
+  if(!periods.length){wrap.innerHTML='<div class="empty">No data</div>';return;}
+  let html=`<table><thead><tr>
+    <th>Commission report date</th><th class="r">Quotes</th><th class="r">Total sell</th>
+    <th class="r">Gross profit</th><th class="r">Avg margin</th><th class="r">Rep payouts</th>
+  </tr></thead><tbody>`;
+  periods.forEach(per=>{
+    const qs=quotes.filter(q=>q.commissionReport===per);
+    const sell=qs.reduce((a,q)=>a+(q.totalSell||0),0);
+    const net=qs.reduce((a,q)=>a+(q.totalNetCost||0),0);
+    const gp=qs.reduce((a,q)=>a+(q.grossProfit||0),0);
+    const rc=qs.reduce((a,q)=>a+(q.totalRepComm||0),0);
+    const mg=sell>0?Math.round((1-net/sell)*1000)/10:0;
+    const mgClass=mg<30?'mg-red':mg<35?'mg-yellow':'mg-green';
+    html+=`<tr>
+      <td><strong style="color:var(--red)">&#128197; ${per}</strong></td>
+      <td class="r">${qs.length}</td>
+      <td class="r">${fmt(sell)}</td>
+      <td class="r">${fmt(gp)}</td>
+      <td class="r"><span class="mg-pill ${mgClass}">${pct(mg)}</span></td>
+      <td class="r" style="color:var(--brown);font-weight:700">${fmt(rc)}</td>
+    </tr>`;
+  });
+  html+=`</tbody></table>`;
+  wrap.innerHTML=html;
+}
+
+function renderAll(){
+  const repF=document.getElementById('filter-rep')?.value||'';
+  const perF=document.getElementById('filter-period')?.value||'';
+  let qs=quotes;
+  if(repF) qs=qs.filter(q=>q.rep===repF);
+  if(perF) qs=qs.filter(q=>q.commissionReport===perF);
+  const wrap=document.getElementById('quotes-table-wrap');
+  if(!qs.length){wrap.innerHTML='<div class="empty">No quotes match filters</div>';return;}
+  let html=`<table><thead><tr>
+    <th>Quote</th><th>Rep</th><th>Source</th><th>IHD</th><th>Commission report</th>
+    <th class="r">Net cost</th><th class="r">Sell</th><th class="r">Margin</th>
+    <th class="r">GP</th><th class="r">Rep payout</th><th></th>
+  </tr></thead><tbody>`;
+  qs.sort((a,b)=>(a.commissionReport||'').localeCompare(b.commissionReport||'')).forEach(q=>{
+    const mg=q.avgMargin||0;
+    const mgClass=mg<30?'mg-red':mg<35?'mg-yellow':'mg-green';
+    const name=q.quoteName||(q.quoteNum?'Quote #'+q.quoteNum:'Unnamed');
+    html+=`<tr>
+      <td><strong>${name}</strong>${q.quoteNum?`<br><span style="font-size:11px;color:var(--text3)">#${q.quoteNum}</span>`:''}</td>
+      <td>${q.rep||'—'}</td>
+      <td style="font-size:11px">${q._bundle?`<span style="background:#e8f0fe;color:#1a6ec7;padding:1px 6px;border-radius:6px;font-weight:700">Bundle</span>`:'<span style="color:var(--text3)">Direct</span>'}</td>
+      <td style="font-size:12px">${q.ihd||'—'}</td>
+      <td style="font-size:12px;color:var(--red)">${q.commissionReport||'—'}</td>
+      <td class="r">${fmt(q.totalNetCost)}</td>
+      <td class="r">${fmt(q.totalSell)}</td>
+      <td class="r"><span class="mg-pill ${mgClass}">${pct(mg)}</span></td>
+      <td class="r">${fmt(q.grossProfit)}</td>
+      <td class="r" style="color:var(--brown);font-weight:700">${fmt(q.totalRepComm)}</td>
+      <td>${q.needsApproval?'<span class="approval-flag">&#9888; Approval</span>':''}</td>
+    </tr>`;
+  });
+  html+=`</tbody></table>`;
+  wrap.innerHTML=html;
+}
+
+function renderApproval(){
+  const qs=quotes.filter(q=>q.needsApproval);
+  const wrap=document.getElementById('approval-table-wrap');
+  if(!qs.length){wrap.innerHTML='<div class="empty" style="color:var(--green)">&#10003; No quotes require manager approval</div>';return;}
+  let html=`<div style="padding:10px 18px;font-size:13px;color:var(--red);font-weight:600;border-bottom:1px solid var(--border)">&#9888; ${qs.length} quote${qs.length!==1?'s':''} require manager approval</div>`;
+  html+=`<table><thead><tr>
+    <th>Quote</th><th>Rep</th><th>Source</th><th>IHD</th><th>Commission report</th>
+    <th class="r">Sell</th><th class="r">Avg margin</th><th>Low-margin lines</th>
+  </tr></thead><tbody>`;
+  qs.forEach(q=>{
+    const lowLines=(q.lines||[]).filter(l=>l.margin<30).map(l=>`${l.name} (${pct(l.margin)})`).join(', ');
+    html+=`<tr>
+      <td><strong>${q.quoteName||q.quoteNum||'Unnamed'}</strong></td>
+      <td>${q.rep||'—'}</td>
+      <td>${q.ihd||'—'}</td>
+      <td style="color:var(--red)">${q.commissionReport||'—'}</td>
+      <td class="r">${fmt(q.totalSell)}</td>
+      <td class="r"><span class="mg-pill mg-red">${pct(q.avgMargin)}</span></td>
+      <td style="font-size:12px;color:var(--text3)">${lowLines}</td>
+    </tr>`;
+  });
+  html+=`</tbody></table>`;
+  wrap.innerHTML=html;
+}
+
+// Init
+render();
+if(sheetsConfigured()) loadFromSheets();
+
+// ── Google Sheets Integration ────────────────────────────────────────────
+const SHEETS_API_KEY = 'YOUR_API_KEY_HERE';
+const SPREADSHEET_ID = 'YOUR_SPREADSHEET_ID_HERE';
+const REPS_LIST = ['Shannon','Stephen','Julia','Lexi','Amy','Debbie'];
+
+function sheetsConfigured(){
+  return SHEETS_API_KEY!=='YOUR_API_KEY_HERE' && SPREADSHEET_ID!=='YOUR_SPREADSHEET_ID_HERE';
+}
+
+async function loadFromSheets(){
+  if(!sheetsConfigured()) return;
+  const btn = document.getElementById('sync-btn');
+  if(btn){ btn.textContent='Syncing...'; btn.disabled=true; }
+  try{
+    let allQuotes = [];
+    for(const rep of REPS_LIST){
+      const range = encodeURIComponent(`${rep}!A2:Q1000`);
+      const url = `https://sheets.googleapis.com/v4/spreadsheets/${SPREADSHEET_ID}/values/${range}?key=${SHEETS_API_KEY}`;
+      const res = await fetch(url);
+      const data = await res.json();
+      const rows = data.values || [];
+      rows.forEach(r => {
+        if(!r[0] && !r[1]) return; // skip empty rows
+        allQuotes.push({
+          quoteNum: r[0]||'', quoteName: r[1]||'', rep: r[2]||rep,
+          ihd: r[3]||'', commissionReport: r[4]||'',
+          commissionSplit: r[5]||'standard', hasAM: r[6]==='Yes',
+          totalSell: parseFloat(r[7])||0, totalNetCost: parseFloat(r[8])||0,
+          grossProfit: parseFloat(r[9])||0, avgMargin: parseFloat(r[10])||0,
+          totalRepComm: parseFloat(r[11])||0, totalHouseProfit: parseFloat(r[12])||0,
+          totalAM: parseFloat(r[13])||0,
+          amended: r[14]==='Yes', _hasAdj: r[15]==='Yes',
+          _source: 'sheets'
+        });
+      });
+    }
+    // Merge: sheets data takes priority over locally loaded files
+    // Keep any locally loaded quotes not in sheets (no quoteNum match)
+    const sheetNums = new Set(allQuotes.map(q=>q.quoteNum).filter(Boolean));
+    const localOnly = quotes.filter(q=>q._source!=='sheets'&&(!q.quoteNum||!sheetNums.has(q.quoteNum)));
+    quotes = [...allQuotes, ...localOnly];
+    localStorage.setItem('toro_quotes', JSON.stringify(quotes));
+    document.getElementById('last-updated').textContent =
+      quotes.length+' quotes loaded from Sheets';
+    render();
+if(sheetsConfigured()) loadFromSheets();
+  } catch(e){
+    console.error('Sheets read failed:', e);
+    document.getElementById('last-updated').textContent = 'Sync failed — check API key';
+  } finally {
+    if(btn){ btn.textContent='Sync from Sheets'; btn.disabled=false; }
+  }
+}
+
+// Auto-sync every 60 seconds when configured
+if(sheetsConfigured()) setInterval(loadFromSheets, 60000);
+
+</script>
+</body>
+</html>
