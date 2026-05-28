@@ -293,14 +293,18 @@ const FB_PATH = 'quotes/' + REP.toLowerCase();
 
 async function saveToFirebase(q) {
   const key = q.quoteNum
-    ? q.quoteNum.replace(/[.#$/\[\]]/g, '_')
-    : 'q_' + Date.now();
+    ? q.quoteNum.replace(/[.#$\/\[\]]/g, '_')
+    : (q._fbKey || 'q_' + Date.now());
+  q._fbKey = key; // store key on quote for later deletion
   await fbSet(FB_PATH + '/' + key, q);
 }
 
 async function deleteFromFirebase(q) {
-  if (!q.quoteNum) return;
-  const key = q.quoteNum.replace(/[.#$/\[\]]/g, '_');
+  // Build the same key used when saving
+  const key = q.quoteNum
+    ? q.quoteNum.replace(/[.#$\/\[\]]/g, '_')
+    : q._fbKey || null;
+  if (!key) return;
   await fbSet(FB_PATH + '/' + key, null);
 }
 
@@ -435,8 +439,12 @@ async function deleteQuote(idx){
   const q = quotes[idx];
   quotes.splice(idx,1);
   localStorage.setItem(STORAGE_KEY, JSON.stringify(quotes));
+  render(); // render immediately with quote removed
+  // Pause listener while delete writes to Firebase
+  _fbInitialized = false;
   await deleteFromFirebase(q);
-  render();
+  // Re-enable listener after a short delay
+  setTimeout(() => { _fbInitialized = true; }, 1000);
 }
 
 // ── Adjustments ──────────────────────────────────────────────────────────
