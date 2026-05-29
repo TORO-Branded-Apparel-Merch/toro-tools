@@ -586,6 +586,18 @@ async function init(){
   startListeners();
 }
 init();
+
+async function deleteQuote(idx){
+  if(!confirm('Permanently remove this quote?')) return;
+  const q=quotes[idx];
+  quotes.splice(idx,1);
+  localStorage.setItem(STORAGE_KEY,JSON.stringify(quotes));
+  render();
+  fbListenerActive=false;
+  await fbDelete(q);
+  setTimeout(()=>{ fbListenerActive=true; },2000);
+}
+
 </script>
 </body>
 </html>
