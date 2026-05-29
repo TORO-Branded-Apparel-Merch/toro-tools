@@ -157,13 +157,12 @@ if(isLocked()){ document.getElementById('pw-msg').textContent='Account locked.';
 // ── Firebase ──────────────────────────────────────────────────────────────
 // ── Firebase Integration ─────────────────────────────────────────────────
 // Uses Firebase Realtime Database for real-time sync across all devices
-const FIREBASE_API_KEY = "AIzaSyDEyTsbpo-E5Io5B_nop39jyk4gwInWCqQ";
 const FIREBASE_DB_URL = "https://toro-commission-318b4-default-rtdb.firebaseio.com";
 
 // Firebase REST API helpers — no SDK needed, works in plain HTML
 async function fbGet(path) {
   try {
-    const res = await fetch(`${FIREBASE_DB_URL}/${path}.json?auth=${FIREBASE_API_KEY}`);
+    const res = await fetch(`${FIREBASE_DB_URL}/${path}.json`);
     if (!res.ok) return null;
     return await res.json();
   } catch(e) { console.warn('Firebase read failed:', e.message); return null; }
@@ -171,7 +170,7 @@ async function fbGet(path) {
 
 async function fbSet(path, data) {
   try {
-    const res = await fetch(`${FIREBASE_DB_URL}/${path}.json?auth=${FIREBASE_API_KEY}`, {
+    const res = await fetch(`${FIREBASE_DB_URL}/${path}.json`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(data)
@@ -182,7 +181,7 @@ async function fbSet(path, data) {
 
 async function fbPatch(path, data) {
   try {
-    const res = await fetch(`${FIREBASE_DB_URL}/${path}.json?auth=${FIREBASE_API_KEY}`, {
+    const res = await fetch(`${FIREBASE_DB_URL}/${path}.json`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(data)
@@ -200,7 +199,7 @@ function fbListen(path, callback) {
   }
   try {
     const es = new EventSource(
-      `${FIREBASE_DB_URL}/${path}.json?auth=${FIREBASE_API_KEY}`
+      `${FIREBASE_DB_URL}/${path}.json`
     );
     es.addEventListener('put', e => {
       try { callback(JSON.parse(e.data)); } catch(err) {}
