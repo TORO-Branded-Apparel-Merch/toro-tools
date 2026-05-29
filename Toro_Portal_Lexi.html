@@ -236,7 +236,8 @@ const FB_PATH='quotes/'+REP.toLowerCase();
 async function fbSave(q){
   const key=q.quoteNum?q.quoteNum.replace(/[.#$\/\[\]]/g,'_'):(q._fbKey||'q_'+Date.now());
   q._fbKey=key;
-  await fbSet(FB_PATH+'/'+key,q);
+  const ok=await fbSet(FB_PATH+'/'+key,q);
+  console.log('Firebase save:', key, ok?'OK':'FAILED');
 }
 async function fbDelete(q){
   const key=q.quoteNum?q.quoteNum.replace(/[.#$\/\[\]]/g,'_'):q._fbKey;
@@ -302,8 +303,9 @@ function loadFiles(files){
     r.onload=async e=>{
       try{
         const q=JSON.parse(e.target.result);
-        if(!q.totalSell) return;
+        if(!q.totalSell && !q.quoteNum) return; // need at least one identifier
         if(q.rep&&q.rep!==REP){ alert('This quote belongs to '+q.rep+', not Lexi.'); return; }
+        console.log('Loading quote:', q.quoteNum, q.quoteName, 'sell:', q.totalSell, 'rep:', q.rep);
         q.rep=REP; q.loadedAt=new Date().toISOString();
         if(!q.adjustments) q.adjustments=[];
         // Status fields
