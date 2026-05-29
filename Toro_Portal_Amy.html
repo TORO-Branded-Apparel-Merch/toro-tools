@@ -56,6 +56,8 @@ tr:hover td{background:#fafafa}
 .badge-needs{background:#FFF8E1;color:#7A4F00}
 .rejection-note{background:#FFEBEB;border-left:3px solid var(--red);padding:6px 10px;font-size:11px;color:#a32d2d;margin-top:4px;border-radius:0 4px 4px 0}
 .summary-bar{padding:10px 16px;background:#f0faf4;border-top:1px solid var(--border);font-size:12px;display:flex;gap:20px;flex-wrap:wrap}
+.del-btn{background:none;border:none;cursor:pointer;color:#ccc;font-size:13px;padding:2px 4px}
+.del-btn:hover{color:var(--red)}
 .locked-badge{font-size:10px;background:#e8e8e8;color:#888;padding:1px 6px;border-radius:6px;margin-left:4px}
 details summary{padding:10px 16px;cursor:pointer;font-size:12px;color:var(--text3);user-select:none;list-style:none}
 details summary::-webkit-details-marker{display:none}
@@ -423,7 +425,6 @@ function approvalBadge(q){
 }
 
 function statusChecksHtml(q,idx){
-  const locked=q.locked||q.workflowStatus==='submittedCommission'||q.workflowStatus==='archived';
   const sc=q.statusChecks||{};
   const checks=[
     ['quoteApproved','Quote Approved'],
@@ -431,45 +432,45 @@ function statusChecksHtml(q,idx){
     ['paidByClient','Paid by Client'],
     ['readyForPayment','Ready for Payment']
   ];
-  return checks.map(([field,label])=>{
+  return '<div class="status-checks">'+checks.map(function([field,label]){
     const checked=sc[field]||false;
-    const dis=locked?'disabled style="opacity:.5;cursor:not-allowed"':'style="cursor:pointer"';
-    return `<label class="status-check ${checked?'checked':''}" ${locked?'':'onclick="toggleStatus('+idx+',\''+field+'\')"'}>
-      <input type="checkbox" ${checked?'checked':''} ${locked?'disabled':''} onclick="if(!event.target.disabled)toggleStatus(${idx},\'${field}\')">
-      ${label}
-    </label>`;
-  }).join('');
-}
-
-function quoteRow(q,idx,locked){
+    return '<label class="status-check'+(checked?' checked':'')+'" style="cursor:pointer">'+
+      '<input type="checkbox"'+(checked?' checked':'')+' onchange="toggleStatus('+idx+',\''+field+'\')"> '+label+
+      '</label>';
+  }).join('')+'</div>';
+}function quoteRow(q,idx,locked){
   const mg=q.avgMargin||0;
   const mgC=mg<30?'mg-red':mg<35?'mg-yellow':'mg-green';
   const name=q.quoteName||(q.quoteNum?'#'+q.quoteNum:'Unnamed');
-  return `<tr>
-    <td>
-      <div style="font-weight:700;font-size:13px">${name}${locked?'<span class="locked-badge">LOCKED</span>':''}</div>
-      ${q.quoteNum?'<div style="font-size:10px;color:var(--text3)">#'+q.quoteNum+'</div>':''}
-      ${q.ihd?'<div style="font-size:10px;color:var(--text3)">IHD: '+q.ihd+'</div>':''}
-      ${q.commissionReport?'<div style="font-size:10px;color:var(--text3)">Period: '+q.commissionReport+'</div>':''}
-      ${q.approvalStatus==='rejected'&&q.approvalNote?'<div class="rejection-note">&#9888; '+q.approvalNote+'</div>':''}
-    </td>
-    <td class="r">${fmt(q.totalNetCost)}</td>
-    <td class="r">${fmt(q.totalSell)}</td>
-    <td class="r"><span class="mg-pill ${mgC}">${pct(mg)}</span></td>
-    <td class="r" style="color:var(--brown);font-weight:700">${fmt(q.totalRepComm)}</td>
-    <td style="font-size:11px">${q.commissionSplit==='standard'?'Standard':q.commissionSplit==='ho_75_25'?'H/O 75/25':q.commissionSplit==='ho_50_50'?'H/O 50/50':q.commissionSplit==='ho_25_75'?'H/O 25/75':'Standard'}</td>
-    <td>
-      ${approvalBadge(q)}
-      ${!locked?statusChecksHtml(q,idx):''}
-    </td>
-    <td style="white-space:nowrap">
-      ${!locked&&q.workflowStatus==='needsApproval'?'<button class="btn btn-sm" style="background:var(--orange);color:#fff" onclick="submitForApproval('+idx+')">Submit for Approval</button>':''}
-      ${!locked?'<button class="btn btn-outline btn-sm" onclick="exportToBuilder('+idx+')" title="Export to Quote Builder for editing">&#9998; Edit</button>':''}
-      ${locked?'<button class="btn btn-outline btn-sm" onclick="exportToBuilder('+idx+')" title="Export for reference">&#128190; Export</button>':''}
-    </td>
-  </tr>`;
+  const splitLbl=q.commissionSplit==='standard'?'Standard':q.commissionSplit==='ho_75_25'?'H/O 75/25':q.commissionSplit==='ho_50_50'?'H/O 50/50':q.commissionSplit==='ho_25_75'?'H/O 25/75':'Standard';
+  let actionBtns='';
+  if(!locked){
+    if(q.workflowStatus==='needsApproval'){
+      actionBtns+='<button class="btn btn-sm" style="background:var(--orange);color:#fff;margin-bottom:3px;display:block" onclick="submitForApproval('+idx+')">Submit for Approval</button>';
+    }
+    actionBtns+='<button class="btn btn-outline btn-sm" onclick="exportToBuilder('+idx+')" style="margin-right:4px">&#9998; Edit</button>';
+    actionBtns+='<button class="del-btn" onclick="deleteQuote('+idx+')" title="Delete">&#10005;</button>';
+  } else {
+    actionBtns='<button class="btn btn-outline btn-sm" onclick="exportToBuilder('+idx+')">&#128190; Export</button>';
+  }
+  let html='<tr>';
+  html+='<td>';
+  html+='<div style="font-weight:700;font-size:13px">'+name+(locked?'<span class="locked-badge"> LOCKED</span>':'')+'</div>';
+  if(q.quoteNum&&q.quoteName) html+='<div style="font-size:10px;color:var(--text3)">#'+q.quoteNum+'</div>';
+  if(q.ihd) html+='<div style="font-size:10px;color:var(--text3)">IHD: '+q.ihd+'</div>';
+  if(q.commissionReport) html+='<div style="font-size:10px;color:var(--text3)">Period: '+q.commissionReport+'</div>';
+  if(q.approvalStatus==='rejected'&&q.approvalNote) html+='<div class="rejection-note">&#9888; '+q.approvalNote+'</div>';
+  html+='</td>';
+  html+='<td class="r">'+fmt(q.totalNetCost)+'</td>';
+  html+='<td class="r">'+fmt(q.totalSell)+'</td>';
+  html+='<td class="r"><span class="mg-pill '+mgC+'">'+pct(mg)+'</span></td>';
+  html+='<td class="r" style="color:var(--brown);font-weight:700">'+fmt(q.totalRepComm)+'</td>';
+  html+='<td style="font-size:11px">'+splitLbl+'</td>';
+  html+='<td>'+approvalBadge(q)+(locked?'':statusChecksHtml(q,idx))+'</td>';
+  html+='<td style="white-space:nowrap">'+actionBtns+'</td>';
+  html+='</tr>';
+  return html;
 }
-
 // ── Render ────────────────────────────────────────────────────────────────
 function render(){
   const status=document.getElementById('status-text');
