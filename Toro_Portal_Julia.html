@@ -105,8 +105,8 @@ details summary::-webkit-details-marker{display:none}
 </div>
 
 <div class="container">
-  <div class="drop-zone" id="drop-zone" onclick="document.getElementById('file-input').click()">
-    <input type="file" id="file-input" multiple accept=".json" style="display:none">
+  <div class="drop-zone" id="drop-zone" onclick="if(event.target.tagName!=='INPUT')document.getElementById('file-input').click()">
+    <input type="file" id="file-input" multiple accept=".json" style="display:none" onclick="event.stopPropagation()">
     <div style="font-size:24px;margin-bottom:6px">&#128190;</div>
     <div style="font-size:14px;font-weight:700;color:var(--text2);margin-bottom:4px">Drop exported quote files here</div>
     <div style="font-size:11px;color:var(--text3)">Click or drag .json files from the TORO Quote Builder</div>
@@ -349,9 +349,9 @@ function loadFiles(files){
           q.workflowStatus='needsApproval';
         }
         quotes.push(q);
+        render(); // render immediately so user sees it
         await fbSave(q);
         localStorage.setItem(STORAGE_KEY,JSON.stringify(quotes));
-        render();
       } catch(err){ console.error(err); }
     };
     r.readAsText(f);
@@ -454,7 +454,7 @@ function statusChecksHtml(q,idx){
       '<input type="checkbox"'+(checked?' checked':'')+' onchange="toggleStatus('+idx+',\''+field+'\')"> '+label+
       '</label>';
   }).join('')+'</div>';
-}function quoteRow(q,idx,locked){
+}function quoteRow(q,idx,locked,showUndo){
   const mg=q.avgMargin||0;
   const mgC=mg<30?'mg-red':mg<35?'mg-yellow':'mg-green';
   const name=q.quoteName||(q.quoteNum?'#'+q.quoteNum:'Unnamed');
@@ -463,6 +463,9 @@ function statusChecksHtml(q,idx){
   if(!locked){
     if(q.workflowStatus==='needsApproval'){
       actionBtns+='<button class="btn btn-sm" style="background:var(--orange);color:#fff;margin-bottom:3px;display:block" onclick="submitForApproval('+idx+')">Submit for Approval</button>';
+    }
+    if(showUndo){
+      actionBtns+='<button class="btn btn-outline btn-sm" onclick="undoReady('+idx+')" style="margin-right:4px" title="Move back to Active">&#8630; Undo</button>';
     }
     actionBtns+='<button class="btn btn-outline btn-sm" onclick="exportToBuilder('+idx+')" style="margin-right:4px">&#9998; Edit</button>';
     actionBtns+='<button class="del-btn" onclick="deleteQuote('+idx+')" title="Delete">&#10005;</button>';
@@ -558,7 +561,7 @@ function render(){
         <span>My commission: <strong style="color:var(--brown)">${fmt(subRep)}</strong></span>
       </div>
       <table>${TH}<tbody>`;
-    readyForSub.forEach(q=>{ const i=quotes.indexOf(q); html+=quoteRow(q,i,false); });
+    readyForSub.forEach(q=>{ const i=quotes.indexOf(q); html+=quoteRow(q,i,false,true); });
     html+=`</tbody></table></div>`;
   }
 
@@ -611,6 +614,15 @@ async function deleteQuote(idx){
   fbListenerActive=false;
   await fbDelete(q);
   setTimeout(()=>{ fbListenerActive=true; },2000);
+}
+
+
+function undoReady(idx){
+  if(!quotes[idx].statusChecks) return;
+  quotes[idx].statusChecks.readyForPayment=false;
+  fbSave(quotes[idx]);
+  localStorage.setItem(STORAGE_KEY,JSON.stringify(quotes));
+  render();
 }
 
 </script>
