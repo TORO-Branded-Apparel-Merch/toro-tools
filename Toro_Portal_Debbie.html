@@ -234,10 +234,13 @@ function fbStopListening(path) {
 
 const FB_PATH='quotes/'+REP.toLowerCase();
 
+let _saving=false;
 async function fbSave(q){
   const key=q.quoteNum?q.quoteNum.replace(/[.#$\/\[\]]/g,'_'):(q._fbKey||'q_'+Date.now());
   q._fbKey=key;
+  _saving=true;
   await fbSet(FB_PATH+'/'+key,q);
+  setTimeout(()=>{ _saving=false; },1000);
 }
 async function fbDelete(q){
   const key=q.quoteNum?q.quoteNum.replace(/[.#$\/\[\]]/g,'_'):q._fbKey;
@@ -246,7 +249,19 @@ async function fbDelete(q){
 }
 async function loadFromFirebase(){
   const data=await fbGet(FB_PATH);
-  quotes=data?Object.values(data).filter(q=>q&&q.totalSell):[];
+  if(data){
+    const fbQuotes=Object.values(data).filter(q=>q&&q.totalSell);
+    fbQuotes.forEach(q=>{
+      const idx=quotes.findIndex(x=>x.quoteNum&&x.quoteNum===q.quoteNum);
+      if(idx>=0) quotes[idx]=q; else quotes.push(q);
+    });
+    quotes=quotes.filter(q=>{
+      if(!q.quoteNum) return true;
+      return fbQuotes.some(f=>f.quoteNum===q.quoteNum);
+    });
+  } else {
+    quotes=[];
+  }
   localStorage.setItem(STORAGE_KEY,JSON.stringify(quotes));
   render();
 }
@@ -257,6 +272,7 @@ function startListeners(){
   fbListen(FB_PATH,event=>{
     if(!event||!event.data) return;
     if(first){ first=false; return; }
+    if(_saving) return;
     loadFromFirebase();
   });
   // Listen for approval updates from dashboard
