@@ -569,8 +569,10 @@ function render(){
 
 // ── Init ──────────────────────────────────────────────────────────────────
 async function init(){
-  localStorage.removeItem('toro_portal_amy'); // clear old v1/v2 data
-  localStorage.removeItem('toro_portal_amy_v2');
+  // Load local cache first for instant display
+  try{ quotes=JSON.parse(localStorage.getItem(STORAGE_KEY)||'[]'); }catch(e){ quotes=[]; }
+  if(quotes.length) render();
+  // Then sync from Firebase
   await loadFromFirebase();
   startListeners();
 }
