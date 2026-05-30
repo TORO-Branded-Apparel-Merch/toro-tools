@@ -16,13 +16,12 @@
 *{box-sizing:border-box;margin:0;padding:0}
 body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;}
 .header{background:var(--red);color:#fff;padding:14px 24px;display:flex;align-items:center;gap:14px;position:sticky;top:0;z-index:100;box-shadow:0 2px 8px rgba(0,0,0,0.15);}
-.header h1{font-size:20px;font-weight:700;letter-spacing:0.3px;}
-.header .subtitle{font-size:13px;opacity:0.8;}
+.header h1{font-size:20px;font-weight:700;}
 .steps-bar{display:flex;background:#fff;border-bottom:1px solid var(--border);overflow-x:auto;padding:0 16px;}
 .step-tab{padding:12px 18px;font-size:13px;font-weight:600;color:var(--text3);border-bottom:3px solid transparent;cursor:pointer;white-space:nowrap;transition:all 0.15s;}
 .step-tab.active{color:var(--red);border-bottom-color:var(--red);}
 .step-tab.done{color:var(--green);}
-.container{max-width:960px;margin:0 auto;padding:24px 16px;}
+.container{max-width:980px;margin:0 auto;padding:24px 16px;}
 .card{background:var(--surface);border-radius:var(--radius);border:1px solid var(--border);padding:24px;margin-bottom:20px;}
 .card-title{font-size:16px;font-weight:700;color:var(--text);margin-bottom:16px;padding-bottom:10px;border-bottom:1px solid var(--border);}
 .form-row{display:grid;gap:14px;margin-bottom:14px;}
@@ -36,7 +35,7 @@ input[type=text],input[type=number],input[type=date],select,textarea{
   font-size:14px;color:var(--text);background:#fff;transition:border 0.15s;
 }
 input:focus,select:focus,textarea:focus{outline:none;border-color:var(--red);}
-input.invalid{border-color:var(--red);background:var(--red-light);}
+input.invalid,select.invalid{border-color:var(--red)!important;background:var(--red-light)!important;}
 textarea{resize:vertical;min-height:70px;}
 .checkbox-row{display:flex;align-items:center;gap:8px;font-size:14px;}
 .checkbox-row input[type=checkbox]{width:16px;height:16px;accent-color:var(--red);}
@@ -47,37 +46,55 @@ textarea{resize:vertical;min-height:70px;}
 .btn-outline:hover{background:var(--red-light);}
 .btn-gray{background:#f0f0f0;color:var(--text2);border:1px solid var(--border);}
 .btn-gray:hover{background:#e5e5e5;}
+.btn-green{background:var(--green);color:#fff;}
+.btn-green:hover{background:#156b3e;}
+.btn-sm{padding:5px 12px;font-size:12px;}
 .nav-row{display:flex;justify-content:space-between;align-items:center;margin-top:24px;padding-top:18px;border-top:1px solid var(--border);}
 /* Garment card */
 .garment-card{border:1px solid var(--border);border-radius:var(--radius);margin-bottom:16px;overflow:hidden;}
-.garment-header{background:#f8f8fa;padding:12px 16px;display:flex;align-items:center;justify-content:space-between;cursor:pointer;border-bottom:1px solid var(--border);}
+.garment-header{background:#f8f8fa;padding:12px 16px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--border);}
 .garment-header h3{font-size:14px;font-weight:700;}
+.garment-header-btns{display:flex;gap:8px;}
 .garment-body{padding:16px;}
-/* Size table */
-.size-table{width:100%;border-collapse:collapse;font-size:13px;margin-top:8px;}
-.size-table th{background:#f5f5f7;padding:7px 10px;text-align:left;font-weight:600;border:1px solid var(--border);}
-.size-table td{padding:6px 8px;border:1px solid var(--border);}
-.size-table input{border:none;background:transparent;width:100%;font-size:13px;padding:2px 4px;}
-.size-table input:focus{outline:1px solid var(--red);border-radius:3px;}
-/* Margin indicator */
+/* Pricing groups */
+.price-group{border:1px solid var(--border);border-radius:var(--radius-sm);margin-bottom:10px;overflow:hidden;}
+.price-group-header{background:#f5f5f7;padding:8px 12px;display:flex;align-items:center;gap:10px;border-bottom:1px solid var(--border);}
+.price-group-header label{margin:0;font-size:13px;font-weight:600;}
+.price-group-inputs{display:flex;gap:14px;align-items:center;padding:10px 12px;flex-wrap:wrap;}
+.price-group-inputs .pi{display:flex;align-items:center;gap:6px;font-size:13px;}
+.price-group-inputs input{width:90px;padding:6px 8px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:13px;}
+.size-checks{display:flex;flex-wrap:wrap;gap:8px;padding:10px 12px;border-top:1px solid var(--border);}
+.size-check{display:flex;align-items:center;gap:5px;font-size:13px;cursor:pointer;}
+.size-check input{accent-color:var(--red);}
+.size-qty-row{display:flex;flex-wrap:wrap;gap:10px;padding:8px 12px;border-top:1px solid var(--border);}
+.size-qty-item{display:flex;flex-direction:column;align-items:center;gap:4px;font-size:12px;color:var(--text3);}
+.size-qty-item input{width:60px;padding:5px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:13px;text-align:center;}
+/* Imprint card */
+.imprint-card{border:1px solid var(--border);border-radius:var(--radius);margin-bottom:12px;overflow:hidden;}
+.imprint-header{background:#f8f8fa;padding:10px 14px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--border);}
+.imprint-header h4{font-size:13px;font-weight:700;}
+.imprint-body{padding:14px;}
+.imprint-locked{background:#f5fff8;border-top:2px solid var(--green);}
+.imprint-locked .imprint-body{opacity:0.7;pointer-events:none;}
+.lock-bar{display:flex;align-items:center;gap:8px;padding:8px 14px;background:var(--green-bg);border-top:1px solid #a5d6b8;font-size:13px;color:var(--green);font-weight:600;}
+/* Margin badge */
 .margin-badge{display:inline-block;padding:2px 8px;border-radius:10px;font-size:11px;font-weight:700;}
 .margin-ok{background:#e8f5ee;color:#1a7f4b;}
 .margin-low{background:#fff3e0;color:#c46a1e;}
 .margin-warn{background:#fff0f0;color:#c41e1e;}
-/* Summary cards */
+/* Summary */
 .summary-garment-card{border:1px solid var(--border);border-radius:var(--radius);margin-bottom:20px;overflow:hidden;}
 .summary-garment-header{background:var(--red);color:#fff;padding:12px 18px;font-weight:700;font-size:15px;}
 .summary-section{padding:14px 18px;border-bottom:1px solid var(--border);}
 .summary-section:last-child{border-bottom:none;}
 .summary-section h4{font-size:12px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:10px;}
 .summary-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px 20px;}
-.summary-kv{font-size:13px;}
 .summary-kv .k{color:var(--text3);font-size:12px;}
-.summary-kv .v{font-weight:600;}
+.summary-kv .v{font-weight:600;font-size:13px;}
 .summary-size-table{width:100%;border-collapse:collapse;font-size:13px;}
 .summary-size-table th{background:#f5f5f7;padding:6px 10px;text-align:left;border:1px solid var(--border);font-size:12px;}
 .summary-size-table td{padding:6px 10px;border:1px solid var(--border);}
-.totals-card{background:#f8f8fa;border:1px solid var(--border);border-radius:var(--radius);padding:20px;}
+.totals-card{background:#f8f8fa;border:1px solid var(--border);border-radius:var(--radius);padding:20px;margin-top:16px;}
 .totals-row{display:flex;justify-content:space-between;padding:6px 0;font-size:14px;border-bottom:1px solid #eee;}
 .totals-row:last-child{border-bottom:none;font-weight:700;font-size:16px;}
 /* Import toggle */
@@ -88,8 +105,12 @@ textarea{resize:vertical;min-height:70px;}
 .import-body.open{display:block;}
 .drop-zone{border:2px dashed var(--border);border-radius:var(--radius-sm);padding:24px;text-align:center;color:var(--text3);cursor:pointer;transition:border 0.15s;}
 .drop-zone:hover,.drop-zone.over{border-color:var(--red);color:var(--red);}
-/* Approval flag */
+/* Validation banner */
+.validation-banner{background:var(--red-light);border:1px solid #f5c6c6;border-radius:var(--radius-sm);padding:12px 16px;margin-bottom:16px;font-size:13px;color:var(--red);display:none;}
+.validation-banner ul{margin:8px 0 0 18px;}
 .approval-flag{background:var(--orange-bg);border:1px solid var(--orange);border-radius:var(--radius-sm);padding:10px 14px;font-size:13px;color:var(--orange);margin-bottom:16px;}
+/* BAM Modal */
+#bam-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:9999;align-items:center;justify-content:center;}
 @media(max-width:600px){
   .form-row.cols-2,.form-row.cols-3,.form-row.cols-4{grid-template-columns:1fr;}
   .summary-grid{grid-template-columns:1fr;}
@@ -99,94 +120,41 @@ textarea{resize:vertical;min-height:70px;}
 <body>
 
 <!-- BAM Modal -->
-<div id="bam-overlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:9999;align-items:center;justify-content:center;">
+<div id="bam-overlay">
   <div style="background:#fff;border-radius:12px;padding:28px 32px;max-width:420px;width:90%;box-shadow:0 8px 40px rgba(0,0,0,0.2);">
     <div style="font-size:17px;font-weight:700;color:#C41E1E;margin-bottom:12px;">🐂 BAM the Bull says</div>
     <div id="bam-msg" style="font-size:15px;color:#333;margin-bottom:22px;line-height:1.5;"></div>
     <div id="bam-btns" style="display:flex;gap:10px;justify-content:flex-end;"></div>
   </div>
 </div>
-<script>
-function bamAlert(msg, cb) {
-  document.getElementById('bam-msg').innerHTML = msg;
-  const btns = document.getElementById('bam-btns');
-  btns.innerHTML = '';
-  const ok = document.createElement('button');
-  ok.textContent = 'OK';
-  ok.style.cssText = 'padding:8px 22px;background:#C41E1E;color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:14px;font-weight:600;';
-  ok.onclick = () => { document.getElementById('bam-overlay').style.display='none'; if(cb) cb(true); };
-  btns.appendChild(ok);
-  const ov = document.getElementById('bam-overlay');
-  ov.style.display = 'flex';
-}
-function bamConfirm(msg, cb) {
-  document.getElementById('bam-msg').innerHTML = msg;
-  const btns = document.getElementById('bam-btns');
-  btns.innerHTML = '';
-  const cancel = document.createElement('button');
-  cancel.textContent = 'Cancel';
-  cancel.style.cssText = 'padding:8px 18px;background:#f0f0f0;color:#333;border:none;border-radius:6px;cursor:pointer;font-size:14px;';
-  cancel.onclick = () => { document.getElementById('bam-overlay').style.display='none'; if(cb) cb(false); };
-  const ok = document.createElement('button');
-  ok.textContent = 'Yes, continue';
-  ok.style.cssText = 'padding:8px 18px;background:#C41E1E;color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:14px;font-weight:600;';
-  ok.onclick = () => { document.getElementById('bam-overlay').style.display='none'; if(cb) cb(true); };
-  btns.appendChild(cancel);
-  btns.appendChild(ok);
-  const ov = document.getElementById('bam-overlay');
-  ov.style.display = 'flex';
-}
-function bamPrompt(msg, defaultVal, cb) {
-  document.getElementById('bam-msg').innerHTML = msg + '<br><input id="bam-input" type="text" value="'+(defaultVal||'')+'" style="width:100%;margin-top:10px;padding:8px;border:1px solid #ddd;border-radius:6px;font-size:14px;">';
-  const btns = document.getElementById('bam-btns');
-  btns.innerHTML = '';
-  const cancel = document.createElement('button');
-  cancel.textContent = 'Cancel';
-  cancel.style.cssText = 'padding:8px 18px;background:#f0f0f0;color:#333;border:none;border-radius:6px;cursor:pointer;font-size:14px;';
-  cancel.onclick = () => { document.getElementById('bam-overlay').style.display='none'; if(cb) cb(null); };
-  const ok = document.createElement('button');
-  ok.textContent = 'OK';
-  ok.style.cssText = 'padding:8px 18px;background:#C41E1E;color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:14px;font-weight:600;';
-  ok.onclick = () => { const v=document.getElementById('bam-input').value; document.getElementById('bam-overlay').style.display='none'; if(cb) cb(v); };
-  btns.appendChild(cancel);
-  btns.appendChild(ok);
-  document.getElementById('bam-overlay').style.display='flex';
-  setTimeout(()=>document.getElementById('bam-input')?.focus(),50);
-}
-</script>
 
 <div class="header">
   <div>
     <h1>🐂 TORO Quote Builder</h1>
-    <div class="subtitle">Build and export commission quotes</div>
   </div>
 </div>
 <div class="steps-bar" id="steps-bar">
   <div class="step-tab active" onclick="goPage(1)" id="tab-1">1 · Quote Info</div>
   <div class="step-tab" onclick="goPage(2)" id="tab-2">2 · Garments</div>
   <div class="step-tab" onclick="goPage(3)" id="tab-3">3 · Hard Goods</div>
-  <div class="step-tab" onclick="goPage(4)" id="tab-4">4 · Decoration</div>
+  <div class="step-tab" onclick="goPage(4)" id="tab-4">4 · Imprints</div>
   <div class="step-tab" onclick="goPage(5)" id="tab-5">5 · Review</div>
   <div class="step-tab" onclick="goPage(6)" id="tab-6">6 · Summary</div>
 </div>
+
 <div class="container">
 
 <!-- PAGE 1 -->
 <div id="page-1">
-  <!-- Re-import toggle -->
   <div class="import-toggle">
-    <div class="import-toggle-header" onclick="toggleImport()">
-      <span>📂</span> Re-import a previous quote to edit
-    </div>
+    <div class="import-toggle-header" onclick="toggleImport()">📂 Re-import a previous quote to edit</div>
     <div class="import-body" id="import-body">
-      <p style="font-size:13px;color:var(--text3);margin-bottom:12px;">Drop or select a previously exported quote JSON file. All fields will be pre-filled for editing.</p>
-      <div class="drop-zone" id="import-drop" onclick="document.getElementById('import-file').click()">
-        Drop JSON file here or click to browse
-      </div>
+      <p style="font-size:13px;color:var(--text3);margin-bottom:12px;">Drop or select a previously exported quote JSON. All fields will be pre-filled.</p>
+      <div class="drop-zone" id="import-drop" onclick="document.getElementById('import-file').click()">Drop JSON here or click to browse</div>
       <input type="file" id="import-file" accept=".json" style="display:none" onchange="importFile(this)">
     </div>
   </div>
-
+  <div id="val-banner-1" class="validation-banner"></div>
   <div class="card">
     <div class="card-title">Quote Information</div>
     <div class="form-row cols-2">
@@ -258,12 +226,13 @@ function bamPrompt(msg, defaultVal, cb) {
   </div>
   <div class="nav-row">
     <div></div>
-    <button class="btn btn-red" onclick="validatePage1()">Next: Garments →</button>
+    <button class="btn btn-red" onclick="validateAndGo(1,2)">Next: Garments →</button>
   </div>
 </div>
 
 <!-- PAGE 2: Garments -->
 <div id="page-2" style="display:none">
+  <div id="val-banner-2" class="validation-banner"></div>
   <div class="card">
     <div class="card-title">Garments</div>
     <div id="garments-list"></div>
@@ -271,7 +240,7 @@ function bamPrompt(msg, defaultVal, cb) {
   </div>
   <div class="nav-row">
     <button class="btn btn-gray" onclick="goPage(1)">← Back</button>
-    <button class="btn btn-red" onclick="goPage(3)">Next: Hard Goods →</button>
+    <button class="btn btn-red" onclick="validateAndGo(2,3)">Next: Hard Goods →</button>
   </div>
 </div>
 
@@ -284,19 +253,21 @@ function bamPrompt(msg, defaultVal, cb) {
   </div>
   <div class="nav-row">
     <button class="btn btn-gray" onclick="goPage(2)">← Back</button>
-    <button class="btn btn-red" onclick="goPage(4)">Next: Decoration →</button>
+    <button class="btn btn-red" onclick="validateAndGo(3,4)">Next: Imprints →</button>
   </div>
 </div>
 
-<!-- PAGE 4: Decoration -->
+<!-- PAGE 4: Imprints -->
 <div id="page-4" style="display:none">
+  <div id="val-banner-4" class="validation-banner"></div>
   <div class="card">
-    <div class="card-title">Decoration Details</div>
-    <div id="deco-list"></div>
+    <div class="card-title">Imprints / Decoration</div>
+    <div id="imprints-list"></div>
+    <button class="btn btn-outline" onclick="addImprint()">+ Add Imprint</button>
   </div>
   <div class="nav-row">
     <button class="btn btn-gray" onclick="goPage(3)">← Back</button>
-    <button class="btn btn-red" onclick="goPage(5)">Next: Review →</button>
+    <button class="btn btn-red" onclick="validateAndGo(4,5)">Next: Review →</button>
   </div>
 </div>
 
@@ -324,18 +295,48 @@ function bamPrompt(msg, defaultVal, cb) {
 </div><!-- /container -->
 
 <script>
-// ── State ──────────────────────────────────────────────────────────────────
-const SIZES = ['XS','S','M','L','XL','2XL','3XL','4XL'];
+// ── Constants ──────────────────────────────────────────────────────────────
+const ALL_SIZES = ['XS','S','M','L','XL','2XL','3XL','4XL'];
 const DECO_TYPES = ['Screen Print','Embroidery','Heat Transfer','Vinyl','Sublimation','Laser Engrave','Pad Print','Deboss/Emboss'];
 const GARMENT_TYPES = ['T-Shirt','Polo','Hoodie','Quarter-Zip','Full-Zip','Jacket','Long Sleeve','Tank','Button-Down','Hat','Beanie','Other'];
 const VENDORS = ['SanMar','S&S Activewear','Alpha Broder','PCNA','Hit Promotions','Vantage','Other'];
-const FIT_TYPES = ['Unisex',"Women's","Men's",'Youth'];
 
+// ── State ──────────────────────────────────────────────────────────────────
 let garments = [];
 let hardGoods = [];
+let imprints = [];
 let importToggleOpen = false;
 
-// ── Page navigation ────────────────────────────────────────────────────────
+// ── BAM Modal ──────────────────────────────────────────────────────────────
+function bamAlert(msg, cb) {
+  document.getElementById('bam-msg').innerHTML = msg;
+  const btns = document.getElementById('bam-btns');
+  btns.innerHTML = '';
+  const ok = document.createElement('button');
+  ok.textContent = 'OK';
+  ok.style.cssText = 'padding:8px 22px;background:#C41E1E;color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:14px;font-weight:600;';
+  ok.onclick = () => { document.getElementById('bam-overlay').style.display='none'; if(cb) cb(true); };
+  btns.appendChild(ok);
+  document.getElementById('bam-overlay').style.display='flex';
+}
+function bamConfirm(msg, cb) {
+  document.getElementById('bam-msg').innerHTML = msg;
+  const btns = document.getElementById('bam-btns');
+  btns.innerHTML = '';
+  const cancel = document.createElement('button');
+  cancel.textContent = 'Cancel';
+  cancel.style.cssText = 'padding:8px 18px;background:#f0f0f0;color:#333;border:none;border-radius:6px;cursor:pointer;font-size:14px;';
+  cancel.onclick = () => { document.getElementById('bam-overlay').style.display='none'; if(cb) cb(false); };
+  const ok = document.createElement('button');
+  ok.textContent = 'Yes, continue';
+  ok.style.cssText = 'padding:8px 18px;background:#C41E1E;color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:14px;font-weight:600;';
+  ok.onclick = () => { document.getElementById('bam-overlay').style.display='none'; if(cb) cb(true); };
+  btns.appendChild(cancel);
+  btns.appendChild(ok);
+  document.getElementById('bam-overlay').style.display='flex';
+}
+
+// ── Page navigation & validation ───────────────────────────────────────────
 function goPage(n) {
   for(let i=1;i<=6;i++){
     document.getElementById('page-'+i).style.display = i===n?'':'none';
@@ -344,99 +345,130 @@ function goPage(n) {
     if(i===n) tab.classList.add('active');
     else if(i<n) tab.classList.add('done');
   }
-  if(n===4) buildDecoPage();
+  if(n===4) renderImprints();
   if(n===5) buildReviewPage();
   if(n===6) buildSummaryPage();
   window.scrollTo(0,0);
 }
 
-// ── Page 1 validation ──────────────────────────────────────────────────────
-function validatePage1() {
-  const required = [
-    {id:'p1-rep', label:'Rep Name'},
-    {id:'p1-date', label:'Date'},
-    {id:'p1-quotenum', label:'Quote #'},
-    {id:'p1-quotename', label:'Quote Name'},
-    {id:'p1-split', label:'Commission Split'},
-    {id:'p1-period', label:'Commission Period'},
-    {id:'p1-ihd', label:'Expected In-Hands Date'},
-  ];
-  let missing = [];
-  required.forEach(f => {
-    const el = document.getElementById(f.id);
-    if(!el.value.trim()) {
-      el.classList.add('invalid');
-      missing.push(f.label);
-    } else {
-      el.classList.remove('invalid');
+function validateAndGo(fromPage, toPage) {
+  const errors = [];
+  let firstEl = null;
+
+  if(fromPage === 1) {
+    const fields = [
+      {id:'p1-rep', label:'Rep Name'},
+      {id:'p1-date', label:'Date'},
+      {id:'p1-quotenum', label:'Quote #'},
+      {id:'p1-quotename', label:'Quote Name'},
+      {id:'p1-split', label:'Commission Split'},
+      {id:'p1-period', label:'Commission Period'},
+      {id:'p1-ihd', label:'Expected In-Hands Date'},
+    ];
+    fields.forEach(f => {
+      const el = document.getElementById(f.id);
+      if(!el.value.trim()) {
+        el.classList.add('invalid');
+        errors.push(f.label);
+        if(!firstEl) firstEl = el;
+      } else {
+        el.classList.remove('invalid');
+      }
+    });
+  }
+
+  if(fromPage === 2) {
+    garments.forEach((g, gi) => {
+      if(!g.itemName && !g.type) { errors.push('Garment ' + (gi+1) + ': Item name required'); }
+      // imprint locations are on page 4 now
+    });
+  }
+
+  if(fromPage === 4) {
+    imprints.forEach((imp, ii) => {
+      if(!imp.appliesTo) {
+        errors.push('Imprint ' + (ii+1) + ': Must select which item this applies to');
+        const el = document.getElementById('imp-applies-' + ii);
+        if(el) { el.classList.add('invalid'); if(!firstEl) firstEl = el; }
+      }
+      if(!imp.location || !imp.location.trim()) {
+        errors.push('Imprint ' + (ii+1) + ': Location is required');
+        const el = document.getElementById('imp-location-' + ii);
+        if(el) { el.classList.add('invalid'); if(!firstEl) firstEl = el; }
+      }
+      if(!imp.decoType) {
+        errors.push('Imprint ' + (ii+1) + ': Decoration type is required');
+        const el = document.getElementById('imp-deco-' + ii);
+        if(el) { el.classList.add('invalid'); if(!firstEl) firstEl = el; }
+      }
+    });
+  }
+
+  if(errors.length > 0) {
+    const banner = document.getElementById('val-banner-' + fromPage);
+    if(banner) {
+      banner.style.display = 'block';
+      banner.innerHTML = '<strong>Please fix the following before continuing:</strong><ul>' +
+        errors.map(e => '<li>' + e + '</li>').join('') + '</ul>';
     }
-  });
-  if(missing.length > 0) {
-    bamAlert('Please fill in the required fields:<br><br>• ' + missing.join('<br>• '));
+    if(firstEl) {
+      firstEl.scrollIntoView({behavior:'smooth', block:'center'});
+      setTimeout(() => firstEl.focus(), 400);
+    } else {
+      window.scrollTo({top:0, behavior:'smooth'});
+    }
     return;
   }
-  goPage(2);
+
+  // Clear banner
+  const banner = document.getElementById('val-banner-' + fromPage);
+  if(banner) banner.style.display = 'none';
+  goPage(toPage);
 }
 
 // Clear invalid on input
-document.querySelectorAll('input,select').forEach(el => {
-  el.addEventListener('input', () => el.classList.remove('invalid'));
-  el.addEventListener('change', () => el.classList.remove('invalid'));
+document.addEventListener('input', e => {
+  if(e.target.classList.contains('invalid')) e.target.classList.remove('invalid');
+});
+document.addEventListener('change', e => {
+  if(e.target.classList.contains('invalid')) e.target.classList.remove('invalid');
 });
 
-// ── Import toggle ──────────────────────────────────────────────────────────
+// ── Import ─────────────────────────────────────────────────────────────────
 function toggleImport() {
   importToggleOpen = !importToggleOpen;
   document.getElementById('import-body').classList.toggle('open', importToggleOpen);
 }
-
 function importFile(input) {
   const file = input.files[0];
   if(!file) return;
   const reader = new FileReader();
   reader.onload = e => {
     try {
-      const data = JSON.parse(e.target.result);
-      loadFromJSON(data);
+      loadFromJSON(JSON.parse(e.target.result));
       importToggleOpen = false;
       document.getElementById('import-body').classList.remove('open');
-      bamAlert('Quote imported successfully! All fields have been pre-filled.');
-    } catch(err) {
-      bamAlert("Could not read that file. Make sure it's a valid TORO quote JSON.");
-    }
+      bamAlert('Quote imported! All fields pre-filled.');
+    } catch(err) { bamAlert('Could not read that file. Make sure it\'s a valid TORO quote JSON.'); }
   };
   reader.readAsText(file);
 }
-
-// Drag and drop on import zone
-(function() {
+(function(){
   const dz = document.getElementById('import-drop');
   dz.addEventListener('dragover', e => { e.preventDefault(); dz.classList.add('over'); });
   dz.addEventListener('dragleave', () => dz.classList.remove('over'));
   dz.addEventListener('drop', e => {
-    e.preventDefault();
-    dz.classList.remove('over');
+    e.preventDefault(); dz.classList.remove('over');
     const file = e.dataTransfer.files[0];
-    if(file) {
-      const fi = document.getElementById('import-file');
-      // Can't set files directly, but we can read via DataTransfer
-      const reader = new FileReader();
-      reader.onload = ev => {
-        try {
-          const data = JSON.parse(ev.target.result);
-          loadFromJSON(data);
-          importToggleOpen = false;
-          document.getElementById('import-body').classList.remove('open');
-          bamAlert('Quote imported! All fields pre-filled.');
-        } catch(err) {
-          bamAlert("Could not read that file. Make sure it's a valid TORO quote JSON.");
-        }
-      };
-      reader.readAsText(file);
-    }
+    if(!file) return;
+    const reader = new FileReader();
+    reader.onload = ev => {
+      try { loadFromJSON(JSON.parse(ev.target.result)); bamAlert('Quote imported!'); }
+      catch(err) { bamAlert('Could not read that file.'); }
+    };
+    reader.readAsText(file);
   });
 })();
-
 function loadFromJSON(data) {
   if(data.rep) document.getElementById('p1-rep').value = data.rep;
   if(data.date) document.getElementById('p1-date').value = data.date;
@@ -450,21 +482,31 @@ function loadFromJSON(data) {
   if(data.am !== undefined) document.getElementById('p1-am').checked = data.am;
   garments = data.garments || [];
   hardGoods = data.hardGoods || [];
-  renderGarments();
-  renderHG();
+  imprints = data.imprints || [];
+  renderGarments(); renderHG(); renderImprints();
 }
 
-// ── Garment management ─────────────────────────────────────────────────────
-function addGarment() {
-  garments.push({
-    type:'T-Shirt', itemName:'', sku:'', vendor:'', colorName:'', fit:'Unisex',
-    sizes: SIZES.map(s=>({size:s,qty:0,netCost:0,sellPrice:0})),
-    decoType:'Screen Print', decoLocation:'', decoColors:'', pmsPrint:'', pmsThread:'',
-    decoType2:'', decoLocation2:'', decoColors2:'',
-  });
+// ── Garments ───────────────────────────────────────────────────────────────
+function newGarment() {
+  return {
+    type:'T-Shirt', itemName:'', sku:'', vendor:'', colorName:'N/A', fit:'N/A',
+    notSized: false,
+    unsizedQty: 0,
+    screenNotNeeded: false,
+    priceGroups: [{ id: Date.now(), name:'Group A', sizes:['XS','S','M','L','XL'], net:0, sell:0, margin:40 }],
+    sizeQtys: {},
+  };
+}
+function addGarment() { garments.push(newGarment()); renderGarments(); }
+function duplicateGarment(i) {
+  // Deep copy, new group IDs so they act independently
+  const orig = garments[i];
+  const copy = JSON.parse(JSON.stringify(orig));
+  copy.itemName = (copy.itemName || copy.type) + ' (Copy)';
+  copy.priceGroups = copy.priceGroups.map(g => ({...g, id: Date.now() + Math.random()}));
+  garments.splice(i+1, 0, copy);
   renderGarments();
 }
-
 function removeGarment(i) {
   bamConfirm('Remove this garment?', ok => { if(ok){ garments.splice(i,1); renderGarments(); } });
 }
@@ -479,133 +521,208 @@ function renderGarments() {
 }
 
 function garmentCard(g, i) {
-  const sizeRows = g.sizes.map((s,si) => `
-    <tr>
-      <td>${s.size}</td>
-      <td><input type="number" min="0" value="${s.qty||0}" onchange="updateSize(${i},${si},'qty',this.value)" style="width:60px;"></td>
-      <td>$<input type="number" min="0" step="0.01" value="${s.netCost||0}" onchange="updateSize(${i},${si},'netCost',this.value); recalcSell(${i},${si});" style="width:70px;"></td>
-      <td>$<input type="number" min="0" step="0.01" value="${s.sellPrice||0}" id="sell-${i}-${si}" onchange="updateSize(${i},${si},'sellPrice',this.value); recalcMargin(${i},${si});" style="width:70px;"></td>
-      <td id="margin-cell-${i}-${si}">${marginBadge(s.netCost, s.sellPrice)}</td>
-    </tr>`).join('');
-
+  const groupsHtml = g.priceGroups.map((pg, pgi) => priceGroupHtml(g, i, pg, pgi)).join('');
   return `
-  <div class="garment-card" id="garment-${i}">
+  <div class="garment-card" id="garment-card-${i}">
     <div class="garment-header">
-      <h3>Garment ${i+1}: ${g.itemName||g.type||'New Garment'}</h3>
-      <button class="btn btn-gray" style="padding:4px 10px;font-size:12px;" onclick="removeGarment(${i})">✕ Remove</button>
+      <h3>Garment ${i+1}: ${g.itemName || g.type || 'New Garment'}</h3>
+      <div class="garment-header-btns">
+        <button class="btn btn-gray btn-sm" onclick="duplicateGarment(${i})">⧉ Duplicate</button>
+        <button class="btn btn-gray btn-sm" onclick="removeGarment(${i})">✕ Remove</button>
+      </div>
     </div>
     <div class="garment-body">
       <div class="form-row cols-3">
-        <div><label>Garment Type</label>
+        <div>
+          <label>Garment Type</label>
           <select onchange="garments[${i}].type=this.value;renderGarments()">
             ${GARMENT_TYPES.map(t=>`<option ${g.type===t?'selected':''}>${t}</option>`).join('')}
-          </select></div>
-        <div><label>Item Name / Description</label>
-          <input type="text" value="${g.itemName||''}" placeholder="e.g. Gildan 5000 Tee" onchange="garments[${i}].itemName=this.value;"></div>
-        <div><label>SKU / Style #</label>
-          <input type="text" value="${g.sku||''}" placeholder="e.g. G500" onchange="garments[${i}].sku=this.value;"></div>
+          </select>
+        </div>
+        <div>
+          <label>Item Name / Description</label>
+          <input type="text" value="${g.itemName||''}" placeholder="e.g. Gildan 5000 Tee" onchange="garments[${i}].itemName=this.value;document.querySelector('#garment-card-${i} .garment-header h3').textContent='Garment ${i+1}: '+(this.value||garments[${i}].type||'New Garment');">
+        </div>
+        <div>
+          <label>SKU / Style #</label>
+          <input type="text" value="${g.sku||''}" placeholder="e.g. G500" onchange="garments[${i}].sku=this.value;">
+        </div>
       </div>
       <div class="form-row cols-3">
-        <div><label>Vendor</label>
+        <div>
+          <label>Vendor</label>
           <select onchange="garments[${i}].vendor=this.value">
             <option value="">Select...</option>
             ${VENDORS.map(v=>`<option ${g.vendor===v?'selected':''}>${v}</option>`).join('')}
-          </select></div>
-        <div><label>Color Name</label>
-          <input type="text" value="${g.colorName||''}" placeholder="e.g. Navy" onchange="garments[${i}].colorName=this.value;"></div>
-        <div><label>Fit</label>
-          <select onchange="garments[${i}].fit=this.value">
-            ${FIT_TYPES.map(f=>`<option ${g.fit===f?'selected':''}>${f}</option>`).join('')}
-          </select></div>
-      </div>
-      <div style="margin-top:8px;">
-        <label>Sizes, Quantities & Pricing <small style="font-weight:400;color:var(--text3)">— Enter net cost, then set margin% or sell price</small></label>
-        <div style="display:flex;align-items:center;gap:10px;margin:8px 0;">
-          <label style="margin:0;font-size:13px;">Default margin %:</label>
-          <input type="number" min="0" max="100" step="1" value="${g.defaultMargin||40}" id="def-margin-${i}"
-            style="width:70px;padding:5px 8px;"
-            onchange="garments[${i}].defaultMargin=parseFloat(this.value)||40;applyDefaultMargin(${i});">
-          <button class="btn btn-gray" style="padding:5px 12px;font-size:12px;" onclick="applyDefaultMargin(${i})">Apply to all</button>
+          </select>
         </div>
-        <table class="size-table">
-          <thead><tr><th>Size</th><th>Qty</th><th>Net Cost</th><th>Sell Price</th><th>Margin</th></tr></thead>
-          <tbody>${sizeRows}</tbody>
-        </table>
+        <div>
+          <label>Color <small style="font-weight:400;color:var(--text3)">(optional)</small></label>
+          <input type="text" value="${g.colorName||'N/A'}" placeholder="N/A or e.g. Navy" onchange="garments[${i}].colorName=this.value;">
+        </div>
+        <div>
+          <label>Fit / Gender</label>
+          <select onchange="garments[${i}].fit=this.value">
+            <option value="N/A" ${g.fit==='N/A'?'selected':''}>N/A</option>
+            <option ${g.fit==='Unisex'?'selected':''}>Unisex</option>
+            <option ${g.fit==="Women's"?'selected':''}>Women's</option>
+            <option ${g.fit==="Men's"?'selected':''}>Men's</option>
+            <option ${g.fit==='Youth'?'selected':''}>Youth</option>
+          </select>
+        </div>
       </div>
+      <div class="form-row cols-2" style="margin-bottom:10px;">
+        <div class="checkbox-row">
+          <input type="checkbox" id="not-sized-${i}" ${g.notSized?'checked':''}
+            onchange="garments[${i}].notSized=this.checked;renderGarments();">
+          <label for="not-sized-${i}" style="margin:0;cursor:pointer;">This item is not sized</label>
+        </div>
+        <div class="checkbox-row">
+          <input type="checkbox" id="screen-not-needed-${i}" ${g.screenNotNeeded?'checked':''}
+            onchange="garments[${i}].screenNotNeeded=this.checked;">
+          <label for="screen-not-needed-${i}" style="margin:0;cursor:pointer;">Screen not needed</label>
+        </div>
+      </div>
+      ${g.notSized ? `
+      <div style="padding:12px;background:#f8f8fa;border-radius:var(--radius-sm);margin-bottom:12px;">
+        <label>Quantity</label>
+        <input type="number" min="0" value="${g.unsizedQty||0}" style="width:120px;"
+          onchange="garments[${i}].unsizedQty=parseInt(this.value)||0;">
+        <div style="margin-top:10px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+          <span style="font-size:13px;">Net Cost: $<input type="number" min="0" step="0.01" value="${(g.priceGroups[0]&&g.priceGroups[0].net)||0}" style="width:90px;" onchange="garments[${i}].priceGroups[0].net=parseFloat(this.value)||0;recalcGroupSell(${i},0);"></span>
+          <span style="font-size:13px;">Sell: $<input type="number" min="0" step="0.01" value="${(g.priceGroups[0]&&g.priceGroups[0].sell)||0}" id="unsized-sell-${i}" style="width:90px;" onchange="garments[${i}].priceGroups[0].sell=parseFloat(this.value)||0;"></span>
+          <span style="font-size:13px;">Margin %: <input type="number" min="0" max="100" step="1" value="${(g.priceGroups[0]&&g.priceGroups[0].margin)||40}" style="width:70px;" onchange="garments[${i}].priceGroups[0].margin=parseFloat(this.value)||40;recalcGroupSell(${i},0);"></span>
+          ${marginBadge((g.priceGroups[0]&&g.priceGroups[0].net)||0, (g.priceGroups[0]&&g.priceGroups[0].sell)||0)}
+        </div>
+      </div>` : `
+      <div>
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
+          <label>Size Pricing Groups</label>
+          <button class="btn btn-gray btn-sm" onclick="addPriceGroup(${i})">+ Add Group</button>
+        </div>
+        ${groupsHtml}
+      </div>`}
     </div>
   </div>`;
 }
 
-function updateSize(gi, si, field, val) {
-  garments[gi].sizes[si][field] = parseFloat(val)||0;
+function priceGroupHtml(g, gi, pg, pgi) {
+  const assignedSizes = pg.sizes || [];
+  const allAssigned = g.priceGroups.flatMap(x => x.sizes);
+  const sell = pg.sell || 0;
+  const net = pg.net || 0;
+  const m = sell > 0 ? ((sell-net)/sell*100) : 0;
+
+  return `<div class="price-group" id="pg-${gi}-${pgi}">
+    <div class="price-group-header">
+      <label>${pg.name || 'Group ' + String.fromCharCode(65+pgi)}</label>
+      <input type="text" value="${pg.name||''}" placeholder="Group name"
+        style="width:120px;padding:4px 8px;font-size:12px;"
+        onchange="garments[${gi}].priceGroups[${pgi}].name=this.value;">
+      ${g.priceGroups.length > 1 ? `<button class="btn btn-gray btn-sm" style="margin-left:auto;" onclick="removePriceGroup(${gi},${pgi})">✕</button>` : ''}
+    </div>
+    <div class="price-group-inputs">
+      <div class="pi">Net Cost: $<input type="number" min="0" step="0.01" value="${net||''}" placeholder="0.00"
+        onchange="garments[${gi}].priceGroups[${pgi}].net=parseFloat(this.value)||0;recalcGroupSell(${gi},${pgi});"
+        oninput="garments[${gi}].priceGroups[${pgi}].net=parseFloat(this.value)||0;recalcGroupSell(${gi},${pgi});"></div>
+      <div class="pi">Sell: $<input type="number" min="0" step="0.01" value="${sell||''}" placeholder="0.00" id="pg-sell-${gi}-${pgi}"
+        onchange="garments[${gi}].priceGroups[${pgi}].sell=parseFloat(this.value)||0;updateGroupMarginDisplay(${gi},${pgi});"
+        oninput="garments[${gi}].priceGroups[${pgi}].sell=parseFloat(this.value)||0;updateGroupMarginDisplay(${gi},${pgi});"></div>
+      <div class="pi">Margin%: <input type="number" min="0" max="100" step="0.1" value="${pg.margin||40}" style="width:65px;"
+        id="pg-margin-${gi}-${pgi}"
+        onchange="garments[${gi}].priceGroups[${pgi}].margin=parseFloat(this.value)||40;recalcGroupSell(${gi},${pgi});"
+        oninput="garments[${gi}].priceGroups[${pgi}].margin=parseFloat(this.value)||40;recalcGroupSell(${gi},${pgi});"></div>
+      <div id="pg-badge-${gi}-${pgi}">${marginBadge(net, sell)}</div>
+    </div>
+    <div class="size-checks">
+      <span style="font-size:12px;color:var(--text3);margin-right:4px;">Sizes in this group:</span>
+      ${ALL_SIZES.map(sz => {
+        const inThis = assignedSizes.includes(sz);
+        const inOther = allAssigned.includes(sz) && !inThis;
+        return `<label class="size-check" ${inOther?'style="opacity:0.4;pointer-events:none;"':''}>
+          <input type="checkbox" ${inThis?'checked':''} ${inOther?'disabled':''}
+            onchange="toggleSizeInGroup(${gi},${pgi},'${sz}',this.checked)"> ${sz}
+        </label>`;
+      }).join('')}
+    </div>
+    <div class="size-qty-row">
+      ${assignedSizes.map(sz => `
+        <div class="size-qty-item">
+          <span>${sz}</span>
+          <input type="number" min="0" value="${(g.sizeQtys&&g.sizeQtys[sz])||0}" placeholder="0"
+            onchange="garments[${gi}].sizeQtys['${sz}']=parseInt(this.value)||0;"
+            oninput="garments[${gi}].sizeQtys['${sz}']=parseInt(this.value)||0;">
+        </div>`).join('')}
+    </div>
+  </div>`;
 }
 
-function recalcSell(gi, si) {
-  const s = garments[gi].sizes[si];
-  const margin = garments[gi].defaultMargin || 40;
-  if(s.netCost > 0 && s.qty > 0) {
-    const sell = +(s.netCost / (1 - margin/100)).toFixed(2);
-    s.sellPrice = sell;
-    const inp = document.getElementById(`sell-${gi}-${si}`);
-    if(inp) inp.value = sell;
-    const cell = document.getElementById(`margin-cell-${gi}-${si}`);
-    if(cell) cell.innerHTML = marginBadge(s.netCost, sell);
+function recalcGroupSell(gi, pgi) {
+  const pg = garments[gi].priceGroups[pgi];
+  if(pg.net > 0) {
+    const margin = pg.margin || 40;
+    pg.sell = Math.round((pg.net / (1 - margin/100)) * 100) / 100;
+    const el = document.getElementById('pg-sell-' + gi + '-' + pgi);
+    if(el) el.value = pg.sell;
+    updateGroupMarginDisplay(gi, pgi);
   }
 }
-
-function applyDefaultMargin(gi) {
-  const margin = garments[gi].defaultMargin || 40;
-  garments[gi].sizes.forEach((s,si) => {
-    if(s.netCost > 0) {
-      s.sellPrice = +(s.netCost / (1-margin/100)).toFixed(2);
-      const inp = document.getElementById(`sell-${gi}-${si}`);
-      if(inp) inp.value = s.sellPrice;
-      const cell = document.getElementById(`margin-cell-${gi}-${si}`);
-      if(cell) cell.innerHTML = marginBadge(s.netCost, s.sellPrice);
-    }
+function updateGroupMarginDisplay(gi, pgi) {
+  const pg = garments[gi].priceGroups[pgi];
+  const badge = document.getElementById('pg-badge-' + gi + '-' + pgi);
+  if(badge) badge.innerHTML = marginBadge(pg.net, pg.sell);
+  // Update margin% field if sell was changed manually
+  if(pg.sell > 0 && pg.net > 0) {
+    const m = (pg.sell - pg.net) / pg.sell * 100;
+    const mEl = document.getElementById('pg-margin-' + gi + '-' + pgi);
+    if(mEl && document.activeElement !== mEl) mEl.value = m.toFixed(1);
+  }
+}
+function toggleSizeInGroup(gi, pgi, sz, checked) {
+  // Remove from any other group first
+  garments[gi].priceGroups.forEach((pg, idx) => {
+    pg.sizes = (pg.sizes||[]).filter(s => s !== sz);
   });
+  if(checked) {
+    garments[gi].priceGroups[pgi].sizes.push(sz);
+    garments[gi].priceGroups[pgi].sizes.sort((a,b) => ALL_SIZES.indexOf(a)-ALL_SIZES.indexOf(b));
+  }
+  if(!garments[gi].sizeQtys) garments[gi].sizeQtys = {};
+  renderGarments();
 }
-
-function recalcMargin(gi, si) {
-  const s = garments[gi].sizes[si];
-  const cell = document.getElementById(`margin-cell-${gi}-${si}`);
-  if(cell) cell.innerHTML = marginBadge(s.netCost, s.sellPrice);
+function addPriceGroup(gi) {
+  const letters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+  const next = letters[garments[gi].priceGroups.length] || (garments[gi].priceGroups.length+1);
+  garments[gi].priceGroups.push({ id:Date.now(), name:'Group '+next, sizes:[], net:0, sell:0, margin:40 });
+  renderGarments();
 }
-
-function marginBadge(net, sell) {
-  if(!net || !sell || sell === 0) return '<span class="margin-badge" style="background:#f0f0f0;color:#999;">—</span>';
-  const m = ((sell - net) / sell * 100);
-  const cls = m >= 30 ? 'margin-ok' : m >= 20 ? 'margin-low' : 'margin-warn';
-  return `<span class="margin-badge ${cls}">${m.toFixed(1)}%</span>`;
+function removePriceGroup(gi, pgi) {
+  garments[gi].priceGroups.splice(pgi, 1);
+  renderGarments();
 }
 
 // ── Hard Goods ─────────────────────────────────────────────────────────────
 function addHG() {
-  hardGoods.push({itemName:'',sku:'',vendor:'',colorName:'',qty:0,netCost:0,sellPrice:0,defaultMargin:40,decoType:'',decoLocation:'',decoColors:''});
+  hardGoods.push({itemName:'',sku:'',vendor:'',colorName:'',qty:0,net:0,sell:0,margin:40,decoType:'',decoLocation:'',decoColors:''});
   renderHG();
 }
-
 function removeHG(i) {
   bamConfirm('Remove this hard good?', ok => { if(ok){ hardGoods.splice(i,1); renderHG(); } });
 }
-
 function renderHG() {
   const el = document.getElementById('hg-list');
   if(hardGoods.length === 0) {
-    el.innerHTML = '<p style="color:var(--text3);font-size:14px;margin-bottom:16px;">No hard goods added yet.</p>';
+    el.innerHTML = '<p style="color:var(--text3);font-size:14px;margin-bottom:16px;">No hard goods added. This section is optional.</p>';
     return;
   }
   el.innerHTML = hardGoods.map((h,i) => hgCard(h,i)).join('');
 }
-
 function hgCard(h, i) {
-  const m = h.netCost && h.sellPrice ? ((h.sellPrice-h.netCost)/h.sellPrice*100).toFixed(1)+'%' : '—';
-  const cls = h.netCost && h.sellPrice ? (((h.sellPrice-h.netCost)/h.sellPrice*100)>=30?'margin-ok':'margin-warn') : '';
   return `
-  <div class="garment-card" id="hg-${i}">
+  <div class="garment-card">
     <div class="garment-header">
       <h3>Hard Good ${i+1}: ${h.itemName||'New Item'}</h3>
-      <button class="btn btn-gray" style="padding:4px 10px;font-size:12px;" onclick="removeHG(${i})">✕ Remove</button>
+      <button class="btn btn-gray btn-sm" onclick="removeHG(${i})">✕ Remove</button>
     </div>
     <div class="garment-body">
       <div class="form-row cols-3">
@@ -619,145 +736,281 @@ function hgCard(h, i) {
       </div>
       <div class="form-row cols-4">
         <div><label>Color</label><input type="text" value="${h.colorName||''}" onchange="hardGoods[${i}].colorName=this.value;"></div>
-        <div><label>Qty</label><input type="number" min="0" value="${h.qty||0}" onchange="hardGoods[${i}].qty=parseFloat(this.value)||0;"></div>
-        <div><label>Net Cost</label>$<input type="number" min="0" step="0.01" value="${h.netCost||0}" onchange="hardGoods[${i}].netCost=parseFloat(this.value)||0;recalcHGSell(${i});"></div>
-        <div><label>Sell Price</label>$<input type="number" min="0" step="0.01" value="${h.sellPrice||0}" id="hg-sell-${i}" onchange="hardGoods[${i}].sellPrice=parseFloat(this.value)||0;"></div>
+        <div><label>Qty</label><input type="number" min="0" value="${h.qty||0}" onchange="hardGoods[${i}].qty=parseInt(this.value)||0;"></div>
+        <div><label>Net Cost</label>$<input type="number" min="0" step="0.01" value="${h.net||0}"
+          oninput="hardGoods[${i}].net=parseFloat(this.value)||0;recalcHGSell(${i});"
+          onchange="hardGoods[${i}].net=parseFloat(this.value)||0;recalcHGSell(${i});"></div>
+        <div><label>Sell</label>$<input type="number" min="0" step="0.01" value="${h.sell||0}" id="hg-sell-${i}"
+          oninput="hardGoods[${i}].sell=parseFloat(this.value)||0;"
+          onchange="hardGoods[${i}].sell=parseFloat(this.value)||0;"></div>
       </div>
-      <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;">
-        <label style="margin:0;font-size:13px;">Margin %:</label>
-        <input type="number" min="0" max="100" step="1" value="${h.defaultMargin||40}" id="hg-margin-${i}" style="width:70px;padding:5px 8px;" onchange="hardGoods[${i}].defaultMargin=parseFloat(this.value)||40;recalcHGSell(${i});">
-        <span class="margin-badge ${cls}" style="margin-left:8px;">${m}</span>
+      <div style="display:flex;align-items:center;gap:10px;">
+        <label style="margin:0;font-size:13px;">Margin%:</label>
+        <input type="number" min="0" max="100" step="1" value="${h.margin||40}" style="width:70px;padding:6px 8px;"
+          oninput="hardGoods[${i}].margin=parseFloat(this.value)||40;recalcHGSell(${i});"
+          onchange="hardGoods[${i}].margin=parseFloat(this.value)||40;recalcHGSell(${i});">
+        ${marginBadge(h.net||0, h.sell||0)}
       </div>
-      <div class="form-row cols-3">
-        <div><label>Decoration Type</label>
-          <select onchange="hardGoods[${i}].decoType=this.value">
+    </div>
+  </div>`;
+}
+function recalcHGSell(i) {
+  const h = hardGoods[i];
+  if(h.net > 0) {
+    h.sell = Math.round((h.net / (1 - (h.margin||40)/100)) * 100) / 100;
+    const el = document.getElementById('hg-sell-'+i);
+    if(el) el.value = h.sell;
+  }
+}
+
+// ── Imprints ───────────────────────────────────────────────────────────────
+function getItemOptions() {
+  const opts = [];
+  garments.forEach((g,i) => opts.push({value:'garment-'+i, label:'Garment '+(i+1)+': '+(g.itemName||g.type||'Garment '+(i+1))}));
+  hardGoods.forEach((h,i) => opts.push({value:'hg-'+i, label:'Hard Good '+(i+1)+': '+(h.itemName||'Hard Good '+(i+1))}));
+  return opts;
+}
+function addImprint() {
+  imprints.push({appliesTo:'', decoType:'', location:'', colors:'', pmsPrint:'', pmsThread:'', dstExists:'', locked:false, notes:''});
+  renderImprints();
+}
+function removeImprint(i) {
+  bamConfirm('Remove this imprint?', ok => { if(ok){ imprints.splice(i,1); renderImprints(); } });
+}
+function lockImprint(i) {
+  // Validate before locking
+  const imp = imprints[i];
+  if(!imp.appliesTo || !imp.location || !imp.decoType) {
+    bamAlert('Please fill in the required fields (Item, Location, Decoration Type) before confirming.');
+    return;
+  }
+  imprints[i].locked = true;
+  renderImprints();
+}
+function unlockImprint(i) { imprints[i].locked = false; renderImprints(); }
+
+function renderImprints() {
+  const el = document.getElementById('imprints-list');
+  if(!el) return;
+  const itemOpts = getItemOptions();
+  if(imprints.length === 0) {
+    el.innerHTML = '<p style="color:var(--text3);font-size:14px;margin-bottom:16px;">No imprints added yet. Add at least one imprint for each decoration.</p>';
+    return;
+  }
+  el.innerHTML = imprints.map((imp,i) => imprintCard(imp, i, itemOpts)).join('');
+}
+
+function imprintCard(imp, i, itemOpts) {
+  const isEmbroidery = imp.decoType === 'Embroidery';
+  const isScreenPrint = imp.decoType === 'Screen Print';
+  const locked = imp.locked;
+
+  const dstOptions = [
+    'Yes, use existing DST',
+    'Yes, with minor adjustments',
+    'No, needs new digitizing',
+    'No, creating from scratch',
+    'N/A',
+  ];
+
+  return `<div class="imprint-card ${locked?'imprint-locked':''}">
+    <div class="imprint-header">
+      <h4>Imprint ${i+1}${imp.appliesTo?' — '+getItemLabel(imp.appliesTo,itemOpts):''}</h4>
+      <div style="display:flex;gap:8px;">
+        ${locked
+          ? `<button class="btn btn-gray btn-sm" onclick="unlockImprint(${i})">🔓 Unlock to Edit</button>`
+          : `<button class="btn btn-green btn-sm" onclick="lockImprint(${i})">🔒 Confirm & Lock</button>`
+        }
+        ${!locked ? `<button class="btn btn-gray btn-sm" onclick="removeImprint(${i})">✕</button>` : ''}
+      </div>
+    </div>
+    ${locked ? `<div class="lock-bar">✅ Confirmed — ${imp.decoType} @ ${imp.location} for ${getItemLabel(imp.appliesTo,itemOpts)}</div>` : ''}
+    <div class="imprint-body">
+      <div class="form-row cols-2">
+        <div>
+          <label>Applies To <span class="req">*</span></label>
+          <select id="imp-applies-${i}" ${locked?'disabled':''} onchange="imprints[${i}].appliesTo=this.value;renderImprints();">
+            <option value="">Select item...</option>
+            ${itemOpts.map(o=>`<option value="${o.value}" ${imp.appliesTo===o.value?'selected':''}>${o.label}</option>`).join('')}
+          </select>
+        </div>
+        <div>
+          <label>Decoration Type <span class="req">*</span></label>
+          <select id="imp-deco-${i}" ${locked?'disabled':''} onchange="imprints[${i}].decoType=this.value;updateScreenNotNeeded(${i});renderImprints();">
             <option value="">Select...</option>
-            ${DECO_TYPES.map(d=>`<option ${h.decoType===d?'selected':''}>${d}</option>`).join('')}
-          </select></div>
-        <div><label>Imprint Location</label><input type="text" value="${h.decoLocation||''}" placeholder="e.g. Front panel" onchange="hardGoods[${i}].decoLocation=this.value;"></div>
-        <div><label>Imprint Colors / References</label><input type="text" value="${h.decoColors||''}" placeholder="e.g. PMS 200C, Black" onchange="hardGoods[${i}].decoColors=this.value;"></div>
+            ${DECO_TYPES.map(d=>`<option ${imp.decoType===d?'selected':''}>${d}</option>`).join('')}
+          </select>
+        </div>
+      </div>
+      <div class="form-row cols-2">
+        <div>
+          <label>Imprint Location <span class="req">*</span></label>
+          <input type="text" id="imp-location-${i}" value="${imp.location||''}" placeholder="e.g. Left chest" ${locked?'disabled':''}
+            onchange="imprints[${i}].location=this.value;" oninput="imprints[${i}].location=this.value;">
+        </div>
+        <div>
+          <label>Colors / Stitches / References</label>
+          <input type="text" value="${imp.colors||''}" placeholder="e.g. 3 colors, PMS 200C" ${locked?'disabled':''}
+            onchange="imprints[${i}].colors=this.value;" oninput="imprints[${i}].colors=this.value;">
+        </div>
+      </div>
+      ${isScreenPrint ? `
+      <div class="form-row cols-2">
+        <div>
+          <label>PMS Print Colors</label>
+          <input type="text" value="${imp.pmsPrint||''}" placeholder="e.g. PMS 200C, PMS 432C" ${locked?'disabled':''}
+            onchange="imprints[${i}].pmsPrint=this.value;">
+        </div>
+        <div>
+          <label>Screens</label>
+          <select ${locked?'disabled':''} onchange="imprints[${i}].screenStatus=this.value;">
+            <option value="">Select...</option>
+            <option ${imp.screenStatus==='existing'?'selected':''}>Yes, use existing screens</option>
+            <option ${imp.screenStatus==='new'?'selected':''}>No, needs new screens</option>
+            <option ${imp.screenStatus==='na'?'selected':''}>N/A</option>
+          </select>
+        </div>
+      </div>` : ''}
+      ${isEmbroidery ? `
+      <div class="form-row cols-2">
+        <div>
+          <label>Thread Colors</label>
+          <input type="text" value="${imp.pmsThread||''}" placeholder="e.g. Madeira 1234, Black" ${locked?'disabled':''}
+            onchange="imprints[${i}].pmsThread=this.value;">
+        </div>
+        <div>
+          <label>DST / Digitizing File</label>
+          <select ${locked?'disabled':''} onchange="imprints[${i}].dstExists=this.value;">
+            <option value="">Select...</option>
+            ${dstOptions.map(d=>`<option ${imp.dstExists===d?'selected':''}>${d}</option>`).join('')}
+          </select>
+        </div>
+      </div>` : ''}
+      <div>
+        <label>Notes (optional)</label>
+        <input type="text" value="${imp.notes||''}" placeholder="Any additional notes for this imprint" ${locked?'disabled':''}
+          onchange="imprints[${i}].notes=this.value;" oninput="imprints[${i}].notes=this.value;">
       </div>
     </div>
   </div>`;
 }
 
-function recalcHGSell(i) {
-  const h = hardGoods[i];
-  if(h.netCost > 0) {
-    const margin = h.defaultMargin || 40;
-    h.sellPrice = +(h.netCost / (1-margin/100)).toFixed(2);
-    const inp = document.getElementById(`hg-sell-${i}`);
-    if(inp) inp.value = h.sellPrice;
-  }
+function getItemLabel(val, opts) {
+  const found = opts.find(o => o.value === val);
+  return found ? found.label : val;
 }
 
-// ── Decoration page (per-garment summary of deco fields) ───────────────────
-function buildDecoPage() {
-  const el = document.getElementById('deco-list');
-  if(garments.length === 0 && hardGoods.length === 0) {
-    el.innerHTML = '<p style="color:var(--text3);">No garments or hard goods added yet. Go back and add items.</p>';
-    return;
-  }
-  let html = '';
-  garments.forEach((g,i) => {
-    html += `<div class="garment-card" style="margin-bottom:16px;">
-      <div class="garment-header"><h3>Garment ${i+1}: ${g.itemName||g.type}</h3></div>
-      <div class="garment-body">
-        <div class="form-row cols-3">
-          <div><label>Primary Deco Type</label>
-            <select onchange="garments[${i}].decoType=this.value">
-              ${DECO_TYPES.map(d=>`<option ${g.decoType===d?'selected':''}>${d}</option>`).join('')}
-            </select></div>
-          <div><label>Location</label><input type="text" value="${g.decoLocation||''}" placeholder="e.g. Left chest" onchange="garments[${i}].decoLocation=this.value;"></div>
-          <div><label># Colors / Stitches</label><input type="text" value="${g.decoColors||''}" placeholder="e.g. 3 colors" onchange="garments[${i}].decoColors=this.value;"></div>
-        </div>
-        <div class="form-row cols-2">
-          <div><label>PMS Print Colors</label><input type="text" value="${g.pmsPrint||''}" placeholder="e.g. PMS 200C, PMS 432C" onchange="garments[${i}].pmsPrint=this.value;"></div>
-          <div><label>Thread / Vinyl Colors</label><input type="text" value="${g.pmsThread||''}" placeholder="e.g. Madeira 1234" onchange="garments[${i}].pmsThread=this.value;"></div>
-        </div>
-        <div style="margin-top:12px;padding-top:12px;border-top:1px solid var(--border);">
-          <label>Secondary Decoration (optional)</label>
-          <div class="form-row cols-3" style="margin-top:8px;">
-            <div><select onchange="garments[${i}].decoType2=this.value">
-              <option value="">None</option>
-              ${DECO_TYPES.map(d=>`<option ${g.decoType2===d?'selected':''}>${d}</option>`).join('')}
-            </select></div>
-            <div><input type="text" value="${g.decoLocation2||''}" placeholder="Location" onchange="garments[${i}].decoLocation2=this.value;"></div>
-            <div><input type="text" value="${g.decoColors2||''}" placeholder="Colors / references" onchange="garments[${i}].decoColors2=this.value;"></div>
-          </div>
-        </div>
-      </div>
-    </div>`;
-  });
-  el.innerHTML = html;
+function updateScreenNotNeeded(impIdx) {
+  // When deco type changes on an imprint, update the linked garment's screenNotNeeded flag
+  const imp = imprints[impIdx];
+  if(!imp.appliesTo || !imp.appliesTo.startsWith('garment-')) return;
+  const gi = parseInt(imp.appliesTo.replace('garment-',''));
+  if(isNaN(gi) || !garments[gi]) return;
+  const isScreenPrint = imp.decoType === 'Screen Print';
+  garments[gi].screenNotNeeded = !isScreenPrint && imp.decoType !== '';
 }
 
-// ── Review page ────────────────────────────────────────────────────────────
+// ── Margin badge ───────────────────────────────────────────────────────────
+function marginBadge(net, sell) {
+  if(!net || !sell || sell === 0) return '<span class="margin-badge" style="background:#f0f0f0;color:#999;">—</span>';
+  const m = (sell - net) / sell * 100;
+  const cls = m >= 30 ? 'margin-ok' : m >= 20 ? 'margin-low' : 'margin-warn';
+  return `<span class="margin-badge ${cls}">${m.toFixed(1)}%</span>`;
+}
+
+// ── Review ─────────────────────────────────────────────────────────────────
+function checkNeedsApproval() {
+  for(const g of garments) {
+    for(const pg of (g.priceGroups||[])) {
+      if(pg.net > 0 && pg.sell > 0) {
+        const m = (pg.sell-pg.net)/pg.sell*100;
+        if(m < 30) return true;
+      }
+    }
+  }
+  for(const h of hardGoods) {
+    if(h.net > 0 && h.sell > 0 && (h.sell-h.net)/h.sell*100 < 30) return true;
+  }
+  return false;
+}
+
 function buildReviewPage() {
   const el = document.getElementById('review-content');
   const q = getQuoteData();
-  const needsApproval = checkNeedsApproval(q);
+  const needsApproval = checkNeedsApproval();
   let html = '';
-  if(needsApproval) {
-    html += `<div class="approval-flag">⚠️ <strong>Margin Approval Required</strong> — One or more items have a margin below 30%. This quote requires management approval before being presented to the client.</div>`;
-  }
-  html += `<div class="card"><div class="card-title">Quote Summary — Review</div>
+  if(needsApproval) html += `<div class="approval-flag">⚠️ <strong>Margin Approval Required</strong> — One or more items are below 30% margin.</div>`;
+  html += `<div class="card"><div class="card-title">Review</div>
     <div class="summary-grid" style="grid-template-columns:1fr 1fr 1fr;">
       <div class="summary-kv"><div class="k">Rep</div><div class="v">${q.rep}</div></div>
       <div class="summary-kv"><div class="k">Date</div><div class="v">${q.date}</div></div>
       <div class="summary-kv"><div class="k">Quote #</div><div class="v">${q.quoteNum}</div></div>
       <div class="summary-kv"><div class="k">Quote Name</div><div class="v">${q.quoteName}</div></div>
-      <div class="summary-kv"><div class="k">Commission Split</div><div class="v">${q.split}%</div></div>
+      <div class="summary-kv"><div class="k">Split</div><div class="v">${q.split}%</div></div>
       <div class="summary-kv"><div class="k">Period</div><div class="v">${q.period}</div></div>
-      <div class="summary-kv"><div class="k">In-Hands Date</div><div class="v">${q.ihd}${q.ihdFirm?' <strong style="color:var(--orange)">(FIRM)</strong>':''}</div></div>
-      ${q.am?'<div class="summary-kv"><div class="k">AM Assist</div><div class="v">Yes</div></div>':''}
+      <div class="summary-kv"><div class="k">IHD</div><div class="v">${q.ihd}${q.ihdFirm?' 🔒 Firm':''}</div></div>
     </div>
-    <div style="margin-top:20px;"><strong>${garments.length} Garment(s), ${hardGoods.length} Hard Good(s)</strong></div>
+    <div style="margin-top:16px;font-size:14px;">${garments.length} garment(s) · ${hardGoods.length} hard good(s) · ${imprints.length} imprint(s)</div>
   </div>`;
   el.innerHTML = html;
 }
 
-function checkNeedsApproval(q) {
-  for(const g of q.garments||[]) {
-    for(const s of g.sizes||[]) {
-      if(s.qty > 0 && s.netCost > 0 && s.sellPrice > 0) {
-        const m = (s.sellPrice-s.netCost)/s.sellPrice*100;
-        if(m < 30) return true;
-      }
-    }
+// ── Summary ────────────────────────────────────────────────────────────────
+function garmentTotal(g, type) {
+  if(g.notSized) {
+    const pg = g.priceGroups[0]||{};
+    return (g.unsizedQty||0) * (type==='sell'?(pg.sell||0):(pg.net||0));
   }
-  for(const h of q.hardGoods||[]) {
-    if(h.qty > 0 && h.netCost > 0 && h.sellPrice > 0) {
-      const m = (h.sellPrice-h.netCost)/h.sellPrice*100;
-      if(m < 30) return true;
-    }
-  }
-  return false;
+  let t = 0;
+  (g.priceGroups||[]).forEach(pg => {
+    (pg.sizes||[]).forEach(sz => {
+      const qty = (g.sizeQtys&&g.sizeQtys[sz])||0;
+      t += qty * (type==='sell'?(pg.sell||0):(pg.net||0));
+    });
+  });
+  return t;
+}
+function garmentQty(g) {
+  if(g.notSized) return g.unsizedQty||0;
+  let q = 0;
+  Object.values(g.sizeQtys||{}).forEach(v => q += (parseInt(v)||0));
+  return q;
 }
 
-// ── Summary page ───────────────────────────────────────────────────────────
 function buildSummaryPage() {
   const q = getQuoteData();
   const el = document.getElementById('summary-content');
-  const needsApproval = checkNeedsApproval(q);
+  const needsApproval = checkNeedsApproval();
   let html = '';
-  if(needsApproval) {
-    html += `<div class="approval-flag">⚠️ <strong>Margin Approval Required</strong> — Submit for management approval before presenting to client.</div>`;
-  }
-  let orderNetTotal = 0, orderSellTotal = 0, orderQtyTotal = 0;
+  if(needsApproval) html += `<div class="approval-flag">⚠️ Margin Approval Required — Submit for approval before presenting to client.</div>`;
+
+  let orderNet=0, orderSell=0, orderQty=0;
+  const splitPct = parseInt(q.split)||100;
+
   // Garment cards
   q.garments.forEach((g,gi) => {
-    let gQty=0, gNet=0, gSell=0;
-    const sizeRows = g.sizes.filter(s=>s.qty>0).map(s => {
-      gQty+=s.qty; gNet+=s.qty*s.netCost; gSell+=s.qty*s.sellPrice;
-      const m = s.sellPrice>0?((s.sellPrice-s.netCost)/s.sellPrice*100).toFixed(1)+'%':'—';
-      const cls = s.sellPrice>0?(((s.sellPrice-s.netCost)/s.sellPrice*100)>=30?'margin-ok':'margin-warn'):'';
-      return `<tr><td>${s.size}</td><td>${s.qty}</td><td>$${s.netCost.toFixed(2)}</td><td>$${s.sellPrice.toFixed(2)}</td><td>$${(s.qty*s.netCost).toFixed(2)}</td><td>$${(s.qty*s.sellPrice).toFixed(2)}</td><td><span class="margin-badge ${cls}">${m}</span></td></tr>`;
-    }).join('');
-    const gMargin = gSell>0?((gSell-gNet)/gSell*100).toFixed(1):'0';
-    const splitPct = parseInt(q.split)||100;
-    const gComm = ((gSell-gNet)*(splitPct/100)*0.5).toFixed(2);
-    orderQtyTotal+=gQty; orderNetTotal+=gNet; orderSellTotal+=gSell;
+    const gNet=garmentTotal(g,'net'), gSell=garmentTotal(g,'sell'), gQty=garmentQty(g);
+    orderNet+=gNet; orderSell+=gSell; orderQty+=gQty;
+    const gMargin=gSell>0?((gSell-gNet)/gSell*100).toFixed(1):0;
+    const gComm=((gSell-gNet)*(splitPct/100)*0.5).toFixed(2);
+
+    // Get imprints for this garment
+    const gImprints = q.imprints.filter(imp => imp.appliesTo === 'garment-'+gi);
+
+    let sizeRowsHtml = '';
+    if(g.notSized) {
+      const pg = g.priceGroups[0]||{};
+      sizeRowsHtml = `<tr><td>N/A</td><td>${g.unsizedQty||0}</td><td>$${(pg.net||0).toFixed(2)}</td><td>$${(pg.sell||0).toFixed(2)}</td><td>$${gNet.toFixed(2)}</td><td>$${gSell.toFixed(2)}</td><td>${marginBadge(pg.net,pg.sell)}</td></tr>`;
+    } else {
+      (g.priceGroups||[]).forEach(pg => {
+        (pg.sizes||[]).forEach(sz => {
+          const qty=(g.sizeQtys&&g.sizeQtys[sz])||0;
+          if(qty===0) return;
+          sizeRowsHtml += `<tr><td>${sz}</td><td>${qty}</td><td>$${(pg.net||0).toFixed(2)}</td><td>$${(pg.sell||0).toFixed(2)}</td><td>$${(qty*(pg.net||0)).toFixed(2)}</td><td>$${(qty*(pg.sell||0)).toFixed(2)}</td><td>${marginBadge(pg.net,pg.sell)}</td></tr>`;
+        });
+      });
+    }
+
     html += `<div class="summary-garment-card">
       <div class="summary-garment-header">Garment ${gi+1}: ${g.itemName||g.type}</div>
       <div class="summary-section">
@@ -766,28 +1019,29 @@ function buildSummaryPage() {
           <div class="summary-kv"><div class="k">Type</div><div class="v">${g.type}</div></div>
           <div class="summary-kv"><div class="k">Item / SKU</div><div class="v">${g.itemName||'—'} ${g.sku?'('+g.sku+')':''}</div></div>
           <div class="summary-kv"><div class="k">Vendor</div><div class="v">${g.vendor||'—'}</div></div>
-          <div class="summary-kv"><div class="k">Color</div><div class="v">${g.colorName||'—'}</div></div>
-          <div class="summary-kv"><div class="k">Fit</div><div class="v">${g.fit||'—'}</div></div>
+          <div class="summary-kv"><div class="k">Color</div><div class="v">${g.colorName||'N/A'}</div></div>
+          <div class="summary-kv"><div class="k">Fit</div><div class="v">${g.fit||'N/A'}</div></div>
+          ${g.screenNotNeeded?'<div class="summary-kv"><div class="k">Screen</div><div class="v">Not needed</div></div>':''}
         </div>
       </div>
-      <div class="summary-section">
-        <h4>Decoration</h4>
-        <div class="summary-grid">
-          <div class="summary-kv"><div class="k">Primary</div><div class="v">${g.decoType||'—'}</div></div>
-          <div class="summary-kv"><div class="k">Location</div><div class="v">${g.decoLocation||'—'}</div></div>
-          <div class="summary-kv"><div class="k">Colors / Stitches</div><div class="v">${g.decoColors||'—'}</div></div>
-          ${g.pmsPrint?`<div class="summary-kv"><div class="k">PMS Print</div><div class="v">${g.pmsPrint}</div></div>`:''}
-          ${g.pmsThread?`<div class="summary-kv"><div class="k">Thread / Vinyl</div><div class="v">${g.pmsThread}</div></div>`:''}
-          ${g.decoType2?`<div class="summary-kv"><div class="k">Secondary</div><div class="v">${g.decoType2} @ ${g.decoLocation2||'—'} — ${g.decoColors2||'—'}</div></div>`:''}
-        </div>
-      </div>
-      ${sizeRows?`<div class="summary-section">
-        <h4>Size / Quantity / Pricing</h4>
+      ${gImprints.length ? `<div class="summary-section">
+        <h4>Imprints (${gImprints.length})</h4>
+        ${gImprints.map(imp=>`<div style="font-size:13px;margin-bottom:6px;">
+          <strong>${imp.decoType}</strong> @ ${imp.location}
+          ${imp.colors?' · '+imp.colors:''}
+          ${imp.pmsPrint?' · PMS: '+imp.pmsPrint:''}
+          ${imp.pmsThread?' · Thread: '+imp.pmsThread:''}
+          ${imp.dstExists?' · DST: '+imp.dstExists:''}
+          ${imp.notes?' · '+imp.notes:''}
+        </div>`).join('')}
+      </div>` : ''}
+      ${sizeRowsHtml ? `<div class="summary-section">
+        <h4>${g.notSized?'Quantity / Pricing':'Size / Quantity / Pricing'}</h4>
         <table class="summary-size-table">
           <thead><tr><th>Size</th><th>Qty</th><th>Net/ea</th><th>Sell/ea</th><th>Total Net</th><th>Total Sell</th><th>Margin</th></tr></thead>
-          <tbody>${sizeRows}</tbody>
+          <tbody>${sizeRowsHtml}</tbody>
         </table>
-      </div>`:''}
+      </div>` : ''}
       <div class="summary-section">
         <h4>Garment Totals</h4>
         <div class="summary-grid">
@@ -800,14 +1054,15 @@ function buildSummaryPage() {
       </div>
     </div>`;
   });
-  // Hard Goods cards
+
+  // Hard Goods
   q.hardGoods.forEach((h,hi) => {
     if(!h.qty) return;
-    const hNet = h.qty*h.netCost, hSell = h.qty*h.sellPrice;
-    const hMargin = hSell>0?((hSell-hNet)/hSell*100).toFixed(1):'0';
-    const splitPct = parseInt(q.split)||100;
-    const hComm = ((hSell-hNet)*(splitPct/100)*0.5).toFixed(2);
-    orderQtyTotal+=h.qty; orderNetTotal+=hNet; orderSellTotal+=hSell;
+    const hNet=h.qty*(h.net||0), hSell=h.qty*(h.sell||0);
+    const hMargin=hSell>0?((hSell-hNet)/hSell*100).toFixed(1):0;
+    const hComm=((hSell-hNet)*(splitPct/100)*0.5).toFixed(2);
+    const hImprints = q.imprints.filter(imp=>imp.appliesTo==='hg-'+hi);
+    orderNet+=hNet; orderSell+=hSell; orderQty+=h.qty;
     html += `<div class="summary-garment-card">
       <div class="summary-garment-header">Hard Good ${hi+1}: ${h.itemName}</div>
       <div class="summary-section">
@@ -818,20 +1073,16 @@ function buildSummaryPage() {
           <div class="summary-kv"><div class="k">Color</div><div class="v">${h.colorName||'—'}</div></div>
         </div>
       </div>
-      ${h.decoType?`<div class="summary-section">
-        <h4>Decoration</h4>
-        <div class="summary-grid">
-          <div class="summary-kv"><div class="k">Method</div><div class="v">${h.decoType}</div></div>
-          <div class="summary-kv"><div class="k">Location</div><div class="v">${h.decoLocation||'—'}</div></div>
-          <div class="summary-kv"><div class="k">Colors / Ref</div><div class="v">${h.decoColors||'—'}</div></div>
-        </div>
-      </div>`:''}
+      ${hImprints.length ? `<div class="summary-section">
+        <h4>Imprints</h4>
+        ${hImprints.map(imp=>`<div style="font-size:13px;margin-bottom:4px;"><strong>${imp.decoType}</strong> @ ${imp.location} ${imp.colors?'· '+imp.colors:''}</div>`).join('')}
+      </div>` : ''}
       <div class="summary-section">
         <h4>Pricing</h4>
         <div class="summary-grid">
           <div class="summary-kv"><div class="k">Qty</div><div class="v">${h.qty}</div></div>
-          <div class="summary-kv"><div class="k">Net/ea</div><div class="v">$${h.netCost.toFixed(2)}</div></div>
-          <div class="summary-kv"><div class="k">Sell/ea</div><div class="v">$${h.sellPrice.toFixed(2)}</div></div>
+          <div class="summary-kv"><div class="k">Net/ea</div><div class="v">$${(h.net||0).toFixed(2)}</div></div>
+          <div class="summary-kv"><div class="k">Sell/ea</div><div class="v">$${(h.sell||0).toFixed(2)}</div></div>
           <div class="summary-kv"><div class="k">Total Net</div><div class="v">$${hNet.toFixed(2)}</div></div>
           <div class="summary-kv"><div class="k">Total Sell</div><div class="v">$${hSell.toFixed(2)}</div></div>
           <div class="summary-kv"><div class="k">Margin</div><div class="v">${hMargin}%</div></div>
@@ -840,23 +1091,23 @@ function buildSummaryPage() {
       </div>
     </div>`;
   });
+
   // Order totals
-  const orderMargin = orderSellTotal>0?((orderSellTotal-orderNetTotal)/orderSellTotal*100).toFixed(1):'0';
-  const splitPct = parseInt(q.split)||100;
-  const totalComm = ((orderSellTotal-orderNetTotal)*(splitPct/100)*0.5).toFixed(2);
+  const orderMargin=orderSell>0?((orderSell-orderNet)/orderSell*100).toFixed(1):0;
+  const totalComm=((orderSell-orderNet)*(splitPct/100)*0.5).toFixed(2);
   html += `<div class="totals-card">
     <div style="font-size:16px;font-weight:700;margin-bottom:14px;">Order Totals</div>
-    <div class="totals-row"><span>Total Qty</span><span>${orderQtyTotal}</span></div>
-    <div class="totals-row"><span>Total Net Cost</span><span>$${orderNetTotal.toFixed(2)}</span></div>
-    <div class="totals-row"><span>Total Sell Price</span><span>$${orderSellTotal.toFixed(2)}</span></div>
+    <div class="totals-row"><span>Total Qty</span><span>${orderQty}</span></div>
+    <div class="totals-row"><span>Total Net</span><span>$${orderNet.toFixed(2)}</span></div>
+    <div class="totals-row"><span>Total Sell</span><span>$${orderSell.toFixed(2)}</span></div>
     <div class="totals-row"><span>Blended Margin</span><span>${orderMargin}%</span></div>
-    <div class="totals-row"><span>Commission Split</span><span>${q.split}%</span></div>
+    <div class="totals-row"><span>Commission Split</span><span>${splitPct}%</span></div>
     <div class="totals-row"><span>Est. Commission</span><span style="color:var(--green);">$${totalComm}</span></div>
   </div>`;
   el.innerHTML = html;
 }
 
-// ── Data extraction ────────────────────────────────────────────────────────
+// ── Data ───────────────────────────────────────────────────────────────────
 function getQuoteData() {
   return {
     rep: document.getElementById('p1-rep').value,
@@ -869,33 +1120,29 @@ function getQuoteData() {
     ihdFirm: document.getElementById('p1-ihd-firm').checked,
     am: document.getElementById('p1-am').checked,
     notes: document.getElementById('p1-notes').value,
-    garments: garments.map(g=>({...g, sizes: g.sizes.map(s=>({...s}))})),
-    hardGoods: hardGoods.map(h=>({...h})),
-    needsApproval: checkNeedsApproval({garments, hardGoods}),
-    _version: '3.0',
+    garments: JSON.parse(JSON.stringify(garments)),
+    hardGoods: JSON.parse(JSON.stringify(hardGoods)),
+    imprints: JSON.parse(JSON.stringify(imprints)),
+    needsApproval: checkNeedsApproval(),
+    _version: '3.1',
     _exported: new Date().toISOString(),
   };
 }
 
-// ── Export ─────────────────────────────────────────────────────────────────
 function exportJSON(toPortal) {
   const q = getQuoteData();
-  if(!q.rep || !q.quoteNum) {
-    bamAlert('Please complete at least the Rep Name and Quote # before exporting.');
-    return;
-  }
+  if(!q.rep || !q.quoteNum) { bamAlert('Please complete Rep Name and Quote # before exporting.'); return; }
   const blob = new Blob([JSON.stringify(q, null, 2)], {type:'application/json'});
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
-  a.download = `TORO_Quote_${q.quoteNum.replace(/[^a-zA-Z0-9]/g,'_')}_${q.rep}.json`;
+  a.download = 'TORO_Quote_' + q.quoteNum.replace(/[^a-zA-Z0-9]/g,'_') + '_' + q.rep + '.json';
   a.click();
-  if(toPortal) bamAlert('Quote exported! Upload this JSON file to your commission portal to submit it.');
+  if(toPortal) bamAlert('Quote exported! Upload this JSON to your commission portal.');
 }
 
-// Set today as default date
+// ── Init ───────────────────────────────────────────────────────────────────
 document.getElementById('p1-date').value = new Date().toISOString().split('T')[0];
-renderGarments();
-renderHG();
+addGarment(); // Start with one garment
 </script>
 </body>
 </html>
