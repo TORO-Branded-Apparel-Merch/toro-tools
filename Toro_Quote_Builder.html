@@ -209,13 +209,19 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--red);box
     <button type="button" onclick="toggleReimport()" style="background:none;border:none;color:var(--text3);font-size:12px;cursor:pointer;padding:0;display:flex;align-items:center;gap:6px">
       <span id="reimport-toggle-icon" style="font-size:10px">&#9654;</span> Re-import a previous quote for editing
     </button>
-    <div id="reimport-area" style="display:none;margin-top:10px;background:#f8f9fa;border:1px solid var(--border2);border-radius:8px;padding:14px">
-      <p style="font-size:12px;color:var(--text3);margin-bottom:10px">Upload a previously exported quote JSON to restore all fields exactly. Adjust what needs to change and re-export.</p>
-      <label style="display:inline-block;padding:7px 14px;background:#fff;border:1px solid var(--border2);border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;color:var(--text2)">
-        &#128194; Choose quote file
-        <input type="file" accept=".json" style="display:none" onchange="reimportQuote(this)">
-      </label>
-      <span id="reimport-status" style="font-size:12px;margin-left:10px"></span>
+    <div id="reimport-area" style="display:none;margin-top:10px">
+      <div id="reimport-dropzone"
+        style="border:2px dashed var(--border2);border-radius:8px;padding:20px;text-align:center;cursor:pointer;background:#f8f9fa;transition:all .2s"
+        onclick="document.getElementById('reimport-file-input').click()"
+        ondragover="event.preventDefault();this.style.borderColor='#C41E1E';this.style.background='#fff0f0'"
+        ondragleave="this.style.borderColor='var(--border2)';this.style.background='#f8f9fa'"
+        ondrop="event.preventDefault();this.style.borderColor='var(--border2)';this.style.background='#f8f9fa';reimportQuote({files:event.dataTransfer.files})">
+        <input type="file" id="reimport-file-input" accept=".json" style="display:none" onchange="reimportQuote(this)">
+        <div style="font-size:20px;margin-bottom:6px">&#128194;</div>
+        <div style="font-size:13px;font-weight:600;color:var(--text2)">Drop quote file here or click to browse</div>
+        <div style="font-size:11px;color:var(--text3);margin-top:4px">Accepts .json files exported from the TORO Quote Builder</div>
+      </div>
+      <div id="reimport-status" style="font-size:12px;margin-top:8px;padding:6px 10px;border-radius:6px;display:none"></div>
     </div>
   </div>
 
@@ -1945,31 +1951,51 @@ function toggleReimport(){
 function reimportQuote(input){
   const file=input.files[0];
   if(!file) return;
-  const status=document.getElementById('reimport-status');
-  status.textContent='Reading...';
+  const statusEl=document.getElementById('reimport-status');
+  statusEl.style.display='block';
+  statusEl.style.background='#f8f9fa';
+  statusEl.style.color='var(--text3)';
+  statusEl.textContent='Reading...';
   const r=new FileReader();
   r.onload=e=>{
     try{
       const q=JSON.parse(e.target.result);
-      if(!q.totalSell){ status.textContent='Invalid quote file.'; return; }
-      // Pre-fill Page 1 fields using correct field IDs
-      const set=(id,val)=>{ const el=document.getElementById(id); if(el&&val!=null) el.value=val; };
-      set('rep_name', q.rep);
-      set('quote_num', q.quoteNum);
-      set('quote_name', q.quoteName);
-      set('comm_split', q.commissionSplit);
-      set('ship_date', q.ihd);
-      set('order_notes', q.notes);
-      const amCb=document.getElementById('has_am');
-      if(amCb&&q.hasAM!=null) amCb.checked=q.hasAM;
-      // Store full quote data for reference
+      if(!q.totalSell&&!q.quoteNum){
+        statusEl.style.background='#fff0f0'; statusEl.style.color='var(--red)';
+        statusEl.textContent='Invalid file — does not appear to be a TORO quote export.';
+        return;
+      }
+      // Helper: set value and fire both input and change events so reactive system picks it up
+      function setField(id, val){
+        if(val==null||val==='') return;
+        const el=document.getElementById(id);
+        if(!el) return;
+        el.value=val;
+        el.dispatchEvent(new Event('input',{bubbles:true}));
+        el.dispatchEvent(new Event('change',{bubbles:true}));
+      }
+      function setCheck(id, val){
+        const el=document.getElementById(id);
+        if(!el) return;
+        el.checked=!!val;
+        el.dispatchEvent(new Event('change',{bubbles:true}));
+      }
+      setField('rep_name',    q.rep);
+      setField('quote_num',   q.quoteNum);
+      setField('quote_name',  q.quoteName);
+      setField('comm_split',  q.commissionSplit);
+      setField('ship_date',   q.ihd);
+      setField('order_notes', q.notes);
+      setCheck('has_am',      q.hasAM);
       window._reimportedQuote=q;
-      status.textContent='Quote loaded successfully. Review Page 1 fields then continue.';
-      status.style.color='var(--green)';
+      statusEl.style.background='#e6f4ee';
+      statusEl.style.color='var(--green)';
+      statusEl.textContent='Quote loaded: '+(q.quoteName||q.quoteNum||'unnamed')+'. Review Page 1 fields and continue.';
       calcAllDebounced();
     } catch(err){
-      status.textContent='Error reading file: '+err.message;
-      status.style.color='var(--red)';
+      statusEl.style.background='#fff0f0';
+      statusEl.style.color='var(--red)';
+      statusEl.textContent='Error reading file: '+err.message;
     }
   };
   r.readAsText(file);
