@@ -2,8 +2,9 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width,initial-scale=1.0">
-<title>TORO Amy Commission Portal</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TORO — Amy Portal</title>
+
 <style>
 :root{
   --red:#C41E1E;--red-dark:#9e1818;--red-light:#fff0f0;
@@ -15,7 +16,6 @@
 }
 *{box-sizing:border-box;margin:0;padding:0}
 body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;}
-/* Gate */
 #gate{position:fixed;inset:0;background:#fff;display:flex;align-items:center;justify-content:center;z-index:10000;}
 .gate-box{background:#fff;border:1px solid var(--border);border-radius:12px;padding:40px 36px;max-width:380px;width:90%;text-align:center;box-shadow:0 4px 24px rgba(0,0,0,0.08);}
 .gate-box h2{font-size:22px;font-weight:700;color:var(--red);margin-bottom:6px;}
@@ -24,17 +24,13 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 .gate-box input:focus{outline:none;border-color:var(--red);}
 .gate-box button{width:100%;padding:11px;background:var(--red);color:#fff;border:none;border-radius:var(--radius-sm);font-size:15px;font-weight:600;cursor:pointer;}
 .gate-box .error{color:var(--red);font-size:13px;margin-top:8px;min-height:18px;}
-/* Header */
 .header{background:var(--red);color:#fff;padding:14px 20px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100;box-shadow:0 2px 8px rgba(0,0,0,0.15);}
 .header h1{font-size:18px;font-weight:700;}
 .header .hdr-right{display:flex;gap:10px;align-items:center;}
 .hdr-btn{padding:6px 14px;border-radius:var(--radius-sm);font-size:13px;font-weight:600;cursor:pointer;border:none;}
-/* Layout */
 .container{max-width:900px;margin:0 auto;padding:20px 16px;}
-/* Section titles */
 .section-title{font-size:15px;font-weight:700;padding:10px 0 8px;display:flex;align-items:center;gap:8px;}
 .section-title .badge{background:var(--red);color:#fff;border-radius:10px;padding:1px 8px;font-size:12px;}
-/* Quote cards */
 .quote-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);margin-bottom:12px;overflow:hidden;transition:box-shadow 0.15s;}
 .quote-card:hover{box-shadow:0 2px 12px rgba(0,0,0,0.07);}
 .qc-header{padding:13px 16px;display:flex;align-items:center;justify-content:space-between;cursor:pointer;}
@@ -43,13 +39,11 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 .qc-sub{font-size:12px;color:var(--text3);}
 .qc-actions{display:flex;gap:8px;align-items:center;flex-shrink:0;}
 .qc-body{padding:14px 16px;border-top:1px solid var(--border);background:#fafafa;}
-/* Status checkboxes */
 .status-checks{display:flex;flex-wrap:wrap;gap:10px;margin-bottom:12px;}
 .status-check label{display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer;padding:6px 12px;border-radius:20px;border:1px solid var(--border);background:#fff;transition:all 0.15s;user-select:none;}
 .status-check label:hover{border-color:var(--red);}
 .status-check input{accent-color:var(--green);width:15px;height:15px;}
 .status-check.checked label{background:var(--green-bg);border-color:var(--green);}
-/* Buttons */
 .btn{padding:8px 16px;border-radius:var(--radius-sm);font-size:13px;font-weight:600;cursor:pointer;border:none;transition:all 0.15s;}
 .btn-red{background:var(--red);color:#fff;}
 .btn-red:hover{background:var(--red-dark);}
@@ -59,65 +53,101 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 .btn-outline:hover{background:var(--red-light);}
 .btn-gray{background:#f0f0f0;color:var(--text2);border:1px solid var(--border);}
 .btn-gray:hover{background:#e5e5e5;}
+.btn-sm{padding:5px 11px;font-size:12px;}
 .del-btn{background:#fff;border:1px solid #ddd;color:#c41e1e;padding:5px 12px;border-radius:var(--radius-sm);font-size:12px;font-weight:600;cursor:pointer;}
 .del-btn:hover{background:var(--red-light);border-color:var(--red);}
-/* Drop zone */
 .drop-zone{border:2px dashed var(--border);border-radius:var(--radius);padding:28px;text-align:center;color:var(--text3);cursor:pointer;transition:all 0.15s;background:#fafafa;}
 .drop-zone:hover,.drop-zone.over{border-color:var(--red);color:var(--red);background:var(--red-light);}
-/* Summary cards (mini) */
 .summary-cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin-bottom:20px;}
 .summary-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:14px;text-align:center;}
 .summary-card .sc-val{font-size:22px;font-weight:700;color:var(--red);}
 .summary-card .sc-lbl{font-size:12px;color:var(--text3);margin-top:4px;}
-/* Approval/rejection styling */
 .approval-pending{background:#fff8e1;border:1px solid #ffd54f;border-radius:var(--radius-sm);padding:8px 12px;font-size:13px;color:#b8860b;margin-bottom:8px;}
 .rejection-note{background:var(--red-light);border:1px solid #f5c6c6;border-radius:var(--radius-sm);padding:8px 12px;font-size:13px;color:var(--red);margin-bottom:8px;}
 .approved-note{background:var(--green-bg);border:1px solid #a5d6b8;border-radius:var(--radius-sm);padding:8px 12px;font-size:13px;color:var(--green);margin-bottom:8px;}
-/* Archive */
 .archive-toggle{font-size:13px;color:var(--text3);cursor:pointer;padding:8px 0;user-select:none;}
 .archive-toggle:hover{color:var(--red);}
-/* Change password */
 #change-pw-panel{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.4);z-index:5000;align-items:center;justify-content:center;}
 #change-pw-panel.open{display:flex;}
 .pw-box{background:#fff;border-radius:12px;padding:32px;max-width:360px;width:90%;}
-/* BAM Modal */
+.pw-box h3{margin-bottom:16px;}
+.pw-box label{font-size:13px;font-weight:600;display:block;margin-bottom:5px;}
+.pw-box input{width:100%;padding:9px 12px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:14px;margin-bottom:12px;}
+.pw-box .pw-btns{display:flex;gap:8px;margin-top:8px;}
 #bam-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:9999;align-items:center;justify-content:center;}
-/* Sync indicator */
+#bam-overlay.open{display:flex;}
 .sync-dot{width:8px;height:8px;border-radius:50%;background:#1a7f4b;display:inline-block;margin-right:6px;}
 .sync-dot.syncing{background:#ffd54f;animation:pulse 1s infinite;}
 @keyframes pulse{0%,100%{opacity:1}50%{opacity:0.3}}
-/* Error banner */
 #error-banner{display:none;position:fixed;top:0;left:0;right:0;background:#c41e1e;color:#fff;padding:10px 20px;font-size:14px;z-index:9998;text-align:center;}
-@media(max-width:600px){
-  .status-checks{gap:6px;}
-  .qc-actions{flex-wrap:wrap;}
-}
+.feedback-modal{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:10000;align-items:center;justify-content:center;}
+.feedback-modal.open{display:flex;}
+.feedback-box{background:#fff;border-radius:12px;padding:28px;max-width:420px;width:90%;box-shadow:0 20px 60px rgba(0,0,0,.3);}
+@media(max-width:600px){.status-checks{gap:6px;}.qc-actions{flex-wrap:wrap;}}
 </style>
+
 </head>
 <body>
 
-<!-- Error Banner -->
-<div id="error-banner">⚠️ Something went wrong. Please contact management. <button onclick="document.getElementById('error-banner').style.display='none'" style="background:none;border:none;color:#fff;cursor:pointer;margin-left:10px;font-size:16px;">✕</button></div>
+<div id="error-banner">⚠️ Something went wrong. Please contact management.
+  <button onclick="document.getElementById('error-banner').style.display='none'" style="background:none;border:none;color:#fff;cursor:pointer;margin-left:10px;font-size:16px;">✕</button>
+</div>
 
-<!-- Global error handler -->
 <script>
-window.onerror = function(msg, src, line, col, err) {
-  console.error('Global error:', msg, src, line);
-  document.getElementById('error-banner').style.display = 'block';
+window.onerror = function(msg,src,line,col,err) {
+  console.error('Global error:',msg,src,line);
+  document.getElementById('error-banner').style.display='block';
   return false;
 };
-window.addEventListener('unhandledrejection', function(e) {
-  console.error('Unhandled promise rejection:', e.reason);
-  document.getElementById('error-banner').style.display = 'block';
+window.addEventListener('unhandledrejection',function(e){
+  console.error('Unhandled promise rejection:',e.reason);
+  document.getElementById('error-banner').style.display='block';
 });
 </script>
 
 <!-- BAM Modal -->
-<div id="bam-overlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:9999;align-items:center;justify-content:center;">
+<div id="bam-overlay">
   <div style="background:#fff;border-radius:12px;padding:28px 32px;max-width:420px;width:90%;box-shadow:0 8px 40px rgba(0,0,0,0.2);">
     <div style="font-size:17px;font-weight:700;color:#C41E1E;margin-bottom:12px;">🐂 BAM the Bull says</div>
     <div id="bam-msg" style="font-size:15px;color:#333;margin-bottom:22px;line-height:1.5;"></div>
     <div id="bam-btns" style="display:flex;gap:10px;justify-content:flex-end;"></div>
+  </div>
+</div>
+
+<!-- Feedback Modal -->
+<div class="feedback-modal" id="feedback-modal">
+  <div class="feedback-box">
+    <div style="font-size:16px;font-weight:700;margin-bottom:4px">Send feedback to management</div>
+    <div style="font-size:12px;color:var(--text3);margin-bottom:16px">Share suggestions, issues, or anything on your mind.</div>
+    <textarea id="feedback-text" rows="4" placeholder="Type your feedback here..."
+      style="width:100%;padding:10px;font-size:13px;border:1px solid var(--border);border-radius:6px;resize:vertical;box-sizing:border-box;font-family:inherit"></textarea>
+    <div id="feedback-status" style="font-size:12px;min-height:16px;margin-top:6px"></div>
+    <div style="display:flex;gap:8px;margin-top:12px">
+      <button class="btn btn-red" onclick="submitFeedback()" style="flex:1">Send</button>
+      <button class="btn btn-gray" onclick="document.getElementById('feedback-modal').classList.remove('open')" style="flex:1">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<!-- Thread Modal -->
+<div id="thread-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:10000;align-items:center;justify-content:center;">
+  <div style="background:#fff;border-radius:12px;padding:24px;max-width:500px;width:92%;max-height:80vh;display:flex;flex-direction:column;box-shadow:0 20px 60px rgba(0,0,0,.3)">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+      <div style="font-size:15px;font-weight:700" id="thread-title">Approval notes</div>
+      <button onclick="document.getElementById('thread-modal').style.display='none'" style="background:none;border:none;font-size:20px;cursor:pointer;color:#888">✕</button>
+    </div>
+    <div id="thread-messages" style="flex:1;overflow-y:auto;border:1px solid var(--border);border-radius:6px;padding:10px;margin-bottom:12px;min-height:120px;max-height:300px;font-size:13px"></div>
+    <textarea id="thread-input" rows="2" placeholder="Add a note..."
+      style="width:100%;padding:8px;font-size:13px;border:1px solid var(--border);border-radius:6px;resize:none;box-sizing:border-box;font-family:inherit;margin-bottom:8px"></textarea>
+    <button class="btn btn-red" onclick="sendThreadMsg()">Send note</button>
+  </div>
+</div>
+
+<!-- Report Modal -->
+<div id="report-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:10000;align-items:center;justify-content:center;">
+  <div style="background:#fff;border-radius:12px;padding:24px;max-width:380px;width:90%;box-shadow:0 20px 60px rgba(0,0,0,.3)">
+    <div style="font-size:15px;font-weight:700;margin-bottom:16px">Export report</div>
+    <div id="report-filters"></div>
   </div>
 </div>
 
@@ -135,17 +165,17 @@ window.addEventListener('unhandledrejection', function(e) {
 <!-- Change Password Panel -->
 <div id="change-pw-panel">
   <div class="pw-box">
-    <h3 style="margin-bottom:16px;">Change Password</h3>
-    <div style="margin-bottom:10px;"><label style="font-size:13px;font-weight:600;display:block;margin-bottom:5px;">Current Password</label>
-      <input type="password" id="cp-current" style="width:100%;padding:9px;border:1px solid #ddd;border-radius:6px;font-size:14px;"></div>
-    <div style="margin-bottom:10px;"><label style="font-size:13px;font-weight:600;display:block;margin-bottom:5px;">New Password</label>
-      <input type="password" id="cp-new" style="width:100%;padding:9px;border:1px solid #ddd;border-radius:6px;font-size:14px;"></div>
-    <div style="margin-bottom:16px;"><label style="font-size:13px;font-weight:600;display:block;margin-bottom:5px;">Confirm New Password</label>
-      <input type="password" id="cp-confirm" style="width:100%;padding:9px;border:1px solid #ddd;border-radius:6px;font-size:14px;"></div>
-    <div id="cp-error" style="color:#c41e1e;font-size:13px;min-height:18px;margin-bottom:12px;"></div>
-    <div style="display:flex;gap:10px;">
-      <button class="btn btn-gray" style="flex:1" onclick="closeChangePw()">Cancel</button>
-      <button class="btn btn-red" style="flex:1" onclick="submitChangePw()">Change Password</button>
+    <h3>Change Password</h3>
+    <label>Current Password</label>
+    <input type="password" id="cpw-current" placeholder="Current password">
+    <label>New Password</label>
+    <input type="password" id="cpw-new" placeholder="New password (min 8 chars)">
+    <label>Confirm New Password</label>
+    <input type="password" id="cpw-confirm" placeholder="Confirm new password">
+    <div id="cpw-error" style="color:var(--red);font-size:13px;min-height:16px;margin-bottom:8px;"></div>
+    <div class="pw-btns">
+      <button class="btn btn-red" onclick="submitChangePw()" style="flex:1">Change Password</button>
+      <button class="btn btn-gray" onclick="closeChangePw()" style="flex:1">Cancel</button>
     </div>
   </div>
 </div>
@@ -157,20 +187,19 @@ window.addEventListener('unhandledrejection', function(e) {
     <div class="hdr-right">
       <span class="sync-dot" id="sync-dot"></span>
       <span style="font-size:12px;opacity:0.8;" id="sync-label">Live</span>
+      <button class="hdr-btn btn-gray" onclick="document.getElementById('feedback-modal').classList.add('open');document.getElementById('feedback-text').value='';document.getElementById('feedback-status').textContent=''">💬 Feedback</button>
+      <button class="hdr-btn btn-gray" onclick="downloadReport()">📊 Report</button>
       <button class="hdr-btn" style="background:rgba(255,255,255,0.2);color:#fff;" onclick="openChangePw()">🔑 Password</button>
     </div>
   </div>
   <div class="container">
-    <!-- Summary cards -->
     <div class="summary-cards" id="summary-cards"></div>
-    <!-- Action bar -->
     <div id="action-bar" style="display:flex;gap:10px;margin-bottom:20px;flex-wrap:wrap;align-items:center;">
-      <div class="drop-zone" id="drop-zone" style="flex:1;min-width:200px;padding:14px;" onclick="document.getElementById('file-input').click()">
+      <div class="drop-zone" id="drop-zone" style="flex:1;min-width:200px;padding:14px;" onclick="if(event.target.tagName!=='INPUT')document.getElementById('file-input').click()">
         📂 Drop or click to upload a quote JSON
       </div>
-      <input type="file" id="file-input" accept=".json" style="display:none">
+      <input type="file" id="file-input" accept=".json" multiple style="display:none;" onclick="event.stopPropagation()">
     </div>
-    <!-- Sections -->
     <div id="section-approval"></div>
     <div id="section-ready"></div>
     <div id="section-active"></div>
@@ -178,8 +207,8 @@ window.addEventListener('unhandledrejection', function(e) {
   </div>
 </div>
 
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script>
-// ── Constants ──────────────────────────────────────────────────────────────
 const REP = 'Amy';
 const REP_LOWER = 'amy';
 const STORAGE_KEY = 'toro_quotes_amy';
@@ -188,6 +217,7 @@ const LOCK_KEY = 'toro_lock_amy';
 const ATTEMPTS_KEY = 'toro_attempts_amy';
 const DEFAULT_PW = 'Toro#Jc6wT';
 const FIREBASE_DB_URL = 'https://toro-commission-318b4-default-rtdb.firebaseio.com';
+const FB_PATH = 'quotes/' + REP_LOWER;
 
 // ── BAM Modal ──────────────────────────────────────────────────────────────
 function bamAlert(msg, cb) {
@@ -197,9 +227,9 @@ function bamAlert(msg, cb) {
   const ok = document.createElement('button');
   ok.textContent = 'OK';
   ok.style.cssText = 'padding:8px 22px;background:#C41E1E;color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:14px;font-weight:600;';
-  ok.onclick = () => { document.getElementById('bam-overlay').style.display='none'; if(cb) cb(true); };
+  ok.onclick = () => { document.getElementById('bam-overlay').classList.remove('open'); if(cb) cb(true); };
   btns.appendChild(ok);
-  document.getElementById('bam-overlay').style.display='flex';
+  document.getElementById('bam-overlay').classList.add('open');
 }
 function bamConfirm(msg, cb) {
   document.getElementById('bam-msg').innerHTML = msg;
@@ -208,337 +238,193 @@ function bamConfirm(msg, cb) {
   const cancel = document.createElement('button');
   cancel.textContent = 'Cancel';
   cancel.style.cssText = 'padding:8px 18px;background:#f0f0f0;color:#333;border:none;border-radius:6px;cursor:pointer;font-size:14px;';
-  cancel.onclick = () => { document.getElementById('bam-overlay').style.display='none'; if(cb) cb(false); };
+  cancel.onclick = () => { document.getElementById('bam-overlay').classList.remove('open'); if(cb) cb(false); };
   const ok = document.createElement('button');
   ok.textContent = 'Yes, continue';
   ok.style.cssText = 'padding:8px 18px;background:#C41E1E;color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:14px;font-weight:600;';
-  ok.onclick = () => { document.getElementById('bam-overlay').style.display='none'; if(cb) cb(true); };
+  ok.onclick = () => { document.getElementById('bam-overlay').classList.remove('open'); if(cb) cb(true); };
   btns.appendChild(cancel);
   btns.appendChild(ok);
-  document.getElementById('bam-overlay').style.display='flex';
-}
-function bamPrompt(msg, defaultVal, cb) {
-  document.getElementById('bam-msg').innerHTML = msg + '<br><input id="bam-input" type="text" value="'+(defaultVal||'')+'" style="width:100%;margin-top:10px;padding:8px;border:1px solid #ddd;border-radius:6px;font-size:14px;">';
-  const btns = document.getElementById('bam-btns');
-  btns.innerHTML = '';
-  const cancel = document.createElement('button');
-  cancel.textContent = 'Cancel';
-  cancel.style.cssText = 'padding:8px 18px;background:#f0f0f0;color:#333;border:none;border-radius:6px;cursor:pointer;font-size:14px;';
-  cancel.onclick = () => { document.getElementById('bam-overlay').style.display='none'; if(cb) cb(null); };
-  const ok = document.createElement('button');
-  ok.textContent = 'OK';
-  ok.style.cssText = 'padding:8px 18px;background:#C41E1E;color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:14px;font-weight:600;';
-  ok.onclick = () => { const v=document.getElementById('bam-input').value; document.getElementById('bam-overlay').style.display='none'; if(cb) cb(v); };
-  btns.appendChild(cancel);
-  btns.appendChild(ok);
-  document.getElementById('bam-overlay').style.display='flex';
-  setTimeout(()=>document.getElementById('bam-input')?.focus(),50);
+  document.getElementById('bam-overlay').classList.add('open');
 }
 
-// ── Firebase helpers ───────────────────────────────────────────────────────
-async function fbSet(path, val) {
-  const url = FIREBASE_DB_URL + '/' + path + '.json';
-  const method = val === null ? 'DELETE' : 'PUT';
+// ── Password Gate ──────────────────────────────────────────────────────────
+function getStoredPw() { return localStorage.getItem(PW_KEY) || DEFAULT_PW; }
+function submitPw() {
+  const val = document.getElementById('pw-input').value;
+  const lockUntil = parseInt(localStorage.getItem(LOCK_KEY)||'0');
+  if(Date.now() < lockUntil) { document.getElementById('pw-error').textContent = 'Account locked after 5 failed attempts. Try again later.'; return; }
+  if(val === getStoredPw()) {
+    localStorage.setItem(ATTEMPTS_KEY,'0');
+    document.getElementById('gate').style.display='none';
+    document.getElementById('app').style.display='';
+    init();
+  } else {
+    const attempts = parseInt(localStorage.getItem(ATTEMPTS_KEY)||'0') + 1;
+    localStorage.setItem(ATTEMPTS_KEY, attempts);
+    if(attempts >= 5) { localStorage.setItem(LOCK_KEY, Date.now()+15*60*1000); document.getElementById('pw-error').textContent='Account locked after 5 failed attempts. Try again later.'; }
+    else { document.getElementById('pw-error').textContent='Incorrect password. '+(5-attempts)+' attempts remaining.'; }
+  }
+}
+function openChangePw() { document.getElementById('change-pw-panel').classList.add('open'); ['cpw-current','cpw-new','cpw-confirm'].forEach(id=>document.getElementById(id).value=''); document.getElementById('cpw-error').textContent=''; }
+function closeChangePw() { document.getElementById('change-pw-panel').classList.remove('open'); }
+function submitChangePw() {
+  const cur = document.getElementById('cpw-current').value;
+  const nw = document.getElementById('cpw-new').value;
+  const cf = document.getElementById('cpw-confirm').value;
+  const err = document.getElementById('cpw-error');
+  if(cur !== getStoredPw()) { err.textContent='Current password incorrect.'; return; }
+  if(nw.length < 8) { err.textContent='New password must be at least 8 characters.'; return; }
+  if(nw !== cf) { err.textContent='Passwords do not match.'; return; }
+  localStorage.setItem(PW_KEY, nw);
+  closeChangePw();
+  bamAlert('Password changed successfully!');
+}
+
+// ── Firebase ───────────────────────────────────────────────────────────────
+function fbKey(q) {
+  if(q._fbKey) return q._fbKey;
+  if(q.quoteNum) return q.quoteNum.replace(/[.#$\/\[\]]/g,'_');
+  return 'q_' + Date.now();
+}
+async function fbSet(path, data) {
   try {
-    const r = await fetch(url, {
-      method,
-      headers: {'Content-Type':'application/json'},
-      body: val === null ? undefined : JSON.stringify(val)
+    if(data === null) {
+      const res = await fetch(FIREBASE_DB_URL+'/'+path+'.json', {method:'DELETE'});
+      return res.ok;
+    }
+    const res = await fetch(FIREBASE_DB_URL+'/'+path+'.json', {
+      method:'PUT', headers:{'Content-Type':'application/json'}, body:JSON.stringify(data)
     });
-    if(!r.ok) throw new Error('HTTP ' + r.status);
-  } catch(e) { console.error('fbSet error:', path, e); throw e; }
+    return res.ok;
+  } catch(e) { console.warn('Firebase write failed:',e.message); return false; }
 }
 async function fbGet(path) {
   try {
-    const r = await fetch(FIREBASE_DB_URL + '/' + path + '.json');
-    if(!r.ok) throw new Error('HTTP ' + r.status);
-    return await r.json();
-  } catch(e) { console.error('fbGet error:', path, e); return null; }
+    const res = await fetch(FIREBASE_DB_URL+'/'+path+'.json');
+    return res.ok ? await res.json() : null;
+  } catch(e) { console.warn('Firebase read failed:',e.message); return null; }
 }
+async function fbPatch(path, data) {
+  try {
+    const res = await fetch(FIREBASE_DB_URL+'/'+path+'.json', {
+      method:'PATCH', headers:{'Content-Type':'application/json'}, body:JSON.stringify(data)
+    });
+    return res.ok;
+  } catch(e) { console.warn('Firebase patch failed:',e.message); return false; }
+}
+let fbListenerActive = false;
 function fbListen(path, cb) {
-  const url = FIREBASE_DB_URL + '/' + path + '.json';
-  const es = new EventSource(url);
-  es.addEventListener('put', e => {
-    try { cb(JSON.parse(e.data)); } catch(err) { console.error('fbListen parse error', err); }
-  });
-  es.onerror = err => console.error('fbListen error', path, err);
-  return es;
+  const url = FIREBASE_DB_URL+'/'+path+'.json?timeout=55s';
+  let retry = 1000;
+  function connect() {
+    if(!fbListenerActive) return;
+    const es = new EventSource(url);
+    es.onmessage = e => { try { cb({data:JSON.parse(e.data)}); } catch(ex) {} };
+    es.onerror = () => { es.close(); if(fbListenerActive) setTimeout(connect, retry = Math.min(retry*2,30000)); };
+  }
+  connect();
 }
-
-// Key sanitizer — MUST be consistent everywhere
-function fbKey(q) {
-  const raw = q._fbKey || q.quoteNum || ('idx_' + Date.now());
-  return raw.replace(/[.#$\/\[\]\s]/g, '_');
+function setSyncing(v) {
+  const dot = document.getElementById('sync-dot');
+  const lbl = document.getElementById('sync-label');
+  if(dot) dot.className = 'sync-dot' + (v?' syncing':'');
+  if(lbl) lbl.textContent = v?'Syncing...':'Live';
 }
 
 // ── State ──────────────────────────────────────────────────────────────────
 let quotes = [];
 let approvals = {};
 let _saving = false;
-let fbListenerActive = false;
-let archiveOpen = false;
 
-// ── Auth ───────────────────────────────────────────────────────────────────
-function getStoredPw() { return localStorage.getItem(PW_KEY) || DEFAULT_PW; }
-function submitPw() {
-  const locked = localStorage.getItem(LOCK_KEY);
-  if(locked) { document.getElementById('pw-error').textContent = 'Account locked after 5 failed attempts. Contact management.'; return; }
-  const val = document.getElementById('pw-input').value;
-  const attempts = parseInt(localStorage.getItem(ATTEMPTS_KEY)||'0');
-  if(val === getStoredPw()) {
-    localStorage.removeItem(ATTEMPTS_KEY);
-    document.getElementById('gate').style.display = 'none';
-    document.getElementById('app').style.display = '';
-    init();
-  } else {
-    const newAttempts = attempts + 1;
-    localStorage.setItem(ATTEMPTS_KEY, newAttempts);
-    if(newAttempts >= 5) {
-      localStorage.setItem(LOCK_KEY, '1');
-      document.getElementById('pw-error').textContent = 'Account locked after 5 failed attempts. Contact management.';
-    } else {
-      document.getElementById('pw-error').textContent = `Incorrect password. ${5-newAttempts} attempt(s) remaining.`;
-    }
-  }
-}
-document.getElementById('pw-input').addEventListener('keydown', e => { if(e.key==='Enter') submitPw(); });
-
-function openChangePw() { document.getElementById('change-pw-panel').classList.add('open'); }
-function closeChangePw() { document.getElementById('change-pw-panel').classList.remove('open'); ['cp-current','cp-new','cp-confirm'].forEach(id=>document.getElementById(id).value=''); document.getElementById('cp-error').textContent=''; }
-function submitChangePw() {
-  const cur = document.getElementById('cp-current').value;
-  const nw = document.getElementById('cp-new').value;
-  const conf = document.getElementById('cp-confirm').value;
-  if(cur !== getStoredPw()) { document.getElementById('cp-error').textContent = 'Current password is incorrect.'; return; }
-  if(nw.length < 6) { document.getElementById('cp-error').textContent = 'New password must be at least 6 characters.'; return; }
-  if(nw !== conf) { document.getElementById('cp-error').textContent = 'Passwords do not match.'; return; }
-  localStorage.setItem(PW_KEY, nw);
-  closeChangePw();
-  bamAlert('Password changed successfully!');
-}
-
-// ── Init ───────────────────────────────────────────────────────────────────
-function init() {
-  // Load local cache first
-  try {
-    const cached = localStorage.getItem(STORAGE_KEY);
-    if(cached) { quotes = JSON.parse(cached); }
-  } catch(e) { quotes = []; }
-  render();
-  loadFromFirebase();
-  startListeners();
-}
-
+// ── Firebase load ──────────────────────────────────────────────────────────
 async function loadFromFirebase() {
   setSyncing(true);
-  try {
-    // Firebase is source of truth
-    const fbData = await fbGet('quotes/' + REP_LOWER);
-    if(fbData && typeof fbData === 'object') {
-      const fbQuotes = [];
-      fbQuotes.forEach = Array.prototype.forEach.bind(Object.entries(fbData).map(([k,v]) => ({...v, _fbKey: k})));
-      Object.entries(fbData).forEach(([k, v]) => {
-        if(v && typeof v === 'object') {
-          const q = {...v, _fbKey: k};
-          if(!q.workflowStatus) q.workflowStatus = 'active';
-          fbQuotes.push(q);
-        }
-      });
-      quotes = fbQuotes;
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(quotes));
-      render();
-    }
-  } catch(e) { console.error('loadFromFirebase error:', e); }
-  setSyncing(false);
-}
-
-function startListeners() {
-  fbListenerActive = true;
-  // Listen for changes to this rep's quotes
-  fbListen('quotes/' + REP_LOWER, data => {
-    if(_saving) return; // skip during our own saves
-    if(data && data.data !== null && typeof data.data === 'object') {
-      const fbQuotes = [];
-      Object.entries(data.data).forEach(([k, v]) => {
-        if(v && typeof v === 'object') {
-          const q = {...v, _fbKey: k};
-          if(!q.workflowStatus) q.workflowStatus = 'active';
-          fbQuotes.push(q);
-        }
-      });
-      quotes = fbQuotes;
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(quotes));
-      render();
-    } else if(data && data.data === null) {
-      quotes = [];
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(quotes));
-      render();
-    }
-  });
-  // Listen for paid status
-  fbListen('paid/' + REP_LOWER, data => {
-    if(data && data.data && typeof data.data === 'object') {
-      let changed = false;
-      Object.entries(data.data).forEach(([k, v]) => {
-        const q = quotes.find(x => fbKey(x) === k);
-        if(q && v === true) {
-          q.workflowStatus = 'paid';
-          changed = true;
-        }
-      });
-      if(changed) { localStorage.setItem(STORAGE_KEY, JSON.stringify(quotes)); render(); }
-    }
-  });
-  // Listen for approval decisions
-  fbListen('approvals/' + REP_LOWER, data => {
-    if(data && data.data && typeof data.data === 'object') {
-      approvals = data.data;
-      render();
-    } else {
-      approvals = {};
-    }
-  });
-}
-
-function setSyncing(on) {
-  const dot = document.getElementById('sync-dot');
-  const lbl = document.getElementById('sync-label');
-  if(dot) dot.classList.toggle('syncing', on);
-  if(lbl) lbl.textContent = on ? 'Syncing...' : 'Live';
-}
-
-// ── File drop ──────────────────────────────────────────────────────────────
-(function() {
-  const dz = document.getElementById('drop-zone');
-  const fi = document.getElementById('file-input');
-  dz.addEventListener('dragover', e => { e.preventDefault(); dz.classList.add('over'); });
-  dz.addEventListener('dragleave', () => dz.classList.remove('over'));
-  dz.addEventListener('drop', e => {
-    e.preventDefault();
-    dz.classList.remove('over');
-    const file = e.dataTransfer.files[0];
-    if(file) processFile(file);
-  });
-  fi.addEventListener('change', e => {
-    e.stopPropagation();
-    if(fi.files[0]) { processFile(fi.files[0]); fi.value=''; }
-  });
-})();
-
-async function processFile(file) {
-  try {
-    const text = await file.text();
-    const data = JSON.parse(text);
-    // Check rep
-    if(data.rep && data.rep.toLowerCase() !== REP.toLowerCase()) {
-      bamAlert('This quote belongs to ' + data.rep + ', not ' + REP + '. Please upload it to the correct portal.');
-      return;
-    }
-    const key = fbKey(data);
-    // Check for duplicate
-    const existing = quotes.findIndex(q => fbKey(q) === key);
-    if(existing >= 0) {
-      bamConfirm('A quote with the same Quote # already exists. Replace it?', async ok => {
-        if(!ok) return;
-        quotes.splice(existing, 1);
-        // Remove approval for old version
-        await fbSet('approvals/' + REP_LOWER + '/' + key, null);
-        await addQuote(data);
-      });
-      return;
-    }
-    await addQuote(data);
-  } catch(e) {
-    console.error('processFile error:', e);
-    bamAlert('Could not read that file. Make sure it\'s a valid TORO quote JSON.');
-  }
-}
-
-async function addQuote(data) {
-  const q = {
-    ...data,
-    _fbKey: fbKey(data),
-    workflowStatus: data.workflowStatus || 'active',
-    status: data.status || {},
-  };
-  quotes.push(q);
-  render(); // render immediately
+  const [data, apData] = await Promise.all([
+    fbGet(FB_PATH),
+    fbGet('approvals')
+  ]);
+  if(data) {
+    const fbQuotes = Object.values(data).filter(q=>q&&(q.totalSell||q.quoteName||q.quoteNum));
+    // Firebase is source of truth — merge
+    fbQuotes.forEach(q=>{
+      if(!q._fbKey) q._fbKey = fbKey(q);
+      if(!q.workflowStatus) q.workflowStatus='active';
+      if(!q.status) q.status={};
+      const idx = quotes.findIndex(x=>fbKey(x)===fbKey(q));
+      if(idx>=0) quotes[idx]=q; else quotes.push(q);
+    });
+    quotes = quotes.filter(q=>{
+      if(!q.quoteNum&&!q._fbKey) return true;
+      return fbQuotes.some(f=>fbKey(f)===fbKey(q));
+    });
+  } else { quotes=[]; }
+  approvals = apData||{};
   localStorage.setItem(STORAGE_KEY, JSON.stringify(quotes));
+  setSyncing(false);
+  render();
+}
+
+async function saveQuote(q) {
   _saving = true;
-  try {
-    await fbSet('quotes/' + REP_LOWER + '/' + q._fbKey, q);
-  } catch(e) {
-    console.error('addQuote fbSet error:', e);
-  } finally {
-    setTimeout(() => { _saving = false; }, 1500);
-  }
-  bamAlert('Quote <strong>' + (q.quoteNum||q._fbKey) + '</strong> added successfully!');
+  setSyncing(true);
+  const key = fbKey(q);
+  q._fbKey = key;
+  try { await fbSet(FB_PATH+'/'+key, q); } 
+  catch(e) { console.error('saveQuote error:',e); }
+  finally { setTimeout(()=>{_saving=false;setSyncing(false);},1000); }
+}
+
+// ── File import ────────────────────────────────────────────────────────────
+function processFile(file) {
+  const r = new FileReader();
+  r.onload = async e => {
+    try {
+      const q = JSON.parse(e.target.result);
+      if(!q.quoteNum&&!q.quoteName&&!q.totalSell) { bamAlert('This does not appear to be a valid TORO quote file.'); return; }
+      // Check rep
+      if(q.rep && q.rep!==REP && q.rep.toLowerCase()!==REP_LOWER) {
+        bamAlert('This quote belongs to '+q.rep+', not '+REP+'. Please upload this quote to the correct portal.'); return;
+      }
+      if(!q._fbKey) q._fbKey = fbKey(q);
+      if(!q.workflowStatus) q.workflowStatus = q.needsApproval?'needsApproval':'active';
+      if(!q.status) q.status={};
+      // Set client fields from page1 if present
+      if(q.page1) {
+        q.clientName = q.page1.clientName||q.clientName||'';
+        q.clientCompany = q.page1.clientCompany||q.clientCompany||'';
+        q.rep = q.page1.rep||q.rep||REP;
+        q.quoteNum = q.page1.quoteNum||q.quoteNum||'';
+        q.quoteName = q.page1.quoteName||q.quoteName||'';
+        q.ihd = q.page1.shipDate||q.ihd||'';
+        q.ihdFirm = q.page1.ihdFirm||false;
+        q.commissionSplit = q.page1.commSplit||q.commissionSplit||'standard';
+      }
+      const existing = quotes.findIndex(x=>fbKey(x)===fbKey(q));
+      if(existing>=0) quotes[existing]=q; else quotes.push(q);
+      render();
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(quotes));
+      await saveQuote(q);
+    } catch(ex) { bamAlert('Error reading file: '+ex.message); }
+  };
+  r.readAsText(file);
 }
 
 // ── Render ─────────────────────────────────────────────────────────────────
-function render() {
-  const needApproval = quotes.filter(q => q.workflowStatus === 'needsApproval');
-  const waitingApproval = quotes.filter(q => q.workflowStatus === 'waitingApproval');
-  const ready = quotes.filter(q => q.workflowStatus === 'readyForSubmission');
-  const active = quotes.filter(q => !q.workflowStatus || q.workflowStatus === 'active' || q.workflowStatus === 'rejected');
-  const archived = quotes.filter(q => q.workflowStatus === 'submittedCommission' || q.workflowStatus === 'paid');
-
-  // Summary cards
-  const totalActive = active.length + ready.length + needApproval.length + waitingApproval.length;
-  const totalPending = ready.length;
-  const totalSell = quotes.filter(q=>q.workflowStatus!=='paid').reduce((s,q)=>s+quoteTotal(q,'sell'),0);
-  const totalComm = quotes.filter(q=>q.workflowStatus!=='paid').reduce((s,q)=>s+quoteComm(q),0);
-  document.getElementById('summary-cards').innerHTML = `
-    <div class="summary-card"><div class="sc-val">${totalActive}</div><div class="sc-lbl">Active Quotes</div></div>
-    <div class="summary-card"><div class="sc-val">${totalPending}</div><div class="sc-lbl">Ready to Submit</div></div>
-    <div class="summary-card"><div class="sc-val">$${totalSell.toFixed(0)}</div><div class="sc-lbl">Est. Revenue</div></div>
-    <div class="summary-card"><div class="sc-val">$${totalComm.toFixed(0)}</div><div class="sc-lbl">Est. Commission</div></div>
-  `;
-
-  // Needs approval section
-  const allApprovalNeeded = [...needApproval, ...waitingApproval];
-  document.getElementById('section-approval').innerHTML = allApprovalNeeded.length > 0 ? `
-    <div class="section-title">🔴 Margin Approval Required <span class="badge">${allApprovalNeeded.length}</span></div>
-    ${allApprovalNeeded.map(q => quoteCard(q)).join('')}
-  ` : '';
-
-  // Ready for submission
-  document.getElementById('section-ready').innerHTML = ready.length > 0 ? `
-    <div class="section-title">✅ Ready for Commission Submission <span class="badge">${ready.length}</span></div>
-    ${ready.map(q => quoteCard(q)).join('')}
-  ` : '';
-
-  // Active
-  document.getElementById('section-active').innerHTML = `
-    <div class="section-title">📋 Active Quotes <span class="badge">${active.length}</span></div>
-    ${active.length > 0 ? active.map(q => quoteCard(q)).join('') : '<p style="color:var(--text3);font-size:14px;padding:8px 0;">No active quotes. Upload a quote JSON above.</p>'}
-  `;
-
-  // Archive
-  document.getElementById('section-archive').innerHTML = archived.length > 0 ? `
-    <div class="archive-toggle" onclick="archiveOpen=!archiveOpen;render()">
-      ${archiveOpen ? '▼' : '▶'} Archived / Submitted (${archived.length})
-    </div>
-    ${archiveOpen ? archived.map(q => quoteCard(q, true)).join('') : ''}
-  ` : '';
-}
+function fmt(n){return'$'+(parseFloat(n)||0).toFixed(2);}
+function pct(n){return(parseFloat(n)||0).toFixed(1)+'%';}
 
 function quoteTotal(q, type) {
-  let total = 0;
-  (q.garments||[]).forEach(g => (g.sizes||[]).forEach(s => {
-    if(s.qty > 0) total += s.qty * (type==='sell' ? (s.sellPrice||0) : (s.netCost||0));
-  }));
-  (q.hardGoods||[]).forEach(h => {
-    if(h.qty > 0) total += h.qty * (type==='sell' ? (h.sellPrice||0) : (h.netCost||0));
-  });
-  return total;
+  // Try direct fields first
+  if(type==='sell') return parseFloat(q.totalSell)||parseFloat(q.sell)||0;
+  if(type==='net') return parseFloat(q.totalNetCost)||parseFloat(q.net)||0;
+  return 0;
 }
-
 function quoteComm(q) {
-  const sell = quoteTotal(q,'sell');
-  const net = quoteTotal(q,'net');
-  const split = parseInt(q.split)||100;
-  return (sell - net) * (split/100) * 0.5;
+  return parseFloat(q.totalRepComm)||parseFloat(q.repComm)||0;
+}
+function quotePeriod(q) {
+  return q.commissionReport||q.period||'—';
 }
 
 function quoteCard(q, locked) {
@@ -548,211 +434,376 @@ function quoteCard(q, locked) {
   const net = quoteTotal(q,'net');
   const margin = sell>0?((sell-net)/sell*100).toFixed(1):0;
   const comm = quoteComm(q);
-  const split = parseInt(q.split)||100;
+  const mgColor = margin<30?'color:var(--red)':margin<35?'color:var(--orange)':'color:var(--green)';
 
-  // Approval status display
-  const repApprovals = approvals && approvals[REP_LOWER] ? approvals[REP_LOWER] : approvals;
+  // Rep approval status
+  const repApprovals = approvals[REP_LOWER]||approvals||{};
   const approval = repApprovals[key];
   let approvalHtml = '';
-  if(q.workflowStatus === 'waitingApproval') {
-    approvalHtml = '<div class="approval-pending">⏳ Submitted for margin approval — awaiting management response.</div>';
-  } else if(q.workflowStatus === 'needsApproval' || (q.needsApproval && q.workflowStatus !== 'rejected')) {
-    approvalHtml = '<div class="approval-pending">⚠️ Margin below 30% — must submit for approval before presenting to client.</div>';
+  if(q.workflowStatus==='waitingApproval') {
+    approvalHtml = '<div class="approval-pending">⏳ Submitted for approval — awaiting management response.</div>';
+  } else if(q.workflowStatus==='needsApproval'||(q.needsApproval&&q.workflowStatus!=='active')) {
+    approvalHtml = '<div class="approval-pending">⚠️ Margin below 30% — submit for approval before presenting to client.</div>';
   }
-  if(approval && approval.status === 'approved') {
-    approvalHtml = '<div class="approved-note">✅ Approved by management' + (approval.note ? ': ' + approval.note : '') + '</div>';
-  } else if(approval && approval.status === 'rejected') {
-    approvalHtml = '<div class="rejection-note">❌ Rejected by management' + (approval.note ? ': ' + approval.note : '') + '</div>';
+  if(approval&&approval.status==='approved') {
+    approvalHtml = '<div class="approved-note">✅ Approved by management'+(approval.note?': '+approval.note:'')+'</div>';
+  } else if(approval&&approval.status==='rejected') {
+    approvalHtml = '<div class="rejection-note">❌ Rejected: '+(approval.note||'See management for details')+'</div>';
   }
 
-  // Status checkboxes
-  const statusFields = [
-    {field:'quoteApproved', label:'Quote Approved'},
-    {field:'orderCompleted', label:'Order Completed'},
-    {field:'paidByClient', label:'Paid by Client'},
-    {field:'readyForPayment', label:'Ready for Payment'},
+  const statusFields=[
+    {field:'quoteApproved',label:'Quote Approved'},
+    {field:'orderCompleted',label:'Order Completed'},
+    {field:'paidByClient',label:'Paid by Client'},
+    {field:'readyForPayment',label:'Ready for Payment'},
   ];
-  const checksHtml = locked ? '' : `<div class="status-checks">
-    ${statusFields.map(sf => {
-      const checked = (q.status||{})[sf.field];
-      return `<div class="status-check ${checked?'checked':''}">
-        <label>
-          <input type="checkbox" ${checked?'checked':''} ${locked?'disabled':''}
-            data-key="${encKey}" data-field="${sf.field}"
-            onchange="toggleStatus(decodeURIComponent(this.dataset.key), this.dataset.field, this.checked)">
-          ${sf.label}
-        </label>
-      </div>`;
-    }).join('')}
-  </div>`;
+  const checksHtml = locked?'':('<div class="status-checks">'+statusFields.map(sf=>{
+    const checked=(q.status||{})[sf.field];
+    return '<div class="status-check '+(checked?'checked':'')+'"><label><input type="checkbox" '+(checked?'checked ':'')+' data-key="'+encKey+'" data-field="'+sf.field+'" onchange="toggleStatus(decodeURIComponent(this.dataset.key),this.dataset.field,this.checked)"> '+sf.label+'</label></div>';
+  }).join('')+'</div>');
 
-  // Action buttons
-  let actionBtns = '';
-  if(!locked) {
-    if(q.workflowStatus === 'readyForSubmission') {
-      actionBtns += `<button class="btn btn-green" onclick="submitForCommission(decodeURIComponent('${encKey}'))">📤 Submit for Commission</button>`;
-      actionBtns += `<button class="btn btn-gray" onclick="undoReady(decodeURIComponent('${encKey}'))">↩ Undo</button>`;
-    } else if(q.workflowStatus === 'needsApproval' && q.workflowStatus !== 'waitingApproval') {
-      actionBtns += `<button class="btn btn-outline" onclick="submitForApproval(decodeURIComponent('${encKey}'))">🔔 Submit for Approval</button>`;
+  let actionBtns='';
+  if(!locked){
+    if(q.workflowStatus==='readyForSubmission'){
+      actionBtns+='<button class="btn btn-green btn-sm" data-key=""+encKey+"" onclick="submitForCommission(decodeURIComponent(this.dataset.key))">📤 Submit</button>';
+      actionBtns+='<button class="btn btn-gray btn-sm" data-key=""+encKey+"" onclick="undoReady(decodeURIComponent(this.dataset.key))">↩ Undo</button>';
+    } else if(q.workflowStatus==='needsApproval'||(q.needsApproval&&q.workflowStatus!=='waitingApproval'&&q.workflowStatus!=='active')){
+      actionBtns+='<button class="btn btn-outline btn-sm" data-key=""+encKey+"" onclick="submitForApproval(decodeURIComponent(this.dataset.key))">🔔 Approval</button>';
     }
-    actionBtns += `<button class="btn btn-gray" onclick="exportToBuilder(decodeURIComponent('${encKey}'))">✏️ Edit</button>`;
-    actionBtns += `<button class="del-btn" onclick="deleteQuote(decodeURIComponent('${encKey}'))">🗑 Delete</button>`;
+    actionBtns+='<button class="btn btn-gray btn-sm" data-key=""+encKey+"" onclick="exportToBuilder(decodeURIComponent(this.dataset.key))">✏️ Edit</button>';
+    actionBtns+='<button class="del-btn" data-key=""+encKey+"" onclick="deleteQuote(decodeURIComponent(this.dataset.key))">🗑</button>';
   }
 
-  return `<div class="quote-card" id="qc-${key.replace(/[^a-zA-Z0-9]/g,'_')}">
-    <div class="qc-header" onclick="toggleCard(this)">
-      <div class="qc-meta">
-        <div class="qc-title">${q.quoteName||q.quoteNum||'Untitled'} <span style="font-size:12px;color:var(--text3);font-weight:400;">#${q.quoteNum||'—'}</span></div>
-        <div class="qc-sub">Period: ${q.period||'—'} · ${q.ihd||'—'}${q.ihdFirm?' 🔒 Firm':''} · Sell: $${sell.toFixed(2)} · Margin: ${margin}% · Est. Comm: $${comm.toFixed(2)}</div>
-      </div>
-      <div class="qc-actions" onclick="event.stopPropagation()">
-        ${actionBtns}
-      </div>
-    </div>
-    <div class="qc-body" style="display:none;">
-      ${approvalHtml}
-      ${checksHtml}
-      <div style="font-size:12px;color:var(--text3);">
-        Rep: ${q.rep||REP} · Split: ${split}% · AM: ${q.am?'Yes':'No'} · Garments: ${(q.garments||[]).length} · HG: ${(q.hardGoods||[]).length}
-        ${q.notes?'<br>Notes: '+q.notes:''}
-      </div>
-    </div>
-  </div>`;
+  const clientLine = (q.clientName||q.clientCompany) ? '<div style="font-size:12px;font-weight:600;color:var(--text2);">'+(q.clientName||'')+(q.clientName&&q.clientCompany?' — ':'')+(q.clientCompany||'')+'</div>' : '';
+
+  return '<div class="quote-card" id="qc-'+key.replace(/[^a-zA-Z0-9]/g,'_')+'">'+
+    '<div class="qc-header" onclick="toggleCard(this)">'+
+      '<div class="qc-meta">'+
+        clientLine+
+        '<div class="qc-title">'+(q.quoteName||q.quoteNum||'Untitled')+' <span style="font-size:12px;color:var(--text3);font-weight:400;">#'+(q.quoteNum||'—')+'</span></div>'+
+        '<div class="qc-sub">'+quotePeriod(q)+' · '+(q.ihd||'No IHD')+(q.ihdFirm?' 🔒':'')+' · '+fmt(sell)+' · <span style="'+mgColor+'">'+pct(margin)+'</span> · Est. '+fmt(comm)+'</div>'+
+      '</div>'+
+      '<div class="qc-actions" onclick="event.stopPropagation()">'+actionBtns+'</div>'+
+    '</div>'+
+    '<div class="qc-body" style="display:none;">'+
+      approvalHtml+checksHtml+
+      '<div style="font-size:12px;color:var(--text3);margin-top:8px;">'+
+        'Split: '+(q.commissionSplit||'standard')+
+        (q.notes?' · Notes: '+q.notes:'')+
+      '</div>'+
+    '</div>'+
+  '</div>';
 }
 
 function toggleCard(header) {
   const body = header.nextElementSibling;
-  body.style.display = body.style.display === 'none' ? '' : 'none';
+  body.style.display = body.style.display==='none'?'':'none';
+}
+
+function render() {
+  const approval = quotes.filter(q=>q.workflowStatus==='needsApproval'||(q.needsApproval&&q.workflowStatus!=='waitingApproval'&&q.workflowStatus!=='active'&&q.workflowStatus!=='submittedCommission'));
+  const waiting = quotes.filter(q=>q.workflowStatus==='waitingApproval');
+  const ready = quotes.filter(q=>q.workflowStatus==='readyForSubmission');
+  const active = quotes.filter(q=>!['needsApproval','waitingApproval','readyForSubmission','submittedCommission'].includes(q.workflowStatus));
+  const archived = quotes.filter(q=>q.workflowStatus==='submittedCommission');
+
+  const all = [...approval,...waiting,...ready,...active];
+  const totalSell = all.reduce((a,q)=>a+quoteTotal(q,'sell'),0);
+  const totalComm = all.reduce((a,q)=>a+quoteComm(q),0);
+  document.getElementById('summary-cards').innerHTML =
+    '<div class="summary-card"><div class="sc-val">'+all.length+'</div><div class="sc-lbl">Active quotes</div></div>'+
+    '<div class="summary-card"><div class="sc-val">'+fmt(totalSell)+'</div><div class="sc-lbl">Total sell</div></div>'+
+    '<div class="summary-card"><div class="sc-val">'+fmt(totalComm)+'</div><div class="sc-lbl">Est. commission</div></div>'+
+    '<div class="summary-card"><div class="sc-val">'+archived.length+'</div><div class="sc-lbl">Submitted</div></div>';
+
+  const sa=document.getElementById('section-approval');
+  const sr=document.getElementById('section-ready');
+  const sac=document.getElementById('section-active');
+  const sar=document.getElementById('section-archive');
+
+  sa.innerHTML = (approval.length||waiting.length)?
+    '<div class="section-title">⚠️ Needs Attention <span class="badge">'+(approval.length+waiting.length)+'</span></div>'+
+    [...approval,...waiting].map(q=>quoteCard(q,false)).join('') : '';
+  sr.innerHTML = ready.length?
+    '<div class="section-title">✅ Ready for Submission <span class="badge">'+ready.length+'</span></div>'+
+    ready.map(q=>quoteCard(q,false)).join('') : '';
+  sac.innerHTML = '<div class="section-title">📋 Active Quotes <span class="badge">'+active.length+'</span></div>'+
+    (active.length?active.map(q=>quoteCard(q,false)).join(''):'<div style="color:var(--text3);font-size:14px;padding:20px 0;text-align:center;">No active quotes — upload a quote JSON to get started.</div>');
+  sar.innerHTML = archived.length?
+    '<div class="archive-toggle" onclick="toggleArchive(this)">▶ Archived / Submitted ('+archived.length+')</div>'+
+    '<div style="display:none;">'+archived.map(q=>quoteCard(q,true)).join('')+'</div>' : '';
 }
 
 // ── Quote actions ──────────────────────────────────────────────────────────
 async function toggleStatus(key, field, checked) {
-  const q = quotes.find(x => fbKey(x) === key);
-  if(!q) { console.warn('toggleStatus: quote not found for key:', key); return; }
-  if(!q.status) q.status = {};
+  const decoded = decodeURIComponent(key);
+  const q = quotes.find(x=>fbKey(x)===decoded);
+  if(!q) { console.warn('toggleStatus: not found',key); return; }
+  if(!q.status) q.status={};
   q.status[field] = checked;
-  // If readyForPayment checked -> move to readyForSubmission
-  if(field === 'readyForPayment' && checked) {
-    if(q.needsApproval && q.workflowStatus !== 'waitingApproval') {
-      const repApprovals = approvals && approvals[REP_LOWER] ? approvals[REP_LOWER] : approvals;
-      const approval = repApprovals[key];
-      if(!approval || approval.status !== 'approved') {
-        bamAlert('This quote requires margin approval before it can be submitted. Use the Submit for Approval button first.');
-        q.status[field] = false;
-        render();
-        return;
+  if(field==='readyForPayment'&&checked) {
+    if(q.needsApproval&&q.workflowStatus!=='waitingApproval') {
+      const repApprovals = approvals[REP_LOWER]||approvals||{};
+      const approval = repApprovals[decoded];
+      if(!approval||approval.status!=='approved') {
+        bamAlert('This quote requires margin approval before submission. Use the Approval button first.');
+        q.status[field]=false; render(); return;
       }
     }
-    q.workflowStatus = 'readyForSubmission';
-  } else if(field === 'readyForPayment' && !checked) {
-    if(q.workflowStatus === 'readyForSubmission') q.workflowStatus = 'active';
+    q.workflowStatus='readyForSubmission';
+  } else if(field==='readyForPayment'&&!checked) {
+    if(q.workflowStatus==='readyForSubmission') q.workflowStatus='active';
   }
   render();
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(quotes));
-  _saving = true;
-  try {
-    await fbSet('quotes/' + REP_LOWER + '/' + fbKey(q), q);
-  } catch(e) { console.error('toggleStatus fbSet error:', e); } finally {
-    setTimeout(() => { _saving = false; }, 1500);
-  }
+  localStorage.setItem(STORAGE_KEY,JSON.stringify(quotes));
+  await saveQuote(q);
 }
 
-async function submitForApproval(key) {
-  const q = quotes.find(x => fbKey(x) === key);
-  if(!q) { console.warn('submitForApproval: quote not found for key:', key); return; }
-  bamConfirm('Submit this quote for margin approval? Management will review before you can present it to the client.', async ok => {
+function submitForApproval(encKey) {
+  const decoded=decodeURIComponent(encKey);
+  const q=quotes.find(x=>fbKey(x)===decoded);
+  if(!q) return;
+  bamConfirm('Submit this quote for margin approval?', async ok=>{
     if(!ok) return;
-    q.workflowStatus = 'waitingApproval';
+    q.workflowStatus='waitingApproval';
     render();
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(quotes));
-    _saving = true;
-    try {
-      await fbSet('quotes/' + REP_LOWER + '/' + fbKey(q), q);
-      // Write approval request
-      const approvalKey = fbKey(q);
-      await fbSet('approvals/' + REP_LOWER + '/' + approvalKey, {
-        rep: REP,
-        quoteNum: q.quoteNum,
-        quoteName: q.quoteName,
-        status: 'pending',
-        requestedAt: new Date().toISOString(),
-        sellTotal: quoteTotal(q,'sell'),
-        netTotal: quoteTotal(q,'net'),
-        margin: quoteTotal(q,'sell') > 0 ? ((quoteTotal(q,'sell')-quoteTotal(q,'net'))/quoteTotal(q,'sell')*100).toFixed(1) : 0,
-      });
-    } catch(e) { console.error('submitForApproval error:', e); } finally {
-      setTimeout(() => { _saving = false; }, 1500);
-    }
-    bamAlert('Submitted for approval! You\'ll see the decision here when management responds.');
+    localStorage.setItem(STORAGE_KEY,JSON.stringify(quotes));
+    await saveQuote(q);
+    const approvalKey=fbKey(q);
+    await fbSet('approvals/'+REP_LOWER+'/'+approvalKey,{
+      rep:REP,quoteNum:q.quoteNum,quoteName:q.quoteName,
+      status:'pending',requestedAt:new Date().toISOString(),
+      sellTotal:quoteTotal(q,'sell'),netTotal:quoteTotal(q,'net'),
+      margin:quoteTotal(q,'sell')>0?((quoteTotal(q,'sell')-quoteTotal(q,'net'))/quoteTotal(q,'sell')*100).toFixed(1):0,
+      clientName:q.clientName||'',clientCompany:q.clientCompany||''
+    });
+    bamAlert('Submitted! You\'ll see management\'s response here.');
   });
 }
 
-function submitForCommission(key) {
-  const q = quotes.find(x => fbKey(x) === key);
-  if(!q) { console.warn('submitForCommission: quote not found for key:', key); return; }
-  bamConfirm('Submit this quote for commission payment? It will be archived.', async ok => {
+function submitForCommission(encKey) {
+  const decoded=decodeURIComponent(encKey);
+  const q=quotes.find(x=>fbKey(x)===decoded);
+  if(!q) return;
+  bamConfirm('Submit for commission payment? This quote will be archived.', async ok=>{
     if(!ok) return;
-    q.workflowStatus = 'submittedCommission';
+    q.workflowStatus='submittedCommission';
     render();
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(quotes));
-    _saving = true;
-    try {
-      await fbSet('quotes/' + REP_LOWER + '/' + fbKey(q), q);
-    } catch(e) { console.error('submitForCommission error:', e); } finally {
-      setTimeout(() => { _saving = false; }, 1500);
-    }
+    localStorage.setItem(STORAGE_KEY,JSON.stringify(quotes));
+    await saveQuote(q);
     bamAlert('Commission submission recorded!');
   });
 }
 
-function undoReady(key) {
-  const q = quotes.find(x => fbKey(x) === key);
+function undoReady(encKey) {
+  const decoded=decodeURIComponent(encKey);
+  const q=quotes.find(x=>fbKey(x)===decoded);
   if(!q) return;
-  bamConfirm('Move this quote back to Active?', async ok => {
+  bamConfirm('Move this quote back to Active?', async ok=>{
     if(!ok) return;
-    q.workflowStatus = 'active';
-    if(q.status) q.status.readyForPayment = false;
+    q.workflowStatus='active';
+    if(q.status) q.status.readyForPayment=false;
     render();
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(quotes));
-    _saving = true;
-    try {
-      await fbSet('quotes/' + REP_LOWER + '/' + fbKey(q), q);
-    } catch(e) { console.error('undoReady error:', e); } finally {
-      setTimeout(() => { _saving = false; }, 1500);
-    }
+    localStorage.setItem(STORAGE_KEY,JSON.stringify(quotes));
+    await saveQuote(q);
   });
 }
 
-function exportToBuilder(key) {
-  const q = quotes.find(x => fbKey(x) === key);
+function exportToBuilder(encKey) {
+  const decoded=decodeURIComponent(encKey);
+  const q=quotes.find(x=>fbKey(x)===decoded);
   if(!q) return;
-  const blob = new Blob([JSON.stringify(q, null, 2)], {type:'application/json'});
-  const a = document.createElement('a');
-  a.href = URL.createObjectURL(blob);
-  a.download = `TORO_Quote_${(q.quoteNum||key).replace(/[^a-zA-Z0-9]/g,'_')}_edit.json`;
+  const blob=new Blob([JSON.stringify(q,null,2)],{type:'application/json'});
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(blob);
+  a.download='TORO_Edit_'+(q.quoteNum||'quote').replace(/[^a-zA-Z0-9]/g,'_')+'.json';
   a.click();
-  bamAlert('Quote exported! Open the Quote Builder, use the re-import toggle at the top, and drop in this file to edit.');
+  bamAlert('Quote exported! Use the re-import toggle in the Quote Builder to load it for editing.');
 }
 
-async function deleteQuote(key) {
-  const q = quotes.find(x => fbKey(x) === key);
-  if(!q) { console.warn('deleteQuote: quote not found for key:', key); bamAlert('Could not locate that quote. Please refresh and try again.'); return; }
-  bamConfirm('Permanently delete <strong>' + (q.quoteName||q.quoteNum||'this quote') + '</strong>? This cannot be undone.', async ok => {
+function deleteQuote(encKey) {
+  const decoded=decodeURIComponent(encKey);
+  const q=quotes.find(x=>fbKey(x)===decoded);
+  if(!q) { bamAlert('Could not locate that quote. Please refresh and try again.'); return; }
+  bamConfirm('Permanently delete <strong>'+(q.quoteName||q.quoteNum||'this quote')+'</strong>? This cannot be undone.', async ok=>{
     if(!ok) return;
-    const idx = quotes.indexOf(q);
-    if(idx >= 0) quotes.splice(idx, 1);
+    const idx=quotes.indexOf(q);
+    if(idx>=0) quotes.splice(idx,1);
     render();
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(quotes));
-    fbListenerActive = false;
-    _saving = true;
+    localStorage.setItem(STORAGE_KEY,JSON.stringify(quotes));
+    fbListenerActive=false;
+    _saving=true;
     try {
-      await fbSet('quotes/' + REP_LOWER + '/' + fbKey(q), null);
-      // Also remove any approval record
-      await fbSet('approvals/' + REP_LOWER + '/' + fbKey(q), null);
-    } catch(e) { console.error('deleteQuote error:', e); } finally {
-      setTimeout(() => { _saving = false; fbListenerActive = true; }, 2000);
-    }
+      await fbSet(FB_PATH+'/'+fbKey(q), null);
+      await fbSet('approvals/'+REP_LOWER+'/'+fbKey(q), null);
+    } catch(e) { console.error('deleteQuote error:',e); }
+    finally { setTimeout(()=>{_saving=false;fbListenerActive=true;},2000); }
   });
+}
+
+// ── Approval thread messaging ──────────────────────────────────────────────
+function openThread(encKey, encName) {
+  const key=decodeURIComponent(encKey);
+  const name=decodeURIComponent(encName);
+  const modal=document.getElementById('thread-modal');
+  modal.dataset.key=key;
+  document.getElementById('thread-title').textContent='Notes: '+name;
+  modal.style.display='flex';
+  loadThreadMessages(key);
+}
+async function loadThreadMessages(key) {
+  const msgEl=document.getElementById('thread-messages');
+  msgEl.innerHTML='<div style="color:var(--text3);font-size:12px">Loading...</div>';
+  const data=await fbGet('approvals/'+REP_LOWER+'/'+key+'/messages');
+  if(!data||!Object.keys(data).length){msgEl.innerHTML='<div style="color:var(--text3);font-size:12px;padding:8px">No messages yet.</div>';return;}
+  const msgs=Object.values(data).sort((a,b)=>a.sentAt>b.sentAt?1:-1);
+  msgEl.innerHTML=msgs.map(m=>{
+    const isMe=m.sender===REP;
+    const dt=m.sentAt?new Date(m.sentAt).toLocaleString('en-US',{month:'short',day:'numeric',hour:'numeric',minute:'2-digit'}):'';
+    return '<div style="margin-bottom:10px;'+(isMe?'text-align:right':'')+'"><div style="display:inline-block;max-width:80%;background:'+(isMe?'var(--red)':'#f0f0f0')+';color:'+(isMe?'#fff':'var(--text)')+';padding:7px 10px;border-radius:8px;font-size:13px">'+m.message+'</div><div style="font-size:10px;color:var(--text3);margin-top:2px">'+m.sender+' · '+dt+'</div></div>';
+  }).join('');
+  msgEl.scrollTop=msgEl.scrollHeight;
+}
+async function sendThreadMsg() {
+  const modal=document.getElementById('thread-modal');
+  const key=modal.dataset.key;
+  const input=document.getElementById('thread-input');
+  const msg=input?.value.trim();
+  if(!key||!msg) return;
+  const msgKey='msg_'+Date.now();
+  await fbSet('approvals/'+REP_LOWER+'/'+key+'/messages/'+msgKey,{sender:REP,message:msg,sentAt:new Date().toISOString()});
+  input.value='';
+  loadThreadMessages(key);
+}
+
+// ── Feedback ───────────────────────────────────────────────────────────────
+async function submitFeedback() {
+  const msg=document.getElementById('feedback-text').value.trim();
+  const status=document.getElementById('feedback-status');
+  if(!msg){status.style.color='var(--red)';status.textContent='Please enter a message.';return;}
+  status.style.color='var(--text3)';status.textContent='Sending...';
+  const ok=await fbSet('feedback/fb_'+Date.now(),{rep:REP,message:msg,sentAt:new Date().toISOString(),read:false});
+  if(ok){status.style.color='var(--green)';status.textContent='Sent! Thank you.';setTimeout(()=>document.getElementById('feedback-modal').classList.remove('open'),1500);}
+  else{status.style.color='var(--red)';status.textContent='Failed to send. Please try again.';}
+}
+
+// ── Reporting ──────────────────────────────────────────────────────────────
+function downloadReport() {
+  if(!quotes.length){bamAlert('No quotes to export.');return;}
+  const clients=[...new Set(quotes.map(q=>q.clientCompany||q.clientName||'').filter(Boolean))].sort();
+  const modal=document.getElementById('report-modal');
+  document.getElementById('report-filters').innerHTML=`
+    <div style="margin-bottom:12px">
+      <label style="font-size:12px;font-weight:700;display:block;margin-bottom:4px">Date filter</label>
+      <select id="rpt-date-type" style="width:100%;padding:7px;border:1px solid #ccc;border-radius:4px;font-size:13px;margin-bottom:6px">
+        <option value="">All dates</option>
+        <option value="quoteDate">By quote date</option>
+        <option value="ihd">By in-hands date</option>
+        <option value="commissionReport">By commission period</option>
+      </select>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px">
+        <input type="date" id="rpt-from" style="padding:6px;border:1px solid #ccc;border-radius:4px;font-size:13px">
+        <input type="date" id="rpt-to" style="padding:6px;border:1px solid #ccc;border-radius:4px;font-size:13px">
+      </div>
+    </div>
+    <div style="margin-bottom:16px">
+      <label style="font-size:12px;font-weight:700;display:block;margin-bottom:4px">Filter by client</label>
+      <select id="rpt-client" style="width:100%;padding:7px;border:1px solid #ccc;border-radius:4px;font-size:13px">
+        <option value="">All clients</option>
+        ${clients.map(c=>`<option value="${c}">${c}</option>`).join('')}
+      </select>
+    </div>
+    <div style="display:flex;gap:8px">
+      <button onclick="runReport()" style="flex:1;padding:9px;background:#C41E1E;color:#fff;font-weight:700;border:none;border-radius:6px;cursor:pointer;font-size:13px">Download Excel</button>
+      <button onclick="document.getElementById('report-modal').style.display='none'" style="flex:1;padding:9px;background:#f0f0f0;font-weight:700;border:none;border-radius:6px;cursor:pointer;font-size:13px">Cancel</button>
+    </div>`;
+  modal.style.display='flex';
+}
+function runReport() {
+  const dateType=document.getElementById('rpt-date-type')?.value||'';
+  const dateFrom=document.getElementById('rpt-from')?.value||'';
+  const dateTo=document.getElementById('rpt-to')?.value||'';
+  const clientFilter=document.getElementById('rpt-client')?.value||'';
+  let filtered=quotes.filter(q=>{
+    if(clientFilter&&(q.clientCompany||q.clientName||'')!==clientFilter) return false;
+    if(dateType&&(dateFrom||dateTo)){
+      let dv=dateType==='quoteDate'?(q.quoteDate||q.exportedAt||''):dateType==='ihd'?(q.ihd||''):(q.commissionReport||'');
+      if(!dv) return false;
+      const d=new Date(dv);if(isNaN(d.getTime())) return false;
+      if(dateFrom&&d<new Date(dateFrom)) return false;
+      if(dateTo&&d>new Date(dateTo+'T23:59:59')) return false;
+    }
+    return true;
+  });
+  if(!filtered.length){bamAlert('No quotes match the selected filters.');return;}
+  const HEADERS=['Quote #','Quote name','Client','Company','Rep','Quote date','IHD','Commission period','Split','Sell','Net cost','GP','Margin %','Rep payout','House profit','Status','Paid'];
+  const rows=[HEADERS,...filtered.map(q=>[
+    q.quoteNum||'',q.quoteName||'',q.clientName||'',q.clientCompany||'',
+    q.rep||REP,q.quoteDate||q.exportedAt||'',q.ihd||'',q.commissionReport||'',
+    q.commissionSplit||'standard',
+    quoteTotal(q,'sell'),quoteTotal(q,'net'),quoteTotal(q,'sell')-quoteTotal(q,'net'),
+    quoteTotal(q,'sell')>0?((quoteTotal(q,'sell')-quoteTotal(q,'net'))/quoteTotal(q,'sell')*100).toFixed(1):0,
+    quoteComm(q),parseFloat(q.totalHouseProfit)||0,
+    q.workflowStatus||'active',q.paid?'Yes':'No'
+  ])];
+  if(typeof XLSX==='undefined'){bamAlert('Excel library not loaded. Please refresh and try again.');return;}
+  const wb=XLSX.utils.book_new();
+  const ws=XLSX.utils.aoa_to_sheet(rows);
+  XLSX.utils.book_append_sheet(wb,ws,REP+' Quotes');
+  XLSX.writeFile(wb,'TORO_'+REP+'_Report_'+new Date().toLocaleDateString('en-US').replace(/\//g,'-')+'.xlsx');
+  document.getElementById('report-modal').style.display='none';
+}
+
+// ── Listeners ──────────────────────────────────────────────────────────────
+function startListeners() {
+  fbListenerActive=true;
+  let firstQ=true,firstA=true;
+  fbListen(FB_PATH,event=>{
+    if(!event||!event.data) return;
+    if(firstQ){firstQ=false;return;}
+    if(_saving) return;
+    loadFromFirebase();
+  });
+  fbListen('approvals/'+REP_LOWER,event=>{
+    if(!event||!event.data) return;
+    if(firstA){firstA=false;return;}
+    if(typeof event.data==='object') approvals[REP_LOWER]=event.data;
+    render();
+  });
+}
+
+// ── Drop zone ──────────────────────────────────────────────────────────────
+function setupDrop() {
+  const dz=document.getElementById('drop-zone');
+  const fi=document.getElementById('file-input');
+  if(!dz||!fi) return;
+  dz.addEventListener('dragover',e=>{e.preventDefault();dz.classList.add('over');});
+  dz.addEventListener('dragleave',()=>dz.classList.remove('over'));
+  dz.addEventListener('drop',e=>{
+    e.preventDefault();dz.classList.remove('over');
+    Array.from(e.dataTransfer.files).forEach(f=>{if(f.name.endsWith('.json'))processFile(f);});
+  });
+  fi.addEventListener('change',()=>{
+    Array.from(fi.files).forEach(f=>processFile(f));
+    fi.value='';
+  });
+}
+
+// ── Init ───────────────────────────────────────────────────────────────────
+async function init() {
+  try {
+    quotes=JSON.parse(localStorage.getItem(STORAGE_KEY)||'[]');
+  } catch(e) { quotes=[]; }
+  // load cache first for instant display
+  if(quotes.length) render();
+  setupDrop();
+  await loadFromFirebase();
+  startListeners();
+}
+
+function toggleArchive(el){
+  const b=el.nextElementSibling;
+  b.style.display=b.style.display==='none'?'':' none';
 }
 </script>
 </body>
