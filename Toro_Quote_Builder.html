@@ -173,7 +173,7 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--red);box
           <option value="House">House</option>
         </select>
       </div>
-      <div class="field"><label>Date <span style="color:var(--red)">*</span></label><input type="text" id="quote_date" required></div>
+      <div class="field"><label>Date <span style="color:var(--red)">*</span></label><input type="date" id="quote_date" required></div>
       <div class="field"><label>Quote # <span style="font-size:11px;font-weight:400;color:var(--text3)">(to correspond with Printavo)</span></label><input type="text" id="quote_num" required></div>
     </div>
     <div class="row3">
@@ -198,7 +198,7 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--red);box
     </div>
     <div class="row2" style="margin-bottom:12px">
       <div class="field"><label>Expected in-hands date</label>
-        <input type="text" id="ship_date" required oninput="updateCommReport()">
+        <input type="date" id="ship_date" required oninput="updateCommReport()">
         <label style="display:flex;align-items:center;gap:6px;margin-top:6px;font-size:12px;font-weight:600;color:var(--text2);cursor:pointer">
           <input type="checkbox" id="ihd_firm" style="width:13px;height:13px;accent-color:var(--red)"> Firm date
         </label>
@@ -1681,4 +1681,415 @@ function toggleReimport(){
   area.style.display=showing?'none':'block';
   if(icon) icon.textContent=showing?'►':'▼';
 }
-;
+
+
+// ── Serialize / Deserialize ───────────────────────────────────────────────
+function serializeQuote(){
+  const gs=garments.map(g=>{
+    const gid=g.id;
+    const data={id:gid,gtype:vs('gtype_'+gid),gtype_other:vs('other_gtype_'+gid),
+      gbrand:vs('gbrand_'+gid),gsku:vs('gsku_'+gid),gvendor:vs('gvendor_'+gid),
+      gdesign:vs('gdesign_'+gid),gcolor:vs('gcolor_'+gid),gcolor_name:vs('gcolor_name_'+gid),
+      gfit:vs('gfit_'+gid),gcost:v('gcost_'+gid),gavgcost:v('gavgcost_'+gid),
+      gwhitebase:document.getElementById('gwhitebase_'+gid)?.checked||false,
+      gno_screens:document.getElementById('gno_screens_'+gid)?.checked||false,
+      g_margin_pct:getItemMargin('g_'+gid)};
+    const szContainer=document.getElementById('szrows_'+gid);
+    const szRows=[];
+    if(szContainer){szContainer.querySelectorAll('[id^="szrow_"]').forEach(row=>{
+      const rid=row.id.replace('szrow_','');
+      const sizeDiv=row.querySelector('div[style*="font-weight:600"]');
+      const sizeEl=document.getElementById('sz_size_'+rid);
+      const size=sizeEl?sizeEl.value:(sizeDiv?sizeDiv.textContent.trim():'?');
+      szRows.push({rid,size,cost:v('sz_cost_'+rid),qty:v('sz_qty_'+rid),grp:vs('sz_grp_'+rid),up:v('sz_up_'+rid)});
+    });}
+    data.szRows=szRows;
+    const impsContainer=document.getElementById('imps_'+gid);
+    const imps=[];
+    if(impsContainer){impsContainer.querySelectorAll('[id^="imp_"]').forEach(impEl=>{
+      const iid=impEl.id.replace('imp_','');
+      const type=impEl.dataset.type||'screen';
+      imps.push({iid,type,sp_loc:vs('sp_loc_'+iid),sp_col:v('sp_col_'+iid),
+        sp_ink:vs('sp_ink_'+iid),sp_ic:v('sp_ic_'+iid),sp_setup:v('sp_setup_'+iid),
+        emb_loc:vs('emb_loc_'+iid),emb_st:v('emb_st_'+iid),
+        emb_dst:document.getElementById('emb_dst_'+iid)?.checked||false,
+        emb_puff:document.getElementById('emb_puff_'+iid)?.checked||false,
+        emb_os:document.getElementById('emb_os_'+iid)?.checked||false,
+        dtf_loc:vs('dtf_loc_'+iid),dtf_sq:v('dtf_sq_'+iid),
+        heat_loc:vs('heat_loc_'+iid),heat_t:vs('heat_t_'+iid),
+        vinyl_loc:vs('vinyl_loc_'+iid),vinyl_t:vs('vinyl_t_'+iid)});
+    });}
+    data.imps=imps;
+    const miscFees=[];
+    const mc=miscCtrs[gid]||0;
+    for(let mid=1;mid<=mc;mid++){const row=document.getElementById('miscrow_g'+gid+'_'+mid);
+      if(row)miscFees.push({mid,desc:vs('misc_desc_g'+gid+'_'+mid),net:v('misc_net_g'+gid+'_'+mid),sell:v('misc_sell_g'+gid+'_'+mid)});}
+    data.miscFees=miscFees;
+    return data;
+  });
+  const hgs=hardGoods.map(h=>{const hid=h.id;return{id:hid,
+    hg_desc:vs('hg_desc_'+hid),hg_design:vs('hg_design_'+hid),hg_sku:vs('hg_sku_'+hid),
+    hg_vendor:vs('hg_vendor_'+hid),hg_item_color:vs('hg_item_color_'+hid),
+    hg_promo:vs('hg_promo_'+hid),hg_colors:vs('hg_colors_'+hid),
+    hg_dec:vs('hg_dec_'+hid),hg_dec_other:vs('other_hg_dec_'+hid),
+    hg_qty:v('hg_qty_'+hid),hg_cost:v('hg_cost_'+hid),
+    hg_sc:v('hg_sc_'+hid),hg_dc:v('hg_dc_'+hid),hg_rush:v('hg_rush_'+hid),
+    hg_item_margin:getItemMargin('hg_'+hid+'_item'),
+    hg_setup_margin:getItemMargin('hg_'+hid+'_setup'),
+    hg_rush_margin:getItemMargin('hg_'+hid+'_rush')};});
+  return{page1:{rep:vs('rep_name'),quoteNum:vs('quote_num'),quoteName:vs('quote_name'),
+    quoteDate:vs('quote_date'),commSplit:vs('comm_split'),
+    hasAM:document.getElementById('has_am')?.checked||false,
+    shipDate:vs('ship_date'),orderNotes:vs('order_notes'),
+    ihdFirm:document.getElementById('ihd_firm')?.checked||false,
+    perItemMargins:JSON.parse(JSON.stringify(perItemMargins))},
+    page4:{rushPct:v('rush_pct',0),artHours:v('art_hours',0),bagging:v('bagging',0),labeling:v('labeling',0),oop:v('oop',0)},
+    garments:gs,hardGoods:hgs,_fullQuote:true};
+}
+
+async function deserializeQuote(data){
+  garments=[];hardGoods=[];gCount=0;hCount=0;iCtrs={};lastCalc={};
+  miscCtrs={};hgMiscCtrs={};perItemMargins={};
+  document.getElementById('garments_container').innerHTML='';
+  document.getElementById('hg_container').innerHTML='';
+  const p1=data.page1||{};
+  const setV=(id,val)=>{const el=document.getElementById(id);if(el&&val!=null)el.value=val;};
+  const setC=(id,val)=>{const el=document.getElementById(id);if(el)el.checked=!!val;};
+  setV('rep_name',p1.rep);setV('quote_num',p1.quoteNum);setV('quote_name',p1.quoteName);
+  setV('quote_date',p1.quoteDate);setV('comm_split',p1.commSplit);
+  setV('ship_date',p1.shipDate);setV('order_notes',p1.orderNotes);
+  setC('has_am',p1.hasAM);setC('ihd_firm',p1.ihdFirm);
+  if(p1.perItemMargins)perItemMargins=p1.perItemMargins;
+  const STANDARD_SZ=['S','M','L','XL','2X'];
+  for(const g of(data.garments||[])){
+    addGarment();const gid=gCount;
+    await new Promise(r=>setTimeout(r,30));
+    setV('gtype_'+gid,g.gtype);setV('gbrand_'+gid,g.gbrand);setV('gsku_'+gid,g.gsku);
+    setV('gvendor_'+gid,g.gvendor);setV('gdesign_'+gid,g.gdesign);
+    setV('gcolor_'+gid,g.gcolor);setV('gcolor_name_'+gid,g.gcolor_name);setV('gfit_'+gid,g.gfit);
+    setC('gwhitebase_'+gid,g.gwhitebase);setC('gno_screens_'+gid,g.gno_screens);
+    if(g.g_margin_pct)perItemMargins['g_'+gid]={pct:g.g_margin_pct};
+    const szRowEls=document.getElementById('szrows_'+gid)?.querySelectorAll('[id^="szrow_"]')||[];
+    (g.szRows||[]).forEach(sr=>{
+      const stdIdx=STANDARD_SZ.indexOf(sr.size);
+      if(stdIdx>=0&&szRowEls[stdIdx]){const rid=szRowEls[stdIdx].id.replace('szrow_','');
+        setV('sz_cost_'+rid,sr.cost);setV('sz_qty_'+rid,sr.qty);setV('sz_up_'+rid,sr.up);
+      }else{addSzRow(gid);const mc=window.szCtrs&&window.szCtrs[gid]||1;const rid=gid+'_sz_'+mc;
+        setV('sz_size_'+rid,sr.size);setV('sz_cost_'+rid,sr.cost);setV('sz_qty_'+rid,sr.qty);}
+    });
+    for(const imp of(g.imps||[])){
+      addImp(gid);await new Promise(r=>setTimeout(r,20));
+      const iid=gid+'_'+(iCtrs[gid]||1);setIT(iid,imp.type);
+      setV('sp_loc_'+iid,imp.sp_loc);setV('sp_col_'+iid,imp.sp_col);setV('sp_ink_'+iid,imp.sp_ink);
+      setV('emb_loc_'+iid,imp.emb_loc);setV('emb_st_'+iid,imp.emb_st);
+      setV('dtf_loc_'+iid,imp.dtf_loc);setV('dtf_sq_'+iid,imp.dtf_sq);
+      setV('heat_loc_'+iid,imp.heat_loc);setV('heat_t_'+iid,imp.heat_t);
+      setV('vinyl_loc_'+iid,imp.vinyl_loc);setV('vinyl_t_'+iid,imp.vinyl_t);
+    }
+    updateGLbl(gid);
+  }
+  for(const h of(data.hardGoods||[])){
+    addHG();const hid=hCount;await new Promise(r=>setTimeout(r,20));
+    setV('hg_desc_'+hid,h.hg_desc);setV('hg_design_'+hid,h.hg_design);
+    setV('hg_sku_'+hid,h.hg_sku);setV('hg_vendor_'+hid,h.hg_vendor);
+    setV('hg_item_color_'+hid,h.hg_item_color);setV('hg_promo_'+hid,h.hg_promo);
+    setV('hg_colors_'+hid,h.hg_colors);setV('hg_dec_'+hid,h.hg_dec);
+    setV('hg_qty_'+hid,h.hg_qty);setV('hg_cost_'+hid,h.hg_cost);
+    setV('hg_sc_'+hid,h.hg_sc);setV('hg_dc_'+hid,h.hg_dc);setV('hg_rush_'+hid,h.hg_rush);
+    if(h.hg_item_margin)perItemMargins['hg_'+hid+'_item']={pct:h.hg_item_margin};
+    if(h.hg_setup_margin)perItemMargins['hg_'+hid+'_setup']={pct:h.hg_setup_margin};
+    if(h.hg_rush_margin)perItemMargins['hg_'+hid+'_rush']={pct:h.hg_rush_margin};
+  }
+  const p4=data.page4||{};
+  setV('rush_pct',p4.rushPct||0);setV('art_hours',p4.artHours||0);
+  setV('bagging',p4.bagging||0);setV('labeling',p4.labeling||0);setV('oop',p4.oop||0);
+  calcAll();goTo(1);
+}
+
+// ── Re-import quote ───────────────────────────────────────────────────────
+function reimportQuote(input){
+  const file=input.files&&input.files[0];
+  if(!file)return;
+  const statusEl=document.getElementById('reimport-status');
+  if(statusEl){statusEl.style.display='block';statusEl.style.background='#f8f9fa';statusEl.style.color='var(--text3)';statusEl.textContent='Reading...';}
+  const r=new FileReader();
+  r.onload=async e=>{
+    try{
+      const q=JSON.parse(e.target.result);
+      if(!q.totalSell&&!q.quoteNum){
+        if(statusEl){statusEl.style.background='#fff0f0';statusEl.style.color='var(--red)';statusEl.textContent='Invalid file.';}return;
+      }
+      if(q._fullQuote&&q.garments){
+        if(statusEl)statusEl.textContent='Restoring quote...';
+        await deserializeQuote(q);
+        if(statusEl){statusEl.style.background='#e6f4ee';statusEl.style.color='var(--green)';statusEl.textContent='Restored: '+(q.quoteName||q.quoteNum||'unnamed')+'.';}
+      }else{
+        const setV=(id,val)=>{const el=document.getElementById(id);if(el&&val!=null)el.value=val;};
+        setV('rep_name',q.rep);setV('quote_num',q.quoteNum);setV('quote_name',q.quoteName);
+        setV('comm_split',q.commissionSplit||q.split);setV('ship_date',q.ihd);setV('order_notes',q.notes);
+        const amEl=document.getElementById('has_am');if(amEl)amEl.checked=!!q.hasAM;
+        calcAllDebounced();
+        if(statusEl){statusEl.style.background='#fff3cd';statusEl.style.color='#7a5500';statusEl.textContent='Page 1 loaded (older format).';}
+      }
+    }catch(err){if(statusEl){statusEl.style.background='#fff0f0';statusEl.style.color='var(--red)';statusEl.textContent='Error: '+err.message;}}
+  };
+  r.readAsText(file);
+}
+
+// ── validatePage ──────────────────────────────────────────────────────────
+function validatePage(pageNum){
+  const page=document.getElementById('page'+pageNum);
+  if(!page)return true;
+  const required=page.querySelectorAll('[required]');
+  let allValid=true;
+  required.forEach(el=>{
+    const val=el.value?el.value.trim():'';
+    const isEmpty=!val||(el.tagName==='SELECT'&&val==='');
+    if(isEmpty){el.style.borderColor='var(--red)';el.style.boxShadow='0 0 0 2px rgba(196,30,30,.15)';allValid=false;}
+    else{el.style.borderColor='';el.style.boxShadow='';}
+  });
+  if(!allValid){const first=page.querySelector('[required]');if(first)first.scrollIntoView({behavior:'smooth',block:'center'});}
+  return allValid;
+}
+
+// ── PMS / color helpers ───────────────────────────────────────────────────
+function addInkColor(iid){
+  const c=document.getElementById('sp_ink_color_rows_'+iid);if(!c)return;
+  const row=document.createElement('div');row.style.cssText='display:flex;align-items:center;gap:6px;margin-bottom:5px';
+  row.innerHTML=`<input type="text" placeholder="e.g. Black, White" style="flex:1;padding:6px 8px;font-size:13px;border:1px solid var(--border2);border-radius:4px"><button type="button" onclick="this.parentElement.remove()" style="width:24px;height:24px;border-radius:4px;border:1px solid #f5c6c6;background:#fff;color:#a00;cursor:pointer;font-size:13px;padding:0">&#215;</button>`;
+  c.appendChild(row);
+}
+function addPMSColor(iid){
+  const c=document.getElementById('sp_pms_rows_'+iid);if(!c)return;
+  const idx=c.children.length+1;
+  const row=document.createElement('div');row.id='sp_pms_row_'+iid+'_'+idx;row.style.cssText='display:flex;align-items:center;gap:6px;margin-bottom:5px';
+  row.innerHTML=`<input type="text" id="sp_pms_${iid}_${idx}" placeholder="e.g. PMS 485 C" style="flex:1;padding:6px 8px;font-size:13px;border:1px solid var(--border2);border-radius:4px" oninput="updatePMSCharge('${iid}')"><button type="button" onclick="removePMSColor('${iid}','${idx}')" style="width:24px;height:24px;border-radius:4px;border:1px solid #f5c6c6;background:#fff;color:#a00;cursor:pointer;font-size:13px;padding:0">&#215;</button>`;
+  c.appendChild(row);updatePMSCharge(iid);
+}
+function removePMSColor(iid,idx){const row=document.getElementById('sp_pms_row_'+iid+'_'+idx);if(row)row.remove();updatePMSCharge(iid);}
+function updatePMSCharge(iid){
+  const c=document.getElementById('sp_pms_rows_'+iid);if(!c)return;
+  const filled=Array.from(c.querySelectorAll('input[type="text"]')).filter(el=>el.value.trim()!=='').length;
+  const chargeEl=document.getElementById('sp_pms_charge_'+iid);
+  if(chargeEl)chargeEl.textContent='$'+(filled*10).toFixed(2);
+  updateColorCount(iid);calcAllDebounced();
+}
+function updateColorCount(iid){
+  const c=document.getElementById('sp_pms_rows_'+iid);if(!c)return;
+  const n=Array.from(c.querySelectorAll('input[type="text"]')).filter(el=>el.value.trim()!=='').length;
+  const colEl=document.getElementById('sp_col_'+iid);
+  if(colEl&&n>0)colEl.value=Math.max(parseInt(colEl.value)||1,n);
+}
+function addThreadColor(iid){
+  const c=document.getElementById('emb_thread_rows_'+iid);if(!c)return;
+  const row=document.createElement('div');row.style.cssText='display:flex;align-items:center;gap:6px;margin-bottom:5px';
+  row.innerHTML=`<input type="text" placeholder="e.g. Madeira 1234" style="flex:1;padding:6px 8px;font-size:13px;border:1px solid var(--border2);border-radius:4px"><button type="button" onclick="this.parentElement.remove()" style="width:24px;height:24px;border-radius:4px;border:1px solid #f5c6c6;background:#fff;color:#a00;cursor:pointer;font-size:13px;padding:0">&#215;</button>`;
+  c.appendChild(row);
+}
+function addVinylColor(iid){
+  const c=document.getElementById('vinyl_color_rows_'+iid);if(!c)return;
+  const row=document.createElement('div');row.style.cssText='display:flex;align-items:center;gap:6px;margin-bottom:5px';
+  row.innerHTML=`<input type="text" placeholder="e.g. Oracal 651 Black" style="flex:1;padding:6px 8px;font-size:13px;border:1px solid var(--border2);border-radius:4px"><button type="button" onclick="this.parentElement.remove()" style="width:24px;height:24px;border-radius:4px;border:1px solid #f5c6c6;background:#fff;color:#a00;cursor:pointer;font-size:13px;padding:0">&#215;</button>`;
+  c.appendChild(row);
+}
+
+// ── Size group sync ───────────────────────────────────────────────────────
+function getNextAvailableGroup(gid){
+  const groups=['A','B','C','D','E','F','G','H'];
+  const c=document.getElementById('szrows_'+gid);if(!c)return'A';
+  const used=new Set();
+  c.querySelectorAll('[id^="szrow_"]').forEach(row=>{const rid=row.id.replace('szrow_','');const g=document.getElementById('sz_grp_'+rid);if(g&&g.value!=='none')used.add(g.value);});
+  return groups.find(g=>!used.has(g))||'A';
+}
+function onSzGrpChange(rid,gid){
+  const costEl=document.getElementById('sz_cost_'+rid);const upEl=document.getElementById('sz_up_'+rid);
+  if(costEl)costEl.value='0';if(upEl)upEl.value='0';
+  recalcGarmentTotals(gid);calcAllDebounced();
+}
+function onSzCostChange(rid,gid){
+  const costEl=document.getElementById('sz_cost_'+rid);const grpEl=document.getElementById('sz_grp_'+rid);
+  if(!costEl||!grpEl)return;
+  const newCost=parseFloat(costEl.value)||0;const currentGrp=grpEl.value;
+  if(newCost===0){recalcGarmentTotals(gid);calcAllDebounced();return;}
+  const c=document.getElementById('szrows_'+gid);if(!c)return;
+  const allRows=Array.from(c.querySelectorAll('[id^="szrow_"]'));
+  const groupRows=allRows.filter(row=>{const r=row.id.replace('szrow_','');const g=document.getElementById('sz_grp_'+r);return g&&g.value===currentGrp&&r!==rid;});
+  const allZero=groupRows.every(row=>{const r=row.id.replace('szrow_','');const c2=document.getElementById('sz_cost_'+r);return!c2||parseFloat(c2.value)===0;});
+  if(allZero&&currentGrp!=='none'){groupRows.forEach(row=>{const r=row.id.replace('szrow_','');const c2=document.getElementById('sz_cost_'+r);if(c2)c2.value=newCost.toFixed(2);});}
+  else if(!allZero&&currentGrp!=='none'){grpEl.value=getNextAvailableGroup(gid);const upEl=document.getElementById('sz_up_'+rid);if(upEl)upEl.value='0';}
+  recalcGarmentTotals(gid);calcAllDebounced();
+}
+
+// ── Per-item margin ───────────────────────────────────────────────────────
+let perItemMargins={};
+function getItemMargin(key){if(!perItemMargins[key])perItemMargins[key]={pct:40};return perItemMargins[key].pct;}
+function setItemMarginPct(key,pct){if(!perItemMargins[key])perItemMargins[key]={pct:40};perItemMargins[key].pct=parseFloat(pct)||40;calcAll();}
+function setItemMarginSell(key,sell,netCost){if(!perItemMargins[key])perItemMargins[key]={pct:40};const s=parseFloat(sell)||0;if(s>0&&netCost>0)perItemMargins[key].pct=Math.round((1-netCost/s)*1000)/10;calcAll();}
+
+// ── Pricing page helpers (kept for backward compat) ───────────────────────
+function syncBaseCost(gid){
+  const rows=document.getElementById('szrows_'+gid)?.querySelectorAll('[id^="szrow_"]')||[];
+  if(rows.length>0){const firstRid=rows[0].id.replace('szrow_','');const costEl=document.getElementById('sz_cost_'+firstRid);if(costEl){costEl.value=v('gcost_'+gid,0).toFixed(2);recalcGarmentTotals(gid);}}
+}
+function onAppMgChange(pctVal){calcAllDebounced();}
+function onAppSellChange(sellVal){calcAllDebounced();}
+function onHGMgChange(line,pctVal){calcAllDebounced();}
+function onHGSellChange(line,sellVal){calcAllDebounced();}
+function setPricingMode(section,mode){calcAll();}
+
+// ── Export quote data ─────────────────────────────────────────────────────
+function exportQuoteData(){
+  calcCommission();
+  const d=lastCalc;
+  const rep=vs('rep_name',''),qnum=vs('quote_num',''),qname=vs('quote_name','');
+  const ship=vs('ship_date',''),split=vs('comm_split','standard');
+  const hasAMFlag=document.getElementById('has_am')?.checked||false;
+  const commReport=calcCommReportDate(ship);
+  const today=new Date().toLocaleDateString('en-US',{month:'long',day:'numeric',year:'numeric'});
+  const fullData=serializeQuote();
+  const payload={...fullData,exportedAt:today,quoteNum:qnum,quoteName:qname,rep,ihd:ship,
+    commissionReport:commReport,commissionSplit:split,hasAM:hasAMFlag,
+    totalNetCost:d.grand||0,totalSell:d.tSell||0,grossProfit:d.gp||0,
+    avgMargin:d.tSell>0?Math.round((1-(d.grand||0)/(d.tSell||1))*1000)/10:0,
+    totalRepComm:d.totalRepComm||0,totalHouseProfit:d.totalHouseProfit||0,
+    totalAM:d.totalAM||0,needsApproval:d.needsApproval||false,
+    ihdFirm:document.getElementById('ihd_firm')?.checked||false,
+    lines:(d.commLines||[]).map(l=>({name:l.name,net:l.net,sell:l.sell,
+      margin:Math.round(l.mgPct*10)/10,grossProfit:l.gp,house:l.houseEarns,
+      rep:l.repEarns,am:l.amEarns||0,qualifies:l.qualifies}))};
+  const fname='Toro_Quote'+(qnum?'_'+qnum:'')+(qname?'_'+qname.replace(/[^a-z0-9]/gi,'_'):'')+'.json';
+  const blob=new Blob([JSON.stringify(payload,null,2)],{type:'application/json'});
+  const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=fname;a.click();URL.revokeObjectURL(a.href);
+}
+
+// ── Misc helpers ──────────────────────────────────────────────────────────
+function startNew(){
+  garments=[];hardGoods=[];gCount=0;hCount=0;iCtrs={};lastCalc={};
+  miscCtrs={};hgMiscCtrs={};perItemMargins={};
+  window.pricingMode={app:'margin',hg:'margin'};
+  document.getElementById('garments_container').innerHTML='';
+  document.getElementById('hg_container').innerHTML='';
+  ['order_notes','ship_date','comm_notes','quote_name','quote_num'].forEach(id=>{const e=document.getElementById(id);if(e)e.value='';});
+  const rnEl=document.getElementById('rep_name');if(rnEl)rnEl.value='';
+  const csEl=document.getElementById('comm_split');if(csEl)csEl.value='standard';
+  ['has_am','approval_ack'].forEach(id=>{const e=document.getElementById(id);if(e)e.checked=false;});
+  ['rush_pct','bagging','labeling','oop','art_hours'].forEach(id=>{const e=document.getElementById(id);if(e)e.value=0;});
+  goTo(1);addGarment();
+  const today=new Date();
+  const qd=document.getElementById('quote_date');if(qd)qd.value=today.toISOString().slice(0,10);
+  calcAll();
+}
+let _calcTimer=null;
+function calcAllDebounced(){clearTimeout(_calcTimer);_calcTimer=setTimeout(()=>calcAll(),600);}
+function autoNameAndPrint(){
+  const qnum=vs('quote_num','').trim(),qname=vs('quote_name','').trim();
+  const oldTitle=document.title;
+  document.title='TORO Quote'+([qnum,qname].filter(Boolean).length?' '+ [qnum,qname].filter(Boolean).join(' '):'');
+  window.print();document.title=oldTitle;
+}
+function calcCommReportDate(ihdStr){
+  if(!ihdStr||!ihdStr.trim())return'';
+  const d=new Date(ihdStr+'T00:00:00');
+  if(isNaN(d.getTime()))return'';
+  const day=d.getDate(),month=d.getMonth(),year=d.getFullYear();
+  const months=['January','February','March','April','May','June','July','August','September','October','November','December'];
+  if(day<=14)return months[month]+' 14';
+  return months[month]+' '+new Date(year,month+1,0).getDate();
+}
+function updateCommReport(){
+  const ship=document.getElementById('ship_date')?.value||'';
+  const result=calcCommReportDate(ship);
+  const el=document.getElementById('comm_report_date');
+  if(el)el.innerHTML=result?`<span style="font-weight:700;color:var(--red)">${result}</span>`:`<span style="color:var(--text3);font-weight:400;font-size:13px">Enter in-hands date on page 1</span>`;
+  const ihdDisplay=document.getElementById('comm_ihd_display');
+  if(ihdDisplay)ihdDisplay.innerHTML=ship?`<span style="font-size:14px">${ship}</span>`:`<span style="color:var(--text3);font-size:13px">Set on page 1</span>`;
+}
+function gItemLabel(s,i){
+  const design=s.gdesign||'',type=s.gtype||'',brand=s.gbrand||'';
+  const style=brand?type+' '+brand:type;
+  if(design&&style)return design+' '+style;
+  if(design)return design;
+  return 'Apparel '+(i+1)+': '+(style||'item');
+}
+let miscCtrs={};
+function addMiscFee(gid){
+  if(!miscCtrs[gid])miscCtrs[gid]=0;miscCtrs[gid]++;const mid=miscCtrs[gid];
+  const c=document.getElementById('misc_'+gid);if(!c)return;
+  const d=document.createElement('div');d.id='miscrow_g'+gid+'_'+mid;
+  d.style.cssText='display:grid;grid-template-columns:1fr 90px 90px 24px;gap:6px;align-items:center;margin-bottom:5px';
+  d.innerHTML=`<input type="text" id="misc_desc_g${gid}_${mid}" style="padding:5px 8px;font-size:13px;border:1px solid var(--border2);border-radius:var(--radius-sm)" placeholder="Description"><input type="number" id="misc_net_g${gid}_${mid}" step="0.01" min="0" value="0" oninput="calcAll()" style="padding:5px 6px;font-size:13px;font-weight:700;border:1px solid var(--border2);border-radius:var(--radius-sm);text-align:right" title="Net cost"><input type="number" id="misc_sell_g${gid}_${mid}" step="0.01" min="0" oninput="calcAll()" style="padding:5px 6px;font-size:13px;font-weight:700;color:var(--green);border:1px solid var(--border2);border-radius:var(--radius-sm);text-align:right" title="Sell price"><button onclick="this.parentElement.remove();calcAll()" style="border:none;background:none;cursor:pointer;color:#aaa;font-size:14px;padding:0">&#10005;</button>`;
+  c.appendChild(d);
+}
+let hgMiscCtrs={};
+function addHGMiscFee(hid){
+  if(!hgMiscCtrs[hid])hgMiscCtrs[hid]=0;hgMiscCtrs[hid]++;const mid=hgMiscCtrs[hid];
+  const c=document.getElementById('hgmisc_'+hid);if(!c)return;
+  const d=document.createElement('div');d.id='hgmiscrow_'+hid+'_'+mid;
+  d.style.cssText='display:grid;grid-template-columns:1fr 90px 90px 24px;gap:6px;align-items:center;margin-bottom:5px';
+  d.innerHTML=`<input type="text" id="hgmisc_desc_${hid}_${mid}" style="padding:5px 8px;font-size:13px;border:1px solid var(--border2);border-radius:var(--radius-sm)" placeholder="Description"><input type="number" id="hgmisc_net_${hid}_${mid}" step="0.01" min="0" value="0" oninput="calcAll()" style="padding:5px 6px;font-size:13px;border:1px solid var(--border2);border-radius:var(--radius-sm);text-align:right"><input type="number" id="hgmisc_sell_${hid}_${mid}" step="0.01" min="0" oninput="calcAll()" style="padding:5px 6px;font-size:13px;color:var(--green);border:1px solid var(--border2);border-radius:var(--radius-sm);text-align:right"><button onclick="this.parentElement.remove();calcAll()" style="border:none;background:none;cursor:pointer;color:#aaa;font-size:14px;padding:0">&#10005;</button>`;
+  c.appendChild(d);
+}
+function getGMiscFees(gid,margin){
+  const c=document.getElementById('misc_'+gid);if(!c)return{net:0,sell:0,lines:[]};
+  const rows=c.querySelectorAll('[id^="miscrow_g'+gid+'_"]');let net=0,sell=0,lines=[];
+  rows.forEach(row=>{const mid=row.id.split('_').pop();
+    const desc=document.getElementById('misc_desc_g'+gid+'_'+mid)?.value||'Misc fee';
+    const n=parseFloat(document.getElementById('misc_net_g'+gid+'_'+mid)?.value)||0;
+    const sEl=document.getElementById('misc_sell_g'+gid+'_'+mid);
+    const s=sEl?.value.trim()!==''?parseFloat(sEl.value)||0:(margin<1?n/(1-margin):n);
+    net+=n;sell+=s;if(n>0||s>0)lines.push({desc,net:n,sell:s});});
+  return{net,sell,lines};
+}
+function getHGMiscFees(hid,margin){
+  const c=document.getElementById('hgmisc_'+hid);if(!c)return{net:0,sell:0,lines:[]};
+  const rows=c.querySelectorAll('[id^="hgmiscrow_'+hid+'_"]');let net=0,sell=0,lines=[];
+  rows.forEach(row=>{const mid=row.id.split('_').pop();
+    const desc=document.getElementById('hgmisc_desc_'+hid+'_'+mid)?.value||'Misc fee';
+    const n=parseFloat(document.getElementById('hgmisc_net_'+hid+'_'+mid)?.value)||0;
+    const sEl=document.getElementById('hgmisc_sell_'+hid+'_'+mid);
+    const s=sEl?.value.trim()!==''?parseFloat(sEl.value)||0:(margin<1?n/(1-margin):n);
+    net+=n;sell+=s;if(n>0||s>0)lines.push({desc,net:n,sell:s});});
+  return{net,sell,lines};
+}
+function spLocChange(iid){
+  const loc=vsOther('sp_loc_'+iid,'Front');
+  const isSleeve=loc.toLowerCase().includes('sleeve')||loc.toLowerCase().includes('leg');
+  const isPocket=loc.toLowerCase().includes('pocket');
+  const wrap=document.getElementById('sp_ao_wrap_'+iid);if(!wrap)return;
+  if(isSleeve||isPocket){wrap.style.display='';
+    const slOpt=document.getElementById('sp_ao_sleeve_'+iid);
+    const pkOpt=document.getElementById('sp_ao_pocket_'+iid);
+    if(slOpt)slOpt.style.display=isSleeve?'':'none';
+    if(pkOpt)pkOpt.style.display=isPocket?'':'none';
+    const sel=document.getElementById('sp_ao_'+iid);if(sel)sel.value='0.30';
+  }else{wrap.style.display='none';const sel=document.getElementById('sp_ao_'+iid);if(sel)sel.value='0';}
+}
+function otherCheck(sel){
+  const suffix=sel.id.split('_').pop();
+  const isHgDec=sel.id.startsWith('hg_dec_');
+  const wrapEl=isHgDec?document.getElementById('other_hg_dec_wrap_'+suffix):null;
+  const otherEl=document.getElementById('other_'+sel.id);
+  if(sel.value==='Other'){if(wrapEl)wrapEl.style.display='';else if(otherEl)otherEl.style.display='';if(otherEl)setTimeout(()=>otherEl.focus(),50);}
+  else{if(wrapEl)wrapEl.style.display='none';else if(otherEl)otherEl.style.display='none';if(otherEl)otherEl.value='';}
+}
+function vsOther(selectId,def){
+  const val=vs(selectId,def);
+  if(val==='Other'){const otherEl=document.getElementById('other_'+selectId);if(otherEl&&otherEl.value.trim())return otherEl.value.trim();}
+  return val;
+}
+function updateWhiteBaseVisibility(gid){
+  const colorVal=vs('gcolor_'+gid,'white');
+  const isDark=['dark','black'].includes(colorVal);
+  const wrap=document.getElementById('gwhitebase_wrap_'+gid);
+  if(wrap)wrap.style.display=isDark?'':'none';
+}
+window.pricingMode={app:'margin',hg:'margin'};
+
+// Init
+document.addEventListener('focusin',function(e){if(e.target.tagName==='INPUT'&&(e.target.type==='number'||e.target.type==='text'))e.target.select();});
+const _today=new Date();
+const _qd=document.getElementById('quote_date');if(_qd)_qd.value=_today.toISOString().slice(0,10);
+addGarment();
+</script>
+</body>
+</html>
