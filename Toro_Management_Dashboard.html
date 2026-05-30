@@ -50,6 +50,12 @@ tr:hover td{background:#fafafa}
 .badge-waiting{background:#FFF3E0;color:var(--orange)}
 .badge-approved{background:#e6f4ee;color:var(--green)}
 .badge-rejected{background:#FFEBEB;color:var(--red)}
+
+#toro-error-banner{display:none;position:fixed;bottom:16px;right:16px;max-width:360px;background:#1a1a2e;color:#fff;border-left:4px solid var(--red);border-radius:8px;padding:14px 16px;font-size:13px;z-index:99999;box-shadow:0 4px 20px rgba(0,0,0,.3);cursor:pointer}
+#toro-error-banner strong{display:block;margin-bottom:4px;font-size:14px}
+#toro-error-banner span{color:#ccc;font-size:12px}
+#toro-error-banner .close-err{position:absolute;top:8px;right:10px;background:none;border:none;color:#888;cursor:pointer;font-size:16px}
+
 </style>
 </head>
 <body>
@@ -250,6 +256,8 @@ function startListeners(){
 
 // ── Approval actions ──────────────────────────────────────────────────────
 async function approveQuote(key){
+  console.log('approveQuote called with key:', key, 'approvals[key]:', approvals[key]);
+  if(!approvals[key]){ console.error('No approval found for key:', key); return; }
   await fbSet('approvals/'+key,{...approvals[key], status:'approved', reviewedAt:new Date().toISOString()});
   // Update quote in rep's path
   const rep=approvals[key]&&approvals[key].rep;
@@ -268,6 +276,8 @@ async function approveQuote(key){
 }
 
 async function rejectQuote(key){
+  console.log('rejectQuote called with key:', key);
+  if(!approvals[key]){ console.error('No approval found for key:', key); return; }
   const note=document.getElementById('note_'+key)&&document.getElementById('note_'+key).value||'';
   if(!note.trim()){ alert('Please add a rejection note so the rep knows what to fix.'); return; }
   await fbSet('approvals/'+key,{...approvals[key], status:'rejected', note, reviewedAt:new Date().toISOString()});
@@ -383,8 +393,8 @@ function render(){
         <td>
           <div style="display:flex;flex-direction:column;gap:4px;min-width:200px">
             <div style="display:flex;gap:6px">
-              <button class="btn btn-sm btn-green" onclick="approveQuote('${key}')">&#10003; Approve</button>
-              <button class="btn btn-sm btn-primary" onclick="rejectQuote('${key}')">&#10005; Reject</button>
+              <button class="btn btn-sm btn-green" data-key="${encodeURIComponent(key)}" onclick="approveQuote(decodeURIComponent(this.dataset.key))">&#10003; Approve</button>
+              <button class="btn btn-sm btn-primary" data-key="${encodeURIComponent(key)}" onclick="rejectQuote(decodeURIComponent(this.dataset.key))">&#10005; Reject</button>
             </div>
             <input id="note_${key}" class="note-input" placeholder="Rejection note (required to reject)">
           </div>
@@ -544,6 +554,32 @@ async function init(){
   startListeners();
 }
 init();
+
+// Global error handler
+function showErrorBanner(msg){
+  const banner=document.getElementById('toro-error-banner');
+  const msgEl=document.getElementById('toro-error-msg');
+  if(!banner) return;
+  if(msgEl) msgEl.textContent=msg||'An unexpected error occurred. Please contact management if this continues.';
+  banner.style.display='block';
+  setTimeout(()=>{ banner.style.display='none'; }, 8000);
+}
+window.addEventListener('error', function(e){
+  console.error('Global error:', e.message, e.filename, e.lineno);
+  showErrorBanner('Error: '+e.message+' — Please contact management if this continues.');
+});
+window.addEventListener('unhandledrejection', function(e){
+  console.error('Unhandled promise rejection:', e.reason);
+  const msg = e.reason && e.reason.message ? e.reason.message : String(e.reason);
+  showErrorBanner('Error: '+msg+' — Please contact management if this continues.');
+});
 </script>
+
+<div id="toro-error-banner" onclick="this.style.display='none'">
+  <button class="close-err" onclick="event.stopPropagation();this.parentElement.style.display='none'">&#10005;</button>
+  <strong>&#9888; Something went wrong</strong>
+  <span id="toro-error-msg">An unexpected error occurred. Please contact management if this continues.</span>
+</div>
+
 </body>
 </html>

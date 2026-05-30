@@ -1672,4 +1672,13 @@ function buildSummary(){
       ${commReportDate?`<div style="color:var(--red);font-weight:700">&#128197; Commission report: ${commReportDate}</div>`:''}
     </div>`:''}
   </div>`;
-};
+}
+function toggleReimport(){
+  const area=document.getElementById('reimport-area');
+  const icon=document.getElementById('reimport-toggle-icon');
+  if(!area) return;
+  const showing=area.style.display!=='none';
+  area.style.display=showing?'none':'block';
+  if(icon) icon.textContent=showing?'►':'▼';
+}
+;

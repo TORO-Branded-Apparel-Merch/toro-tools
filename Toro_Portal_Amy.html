@@ -61,6 +61,12 @@ tr:hover td{background:#fafafa}
 .locked-badge{font-size:10px;background:#e8e8e8;color:#888;padding:1px 6px;border-radius:6px;margin-left:4px}
 details summary{padding:10px 16px;cursor:pointer;font-size:12px;color:var(--text3);user-select:none;list-style:none}
 details summary::-webkit-details-marker{display:none}
+
+#toro-error-banner{display:none;position:fixed;bottom:16px;right:16px;max-width:360px;background:#1a1a2e;color:#fff;border-left:4px solid var(--red);border-radius:8px;padding:14px 16px;font-size:13px;z-index:99999;box-shadow:0 4px 20px rgba(0,0,0,.3);cursor:pointer}
+#toro-error-banner strong{display:block;margin-bottom:4px;font-size:14px}
+#toro-error-banner span{color:#ccc;font-size:12px}
+#toro-error-banner .close-err{position:absolute;top:8px;right:10px;background:none;border:none;color:#888;cursor:pointer;font-size:16px}
+
 </style>
 </head>
 <body>
@@ -366,8 +372,10 @@ function loadFiles(files){
 
 // ── Status updates ────────────────────────────────────────────────────────
 async function toggleStatus(qKey,field){
-  const q=quotes.find(x=>(x._fbKey||x.quoteNum)===qKey);
-  if(!q) { console.warn('toggleStatus: quote not found for key',qKey); return; }
+  let q=quotes.find(x=>(x._fbKey||x.quoteNum)===qKey);
+  if(!q) q=quotes.find(x=>x._fbKey===qKey||x.quoteNum===qKey);
+  if(!q) q=quotes.find(x=>encodeURIComponent(x._fbKey||x.quoteNum||'')===qKey);
+  if(!q){ console.warn('toggleStatus: not found',qKey); return; }
   if(q.workflowStatus==='submittedCommission'||q.workflowStatus==='archived') return;
   if(!q.statusChecks) q.statusChecks={quoteApproved:false,orderCompleted:false,paidByClient:false,readyForPayment:false};
   q.statusChecks[field]=!q.statusChecks[field];
@@ -377,8 +385,10 @@ async function toggleStatus(qKey,field){
 }
 
 async function submitForApproval(qKey){
-  const q=quotes.find(x=>(x._fbKey||x.quoteNum)===qKey);
-  if(!q) { console.warn('submitForApproval: quote not found for key',qKey); return; }
+  let q=quotes.find(x=>(x._fbKey||x.quoteNum)===qKey);
+  if(!q) q=quotes.find(x=>x._fbKey===qKey||x.quoteNum===qKey);
+  if(!q) q=quotes.find(x=>encodeURIComponent(x._fbKey||x.quoteNum||'')===qKey);
+  if(!q){ console.warn('submitForApproval: not found',qKey); return; }
   q.workflowStatus='waitingApproval';
   q.approvalStatus='waiting';
   localStorage.setItem(STORAGE_KEY,JSON.stringify(quotes));
@@ -415,8 +425,10 @@ async function submitForCommission(period){
 
 // ── Export quote back to builder ──────────────────────────────────────────
 function exportToBuilder(qKey){
-  const q=quotes.find(x=>(x._fbKey||x.quoteNum)===qKey);
-  if(!q){ console.warn('exportToBuilder: quote not found for key',qKey); return; }
+  let q=quotes.find(x=>(x._fbKey||x.quoteNum)===qKey);
+  if(!q) q=quotes.find(x=>x._fbKey===qKey||x.quoteNum===qKey);
+  if(!q) q=quotes.find(x=>encodeURIComponent(x._fbKey||x.quoteNum||'')===qKey);
+  if(!q){ console.warn('exportToBuilder: not found',qKey); return; }
   const blob=new Blob([JSON.stringify(q,null,2)],{type:'application/json'});
   const a=document.createElement('a');
   const name='TORO_Edit_'+(q.quoteNum||'quote')+'_'+(q.quoteName||'').replace(/[^a-z0-9]/gi,'_')+'.json';
@@ -503,8 +515,11 @@ function quoteRow(q,idx,locked,showUndo){
 // ── Render ────────────────────────────────────────────────────────────────
 async function deleteQuote(qKey){
   if(!confirm('Permanently remove this quote?')) return;
-  const q=quotes.find(x=>(x._fbKey||x.quoteNum)===qKey);
-  if(!q){ console.warn('deleteQuote: quote not found for key',qKey); return; }
+  // Try multiple lookup strategies
+  let q=quotes.find(x=>(x._fbKey||x.quoteNum)===qKey);
+  if(!q) q=quotes.find(x=>x._fbKey===qKey||x.quoteNum===qKey);
+  if(!q) q=quotes.find(x=>encodeURIComponent(x._fbKey||x.quoteNum||'')===qKey);
+  if(!q){ console.warn('deleteQuote: not found for key',qKey,'quotes:',quotes.map(x=>x._fbKey||x.quoteNum)); return; }
   const idx=quotes.indexOf(q);
   if(idx>=0) quotes.splice(idx,1);
   localStorage.setItem(STORAGE_KEY,JSON.stringify(quotes));
@@ -515,7 +530,9 @@ async function deleteQuote(qKey){
 }
 
 function undoReady(qKey){
-  const q=quotes.find(x=>(x._fbKey||x.quoteNum)===qKey);
+  let q=quotes.find(x=>(x._fbKey||x.quoteNum)===qKey);
+  if(!q) q=quotes.find(x=>x._fbKey===qKey||x.quoteNum===qKey);
+  if(!q) q=quotes.find(x=>encodeURIComponent(x._fbKey||x.quoteNum||'')===qKey);
   if(!q||!q.statusChecks) return;
   q.statusChecks.readyForPayment=false;
   localStorage.setItem(STORAGE_KEY,JSON.stringify(quotes));
@@ -650,6 +667,32 @@ async function init(){
   startListeners();
 }
 init();
+
+// Global error handler
+function showErrorBanner(msg){
+  const banner=document.getElementById('toro-error-banner');
+  const msgEl=document.getElementById('toro-error-msg');
+  if(!banner) return;
+  if(msgEl) msgEl.textContent=msg||'An unexpected error occurred. Please contact management if this continues.';
+  banner.style.display='block';
+  setTimeout(()=>{ banner.style.display='none'; }, 8000);
+}
+window.addEventListener('error', function(e){
+  console.error('Global error:', e.message, e.filename, e.lineno);
+  showErrorBanner('Error: '+e.message+' — Please contact management if this continues.');
+});
+window.addEventListener('unhandledrejection', function(e){
+  console.error('Unhandled promise rejection:', e.reason);
+  const msg = e.reason && e.reason.message ? e.reason.message : String(e.reason);
+  showErrorBanner('Error: '+msg+' — Please contact management if this continues.');
+});
 </script>
+
+<div id="toro-error-banner" onclick="this.style.display='none'">
+  <button class="close-err" onclick="event.stopPropagation();this.parentElement.style.display='none'">&#10005;</button>
+  <strong>&#9888; Something went wrong</strong>
+  <span id="toro-error-msg">An unexpected error occurred. Please contact management if this continues.</span>
+</div>
+
 </body>
 </html>
