@@ -269,6 +269,16 @@ function runReport(){
   document.getElementById('report-modal').style.display='none';
 }
 
+
+// Ensure every quote has a stable key before rendering
+function ensureQuoteKeys(){
+  quotes.forEach((q,i)=>{
+    if(!q._fbKey && !q.quoteNum){
+      q._localIdx = 'idx_'+i;
+    }
+  });
+}
+
 </script>
 </head>
 <body>
@@ -574,9 +584,11 @@ function loadFiles(files){
 
 // ── Status updates ────────────────────────────────────────────────────────
 async function toggleStatus(qKey,field){
-  let q=quotes.find(x=>(x._fbKey||x.quoteNum)===qKey);
-  if(!q) q=quotes.find(x=>x._fbKey===qKey||x.quoteNum===qKey);
-  if(!q) q=quotes.find(x=>encodeURIComponent(x._fbKey||x.quoteNum||'')===qKey);
+  const decoded=decodeURIComponent(qKey);
+  let q=quotes.find(x=>(x._fbKey||x.quoteNum)===decoded);
+  if(!q) q=quotes.find(x=>x._fbKey===decoded||x.quoteNum===decoded);
+  if(!q) q=quotes.find(x=>x._localIdx===decoded);
+  if(!q && decoded.startsWith('idx_')){const i=parseInt(decoded.replace('idx_',''));if(!isNaN(i)&&quotes[i])q=quotes[i];}
   if(!q){ console.warn('toggleStatus: not found',qKey); return; }
   if(q.workflowStatus==='submittedCommission'||q.workflowStatus==='archived') return;
   if(!q.statusChecks) q.statusChecks={quoteApproved:false,orderCompleted:false,paidByClient:false,readyForPayment:false};
@@ -587,18 +599,20 @@ async function toggleStatus(qKey,field){
 }
 
 async function submitForApproval(qKey){
-  let q=quotes.find(x=>(x._fbKey||x.quoteNum)===qKey);
-  if(!q) q=quotes.find(x=>x._fbKey===qKey||x.quoteNum===qKey);
-  if(!q) q=quotes.find(x=>encodeURIComponent(x._fbKey||x.quoteNum||'')===qKey);
+  const decoded=decodeURIComponent(qKey);
+  let q=quotes.find(x=>(x._fbKey||x.quoteNum)===decoded);
+  if(!q) q=quotes.find(x=>x._fbKey===decoded||x.quoteNum===decoded);
+  if(!q) q=quotes.find(x=>x._localIdx===decoded);
+  if(!q && decoded.startsWith('idx_')){const i=parseInt(decoded.replace('idx_',''));if(!isNaN(i)&&quotes[i])q=quotes[i];}
   if(!q){ console.warn('submitForApproval: not found',qKey); return; }
   q.workflowStatus='waitingApproval';
   q.approvalStatus='waiting';
   localStorage.setItem(STORAGE_KEY,JSON.stringify(quotes));
   render();
-  const key=q._fbKey||(q.quoteNum?q.quoteNum.replace(/[.#$\/\[\]]/g,'_'):null);
-  if(!key){ console.error('submitForApproval: no key for quote',q); return; }
+  const key=q._fbKey||(q.quoteNum?q.quoteNum.replace(/[.#$\/\[\]]/g,'_'):('idx_'+Date.now()));
+  q._fbKey=key;
   await fbSet('approvals/'+key,{
-    quoteNum:q.quoteNum, quoteName:q.quoteName,
+    quoteNum:q.quoteNum||'', quoteName:q.quoteName||'',
     rep:REP, status:'waiting', requestedAt:new Date().toISOString(),
     sell:q.totalSell, margin:q.avgMargin, commissionSplit:q.commissionSplit
   });
@@ -627,9 +641,11 @@ async function submitForCommission(period){
 
 // ── Export quote back to builder ──────────────────────────────────────────
 function exportToBuilder(qKey){
-  let q=quotes.find(x=>(x._fbKey||x.quoteNum)===qKey);
-  if(!q) q=quotes.find(x=>x._fbKey===qKey||x.quoteNum===qKey);
-  if(!q) q=quotes.find(x=>encodeURIComponent(x._fbKey||x.quoteNum||'')===qKey);
+  const decoded=decodeURIComponent(qKey);
+  let q=quotes.find(x=>(x._fbKey||x.quoteNum)===decoded);
+  if(!q) q=quotes.find(x=>x._fbKey===decoded||x.quoteNum===decoded);
+  if(!q) q=quotes.find(x=>x._localIdx===decoded);
+  if(!q && decoded.startsWith('idx_')){const i=parseInt(decoded.replace('idx_',''));if(!isNaN(i)&&quotes[i])q=quotes[i];}
   if(!q){ console.warn('exportToBuilder: not found',qKey); return; }
   const blob=new Blob([JSON.stringify(q,null,2)],{type:'application/json'});
   const a=document.createElement('a');
@@ -718,15 +734,20 @@ function quoteRow(q,idx,locked,showUndo){
 // ── Render ────────────────────────────────────────────────────────────────
 async function deleteQuote(qKey){
   if(!confirm('Permanently remove this quote?')) return;
-  // Try multiple lookup strategies
-  let q=quotes.find(x=>(x._fbKey||x.quoteNum)===qKey);
-  if(!q) q=quotes.find(x=>x._fbKey===qKey||x.quoteNum===qKey);
-  if(!q) q=quotes.find(x=>encodeURIComponent(x._fbKey||x.quoteNum||'')===qKey);
-  if(!q) q=quotes.find(x=>decodeURIComponent(x._fbKey||x.quoteNum||'')===qKey);
+  const decoded = decodeURIComponent(qKey);
+  // Try all strategies including localIdx fallback
+  let q = quotes.find(x=>(x._fbKey||x.quoteNum)===decoded);
+  if(!q) q = quotes.find(x=>x._fbKey===decoded||x.quoteNum===decoded);
+  if(!q) q = quotes.find(x=>encodeURIComponent(x._fbKey||x.quoteNum||'')===qKey);
+  if(!q) q = quotes.find(x=>x._localIdx===decoded);
+  // Last resort: match by rendered index
+  if(!q && decoded.startsWith('idx_')){
+    const i = parseInt(decoded.replace('idx_',''));
+    if(!isNaN(i) && quotes[i]) q = quotes[i];
+  }
   if(!q){
-    console.warn('deleteQuote: not found for key',qKey);
-    console.log('Available keys:', quotes.map(x=>({fbKey:x._fbKey,quoteNum:x.quoteNum})));
-    alert('Could not locate quote to delete. Check browser console for details.');
+    console.warn('deleteQuote: not found for key',qKey,'quotes:',quotes.map((x,i)=>({fbKey:x._fbKey,quoteNum:x.quoteNum,idx:i})));
+    alert('Could not locate quote. Please try refreshing the page.');
     return;
   }
   const idx=quotes.indexOf(q);
@@ -739,9 +760,11 @@ async function deleteQuote(qKey){
 }
 
 function undoReady(qKey){
-  let q=quotes.find(x=>(x._fbKey||x.quoteNum)===qKey);
-  if(!q) q=quotes.find(x=>x._fbKey===qKey||x.quoteNum===qKey);
-  if(!q) q=quotes.find(x=>encodeURIComponent(x._fbKey||x.quoteNum||'')===qKey);
+  const decoded=decodeURIComponent(qKey);
+  let q=quotes.find(x=>(x._fbKey||x.quoteNum)===decoded);
+  if(!q) q=quotes.find(x=>x._fbKey===decoded||x.quoteNum===decoded);
+  if(!q) q=quotes.find(x=>x._localIdx===decoded);
+  if(!q && decoded.startsWith('idx_')){const i=parseInt(decoded.replace('idx_',''));if(!isNaN(i)&&quotes[i])q=quotes[i];}
   if(!q||!q.statusChecks) return;
   q.statusChecks.readyForPayment=false;
   localStorage.setItem(STORAGE_KEY,JSON.stringify(quotes));
@@ -1089,6 +1112,16 @@ function runReport(){
   const date=new Date().toLocaleDateString('en-US').replace(/\//g,'-');
   XLSX.writeFile(wb,'TORO_Report_'+REP+'_'+date+'.xlsx');
   document.getElementById('report-modal').style.display='none';
+}
+
+
+// Ensure every quote has a stable key before rendering
+function ensureQuoteKeys(){
+  quotes.forEach((q,i)=>{
+    if(!q._fbKey && !q.quoteNum){
+      q._localIdx = 'idx_'+i;
+    }
+  });
 }
 
 </script>
