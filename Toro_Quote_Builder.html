@@ -177,6 +177,12 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--red);box
       <div class="field"><label>Quote # <span style="font-size:11px;font-weight:400;color:var(--text3)">(to correspond with Printavo)</span></label><input type="text" id="quote_num" required></div>
     </div>
     <div class="row3">
+      <div class="field"><label>Client name <span style="color:var(--red)">*</span></label>
+        <input type="text" id="client_name" required placeholder="Contact person">
+      </div>
+      <div class="field"><label>Company <span style="color:var(--red)">*</span></label>
+        <input type="text" id="client_company" required placeholder="Organization or company">
+      </div>
       <div class="field">
         <label>Quote name <span style="color:var(--red)">*</span></label>
         <input type="text" id="quote_name" required>
@@ -228,7 +234,10 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--red);box
     </div>
   </div>
 
-<div class="actions"><div></div><div class="actions-right"><button class="btn btn-primary" onclick="if(validatePage(1))goTo(2)">Next: Apparel &#8594;</button></div></div>
+<div class="actions">
+  <button class="btn btn-outline" onclick="if(confirm('Start over? All current quote data will be cleared.'))startNew()">&#8635; Start over</button>
+  <div class="actions-right"><button class="btn btn-primary" onclick="if(validatePage(1))goTo(2)">Next: Apparel &#8594;</button></div>
+</div>
 </div>
 
 <!-- PAGE 2: GARMENTS -->
@@ -809,16 +818,63 @@ function addImp(gid){
 }
 
 function removeImp(iid){$c('imp_'+iid)?.remove();}
-function setIT(iid,type){
-  ['screen','embroidery','dtf','heat','vinyl'].forEach(t=>{
-    $c('if_'+t+'_'+iid)?.classList.toggle('hidden',t!==type);
+function impHasData(iid, currentType){
+  // Check if the current imprint type has any data filled in
+  const checks = {
+    screen: ['sp_loc_'+iid,'sp_col_'+iid],
+    embroidery: ['emb_loc_'+iid,'emb_st_'+iid],
+    dtf: ['dtf_loc_'+iid,'dtf_sq_'+iid],
+    heat: ['heat_loc_'+iid],
+    vinyl: ['vinyl_loc_'+iid]
+  };
+  const fields = checks[currentType]||[];
+  return fields.some(id=>{
+    const el=document.getElementById(id);
+    if(!el) return false;
+    if(el.tagName==='SELECT') return el.value!==''&&el.selectedIndex>0;
+    return el.value!==''&&el.value!=='0';
   });
-  $c('ipills_'+iid)?.querySelectorAll('.pill').forEach((p,i)=>{
+}
+
+function setIT(iid,type){
+  // Get current active type
+  const impEl=document.getElementById('imp_'+iid);
+  const currentType=impEl?.dataset.type||'screen';
+  // Warn if switching away from a method with data
+  if(currentType!==type&&impHasData(iid,currentType)){
+    if(!confirm('Switching imprint methods will clear your current details for this imprint. Continue?')){
+      return; // stay on current method
+    }
+    // Clear current method fields
+    const clearIds={
+      screen:['sp_loc_'+iid,'sp_col_'+iid,'sp_ink_'+iid,'sp_ic_'+iid],
+      embroidery:['emb_loc_'+iid,'emb_st_'+iid,'emb_tc_'+iid],
+      dtf:['dtf_loc_'+iid,'dtf_sq_'+iid],
+      heat:['heat_loc_'+iid],
+      vinyl:['vinyl_loc_'+iid]
+    };
+    (clearIds[currentType]||[]).forEach(id=>{
+      const el=document.getElementById(id);
+      if(el){if(el.tagName==='SELECT')el.selectedIndex=0;else el.value='';}
+    });
+    // Clear PMS rows if switching from screen
+    if(currentType==='screen'){
+      const pmsRows=document.getElementById('sp_pms_rows_'+iid);
+      if(pmsRows)pmsRows.innerHTML='';
+      const inkRows=document.getElementById('sp_ink_color_rows_'+iid);
+      if(inkRows)inkRows.innerHTML='';
+      const chargeEl=document.getElementById('sp_pms_charge_'+iid);
+      if(chargeEl)chargeEl.textContent='$0.00';
+    }
+  }
+  ['screen','embroidery','dtf','heat','vinyl'].forEach(t=>{
+    document.getElementById('if_'+t+'_'+iid)?.classList.toggle('hidden',t!==type);
+  });
+  document.getElementById('ipills_'+iid)?.querySelectorAll('.pill').forEach((p,i)=>{
     p.classList.toggle('active',['screen','embroidery','dtf','heat','vinyl'][i]===type);
   });
-  const labels={screen:'Screen printing',embroidery:'Embroidery',dtf:'DTF',heat:'Heat press',vinyl:'Vinyl / cut'};
-  const tg=$c('itag_'+iid);if(tg)tg.textContent=labels[type]||type;
-  $c('imp_'+iid).dataset.type=type;
+  if(impEl) impEl.dataset.type=type;
+  calcAllDebounced();
 }
 
 function getIC(iid,qty,isNW){
@@ -1454,6 +1510,7 @@ function buildSummary(){
   calcCommission();
   const d=lastCalc;
   const rep=vs('rep_name',' '),date=vs('quote_date',' '),qnum=vs('quote_num',''),qname=vs('quote_name',''),notes=vs('order_notes','');
+  const clientName=vs('client_name',''),clientCompany=vs('client_company','');
   const ship=vs('ship_date',''),cNotes=vs('comm_notes','');
   const commReportDate=calcCommReportDate(ship);
 
@@ -1623,8 +1680,10 @@ function buildSummary(){
     <div class="sum-logo-bar">
       <div class="sum-meta">
         ${qnum?`<div><strong>Quote #${qnum}</strong>${qname?'   '+qname:''}</div>`:qname?`<div><strong>${qname}</strong></div>`:''}
+        ${(clientName||clientCompany)?`<div style="font-size:13px;font-weight:700;color:var(--text2)">${[clientName,clientCompany].filter(Boolean).join(' — ')}</div>`:''}
         <div>${date}</div>
         <div>Rep: ${rep}</div>
+        ${(vs('client_name')||vs('client_company'))?`<div style="font-weight:600">${vs('client_name')||''} ${vs('client_company')?'— '+vs('client_company'):''}</div>`:''}
       </div>
     </div>
 
@@ -1738,6 +1797,7 @@ function serializeQuote(){
     hg_setup_margin:getItemMargin('hg_'+hid+'_setup'),
     hg_rush_margin:getItemMargin('hg_'+hid+'_rush')};});
   return{page1:{rep:vs('rep_name'),quoteNum:vs('quote_num'),quoteName:vs('quote_name'),
+    clientName:vs('client_name'),clientCompany:vs('client_company'),
     quoteDate:vs('quote_date'),commSplit:vs('comm_split'),
     hasAM:document.getElementById('has_am')?.checked||false,
     shipDate:vs('ship_date'),orderNotes:vs('order_notes'),
@@ -1756,6 +1816,7 @@ async function deserializeQuote(data){
   const setV=(id,val)=>{const el=document.getElementById(id);if(el&&val!=null)el.value=val;};
   const setC=(id,val)=>{const el=document.getElementById(id);if(el)el.checked=!!val;};
   setV('rep_name',p1.rep);setV('quote_num',p1.quoteNum);setV('quote_name',p1.quoteName);
+  setV('client_name',p1.clientName);setV('client_company',p1.clientCompany);
   setV('quote_date',p1.quoteDate);setV('comm_split',p1.commSplit);
   setV('ship_date',p1.shipDate);setV('order_notes',p1.orderNotes);
   setC('has_am',p1.hasAM);setC('ihd_firm',p1.ihdFirm);
@@ -1770,13 +1831,37 @@ async function deserializeQuote(data){
     setC('gwhitebase_'+gid,g.gwhitebase);setC('gno_screens_'+gid,g.gno_screens);
     if(g.g_margin_pct)perItemMargins['g_'+gid]={pct:g.g_margin_pct};
     const szRowEls=document.getElementById('szrows_'+gid)?.querySelectorAll('[id^="szrow_"]')||[];
-    (g.szRows||[]).forEach(sr=>{
-      const stdIdx=STANDARD_SZ.indexOf(sr.size);
-      if(stdIdx>=0&&szRowEls[stdIdx]){const rid=szRowEls[stdIdx].id.replace('szrow_','');
-        setV('sz_cost_'+rid,sr.cost);setV('sz_qty_'+rid,sr.qty);setV('sz_up_'+rid,sr.up);
-      }else{addSzRow(gid);const mc=window.szCtrs&&window.szCtrs[gid]||1;const rid=gid+'_sz_'+mc;
-        setV('sz_size_'+rid,sr.size);setV('sz_cost_'+rid,sr.cost);setV('sz_qty_'+rid,sr.qty);}
-    });
+    const szRowsData=g.szRows||[];
+    const hasOldRange=szRowsData.some(sr=>sr.size==='XS-XL'||sr.size==='xs-xl');
+    if(hasOldRange){
+      const baseRow=szRowsData.find(sr=>sr.size==='XS-XL'||sr.size==='xs-xl');
+      const upRows=szRowsData.filter(sr=>sr.size!=='XS-XL'&&sr.size!=='xs-xl');
+      if(baseRow){szRowEls.forEach(rowEl=>{const rid=rowEl.id.replace('szrow_','');setV('sz_cost_'+rid,baseRow.cost);});}
+      for(const sr of upRows){
+        addSzRow(gid);await new Promise(r2=>setTimeout(r2,10));
+        const mc=window.szCtrs&&window.szCtrs[gid]||1;const rid2=gid+'_sz_'+mc;
+        setV('sz_size_'+rid2,sr.size);setV('sz_cost_'+rid2,sr.cost);
+        setV('sz_qty_'+rid2,sr.qty);setV('sz_up_'+rid2,sr.up||0);
+      }
+    } else {
+      for(const sr of szRowsData){
+        const stdIdx=STANDARD_SZ.indexOf(sr.size);
+        if(stdIdx>=0&&szRowEls[stdIdx]){
+          const rid=szRowEls[stdIdx].id.replace('szrow_','');
+          setV('sz_cost_'+rid,sr.cost);setV('sz_qty_'+rid,sr.qty);setV('sz_up_'+rid,sr.up||0);
+        } else if(sr.size==='XS'){
+          addXSRow(gid);await new Promise(r2=>setTimeout(r2,10));
+          const c2=document.getElementById('szrows_'+gid);
+          if(c2){const fr=c2.querySelector('[id^="szrow_"]');if(fr){const rid=fr.id.replace('szrow_','');setV('sz_cost_'+rid,sr.cost);setV('sz_qty_'+rid,sr.qty);}}
+        } else {
+          addSzRow(gid);await new Promise(r2=>setTimeout(r2,10));
+          const mc=window.szCtrs&&window.szCtrs[gid]||1;const rid=gid+'_sz_'+mc;
+          setV('sz_size_'+rid,sr.size);setV('sz_cost_'+rid,sr.cost);
+          setV('sz_qty_'+rid,sr.qty);setV('sz_up_'+rid,sr.up||0);
+        }
+      }
+    }
+    
     for(const imp of(g.imps||[])){
       addImp(gid);await new Promise(r=>setTimeout(r,20));
       const iid=gid+'_'+(iCtrs[gid]||1);setIT(iid,imp.type);
@@ -1947,7 +2032,8 @@ function exportQuoteData(){
   const commReport=calcCommReportDate(ship);
   const today=new Date().toLocaleDateString('en-US',{month:'long',day:'numeric',year:'numeric'});
   const fullData=serializeQuote();
-  const payload={...fullData,exportedAt:today,quoteNum:qnum,quoteName:qname,rep,ihd:ship,
+  const payload={...fullData,exportedAt:today,quoteNum:qnum,quoteName:qname,rep,
+    clientName:vs('client_name'),clientCompany:vs('client_company'),ihd:ship,
     commissionReport:commReport,commissionSplit:split,hasAM:hasAMFlag,
     totalNetCost:d.grand||0,totalSell:d.tSell||0,grossProfit:d.gp||0,
     avgMargin:d.tSell>0?Math.round((1-(d.grand||0)/(d.tSell||1))*1000)/10:0,
@@ -1969,7 +2055,7 @@ function startNew(){
   window.pricingMode={app:'margin',hg:'margin'};
   document.getElementById('garments_container').innerHTML='';
   document.getElementById('hg_container').innerHTML='';
-  ['order_notes','ship_date','comm_notes','quote_name','quote_num'].forEach(id=>{const e=document.getElementById(id);if(e)e.value='';});
+  ['order_notes','ship_date','comm_notes','quote_name','quote_num','client_name','client_company'].forEach(id=>{const e=document.getElementById(id);if(e)e.value='';});
   const rnEl=document.getElementById('rep_name');if(rnEl)rnEl.value='';
   const csEl=document.getElementById('comm_split');if(csEl)csEl.value='standard';
   ['has_am','approval_ack'].forEach(id=>{const e=document.getElementById(id);if(e)e.checked=false;});

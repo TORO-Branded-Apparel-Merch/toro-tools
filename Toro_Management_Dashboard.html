@@ -4,7 +4,220 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>TORO Management Dashboard</title>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js">
+// ── Feedback inbox ────────────────────────────────────────────────────────
+let feedbackData={};
+
+async function loadFeedback(){
+  const data=await fbGet('feedback');
+  feedbackData=data||{};
+  renderFeedback();
+  // Update badge
+  const unread=Object.values(feedbackData).filter(f=>!f.read).length;
+  const badge=document.getElementById('feedback-badge');
+  if(badge){badge.style.display=unread>0?'':'none';badge.textContent=unread;}
+}
+
+function renderFeedback(){
+  const wrap=document.getElementById('feedback-wrap');
+  if(!wrap) return;
+  const items=Object.entries(feedbackData).sort((a,b)=>b[1].sentAt>a[1].sentAt?1:-1);
+  if(!items.length){wrap.innerHTML='<div class="section-block"><div class="empty">No feedback yet</div></div>';return;}
+  let html='<div class="section-block">';
+  items.forEach(([key,f])=>{
+    const dt=f.sentAt?new Date(f.sentAt).toLocaleString('en-US',{month:'short',day:'numeric',hour:'numeric',minute:'2-digit'}):'';
+    html+=`<div style="padding:12px 16px;border-bottom:1px solid var(--border);${f.read?'opacity:.7':''}">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
+        <div style="font-weight:700;font-size:13px">${f.rep||'Unknown'} <span style="font-size:11px;color:var(--text3);font-weight:400">${dt}</span></div>
+        ${!f.read?`<button class="btn btn-sm btn-outline" onclick="markFeedbackRead('${key}')">Mark read</button>`:'<span style="font-size:10px;color:var(--text3)">Read</span>'}
+      </div>
+      <div style="font-size:13px;color:var(--text2)">${f.message||''}</div>
+    </div>`;
+  });
+  html+='</div>';
+  wrap.innerHTML=html;
+}
+
+async function markFeedbackRead(key){
+  await fbPatch('feedback/'+key,{read:true});
+  feedbackData[key]&&(feedbackData[key].read=true);
+  renderFeedback();
+  const unread=Object.values(feedbackData).filter(f=>!f.read).length;
+  const badge=document.getElementById('feedback-badge');
+  if(badge){badge.style.display=unread>0?'':'none';badge.textContent=unread;}
+}
+
+// ── Approval thread messaging ─────────────────────────────────────────────
+function openApprovalThread(key, quoteName){
+  let modal=document.getElementById('dash-thread-modal');
+  if(!modal){
+    modal=document.createElement('div');
+    modal.id='dash-thread-modal';
+    modal.style.cssText='display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:10000;align-items:center;justify-content:center';
+    modal.innerHTML=`<div style="background:#fff;border-radius:12px;padding:24px;max-width:500px;width:92%;max-height:80vh;display:flex;flex-direction:column;box-shadow:0 20px 60px rgba(0,0,0,.3)">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+        <div style="font-size:15px;font-weight:700" id="dash-thread-title">Approval notes</div>
+        <button onclick="document.getElementById('dash-thread-modal').style.display='none'" style="background:none;border:none;font-size:20px;cursor:pointer;color:#888">&#10005;</button>
+      </div>
+      <div id="dash-thread-messages" style="flex:1;overflow-y:auto;border:1px solid var(--border);border-radius:6px;padding:10px;margin-bottom:12px;min-height:120px;max-height:300px;font-size:13px"></div>
+      <textarea id="dash-thread-input" rows="2" placeholder="Add a note..."
+        style="width:100%;padding:8px;font-size:13px;border:1px solid var(--border2);border-radius:6px;resize:none;box-sizing:border-box;font-family:inherit;margin-bottom:8px"></textarea>
+      <button class="btn btn-primary" onclick="sendDashThreadMsg()">Send note</button>
+    </div>`;
+    document.body.appendChild(modal);
+  }
+  modal.dataset.key=key;
+  document.getElementById('dash-thread-title').textContent='Notes: '+(quoteName||key);
+  modal.style.display='flex';
+  loadDashThreadMessages(key);
+}
+
+async function loadDashThreadMessages(key){
+  const msgEl=document.getElementById('dash-thread-messages');
+  if(!msgEl) return;
+  msgEl.innerHTML='<div style="color:var(--text3);font-size:12px">Loading...</div>';
+  const data=await fbGet('approvals/'+key+'/messages');
+  if(!data||Object.keys(data).length===0){
+    msgEl.innerHTML='<div style="color:var(--text3);font-size:12px;padding:8px">No messages yet.</div>';return;
+  }
+  const msgs=Object.values(data).sort((a,b)=>a.sentAt>b.sentAt?1:-1);
+  msgEl.innerHTML=msgs.map(m=>{
+    const isMgmt=m.sender==='Management'||m.sender==='Stephen';
+    const dt=m.sentAt?new Date(m.sentAt).toLocaleString('en-US',{month:'short',day:'numeric',hour:'numeric',minute:'2-digit'}):'';
+    return `<div style="margin-bottom:10px;${isMgmt?'text-align:right':''}">
+      <div style="display:inline-block;max-width:80%;background:${isMgmt?'var(--red)':'#f0f0f0'};color:${isMgmt?'#fff':'var(--text)'};padding:7px 10px;border-radius:8px;font-size:13px">${m.message}</div>
+      <div style="font-size:10px;color:var(--text3);margin-top:2px">${m.sender} · ${dt}</div>
+    </div>`;
+  }).join('');
+  msgEl.scrollTop=msgEl.scrollHeight;
+}
+
+async function sendDashThreadMsg(){
+  const modal=document.getElementById('dash-thread-modal');
+  const key=modal?.dataset.key;
+  const input=document.getElementById('dash-thread-input');
+  const msg=input?.value.trim();
+  if(!key||!msg) return;
+  const msgKey='msg_'+Date.now();
+  await fbSet('approvals/'+key+'/messages/'+msgKey,{
+    sender:'Management', message:msg, sentAt:new Date().toISOString()
+  });
+  if(input) input.value='';
+  loadDashThreadMessages(key);
+}
+
+// ── Dashboard reporting ───────────────────────────────────────────────────
+function downloadDashReport(){
+  if(!quotes.length){ alert('No quotes loaded.'); return; }
+  const clients=[...new Set(quotes.map(q=>q.clientCompany||q.clientName||'').filter(Boolean))].sort();
+  const REPS_LIST=['Shannon','Stephen','Julia','Lexi','Amy','Debbie'];
+
+  let modal=document.getElementById('dash-report-modal');
+  if(!modal){
+    modal=document.createElement('div');
+    modal.id='dash-report-modal';
+    modal.style.cssText='display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:10000;align-items:center;justify-content:center';
+    modal.innerHTML=`<div style="background:#fff;border-radius:12px;padding:24px;max-width:400px;width:92%;box-shadow:0 20px 60px rgba(0,0,0,.3)">
+      <div style="font-size:15px;font-weight:700;margin-bottom:16px">Export report</div>
+      <div id="dash-report-filters"></div>
+    </div>`;
+    document.body.appendChild(modal);
+  }
+
+  document.getElementById('dash-report-filters').innerHTML=`
+    <div style="margin-bottom:12px">
+      <label style="font-size:12px;font-weight:700;display:block;margin-bottom:4px">Filter by rep</label>
+      <select id="drpt-rep" style="width:100%;padding:7px;border:1px solid #ccc;border-radius:4px;font-size:13px">
+        <option value="">All reps</option>
+        ${REPS_LIST.map(r=>`<option value="${r}">${r}</option>`).join('')}
+      </select>
+    </div>
+    <div style="margin-bottom:12px">
+      <label style="font-size:12px;font-weight:700;display:block;margin-bottom:4px">Date filter</label>
+      <select id="drpt-date-type" style="width:100%;padding:7px;border:1px solid #ccc;border-radius:4px;font-size:13px;margin-bottom:6px">
+        <option value="">All dates</option>
+        <option value="quoteDate">By quote date</option>
+        <option value="ihd">By in-hands date</option>
+        <option value="commissionReport">By commission period</option>
+      </select>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px">
+        <input type="date" id="drpt-from" style="padding:6px;border:1px solid #ccc;border-radius:4px;font-size:13px">
+        <input type="date" id="drpt-to" style="padding:6px;border:1px solid #ccc;border-radius:4px;font-size:13px">
+      </div>
+    </div>
+    <div style="margin-bottom:16px">
+      <label style="font-size:12px;font-weight:700;display:block;margin-bottom:4px">Filter by client</label>
+      <select id="drpt-client" style="width:100%;padding:7px;border:1px solid #ccc;border-radius:4px;font-size:13px">
+        <option value="">All clients</option>
+        ${clients.map(c=>`<option value="${c}">${c}</option>`).join('')}
+      </select>
+    </div>
+    <div style="display:flex;gap:8px">
+      <button onclick="runDashReport()" style="flex:1;padding:9px;background:#C41E1E;color:#fff;font-weight:700;border:none;border-radius:6px;cursor:pointer;font-size:13px">Download Excel</button>
+      <button onclick="document.getElementById('dash-report-modal').style.display='none'" style="flex:1;padding:9px;background:#f0f0f0;font-weight:700;border:none;border-radius:6px;cursor:pointer;font-size:13px">Cancel</button>
+    </div>`;
+  modal.style.display='flex';
+}
+
+function runDashReport(){
+  const repFilter=document.getElementById('drpt-rep')?.value||'';
+  const dateType=document.getElementById('drpt-date-type')?.value||'';
+  const dateFrom=document.getElementById('drpt-from')?.value||'';
+  const dateTo=document.getElementById('drpt-to')?.value||'';
+  const clientFilter=document.getElementById('drpt-client')?.value||'';
+
+  let filtered=quotes.filter(q=>{
+    if(repFilter&&q.rep!==repFilter) return false;
+    if(clientFilter&&(q.clientCompany||q.clientName||'')!==clientFilter) return false;
+    if(dateType&&(dateFrom||dateTo)){
+      let dv=dateType==='quoteDate'?(q.quoteDate||q.exportedAt||''):dateType==='ihd'?(q.ihd||''):(q.commissionReport||'');
+      if(!dv) return false;
+      const d=new Date(dv);if(isNaN(d.getTime())) return false;
+      if(dateFrom&&d<new Date(dateFrom)) return false;
+      if(dateTo&&d>new Date(dateTo+'T23:59:59')) return false;
+    }
+    return true;
+  });
+
+  if(!filtered.length){ alert('No quotes match the selected filters.'); return; }
+
+  const HEADERS=['Quote #','Quote name','Client name','Company','Rep','Quote date','IHD','Commission period','Split','Sell','Net cost','GP','Margin %','Rep payout','House profit','Status','Paid','Paid date'];
+  const rows=[HEADERS,...filtered.map(q=>[
+    q.quoteNum||'',q.quoteName||'',q.clientName||'',q.clientCompany||'',
+    q.rep||'',q.quoteDate||q.exportedAt||'',q.ihd||'',q.commissionReport||'',
+    q.commissionSplit||'standard',
+    q.totalSell||0,q.totalNetCost||0,(q.totalSell||0)-(q.totalNetCost||0),
+    q.avgMargin||0,q.totalRepComm||0,q.totalHouseProfit||0,
+    q.workflowStatus||'active',q.paid?'Yes':'No',q.paidDate||''
+  ])];
+
+  const wb=XLSX.utils.book_new();
+  // Summary sheet
+  const ws=XLSX.utils.aoa_to_sheet(rows);
+  XLSX.utils.book_append_sheet(wb,ws,'All Quotes');
+
+  // Per-rep sheets
+  const REPS_LIST=['Shannon','Stephen','Julia','Lexi','Amy','Debbie'];
+  REPS_LIST.forEach(rep=>{
+    const repRows=filtered.filter(q=>q.rep===rep);
+    if(!repRows.length) return;
+    const wsRep=XLSX.utils.aoa_to_sheet([HEADERS,...repRows.map(q=>[
+      q.quoteNum||'',q.quoteName||'',q.clientName||'',q.clientCompany||'',
+      q.rep||'',q.quoteDate||q.exportedAt||'',q.ihd||'',q.commissionReport||'',
+      q.commissionSplit||'standard',
+      q.totalSell||0,q.totalNetCost||0,(q.totalSell||0)-(q.totalNetCost||0),
+      q.avgMargin||0,q.totalRepComm||0,q.totalHouseProfit||0,
+      q.workflowStatus||'active',q.paid?'Yes':'No',q.paidDate||''
+    ])]);
+    XLSX.utils.book_append_sheet(wb,wsRep,rep);
+  });
+
+  const date=new Date().toLocaleDateString('en-US').replace(/\//g,'-');
+  XLSX.writeFile(wb,'TORO_Dashboard_Report_'+date+'.xlsx');
+  document.getElementById('dash-report-modal').style.display='none';
+}
+
+</script>
 <style>
 :root{
   --red:#C41E1E;--green:#1a7f4b;--bg:#F7F7F8;--surface:#fff;
@@ -80,7 +293,8 @@ tr:hover td{background:#fafafa}
   <div style="display:flex;gap:8px;align-items:center">
     <span id="last-updated" style="color:#888;font-size:11px">Loading...</span>
     <button onclick="loadAll()" style="padding:6px 12px;background:#fff;border:none;border-radius:6px;font-size:12px;font-weight:700;cursor:pointer">&#8635; Refresh</button>
-    <button onclick="downloadExcel()" style="padding:6px 12px;background:var(--green);color:#fff;border:none;border-radius:6px;font-size:12px;font-weight:700;cursor:pointer">&#128229; Excel</button>
+    <button onclick="downloadDashReport()" style="padding:6px 12px;background:#1a7f4b;color:#fff;border:none;border-radius:6px;font-size:12px;font-weight:700;cursor:pointer">&#128202; Report</button>
+    <button onclick="downloadExcel()" style="padding:6px 12px;background:var(--green);color:#fff;border:none;border-radius:6px;font-size:12px;font-weight:700;cursor:pointer">&#128229; Export all</button>
   </div>
 </div>
 
@@ -97,12 +311,14 @@ tr:hover td{background:#fafafa}
     <div class="tab" data-tab="commission">Ready for Commission</div>
     <div class="tab" data-tab="by-rep">By Rep</div>
     <div class="tab" data-tab="all">All Quotes</div>
+    <div class="tab" data-tab="feedback">&#128172; Feedback <span id="feedback-badge" style="display:none;background:var(--red);color:#fff;font-size:10px;padding:1px 5px;border-radius:8px;margin-left:4px">0</span></div>
   </div>
 
   <div class="tab-panel active" id="panel-approvals"><div id="approvals-wrap"></div></div>
   <div class="tab-panel" id="panel-commission"><div id="commission-wrap"></div></div>
   <div class="tab-panel" id="panel-by-rep"><div id="rep-wrap"></div></div>
   <div class="tab-panel" id="panel-all"><div id="all-wrap"></div></div>
+  <div class="tab-panel" id="panel-feedback"><div id="feedback-wrap"></div></div>
 </div>
 
 <script>
@@ -241,6 +457,7 @@ async function loadAll(){
     localStorage.setItem('toro_dash_quotes',JSON.stringify(quotes));
     document.getElementById('last-updated').textContent=quotes.length+' quotes loaded';
     render();
+    loadFeedback();
   } catch(e){ console.error(e); document.getElementById('last-updated').textContent='Sync failed'; }
 }
 
@@ -256,8 +473,19 @@ function startListeners(){
 
 // ── Approval actions ──────────────────────────────────────────────────────
 async function approveQuote(key){
-  console.log('approveQuote called with key:', key, 'approvals[key]:', approvals[key]);
-  if(!approvals[key]){ console.error('No approval found for key:', key); return; }
+  console.log('approveQuote called with key:', key);
+  console.log('approvals object keys:', Object.keys(approvals));
+  console.log('approvals[key]:', approvals[key]);
+  if(!approvals[key]){
+    // Try decoding/encoding variants
+    const decoded=decodeURIComponent(key);
+    const encoded=encodeURIComponent(key);
+    const found=approvals[decoded]||approvals[encoded]||Object.values(approvals).find(a=>a&&(a.quoteNum===key||a.quoteNum===decoded));
+    if(!found){ console.error('No approval found for key',key,'decoded',decoded,'keys',Object.keys(approvals)); alert('Could not find approval for key: '+key+'. Check browser console.'); return; }
+    // Use found approval
+    const realKey=approvals[decoded]?decoded:(approvals[encoded]?encoded:Object.keys(approvals).find(k=>approvals[k]===found));
+    key=realKey;
+  }
   await fbSet('approvals/'+key,{...approvals[key], status:'approved', reviewedAt:new Date().toISOString()});
   // Update quote in rep's path
   const rep=approvals[key]&&approvals[key].rep;
@@ -277,7 +505,11 @@ async function approveQuote(key){
 
 async function rejectQuote(key){
   console.log('rejectQuote called with key:', key);
-  if(!approvals[key]){ console.error('No approval found for key:', key); return; }
+  if(!approvals[key]){
+    const decoded=decodeURIComponent(key);
+    if(approvals[decoded]) key=decoded;
+    else{ alert('Could not find approval for key: '+key); return; }
+  }
   const note=document.getElementById('note_'+key)&&document.getElementById('note_'+key).value||'';
   if(!note.trim()){ alert('Please add a rejection note so the rep knows what to fix.'); return; }
   await fbSet('approvals/'+key,{...approvals[key], status:'rejected', note, reviewedAt:new Date().toISOString()});
@@ -395,6 +627,7 @@ function render(){
             <div style="display:flex;gap:6px">
               <button class="btn btn-sm btn-green" data-key="${encodeURIComponent(key)}" onclick="approveQuote(decodeURIComponent(this.dataset.key))">&#10003; Approve</button>
               <button class="btn btn-sm btn-primary" data-key="${encodeURIComponent(key)}" onclick="rejectQuote(decodeURIComponent(this.dataset.key))">&#10005; Reject</button>
+              <button class="btn btn-sm btn-outline" data-key="${encodeURIComponent(key)}" data-name="${a.quoteName||a.quoteNum||''}" onclick="openApprovalThread(decodeURIComponent(this.dataset.key),this.dataset.name)">&#128172; Notes</button>
             </div>
             <input id="note_${key}" class="note-input" placeholder="Rejection note (required to reject)">
           </div>
@@ -484,7 +717,7 @@ function render(){
     rqs.forEach(q=>{
       const mg=q.avgMargin||0;
       repHtml+=`<tr>
-        <td><strong>${q.quoteName||('#'+(q.quoteNum||'Unnamed'))}</strong>${q.quoteNum&&q.quoteName?`<br><span style="font-size:10px;color:var(--text3)">#${q.quoteNum}</span>`:''}</td>
+        <td><strong>${q.quoteName||('#'+(q.quoteNum||'Unnamed'))}</strong>${q.quoteNum&&q.quoteName?`<br><span style="font-size:10px;color:var(--text3)">#${q.quoteNum}</span>`:''} ${(q.clientName||q.clientCompany)?`<br><span style="font-size:10px;color:var(--text2);font-weight:600">${[q.clientName,q.clientCompany].filter(Boolean).join(' — ')}</span>`:''}</td>
         <td>${q.rep||''}</td>
         <td class="r">${fmt(q.totalNetCost)}</td>
         <td class="r">${fmt(q.totalSell)}</td>
@@ -516,7 +749,7 @@ function render(){
         wf==='needsApproval'?'<span class="status-badge" style="background:#fff8e1;color:#7a4f00">Needs Approval</span>':
         wf==='submittedCommission'?'<span class="status-badge badge-approved">Submitted</span>':'';
       allHtml+=`<tr>
-        <td><strong>${q.quoteName||('#'+(q.quoteNum||'Unnamed'))}</strong>${q.quoteNum&&q.quoteName?`<br><span style="font-size:10px;color:var(--text3)">#${q.quoteNum}</span>`:''}</td>
+        <td><strong>${q.quoteName||('#'+(q.quoteNum||'Unnamed'))}</strong>${q.quoteNum&&q.quoteName?`<br><span style="font-size:10px;color:var(--text3)">#${q.quoteNum}</span>`:''} ${(q.clientName||q.clientCompany)?`<br><span style="font-size:10px;color:var(--text2);font-weight:600">${[q.clientName,q.clientCompany].filter(Boolean).join(' — ')}</span>`:''}</td>
         <td>${q.rep||''}</td>
         <td class="r">${fmt(q.totalNetCost)}</td>
         <td class="r">${fmt(q.totalSell)}</td>
@@ -573,6 +806,219 @@ window.addEventListener('unhandledrejection', function(e){
   const msg = e.reason && e.reason.message ? e.reason.message : String(e.reason);
   showErrorBanner('Error: '+msg+' — Please contact management if this continues.');
 });
+
+// ── Feedback inbox ────────────────────────────────────────────────────────
+let feedbackData={};
+
+async function loadFeedback(){
+  const data=await fbGet('feedback');
+  feedbackData=data||{};
+  renderFeedback();
+  // Update badge
+  const unread=Object.values(feedbackData).filter(f=>!f.read).length;
+  const badge=document.getElementById('feedback-badge');
+  if(badge){badge.style.display=unread>0?'':'none';badge.textContent=unread;}
+}
+
+function renderFeedback(){
+  const wrap=document.getElementById('feedback-wrap');
+  if(!wrap) return;
+  const items=Object.entries(feedbackData).sort((a,b)=>b[1].sentAt>a[1].sentAt?1:-1);
+  if(!items.length){wrap.innerHTML='<div class="section-block"><div class="empty">No feedback yet</div></div>';return;}
+  let html='<div class="section-block">';
+  items.forEach(([key,f])=>{
+    const dt=f.sentAt?new Date(f.sentAt).toLocaleString('en-US',{month:'short',day:'numeric',hour:'numeric',minute:'2-digit'}):'';
+    html+=`<div style="padding:12px 16px;border-bottom:1px solid var(--border);${f.read?'opacity:.7':''}">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
+        <div style="font-weight:700;font-size:13px">${f.rep||'Unknown'} <span style="font-size:11px;color:var(--text3);font-weight:400">${dt}</span></div>
+        ${!f.read?`<button class="btn btn-sm btn-outline" onclick="markFeedbackRead('${key}')">Mark read</button>`:'<span style="font-size:10px;color:var(--text3)">Read</span>'}
+      </div>
+      <div style="font-size:13px;color:var(--text2)">${f.message||''}</div>
+    </div>`;
+  });
+  html+='</div>';
+  wrap.innerHTML=html;
+}
+
+async function markFeedbackRead(key){
+  await fbPatch('feedback/'+key,{read:true});
+  feedbackData[key]&&(feedbackData[key].read=true);
+  renderFeedback();
+  const unread=Object.values(feedbackData).filter(f=>!f.read).length;
+  const badge=document.getElementById('feedback-badge');
+  if(badge){badge.style.display=unread>0?'':'none';badge.textContent=unread;}
+}
+
+// ── Approval thread messaging ─────────────────────────────────────────────
+function openApprovalThread(key, quoteName){
+  let modal=document.getElementById('dash-thread-modal');
+  if(!modal){
+    modal=document.createElement('div');
+    modal.id='dash-thread-modal';
+    modal.style.cssText='display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:10000;align-items:center;justify-content:center';
+    modal.innerHTML=`<div style="background:#fff;border-radius:12px;padding:24px;max-width:500px;width:92%;max-height:80vh;display:flex;flex-direction:column;box-shadow:0 20px 60px rgba(0,0,0,.3)">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+        <div style="font-size:15px;font-weight:700" id="dash-thread-title">Approval notes</div>
+        <button onclick="document.getElementById('dash-thread-modal').style.display='none'" style="background:none;border:none;font-size:20px;cursor:pointer;color:#888">&#10005;</button>
+      </div>
+      <div id="dash-thread-messages" style="flex:1;overflow-y:auto;border:1px solid var(--border);border-radius:6px;padding:10px;margin-bottom:12px;min-height:120px;max-height:300px;font-size:13px"></div>
+      <textarea id="dash-thread-input" rows="2" placeholder="Add a note..."
+        style="width:100%;padding:8px;font-size:13px;border:1px solid var(--border2);border-radius:6px;resize:none;box-sizing:border-box;font-family:inherit;margin-bottom:8px"></textarea>
+      <button class="btn btn-primary" onclick="sendDashThreadMsg()">Send note</button>
+    </div>`;
+    document.body.appendChild(modal);
+  }
+  modal.dataset.key=key;
+  document.getElementById('dash-thread-title').textContent='Notes: '+(quoteName||key);
+  modal.style.display='flex';
+  loadDashThreadMessages(key);
+}
+
+async function loadDashThreadMessages(key){
+  const msgEl=document.getElementById('dash-thread-messages');
+  if(!msgEl) return;
+  msgEl.innerHTML='<div style="color:var(--text3);font-size:12px">Loading...</div>';
+  const data=await fbGet('approvals/'+key+'/messages');
+  if(!data||Object.keys(data).length===0){
+    msgEl.innerHTML='<div style="color:var(--text3);font-size:12px;padding:8px">No messages yet.</div>';return;
+  }
+  const msgs=Object.values(data).sort((a,b)=>a.sentAt>b.sentAt?1:-1);
+  msgEl.innerHTML=msgs.map(m=>{
+    const isMgmt=m.sender==='Management'||m.sender==='Stephen';
+    const dt=m.sentAt?new Date(m.sentAt).toLocaleString('en-US',{month:'short',day:'numeric',hour:'numeric',minute:'2-digit'}):'';
+    return `<div style="margin-bottom:10px;${isMgmt?'text-align:right':''}">
+      <div style="display:inline-block;max-width:80%;background:${isMgmt?'var(--red)':'#f0f0f0'};color:${isMgmt?'#fff':'var(--text)'};padding:7px 10px;border-radius:8px;font-size:13px">${m.message}</div>
+      <div style="font-size:10px;color:var(--text3);margin-top:2px">${m.sender} · ${dt}</div>
+    </div>`;
+  }).join('');
+  msgEl.scrollTop=msgEl.scrollHeight;
+}
+
+async function sendDashThreadMsg(){
+  const modal=document.getElementById('dash-thread-modal');
+  const key=modal?.dataset.key;
+  const input=document.getElementById('dash-thread-input');
+  const msg=input?.value.trim();
+  if(!key||!msg) return;
+  const msgKey='msg_'+Date.now();
+  await fbSet('approvals/'+key+'/messages/'+msgKey,{
+    sender:'Management', message:msg, sentAt:new Date().toISOString()
+  });
+  if(input) input.value='';
+  loadDashThreadMessages(key);
+}
+
+// ── Dashboard reporting ───────────────────────────────────────────────────
+function downloadDashReport(){
+  if(!quotes.length){ alert('No quotes loaded.'); return; }
+  const clients=[...new Set(quotes.map(q=>q.clientCompany||q.clientName||'').filter(Boolean))].sort();
+  const REPS_LIST=['Shannon','Stephen','Julia','Lexi','Amy','Debbie'];
+
+  let modal=document.getElementById('dash-report-modal');
+  if(!modal){
+    modal=document.createElement('div');
+    modal.id='dash-report-modal';
+    modal.style.cssText='display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:10000;align-items:center;justify-content:center';
+    modal.innerHTML=`<div style="background:#fff;border-radius:12px;padding:24px;max-width:400px;width:92%;box-shadow:0 20px 60px rgba(0,0,0,.3)">
+      <div style="font-size:15px;font-weight:700;margin-bottom:16px">Export report</div>
+      <div id="dash-report-filters"></div>
+    </div>`;
+    document.body.appendChild(modal);
+  }
+
+  document.getElementById('dash-report-filters').innerHTML=`
+    <div style="margin-bottom:12px">
+      <label style="font-size:12px;font-weight:700;display:block;margin-bottom:4px">Filter by rep</label>
+      <select id="drpt-rep" style="width:100%;padding:7px;border:1px solid #ccc;border-radius:4px;font-size:13px">
+        <option value="">All reps</option>
+        ${REPS_LIST.map(r=>`<option value="${r}">${r}</option>`).join('')}
+      </select>
+    </div>
+    <div style="margin-bottom:12px">
+      <label style="font-size:12px;font-weight:700;display:block;margin-bottom:4px">Date filter</label>
+      <select id="drpt-date-type" style="width:100%;padding:7px;border:1px solid #ccc;border-radius:4px;font-size:13px;margin-bottom:6px">
+        <option value="">All dates</option>
+        <option value="quoteDate">By quote date</option>
+        <option value="ihd">By in-hands date</option>
+        <option value="commissionReport">By commission period</option>
+      </select>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px">
+        <input type="date" id="drpt-from" style="padding:6px;border:1px solid #ccc;border-radius:4px;font-size:13px">
+        <input type="date" id="drpt-to" style="padding:6px;border:1px solid #ccc;border-radius:4px;font-size:13px">
+      </div>
+    </div>
+    <div style="margin-bottom:16px">
+      <label style="font-size:12px;font-weight:700;display:block;margin-bottom:4px">Filter by client</label>
+      <select id="drpt-client" style="width:100%;padding:7px;border:1px solid #ccc;border-radius:4px;font-size:13px">
+        <option value="">All clients</option>
+        ${clients.map(c=>`<option value="${c}">${c}</option>`).join('')}
+      </select>
+    </div>
+    <div style="display:flex;gap:8px">
+      <button onclick="runDashReport()" style="flex:1;padding:9px;background:#C41E1E;color:#fff;font-weight:700;border:none;border-radius:6px;cursor:pointer;font-size:13px">Download Excel</button>
+      <button onclick="document.getElementById('dash-report-modal').style.display='none'" style="flex:1;padding:9px;background:#f0f0f0;font-weight:700;border:none;border-radius:6px;cursor:pointer;font-size:13px">Cancel</button>
+    </div>`;
+  modal.style.display='flex';
+}
+
+function runDashReport(){
+  const repFilter=document.getElementById('drpt-rep')?.value||'';
+  const dateType=document.getElementById('drpt-date-type')?.value||'';
+  const dateFrom=document.getElementById('drpt-from')?.value||'';
+  const dateTo=document.getElementById('drpt-to')?.value||'';
+  const clientFilter=document.getElementById('drpt-client')?.value||'';
+
+  let filtered=quotes.filter(q=>{
+    if(repFilter&&q.rep!==repFilter) return false;
+    if(clientFilter&&(q.clientCompany||q.clientName||'')!==clientFilter) return false;
+    if(dateType&&(dateFrom||dateTo)){
+      let dv=dateType==='quoteDate'?(q.quoteDate||q.exportedAt||''):dateType==='ihd'?(q.ihd||''):(q.commissionReport||'');
+      if(!dv) return false;
+      const d=new Date(dv);if(isNaN(d.getTime())) return false;
+      if(dateFrom&&d<new Date(dateFrom)) return false;
+      if(dateTo&&d>new Date(dateTo+'T23:59:59')) return false;
+    }
+    return true;
+  });
+
+  if(!filtered.length){ alert('No quotes match the selected filters.'); return; }
+
+  const HEADERS=['Quote #','Quote name','Client name','Company','Rep','Quote date','IHD','Commission period','Split','Sell','Net cost','GP','Margin %','Rep payout','House profit','Status','Paid','Paid date'];
+  const rows=[HEADERS,...filtered.map(q=>[
+    q.quoteNum||'',q.quoteName||'',q.clientName||'',q.clientCompany||'',
+    q.rep||'',q.quoteDate||q.exportedAt||'',q.ihd||'',q.commissionReport||'',
+    q.commissionSplit||'standard',
+    q.totalSell||0,q.totalNetCost||0,(q.totalSell||0)-(q.totalNetCost||0),
+    q.avgMargin||0,q.totalRepComm||0,q.totalHouseProfit||0,
+    q.workflowStatus||'active',q.paid?'Yes':'No',q.paidDate||''
+  ])];
+
+  const wb=XLSX.utils.book_new();
+  // Summary sheet
+  const ws=XLSX.utils.aoa_to_sheet(rows);
+  XLSX.utils.book_append_sheet(wb,ws,'All Quotes');
+
+  // Per-rep sheets
+  const REPS_LIST=['Shannon','Stephen','Julia','Lexi','Amy','Debbie'];
+  REPS_LIST.forEach(rep=>{
+    const repRows=filtered.filter(q=>q.rep===rep);
+    if(!repRows.length) return;
+    const wsRep=XLSX.utils.aoa_to_sheet([HEADERS,...repRows.map(q=>[
+      q.quoteNum||'',q.quoteName||'',q.clientName||'',q.clientCompany||'',
+      q.rep||'',q.quoteDate||q.exportedAt||'',q.ihd||'',q.commissionReport||'',
+      q.commissionSplit||'standard',
+      q.totalSell||0,q.totalNetCost||0,(q.totalSell||0)-(q.totalNetCost||0),
+      q.avgMargin||0,q.totalRepComm||0,q.totalHouseProfit||0,
+      q.workflowStatus||'active',q.paid?'Yes':'No',q.paidDate||''
+    ])]);
+    XLSX.utils.book_append_sheet(wb,wsRep,rep);
+  });
+
+  const date=new Date().toLocaleDateString('en-US').replace(/\//g,'-');
+  XLSX.writeFile(wb,'TORO_Dashboard_Report_'+date+'.xlsx');
+  document.getElementById('dash-report-modal').style.display='none';
+}
+
 </script>
 
 <div id="toro-error-banner" onclick="this.style.display='none'">

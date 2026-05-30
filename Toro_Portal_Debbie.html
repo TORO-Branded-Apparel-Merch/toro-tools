@@ -67,7 +67,209 @@ details summary::-webkit-details-marker{display:none}
 #toro-error-banner span{color:#ccc;font-size:12px}
 #toro-error-banner .close-err{position:absolute;top:8px;right:10px;background:none;border:none;color:#888;cursor:pointer;font-size:16px}
 
+
+.feedback-modal{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:10000;align-items:center;justify-content:center}
+.feedback-modal.open{display:flex}
+.feedback-box{background:#fff;border-radius:12px;padding:28px;max-width:420px;width:90%;box-shadow:0 20px 60px rgba(0,0,0,.3)}
+
 </style>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js">
+function openFeedback(){
+  document.getElementById('feedback-modal').classList.add('open');
+  document.getElementById('feedback-text').value='';
+  document.getElementById('feedback-status').textContent='';
+  setTimeout(()=>document.getElementById('feedback-text').focus(),100);
+}
+function closeFeedback(){
+  document.getElementById('feedback-modal').classList.remove('open');
+}
+async function submitFeedback(){
+  const msg=document.getElementById('feedback-text').value.trim();
+  const status=document.getElementById('feedback-status');
+  if(!msg){status.style.color='var(--red)';status.textContent='Please enter a message.';return;}
+  status.style.color='var(--text3)';status.textContent='Sending...';
+  const key='fb_'+Date.now();
+  const ok=await fbSet('feedback/'+key,{
+    rep:REP, message:msg, sentAt:new Date().toISOString(), read:false
+  });
+  if(ok!==null){
+    status.style.color='var(--green)';status.textContent='Sent! Thank you.';
+    setTimeout(closeFeedback,1500);
+  } else {
+    status.style.color='var(--red)';status.textContent='Failed to send. Please try again.';
+  }
+}
+
+
+// ── Approval messaging ────────────────────────────────────────────────────
+let approvalThreads={};
+
+function openApprovalThread(qKey){
+  const q=quotes.find(x=>(x._fbKey||x.quoteNum)===qKey);
+  if(!q) return;
+  const key=q._fbKey||(q.quoteNum?q.quoteNum.replace(/[.#$\/\[\]]/g,'_'):null);
+  if(!key) return;
+
+  // Build modal
+  let modal=document.getElementById('approval-thread-modal');
+  if(!modal){
+    modal=document.createElement('div');
+    modal.id='approval-thread-modal';
+    modal.style.cssText='display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:10000;align-items:center;justify-content:center';
+    modal.innerHTML=`<div style="background:#fff;border-radius:12px;padding:24px;max-width:500px;width:92%;max-height:80vh;display:flex;flex-direction:column;box-shadow:0 20px 60px rgba(0,0,0,.3)">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+        <div style="font-size:15px;font-weight:700" id="thread-title">Approval thread</div>
+        <button onclick="document.getElementById('approval-thread-modal').style.display='none'" style="background:none;border:none;font-size:20px;cursor:pointer;color:#888">&#10005;</button>
+      </div>
+      <div id="thread-messages" style="flex:1;overflow-y:auto;border:1px solid var(--border);border-radius:6px;padding:10px;margin-bottom:12px;min-height:120px;max-height:300px;font-size:13px"></div>
+      <textarea id="thread-input" rows="2" placeholder="Add a note..."
+        style="width:100%;padding:8px;font-size:13px;border:1px solid var(--border2);border-radius:6px;resize:none;box-sizing:border-box;font-family:inherit;margin-bottom:8px"></textarea>
+      <div style="display:flex;gap:8px">
+        <button class="btn btn-primary" onclick="sendThreadMsg()" style="flex:1">Send note</button>
+      </div>
+    </div>`;
+    document.body.appendChild(modal);
+  }
+
+  modal.dataset.qkey=key;
+  modal.style.display='flex';
+  document.getElementById('thread-title').textContent='Notes: '+(q.quoteName||q.quoteNum||'Quote');
+  loadThreadMessages(key);
+}
+
+async function loadThreadMessages(key){
+  const msgEl=document.getElementById('thread-messages');
+  if(!msgEl) return;
+  msgEl.innerHTML='<div style="color:var(--text3);font-size:12px">Loading...</div>';
+  const data=await fbGet('approvals/'+key+'/messages');
+  if(!data||Object.keys(data).length===0){
+    msgEl.innerHTML='<div style="color:var(--text3);font-size:12px;padding:8px">No messages yet. Add the first note.</div>';
+    return;
+  }
+  const msgs=Object.values(data).sort((a,b)=>a.sentAt>b.sentAt?1:-1);
+  msgEl.innerHTML=msgs.map(m=>{
+    const isRep=m.sender===REP;
+    const dt=m.sentAt?new Date(m.sentAt).toLocaleString('en-US',{month:'short',day:'numeric',hour:'numeric',minute:'2-digit'}):'';
+    return `<div style="margin-bottom:10px;${isRep?'text-align:right':''}">
+      <div style="display:inline-block;max-width:80%;background:${isRep?'var(--red)':'#f0f0f0'};color:${isRep?'#fff':'var(--text)'};padding:7px 10px;border-radius:8px;font-size:13px">${m.message}</div>
+      <div style="font-size:10px;color:var(--text3);margin-top:2px">${m.sender} · ${dt}</div>
+    </div>`;
+  }).join('');
+  msgEl.scrollTop=msgEl.scrollHeight;
+}
+
+async function sendThreadMsg(){
+  const modal=document.getElementById('approval-thread-modal');
+  const key=modal?.dataset.qkey;
+  const input=document.getElementById('thread-input');
+  const msg=input?.value.trim();
+  if(!key||!msg) return;
+  const msgKey='msg_'+Date.now();
+  await fbSet('approvals/'+key+'/messages/'+msgKey,{
+    sender:REP, message:msg, sentAt:new Date().toISOString()
+  });
+  if(input) input.value='';
+  loadThreadMessages(key);
+}
+
+
+// ── Reporting / Excel export ───────────────────────────────────────────────
+function downloadRepReport(){
+  if(!quotes.length){ alert('No quotes to export.'); return; }
+  // Load SheetJS
+  if(typeof XLSX==='undefined'){ alert('Excel library not loaded.'); return; }
+
+  // Build filter UI
+  const dateTypes=['Quote date','In-hands date','Commission period'];
+  const clients=[...new Set(quotes.map(q=>q.clientCompany||q.clientName||'').filter(Boolean))].sort();
+
+  let filterHtml=`<div style="font-family:sans-serif;padding:0">
+    <div style="margin-bottom:12px">
+      <label style="font-size:12px;font-weight:700;display:block;margin-bottom:4px">Date filter</label>
+      <select id="rpt-date-type" style="width:100%;padding:7px;border:1px solid #ccc;border-radius:4px;font-size:13px;margin-bottom:6px">
+        <option value="">All dates</option>
+        <option value="quoteDate">By quote date</option>
+        <option value="ihd">By in-hands date</option>
+        <option value="commissionReport">By commission period</option>
+      </select>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px">
+        <input type="date" id="rpt-date-from" style="padding:6px;border:1px solid #ccc;border-radius:4px;font-size:13px" placeholder="From">
+        <input type="date" id="rpt-date-to" style="padding:6px;border:1px solid #ccc;border-radius:4px;font-size:13px" placeholder="To">
+      </div>
+    </div>
+    <div style="margin-bottom:16px">
+      <label style="font-size:12px;font-weight:700;display:block;margin-bottom:4px">Client filter</label>
+      <select id="rpt-client" style="width:100%;padding:7px;border:1px solid #ccc;border-radius:4px;font-size:13px">
+        <option value="">All clients</option>
+        ${clients.map(c=>`<option value="${c}">${c}</option>`).join('')}
+      </select>
+    </div>
+    <div style="display:flex;gap:8px">
+      <button onclick="runReport()" style="flex:1;padding:9px;background:#C41E1E;color:#fff;font-weight:700;border:none;border-radius:6px;cursor:pointer;font-size:13px">Download Excel</button>
+      <button onclick="document.getElementById('report-modal').style.display='none'" style="flex:1;padding:9px;background:#f0f0f0;font-weight:700;border:none;border-radius:6px;cursor:pointer;font-size:13px">Cancel</button>
+    </div>
+  </div>`;
+
+  let modal=document.getElementById('report-modal');
+  if(!modal){
+    modal=document.createElement('div');
+    modal.id='report-modal';
+    modal.style.cssText='display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:10000;align-items:center;justify-content:center';
+    modal.innerHTML=`<div style="background:#fff;border-radius:12px;padding:24px;max-width:380px;width:90%;box-shadow:0 20px 60px rgba(0,0,0,.3)">
+      <div style="font-size:15px;font-weight:700;margin-bottom:16px">Export report</div>
+      <div id="report-filters"></div>
+    </div>`;
+    document.body.appendChild(modal);
+  }
+  document.getElementById('report-filters').innerHTML=filterHtml;
+  modal.style.display='flex';
+}
+
+function runReport(){
+  const dateType=document.getElementById('rpt-date-type')?.value||'';
+  const dateFrom=document.getElementById('rpt-date-from')?.value||'';
+  const dateTo=document.getElementById('rpt-date-to')?.value||'';
+  const clientFilter=document.getElementById('rpt-client')?.value||'';
+
+  let filtered=quotes.filter(q=>{
+    // Client filter
+    if(clientFilter&&(q.clientCompany||q.clientName||'')!==clientFilter) return false;
+    // Date filter
+    if(dateType&&(dateFrom||dateTo)){
+      let dateVal='';
+      if(dateType==='quoteDate') dateVal=q.quoteDate||q.exportedAt||'';
+      else if(dateType==='ihd') dateVal=q.ihd||'';
+      else if(dateType==='commissionReport') dateVal=q.commissionReport||'';
+      if(!dateVal) return false;
+      const d=new Date(dateVal);
+      if(isNaN(d.getTime())) return false;
+      if(dateFrom&&d<new Date(dateFrom)) return false;
+      if(dateTo&&d>new Date(dateTo+'T23:59:59')) return false;
+    }
+    return true;
+  });
+
+  if(!filtered.length){ alert('No quotes match the selected filters.'); return; }
+
+  const HEADERS=['Quote #','Quote name','Client name','Company','Rep','Quote date','IHD','Commission period','Split','Sell','Net cost','GP','Margin %','Rep payout','House profit','Status','Paid'];
+  const rows=[HEADERS,...filtered.map(q=>[
+    q.quoteNum||'',q.quoteName||'',q.clientName||'',q.clientCompany||'',
+    q.rep||'',q.quoteDate||q.exportedAt||'',q.ihd||'',q.commissionReport||'',
+    q.commissionSplit||'standard',
+    q.totalSell||0,q.totalNetCost||0,(q.totalSell||0)-(q.totalNetCost||0),
+    q.avgMargin||0,q.totalRepComm||0,q.totalHouseProfit||0,
+    q.workflowStatus||'active',q.paid?'Yes':'No'
+  ])];
+
+  const wb=XLSX.utils.book_new();
+  const ws=XLSX.utils.aoa_to_sheet(rows);
+  XLSX.utils.book_append_sheet(wb,ws,REP+' Quotes');
+  const date=new Date().toLocaleDateString('en-US').replace(/\//g,'-');
+  XLSX.writeFile(wb,'TORO_Report_'+REP+'_'+date+'.xlsx');
+  document.getElementById('report-modal').style.display='none';
+}
+
+</script>
 </head>
 <body>
 
@@ -107,7 +309,7 @@ details summary::-webkit-details-marker{display:none}
     <h1>TORO Commission Portal</h1>
     <span class="rep-badge">Debbie</span>
   </div>
-  <span id="status-text" style="color:#888;font-size:12px">Loading...</span><span style="color:#555;font-size:10px;margin-left:8px">v1780168771</span>
+  <button onclick="openFeedback()" style="padding:5px 10px;background:none;border:1px solid #555;border-radius:6px;color:#aaa;font-size:11px;cursor:pointer;margin-right:8px" title="Send feedback to management">&#128172; Feedback</button><span id="status-text" style="color:#888;font-size:12px">Loading...</span><span style="color:#555;font-size:10px;margin-left:8px">v1780168771</span>
 </div>
 
 <div class="container">
@@ -123,7 +325,7 @@ details summary::-webkit-details-marker{display:none}
     <span style="font-size:13px;font-weight:600;color:var(--text2)">Ready to submit to Stephen?</span>
     <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
       <button class="btn btn-outline btn-sm" onclick="clearLocalData()" title="Clear local cache">&#8635; Reset</button>
-      <button class="btn btn-primary" onclick="exportBundle()">&#128190; Export commission bundle</button>
+      <button class="btn btn-outline btn-sm" onclick="downloadRepReport()">&#128202; Report</button><button class="btn btn-primary" onclick="exportBundle()">&#128190; Export commission bundle</button>
     </div>
   </div>
   <div id="main-content"><div class="section-block"><div class="empty">Loading...</div></div></div>
@@ -497,6 +699,7 @@ function quoteRow(q,idx,locked,showUndo){
   html+='<td>';
   html+='<div style="font-weight:700;font-size:13px">'+name+(locked?'<span class="locked-badge"> LOCKED</span>':'')+'</div>';
   if(q.quoteNum&&q.quoteName) html+='<div style="font-size:10px;color:var(--text3)">#'+q.quoteNum+'</div>';
+  if(q.clientName||q.clientCompany) html+='<div style="font-size:10px;color:var(--text2);font-weight:600">'+(q.clientName||'')+(q.clientName&&q.clientCompany?' — ':'')+(q.clientCompany||'')+'</div>';
   if(q.ihd) html+='<div style="font-size:10px;color:var(--text3)">IHD: '+q.ihd+'</div>';
   if(q.commissionReport) html+='<div style="font-size:10px;color:var(--text3)">Period: '+q.commissionReport+'</div>';
   if(q.approvalStatus==='rejected'&&q.approvalNote) html+='<div class="rejection-note">&#9888; '+q.approvalNote+'</div>';
@@ -519,7 +722,13 @@ async function deleteQuote(qKey){
   let q=quotes.find(x=>(x._fbKey||x.quoteNum)===qKey);
   if(!q) q=quotes.find(x=>x._fbKey===qKey||x.quoteNum===qKey);
   if(!q) q=quotes.find(x=>encodeURIComponent(x._fbKey||x.quoteNum||'')===qKey);
-  if(!q){ console.warn('deleteQuote: not found for key',qKey,'quotes:',quotes.map(x=>x._fbKey||x.quoteNum)); return; }
+  if(!q) q=quotes.find(x=>decodeURIComponent(x._fbKey||x.quoteNum||'')===qKey);
+  if(!q){
+    console.warn('deleteQuote: not found for key',qKey);
+    console.log('Available keys:', quotes.map(x=>({fbKey:x._fbKey,quoteNum:x.quoteNum})));
+    alert('Could not locate quote to delete. Check browser console for details.');
+    return;
+  }
   const idx=quotes.indexOf(q);
   if(idx>=0) quotes.splice(idx,1);
   localStorage.setItem(STORAGE_KEY,JSON.stringify(quotes));
@@ -686,12 +895,224 @@ window.addEventListener('unhandledrejection', function(e){
   const msg = e.reason && e.reason.message ? e.reason.message : String(e.reason);
   showErrorBanner('Error: '+msg+' — Please contact management if this continues.');
 });
+
+function openFeedback(){
+  document.getElementById('feedback-modal').classList.add('open');
+  document.getElementById('feedback-text').value='';
+  document.getElementById('feedback-status').textContent='';
+  setTimeout(()=>document.getElementById('feedback-text').focus(),100);
+}
+function closeFeedback(){
+  document.getElementById('feedback-modal').classList.remove('open');
+}
+async function submitFeedback(){
+  const msg=document.getElementById('feedback-text').value.trim();
+  const status=document.getElementById('feedback-status');
+  if(!msg){status.style.color='var(--red)';status.textContent='Please enter a message.';return;}
+  status.style.color='var(--text3)';status.textContent='Sending...';
+  const key='fb_'+Date.now();
+  const ok=await fbSet('feedback/'+key,{
+    rep:REP, message:msg, sentAt:new Date().toISOString(), read:false
+  });
+  if(ok!==null){
+    status.style.color='var(--green)';status.textContent='Sent! Thank you.';
+    setTimeout(closeFeedback,1500);
+  } else {
+    status.style.color='var(--red)';status.textContent='Failed to send. Please try again.';
+  }
+}
+
+
+// ── Approval messaging ────────────────────────────────────────────────────
+let approvalThreads={};
+
+function openApprovalThread(qKey){
+  const q=quotes.find(x=>(x._fbKey||x.quoteNum)===qKey);
+  if(!q) return;
+  const key=q._fbKey||(q.quoteNum?q.quoteNum.replace(/[.#$\/\[\]]/g,'_'):null);
+  if(!key) return;
+
+  // Build modal
+  let modal=document.getElementById('approval-thread-modal');
+  if(!modal){
+    modal=document.createElement('div');
+    modal.id='approval-thread-modal';
+    modal.style.cssText='display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:10000;align-items:center;justify-content:center';
+    modal.innerHTML=`<div style="background:#fff;border-radius:12px;padding:24px;max-width:500px;width:92%;max-height:80vh;display:flex;flex-direction:column;box-shadow:0 20px 60px rgba(0,0,0,.3)">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+        <div style="font-size:15px;font-weight:700" id="thread-title">Approval thread</div>
+        <button onclick="document.getElementById('approval-thread-modal').style.display='none'" style="background:none;border:none;font-size:20px;cursor:pointer;color:#888">&#10005;</button>
+      </div>
+      <div id="thread-messages" style="flex:1;overflow-y:auto;border:1px solid var(--border);border-radius:6px;padding:10px;margin-bottom:12px;min-height:120px;max-height:300px;font-size:13px"></div>
+      <textarea id="thread-input" rows="2" placeholder="Add a note..."
+        style="width:100%;padding:8px;font-size:13px;border:1px solid var(--border2);border-radius:6px;resize:none;box-sizing:border-box;font-family:inherit;margin-bottom:8px"></textarea>
+      <div style="display:flex;gap:8px">
+        <button class="btn btn-primary" onclick="sendThreadMsg()" style="flex:1">Send note</button>
+      </div>
+    </div>`;
+    document.body.appendChild(modal);
+  }
+
+  modal.dataset.qkey=key;
+  modal.style.display='flex';
+  document.getElementById('thread-title').textContent='Notes: '+(q.quoteName||q.quoteNum||'Quote');
+  loadThreadMessages(key);
+}
+
+async function loadThreadMessages(key){
+  const msgEl=document.getElementById('thread-messages');
+  if(!msgEl) return;
+  msgEl.innerHTML='<div style="color:var(--text3);font-size:12px">Loading...</div>';
+  const data=await fbGet('approvals/'+key+'/messages');
+  if(!data||Object.keys(data).length===0){
+    msgEl.innerHTML='<div style="color:var(--text3);font-size:12px;padding:8px">No messages yet. Add the first note.</div>';
+    return;
+  }
+  const msgs=Object.values(data).sort((a,b)=>a.sentAt>b.sentAt?1:-1);
+  msgEl.innerHTML=msgs.map(m=>{
+    const isRep=m.sender===REP;
+    const dt=m.sentAt?new Date(m.sentAt).toLocaleString('en-US',{month:'short',day:'numeric',hour:'numeric',minute:'2-digit'}):'';
+    return `<div style="margin-bottom:10px;${isRep?'text-align:right':''}">
+      <div style="display:inline-block;max-width:80%;background:${isRep?'var(--red)':'#f0f0f0'};color:${isRep?'#fff':'var(--text)'};padding:7px 10px;border-radius:8px;font-size:13px">${m.message}</div>
+      <div style="font-size:10px;color:var(--text3);margin-top:2px">${m.sender} · ${dt}</div>
+    </div>`;
+  }).join('');
+  msgEl.scrollTop=msgEl.scrollHeight;
+}
+
+async function sendThreadMsg(){
+  const modal=document.getElementById('approval-thread-modal');
+  const key=modal?.dataset.qkey;
+  const input=document.getElementById('thread-input');
+  const msg=input?.value.trim();
+  if(!key||!msg) return;
+  const msgKey='msg_'+Date.now();
+  await fbSet('approvals/'+key+'/messages/'+msgKey,{
+    sender:REP, message:msg, sentAt:new Date().toISOString()
+  });
+  if(input) input.value='';
+  loadThreadMessages(key);
+}
+
+
+// ── Reporting / Excel export ───────────────────────────────────────────────
+function downloadRepReport(){
+  if(!quotes.length){ alert('No quotes to export.'); return; }
+  // Load SheetJS
+  if(typeof XLSX==='undefined'){ alert('Excel library not loaded.'); return; }
+
+  // Build filter UI
+  const dateTypes=['Quote date','In-hands date','Commission period'];
+  const clients=[...new Set(quotes.map(q=>q.clientCompany||q.clientName||'').filter(Boolean))].sort();
+
+  let filterHtml=`<div style="font-family:sans-serif;padding:0">
+    <div style="margin-bottom:12px">
+      <label style="font-size:12px;font-weight:700;display:block;margin-bottom:4px">Date filter</label>
+      <select id="rpt-date-type" style="width:100%;padding:7px;border:1px solid #ccc;border-radius:4px;font-size:13px;margin-bottom:6px">
+        <option value="">All dates</option>
+        <option value="quoteDate">By quote date</option>
+        <option value="ihd">By in-hands date</option>
+        <option value="commissionReport">By commission period</option>
+      </select>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px">
+        <input type="date" id="rpt-date-from" style="padding:6px;border:1px solid #ccc;border-radius:4px;font-size:13px" placeholder="From">
+        <input type="date" id="rpt-date-to" style="padding:6px;border:1px solid #ccc;border-radius:4px;font-size:13px" placeholder="To">
+      </div>
+    </div>
+    <div style="margin-bottom:16px">
+      <label style="font-size:12px;font-weight:700;display:block;margin-bottom:4px">Client filter</label>
+      <select id="rpt-client" style="width:100%;padding:7px;border:1px solid #ccc;border-radius:4px;font-size:13px">
+        <option value="">All clients</option>
+        ${clients.map(c=>`<option value="${c}">${c}</option>`).join('')}
+      </select>
+    </div>
+    <div style="display:flex;gap:8px">
+      <button onclick="runReport()" style="flex:1;padding:9px;background:#C41E1E;color:#fff;font-weight:700;border:none;border-radius:6px;cursor:pointer;font-size:13px">Download Excel</button>
+      <button onclick="document.getElementById('report-modal').style.display='none'" style="flex:1;padding:9px;background:#f0f0f0;font-weight:700;border:none;border-radius:6px;cursor:pointer;font-size:13px">Cancel</button>
+    </div>
+  </div>`;
+
+  let modal=document.getElementById('report-modal');
+  if(!modal){
+    modal=document.createElement('div');
+    modal.id='report-modal';
+    modal.style.cssText='display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:10000;align-items:center;justify-content:center';
+    modal.innerHTML=`<div style="background:#fff;border-radius:12px;padding:24px;max-width:380px;width:90%;box-shadow:0 20px 60px rgba(0,0,0,.3)">
+      <div style="font-size:15px;font-weight:700;margin-bottom:16px">Export report</div>
+      <div id="report-filters"></div>
+    </div>`;
+    document.body.appendChild(modal);
+  }
+  document.getElementById('report-filters').innerHTML=filterHtml;
+  modal.style.display='flex';
+}
+
+function runReport(){
+  const dateType=document.getElementById('rpt-date-type')?.value||'';
+  const dateFrom=document.getElementById('rpt-date-from')?.value||'';
+  const dateTo=document.getElementById('rpt-date-to')?.value||'';
+  const clientFilter=document.getElementById('rpt-client')?.value||'';
+
+  let filtered=quotes.filter(q=>{
+    // Client filter
+    if(clientFilter&&(q.clientCompany||q.clientName||'')!==clientFilter) return false;
+    // Date filter
+    if(dateType&&(dateFrom||dateTo)){
+      let dateVal='';
+      if(dateType==='quoteDate') dateVal=q.quoteDate||q.exportedAt||'';
+      else if(dateType==='ihd') dateVal=q.ihd||'';
+      else if(dateType==='commissionReport') dateVal=q.commissionReport||'';
+      if(!dateVal) return false;
+      const d=new Date(dateVal);
+      if(isNaN(d.getTime())) return false;
+      if(dateFrom&&d<new Date(dateFrom)) return false;
+      if(dateTo&&d>new Date(dateTo+'T23:59:59')) return false;
+    }
+    return true;
+  });
+
+  if(!filtered.length){ alert('No quotes match the selected filters.'); return; }
+
+  const HEADERS=['Quote #','Quote name','Client name','Company','Rep','Quote date','IHD','Commission period','Split','Sell','Net cost','GP','Margin %','Rep payout','House profit','Status','Paid'];
+  const rows=[HEADERS,...filtered.map(q=>[
+    q.quoteNum||'',q.quoteName||'',q.clientName||'',q.clientCompany||'',
+    q.rep||'',q.quoteDate||q.exportedAt||'',q.ihd||'',q.commissionReport||'',
+    q.commissionSplit||'standard',
+    q.totalSell||0,q.totalNetCost||0,(q.totalSell||0)-(q.totalNetCost||0),
+    q.avgMargin||0,q.totalRepComm||0,q.totalHouseProfit||0,
+    q.workflowStatus||'active',q.paid?'Yes':'No'
+  ])];
+
+  const wb=XLSX.utils.book_new();
+  const ws=XLSX.utils.aoa_to_sheet(rows);
+  XLSX.utils.book_append_sheet(wb,ws,REP+' Quotes');
+  const date=new Date().toLocaleDateString('en-US').replace(/\//g,'-');
+  XLSX.writeFile(wb,'TORO_Report_'+REP+'_'+date+'.xlsx');
+  document.getElementById('report-modal').style.display='none';
+}
+
 </script>
 
 <div id="toro-error-banner" onclick="this.style.display='none'">
   <button class="close-err" onclick="event.stopPropagation();this.parentElement.style.display='none'">&#10005;</button>
   <strong>&#9888; Something went wrong</strong>
   <span id="toro-error-msg">An unexpected error occurred. Please contact management if this continues.</span>
+</div>
+
+
+<!-- Feedback modal -->
+<div class="feedback-modal" id="feedback-modal">
+  <div class="feedback-box">
+    <div style="font-size:16px;font-weight:700;margin-bottom:4px">Send feedback to management</div>
+    <div style="font-size:12px;color:var(--text3);margin-bottom:16px">Share suggestions, issues, or anything on your mind.</div>
+    <textarea id="feedback-text" rows="4" placeholder="Type your feedback here..."
+      style="width:100%;padding:10px;font-size:13px;border:1px solid var(--border2);border-radius:6px;resize:vertical;box-sizing:border-box;font-family:inherit"></textarea>
+    <div id="feedback-status" style="font-size:12px;min-height:16px;margin-top:6px"></div>
+    <div style="display:flex;gap:8px;margin-top:12px">
+      <button class="btn btn-primary" onclick="submitFeedback()" style="flex:1">Send</button>
+      <button class="btn btn-outline" onclick="closeFeedback()" style="flex:1">Cancel</button>
+    </div>
+  </div>
 </div>
 
 </body>
