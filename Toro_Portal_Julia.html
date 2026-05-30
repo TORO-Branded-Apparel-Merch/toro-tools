@@ -395,6 +395,11 @@ async function fbGet(path) {
 
 async function fbSet(path, data) {
   try {
+    if(data === null) {
+      // Use DELETE to truly remove the node from Firebase
+      const res = await fetch(`${FIREBASE_DB_URL}/${path}.json`, { method: 'DELETE' });
+      return res.ok;
+    }
     const res = await fetch(`${FIREBASE_DB_URL}/${path}.json`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
