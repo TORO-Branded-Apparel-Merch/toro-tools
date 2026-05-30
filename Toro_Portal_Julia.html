@@ -722,10 +722,7 @@ async function deleteQuote(qKey){
   let q=quotes.find(x=>(x._fbKey||x.quoteNum)===decoded);
   if(!q) q=quotes.find(x=>x._fbKey===decoded||x.quoteNum===decoded);
   if(!q) q=quotes.find(x=>x._localIdx===decoded);
-  if(!q&&decoded.startsWith('idx_')){
-    const i=parseInt(decoded.replace('idx_',''));
-    if(!isNaN(i)&&quotes[i]) q=quotes[i];
-  }
+  if(!q&&decoded.startsWith('idx_')){const i=parseInt(decoded.replace('idx_',''));if(!isNaN(i)&&quotes[i])q=quotes[i];}
   if(!q){ console.warn('deleteQuote: not found',qKey); alert('Could not locate quote. Please refresh and try again.'); return; }
   const idx=quotes.indexOf(q);
   if(idx>=0) quotes.splice(idx,1);
@@ -733,6 +730,9 @@ async function deleteQuote(qKey){
   render();
   fbListenerActive=false;
   await fbDelete(q);
+  // Also remove any approval record for this quote
+  const approvalKey=q._fbKey||(q.quoteNum?q.quoteNum.replace(/[.#$\/\[\]]/g,'_'):null);
+  if(approvalKey) await fbSet('approvals/'+approvalKey, null);
   setTimeout(()=>{ fbListenerActive=true; },2000);
 }
 

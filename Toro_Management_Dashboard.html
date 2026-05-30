@@ -217,6 +217,14 @@ function runDashReport(){
   document.getElementById('dash-report-modal').style.display='none';
 }
 
+
+async function dismissApproval(key){
+  if(!confirm('Remove this approval request? This cannot be undone.')) return;
+  await fbSet('approvals/'+key, null);
+  delete approvals[key];
+  render();
+}
+
 </script>
 <style>
 :root{
@@ -628,6 +636,7 @@ function render(){
               <button class="btn btn-sm btn-green" data-key="${encodeURIComponent(key)}" onclick="approveQuote(decodeURIComponent(this.dataset.key))">&#10003; Approve</button>
               <button class="btn btn-sm btn-primary" data-key="${encodeURIComponent(key)}" onclick="rejectQuote(decodeURIComponent(this.dataset.key))">&#10005; Reject</button>
               <button class="btn btn-sm btn-outline" data-key="${encodeURIComponent(key)}" data-name="${a.quoteName||a.quoteNum||''}" onclick="openApprovalThread(decodeURIComponent(this.dataset.key),this.dataset.name)">&#128172; Notes</button>
+              <button class="btn btn-sm" style="background:none;border:1px solid #ddd;color:#aaa;font-size:11px" data-key="${encodeURIComponent(key)}" onclick="dismissApproval(decodeURIComponent(this.dataset.key))">&#10005; Dismiss</button>
             </div>
             <input id="note_${key}" class="note-input" placeholder="Rejection note (required to reject)">
           </div>
@@ -1017,6 +1026,14 @@ function runDashReport(){
   const date=new Date().toLocaleDateString('en-US').replace(/\//g,'-');
   XLSX.writeFile(wb,'TORO_Dashboard_Report_'+date+'.xlsx');
   document.getElementById('dash-report-modal').style.display='none';
+}
+
+
+async function dismissApproval(key){
+  if(!confirm('Remove this approval request? This cannot be undone.')) return;
+  await fbSet('approvals/'+key, null);
+  delete approvals[key];
+  render();
 }
 
 </script>
