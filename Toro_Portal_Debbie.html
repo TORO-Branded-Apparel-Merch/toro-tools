@@ -117,7 +117,7 @@ details summary::-webkit-details-marker{display:none}
     <span style="font-size:13px;font-weight:600;color:var(--text2)">Ready to submit to Stephen?</span>
     <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
       <button class="btn btn-outline btn-sm" onclick="clearLocalData()" title="Clear local cache">&#8635; Reset</button>
-      <button class="btn btn-primary" onclick="exportAllPeriods()">&#128190; Export all commission reports</button>
+      <button class="btn btn-primary" onclick="exportBundle()">&#128190; Export commission bundle</button>
     </div>
   </div>
   <div id="main-content"><div class="section-block"><div class="empty">Loading...</div></div></div>
@@ -367,29 +367,30 @@ function loadFiles(files){
 // ── Status updates ────────────────────────────────────────────────────────
 async function toggleStatus(qKey,field){
   const q=quotes.find(x=>(x._fbKey||x.quoteNum)===qKey);
-  if(!q) return;
-  if(q.workflowStatus==='submittedCommission'||quotes[qIdx].workflowStatus==='archived') return;
-  if(!quotes[qIdx].statusChecks) quotes[qIdx].statusChecks={quoteApproved:false,orderCompleted:false,paidByClient:false,readyForPayment:false};
-  quotes[qIdx].statusChecks[field]=!quotes[qIdx].statusChecks[field];
-  await fbSave(quotes[qIdx]);
+  if(!q) { console.warn('toggleStatus: quote not found for key',qKey); return; }
+  if(q.workflowStatus==='submittedCommission'||q.workflowStatus==='archived') return;
+  if(!q.statusChecks) q.statusChecks={quoteApproved:false,orderCompleted:false,paidByClient:false,readyForPayment:false};
+  q.statusChecks[field]=!q.statusChecks[field];
   localStorage.setItem(STORAGE_KEY,JSON.stringify(quotes));
   render();
+  await fbSave(q);
 }
 
 async function submitForApproval(qKey){
-  quotes[qIdx].workflowStatus='waitingApproval';
-  quotes[qIdx].approvalStatus='waiting';
-  // Write to Firebase approvals path so dashboard picks it up
-  const key=quotes[qIdx]._fbKey||quotes[qIdx].quoteNum;
-  await fbSet('approvals/'+key,{
-    quoteNum:quotes[qIdx].quoteNum, quoteName:quotes[qIdx].quoteName,
-    rep:REP, status:'waiting', requestedAt:new Date().toISOString(),
-    sell:quotes[qIdx].totalSell, margin:quotes[qIdx].avgMargin,
-    commissionSplit:quotes[qIdx].commissionSplit
-  });
-  await fbSave(quotes[qIdx]);
+  const q=quotes.find(x=>(x._fbKey||x.quoteNum)===qKey);
+  if(!q) { console.warn('submitForApproval: quote not found for key',qKey); return; }
+  q.workflowStatus='waitingApproval';
+  q.approvalStatus='waiting';
   localStorage.setItem(STORAGE_KEY,JSON.stringify(quotes));
   render();
+  const key=q._fbKey||(q.quoteNum?q.quoteNum.replace(/[.#$\/\[\]]/g,'_'):null);
+  if(!key){ console.error('submitForApproval: no key for quote',q); return; }
+  await fbSet('approvals/'+key,{
+    quoteNum:q.quoteNum, quoteName:q.quoteName,
+    rep:REP, status:'waiting', requestedAt:new Date().toISOString(),
+    sell:q.totalSell, margin:q.avgMargin, commissionSplit:q.commissionSplit
+  });
+  await fbSave(q);
 }
 
 async function submitForCommission(period){
@@ -415,7 +416,7 @@ async function submitForCommission(period){
 // ── Export quote back to builder ──────────────────────────────────────────
 function exportToBuilder(qKey){
   const q=quotes.find(x=>(x._fbKey||x.quoteNum)===qKey);
-  if(!q) return;
+  if(!q){ console.warn('exportToBuilder: quote not found for key',qKey); return; }
   const blob=new Blob([JSON.stringify(q,null,2)],{type:'application/json'});
   const a=document.createElement('a');
   const name='TORO_Edit_'+(q.quoteNum||'quote')+'_'+(q.quoteName||'').replace(/[^a-z0-9]/gi,'_')+'.json';
@@ -503,7 +504,7 @@ function quoteRow(q,idx,locked,showUndo){
 async function deleteQuote(qKey){
   if(!confirm('Permanently remove this quote?')) return;
   const q=quotes.find(x=>(x._fbKey||x.quoteNum)===qKey);
-  if(!q) return;
+  if(!q){ console.warn('deleteQuote: quote not found for key',qKey); return; }
   const idx=quotes.indexOf(q);
   if(idx>=0) quotes.splice(idx,1);
   localStorage.setItem(STORAGE_KEY,JSON.stringify(quotes));
@@ -603,7 +604,7 @@ function render(){
         <span>My commission: <strong style="color:var(--brown)">${fmt(subRep)}</strong></span>
       </div>
       <table>${TH}<tbody>`;
-    readyForSub.forEach(q=>{ const i=quotes.findIndex(x=>x===q||(x.quoteNum&&x.quoteNum===q.quoteNum)); html+=quoteRow(q,i,false); });
+    readyForSub.forEach(q=>{ const i=quotes.findIndex(x=>x===q||(x.quoteNum&&x.quoteNum===q.quoteNum)); html+=quoteRow(q,i,false,true); });
     html+=`</tbody></table></div>`;
   }
 
