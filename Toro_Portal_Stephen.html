@@ -509,7 +509,7 @@ function render(){
         <span>&#9888; Approval Required (${needsApproval.length})</span>
       </div>
       <table>${TH}<tbody>`;
-    needsApproval.forEach(q=>{ const i=quotes.indexOf(q); html+=quoteRow(q,i,false); });
+    needsApproval.forEach(q=>{ const i=quotes.findIndex(x=>x===q||(x.quoteNum&&x.quoteNum===q.quoteNum)); html+=quoteRow(q,i,false); });
     html+=`</tbody></table></div>`;
   }
 
@@ -532,7 +532,7 @@ function render(){
         <span>My commission: <strong style="color:var(--brown)">${fmt(subRep)}</strong></span>
       </div>
       <table>${TH}<tbody>`;
-    readyForSub.forEach(q=>{ const i=quotes.indexOf(q); html+=quoteRow(q,i,false,true); });
+    readyForSub.forEach(q=>{ const i=quotes.findIndex(x=>x===q||(x.quoteNum&&x.quoteNum===q.quoteNum)); html+=quoteRow(q,i,false,true); });
     html+=`</tbody></table></div>`;
   }
 
@@ -543,7 +543,7 @@ function render(){
         <span>&#128203; Active Quotes (${active.length})</span>
       </div>
       <table>${TH}<tbody>`;
-    active.forEach(q=>{ const i=quotes.indexOf(q); html+=quoteRow(q,i,false); });
+    active.forEach(q=>{ const i=quotes.findIndex(x=>x===q||(x.quoteNum&&x.quoteNum===q.quoteNum)); html+=quoteRow(q,i,false); });
     html+=`</tbody></table></div>`;
   }
 
@@ -559,7 +559,7 @@ function render(){
           <button class="btn btn-outline btn-sm" style="margin-left:12px;font-size:10px" onclick="event.preventDefault();exportBundle()">&#128190; Export bundle</button>
         </summary>
         <table>${TH}<tbody>`;
-    archived.forEach(q=>{ const i=quotes.indexOf(q); html+=quoteRow(q,i,true); });
+    archived.forEach(q=>{ const i=quotes.findIndex(x=>x===q||(x.quoteNum&&x.quoteNum===q.quoteNum)); html+=quoteRow(q,i,true); });
     html+=`</tbody></table></details></div>`;
   }
 

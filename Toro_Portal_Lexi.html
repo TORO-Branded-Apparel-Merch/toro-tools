@@ -252,14 +252,17 @@ async function loadFromFirebase(){
   const data=await fbGet(FB_PATH);
   if(data){
     const fbQuotes=Object.values(data).filter(q=>q&&q.totalSell);
-    // Merge: Firebase wins on conflicts, but keep any local quotes not yet in Firebase
     fbQuotes.forEach(q=>{
+      // Ensure _fbKey is always set
+      if(!q._fbKey&&q.quoteNum) q._fbKey=q.quoteNum.replace(/[.#$\/\[\]]/g,'_');
+      // Ensure workflowStatus exists
+      if(!q.workflowStatus) q.workflowStatus='active';
+      if(!q.statusChecks) q.statusChecks={quoteApproved:false,orderCompleted:false,paidByClient:false,readyForPayment:false};
       const idx=quotes.findIndex(x=>x.quoteNum&&x.quoteNum===q.quoteNum);
       if(idx>=0) quotes[idx]=q; else quotes.push(q);
     });
-    // Remove local quotes that Firebase deleted
     quotes=quotes.filter(q=>{
-      if(!q.quoteNum) return true; // no key, keep local
+      if(!q.quoteNum) return true;
       return fbQuotes.some(f=>f.quoteNum===q.quoteNum);
     });
   } else {
@@ -513,7 +516,7 @@ function render(){
         <span>&#9888; Approval Required (${needsApproval.length})</span>
       </div>
       <table>${TH}<tbody>`;
-    needsApproval.forEach(q=>{ const i=quotes.indexOf(q); html+=quoteRow(q,i,false); });
+    needsApproval.forEach(q=>{ const i=quotes.findIndex(x=>x===q||(x.quoteNum&&x.quoteNum===q.quoteNum)); html+=quoteRow(q,i,false); });
     html+=`</tbody></table></div>`;
   }
 
@@ -536,7 +539,7 @@ function render(){
         <span>My commission: <strong style="color:var(--brown)">${fmt(subRep)}</strong></span>
       </div>
       <table>${TH}<tbody>`;
-    readyForSub.forEach(q=>{ const i=quotes.indexOf(q); html+=quoteRow(q,i,false,true); });
+    readyForSub.forEach(q=>{ const i=quotes.findIndex(x=>x===q||(x.quoteNum&&x.quoteNum===q.quoteNum)); html+=quoteRow(q,i,false,true); });
     html+=`</tbody></table></div>`;
   }
 
@@ -547,7 +550,7 @@ function render(){
         <span>&#128203; Active Quotes (${active.length})</span>
       </div>
       <table>${TH}<tbody>`;
-    active.forEach(q=>{ const i=quotes.indexOf(q); html+=quoteRow(q,i,false); });
+    active.forEach(q=>{ const i=quotes.findIndex(x=>x===q||(x.quoteNum&&x.quoteNum===q.quoteNum)); html+=quoteRow(q,i,false); });
     html+=`</tbody></table></div>`;
   }
 
@@ -563,7 +566,7 @@ function render(){
           <button class="btn btn-outline btn-sm" style="margin-left:12px;font-size:10px" onclick="event.preventDefault();exportBundle()">&#128190; Export bundle</button>
         </summary>
         <table>${TH}<tbody>`;
-    archived.forEach(q=>{ const i=quotes.indexOf(q); html+=quoteRow(q,i,true); });
+    archived.forEach(q=>{ const i=quotes.findIndex(x=>x===q||(x.quoteNum&&x.quoteNum===q.quoteNum)); html+=quoteRow(q,i,true); });
     html+=`</tbody></table></details></div>`;
   }
 
