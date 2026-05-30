@@ -1952,24 +1952,23 @@ function reimportQuote(input){
     try{
       const q=JSON.parse(e.target.result);
       if(!q.totalSell){ status.textContent='Invalid quote file.'; return; }
-      // Pre-fill Page 1 fields
-      if(q.rep) document.getElementById('rep-select')&&(document.getElementById('rep-select').value=q.rep);
-      if(q.quoteNum) document.getElementById('quote-num')&&(document.getElementById('quote-num').value=q.quoteNum);
-      if(q.quoteName) document.getElementById('quote-name')&&(document.getElementById('quote-name').value=q.quoteName);
-      if(q.ihd) document.getElementById('ihd')&&(document.getElementById('ihd').value=q.ihd);
-      if(q.commissionSplit) document.getElementById('commission-split')&&(document.getElementById('commission-split').value=q.commissionSplit);
-      if(q.notes) document.getElementById('order-notes')&&(document.getElementById('order-notes').value=q.notes);
-      if(q.hasAM!=null){
-        const amCb=document.getElementById('has-am');
-        if(amCb) amCb.checked=q.hasAM;
-      }
-      // Store full quote data for restoration on other pages
+      // Pre-fill Page 1 fields using correct field IDs
+      const set=(id,val)=>{ const el=document.getElementById(id); if(el&&val!=null) el.value=val; };
+      set('rep_name', q.rep);
+      set('quote_num', q.quoteNum);
+      set('quote_name', q.quoteName);
+      set('comm_split', q.commissionSplit);
+      set('ship_date', q.ihd);
+      set('order_notes', q.notes);
+      const amCb=document.getElementById('has_am');
+      if(amCb&&q.hasAM!=null) amCb.checked=q.hasAM;
+      // Store full quote data for reference
       window._reimportedQuote=q;
-      status.textContent='Quote loaded. Review fields above and proceed to rebuild pricing.';
+      status.textContent='Quote loaded successfully. Review Page 1 fields then continue.';
       status.style.color='var(--green)';
       calcAllDebounced();
     } catch(err){
-      status.textContent='Error reading file.';
+      status.textContent='Error reading file: '+err.message;
       status.style.color='var(--red)';
     }
   };
