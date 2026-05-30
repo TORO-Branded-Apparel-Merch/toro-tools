@@ -1800,7 +1800,9 @@ function exportQuoteData(){
   const commReport=calcCommReportDate(ship);
   const today=new Date().toLocaleDateString('en-US',{month:'long',day:'numeric',year:'numeric'});
 
+  const fullData = serializeQuote();
   const payload={
+    ...fullData,
     exportedAt: today,
     quoteNum: qnum,
     quoteName: qname,
@@ -1957,48 +1959,267 @@ function reimportQuote(input){
   statusEl.style.color='var(--text3)';
   statusEl.textContent='Reading...';
   const r=new FileReader();
-  r.onload=e=>{
+  r.onload=async e=>{
     try{
       const q=JSON.parse(e.target.result);
       if(!q.totalSell&&!q.quoteNum){
         statusEl.style.background='#fff0f0'; statusEl.style.color='var(--red)';
-        statusEl.textContent='Invalid file — does not appear to be a TORO quote export.';
+        statusEl.textContent='Invalid file.';
         return;
       }
-      // Helper: set value and fire both input and change events so reactive system picks it up
-      function setField(id, val){
-        if(val==null||val==='') return;
-        const el=document.getElementById(id);
-        if(!el) return;
-        el.value=val;
-        el.dispatchEvent(new Event('input',{bubbles:true}));
-        el.dispatchEvent(new Event('change',{bubbles:true}));
+      if(q._fullQuote&&q.garments){
+        // Full quote — restore everything
+        statusEl.textContent='Restoring quote...';
+        await deserializeQuote(q);
+        statusEl.style.background='#e6f4ee'; statusEl.style.color='var(--green)';
+        statusEl.textContent='Quote restored: '+(q.quoteName||q.quoteNum||'unnamed')+'. All fields loaded.';
+      } else {
+        // Legacy export — restore page 1 only
+        const setV=(id,val)=>{ const el=document.getElementById(id); if(el&&val!=null) el.value=val; };
+        setV('rep_name', q.rep); setV('quote_num', q.quoteNum);
+        setV('quote_name', q.quoteName); setV('comm_split', q.commissionSplit||q.split);
+        setV('ship_date', q.ihd); setV('order_notes', q.notes);
+        const amEl=document.getElementById('has_am'); if(amEl) amEl.checked=!!q.hasAM;
+        calcAllDebounced();
+        statusEl.style.background='#fff3cd'; statusEl.style.color='#7a5500';
+        statusEl.textContent='Page 1 loaded (older export format — pricing must be re-entered).';
       }
-      function setCheck(id, val){
-        const el=document.getElementById(id);
-        if(!el) return;
-        el.checked=!!val;
-        el.dispatchEvent(new Event('change',{bubbles:true}));
-      }
-      setField('rep_name',    q.rep);
-      setField('quote_num',   q.quoteNum);
-      setField('quote_name',  q.quoteName);
-      setField('comm_split',  q.commissionSplit);
-      setField('ship_date',   q.ihd);
-      setField('order_notes', q.notes);
-      setCheck('has_am',      q.hasAM);
-      window._reimportedQuote=q;
-      statusEl.style.background='#e6f4ee';
-      statusEl.style.color='var(--green)';
-      statusEl.textContent='Quote loaded: '+(q.quoteName||q.quoteNum||'unnamed')+'. Review Page 1 fields and continue.';
-      calcAllDebounced();
     } catch(err){
-      statusEl.style.background='#fff0f0';
-      statusEl.style.color='var(--red)';
-      statusEl.textContent='Error reading file: '+err.message;
+      statusEl.style.background='#fff0f0'; statusEl.style.color='var(--red)';
+      statusEl.textContent='Error: '+err.message;
     }
   };
   r.readAsText(file);
+}
+
+
+// ── Full quote serialization / deserialization ────────────────────────────
+function serializeQuote() {
+  const gs = garments.map(g => {
+    const gid = g.id;
+    // Basic fields
+    const data = {
+      id: gid,
+      gtype:   vs('gtype_'+gid), gtype_other: vs('other_gtype_'+gid),
+      gbrand:  vs('gbrand_'+gid), gsku: vs('gsku_'+gid),
+      gvendor: vs('gvendor_'+gid), gdesign: vs('gdesign_'+gid),
+      gcolor:  vs('gcolor_'+gid), gfit: vs('gfit_'+gid),
+      gcost:   v('gcost_'+gid), gavgcost: v('gavgcost_'+gid),
+      gwhitebase: document.getElementById('gwhitebase_'+gid)?.checked||false,
+    };
+    // Size rows
+    const szContainer = document.getElementById('szrows_'+gid);
+    const szRows = [];
+    if(szContainer) {
+      szContainer.querySelectorAll('[id^="szrow_"]').forEach(row => {
+        const rid = row.id.replace('szrow_','');
+        szRows.push({
+          rid, size: vs('sz_size_'+rid), cost: v('sz_cost_'+rid),
+          qty: v('sz_qty_'+rid), grp: vs('sz_grp_'+rid), up: v('sz_up_'+rid)
+        });
+      });
+    }
+    data.szRows = szRows;
+    // Imprints
+    const impsContainer = document.getElementById('imps_'+gid);
+    const imps = [];
+    if(impsContainer) {
+      impsContainer.querySelectorAll('[id^="imp_"]').forEach(impEl => {
+        const iid = impEl.id.replace('imp_','');
+        const type = impEl.dataset.type||'screen';
+        const imp = { iid, type,
+          sp_loc: vs('sp_loc_'+iid), sp_loc_other: vs('other_sp_loc_'+iid),
+          sp_col: v('sp_col_'+iid), sp_ink: vs('sp_ink_'+iid),
+          sp_ic: v('sp_ic_'+iid), sp_setup: v('sp_setup_'+iid),
+          sp_ao: document.getElementById('sp_ao_'+iid)?.checked||false,
+          sp_ao_sleeve: document.getElementById('sp_ao_sleeve_'+iid)?.checked||false,
+          sp_ao_pocket: document.getElementById('sp_ao_pocket_'+iid)?.checked||false,
+          emb_loc: vs('emb_loc_'+iid), emb_loc_other: vs('other_emb_loc_'+iid),
+          emb_st: v('emb_st_'+iid), emb_tc: v('emb_tc_'+iid),
+          emb_dst: document.getElementById('emb_dst_'+iid)?.checked||false,
+          emb_puff: document.getElementById('emb_puff_'+iid)?.checked||false,
+          emb_os: document.getElementById('emb_os_'+iid)?.checked||false,
+          dtf_loc: vs('dtf_loc_'+iid), dtf_loc_other: vs('other_dtf_loc_'+iid),
+          dtf_sq: v('dtf_sq_'+iid),
+          heat_loc: vs('heat_loc_'+iid), heat_loc_other: vs('other_heat_loc_'+iid),
+          heat_t: vs('heat_t_'+iid),
+          vinyl_loc: vs('vinyl_loc_'+iid), vinyl_loc_other: vs('other_vinyl_loc_'+iid),
+          vinyl_t: vs('vinyl_t_'+iid),
+        };
+        imps.push(imp);
+      });
+    }
+    data.imps = imps;
+    // Misc fees
+    const miscContainer = document.getElementById('misc_'+gid);
+    const miscFees = [];
+    if(miscContainer) {
+      const mc = miscCtrs[gid]||0;
+      for(let mid=1; mid<=mc; mid++) {
+        const row = document.getElementById('miscrow_g'+gid+'_'+mid);
+        if(row) miscFees.push({
+          mid, desc: vs('misc_desc_g'+gid+'_'+mid),
+          net: v('misc_net_g'+gid+'_'+mid), sell: v('misc_sell_g'+gid+'_'+mid)
+        });
+      }
+    }
+    data.miscFees = miscFees;
+    return data;
+  });
+
+  const hgs = hardGoods.map(h => {
+    const hid = h.id;
+    const data = {
+      id: hid,
+      hg_desc: vs('hg_desc_'+hid), hg_design: vs('hg_design_'+hid),
+      hg_sku: vs('hg_sku_'+hid), hg_vendor: vs('hg_vendor_'+hid),
+      hg_colors: vs('hg_colors_'+hid), hg_dec: vs('hg_dec_'+hid),
+      hg_dec_other: vs('other_hg_dec_'+hid),
+      hg_qty: v('hg_qty_'+hid), hg_cost: v('hg_cost_'+hid),
+      hg_sc: v('hg_sc_'+hid), hg_dc: v('hg_dc_'+hid), hg_rush: v('hg_rush_'+hid),
+    };
+    // HG misc fees
+    const hgMiscContainer = document.getElementById('hgmisc_'+hid);
+    const hgMiscFees = [];
+    if(hgMiscContainer) {
+      const mc = hgMiscCtrs[hid]||0;
+      for(let mid=1; mid<=mc; mid++) {
+        const row = document.getElementById('hgmiscrow_'+hid+'_'+mid);
+        if(row) hgMiscFees.push({
+          mid, desc: vs('hgmisc_desc_'+hid+'_'+mid),
+          net: v('hgmisc_net_'+hid+'_'+mid), sell: v('hgmisc_sell_'+hid+'_'+mid)
+        });
+      }
+    }
+    data.hgMiscFees = hgMiscFees;
+    return data;
+  });
+
+  return {
+    page1: {
+      rep: vs('rep_name'), quoteNum: vs('quote_num'), quoteName: vs('quote_name'),
+      quoteDate: vs('quote_date'), commSplit: vs('comm_split'),
+      hasAM: document.getElementById('has_am')?.checked||false,
+      shipDate: vs('ship_date'), orderNotes: vs('order_notes'),
+    },
+    page4: {
+      marginPct: v('margin_pct',40), rushPct: v('rush_pct',0),
+      artHours: v('art_hours',0), bagging: v('bagging',0),
+      labeling: v('labeling',0), oop: v('oop',0),
+      hgMarginPct: v('hg_margin_pct',40), hgSetupPct: v('hg_setup_pct',20),
+      hgRushPct: v('hg_rush_pct',20),
+    },
+    garments: gs,
+    hardGoods: hgs,
+    _fullQuote: true
+  };
+}
+
+async function deserializeQuote(data) {
+  // Reset builder
+  garments=[]; hardGoods=[]; gCount=0; hCount=0; iCtrs={}; lastCalc={};
+  miscCtrs={}; hgMiscCtrs={};
+  document.getElementById('garments_container').innerHTML='';
+  document.getElementById('hg_container').innerHTML='';
+
+  // Page 1
+  const p1 = data.page1||{};
+  const setV = (id,val) => { const el=document.getElementById(id); if(el&&val!=null) el.value=val; };
+  const setC = (id,val) => { const el=document.getElementById(id); if(el) el.checked=!!val; };
+  setV('rep_name', p1.rep); setV('quote_num', p1.quoteNum);
+  setV('quote_name', p1.quoteName); setV('quote_date', p1.quoteDate);
+  setV('comm_split', p1.commSplit); setV('ship_date', p1.shipDate);
+  setV('order_notes', p1.orderNotes); setC('has_am', p1.hasAM);
+
+  // Garments
+  const gs = data.garments||[];
+  for(const g of gs) {
+    addGarment();
+    const gid = gCount; // addGarment increments gCount
+    await new Promise(r=>setTimeout(r,20)); // let DOM settle
+    setV('gtype_'+gid, g.gtype);
+    if(g.gtype==='Other') { setV('other_gtype_'+gid, g.gtype_other); }
+    setV('gbrand_'+gid, g.gbrand); setV('gsku_'+gid, g.gsku);
+    setV('gvendor_'+gid, g.gvendor); setV('gdesign_'+gid, g.gdesign);
+    setV('gcolor_'+gid, g.gcolor); setV('gfit_'+gid, g.gfit);
+    setV('gcost_'+gid, g.gcost);
+    setC('gwhitebase_'+gid, g.gwhitebase);
+    // Size rows - first row already exists, add more if needed
+    const szRows = g.szRows||[];
+    if(szRows.length>0) {
+      // Set first row
+      const firstRow = szRows[0];
+      const rid0 = gid+'_sz_1';
+      setV('sz_size_'+rid0, firstRow.size); setV('sz_cost_'+rid0, firstRow.cost);
+      setV('sz_qty_'+rid0, firstRow.qty);
+      // Add additional rows
+      for(let si=1; si<szRows.length; si++) {
+        addSzRow(gid);
+        await new Promise(r=>setTimeout(r,10));
+        const sr = szRows[si];
+        const mc = window.szCtrs&&window.szCtrs[gid]||1;
+        const rid = gid+'_sz_'+mc;
+        setV('sz_size_'+rid, sr.size); setV('sz_cost_'+rid, sr.cost);
+        setV('sz_qty_'+rid, sr.qty); setV('sz_grp_'+rid, sr.grp);
+        setV('sz_up_'+rid, sr.up);
+      }
+    }
+    // Imprints
+    for(const imp of (g.imps||[])) {
+      addImp(gid);
+      await new Promise(r=>setTimeout(r,20));
+      const iid = gid+'_'+(iCtrs[gid]||1);
+      setIT(iid, imp.type);
+      setV('sp_loc_'+iid, imp.sp_loc); setV('other_sp_loc_'+iid, imp.sp_loc_other);
+      setV('sp_col_'+iid, imp.sp_col); setV('sp_ink_'+iid, imp.sp_ink);
+      setV('sp_ic_'+iid, imp.sp_ic); setV('sp_setup_'+iid, imp.sp_setup);
+      setC('sp_ao_'+iid, imp.sp_ao); setC('sp_ao_sleeve_'+iid, imp.sp_ao_sleeve);
+      setC('sp_ao_pocket_'+iid, imp.sp_ao_pocket);
+      setV('emb_loc_'+iid, imp.emb_loc); setV('other_emb_loc_'+iid, imp.emb_loc_other);
+      setV('emb_st_'+iid, imp.emb_st); setV('emb_tc_'+iid, imp.emb_tc);
+      setC('emb_dst_'+iid, imp.emb_dst); setC('emb_puff_'+iid, imp.emb_puff);
+      setC('emb_os_'+iid, imp.emb_os);
+      setV('dtf_loc_'+iid, imp.dtf_loc); setV('dtf_sq_'+iid, imp.dtf_sq);
+      setV('heat_loc_'+iid, imp.heat_loc); setV('heat_t_'+iid, imp.heat_t);
+      setV('vinyl_loc_'+iid, imp.vinyl_loc); setV('vinyl_t_'+iid, imp.vinyl_t);
+    }
+    // Misc fees
+    for(const mf of (g.miscFees||[])) {
+      addMiscFee(gid);
+      await new Promise(r=>setTimeout(r,10));
+      const mc = miscCtrs[gid]||1;
+      setV('misc_desc_g'+gid+'_'+mc, mf.desc);
+      setV('misc_net_g'+gid+'_'+mc, mf.net);
+      setV('misc_sell_g'+gid+'_'+mc, mf.sell);
+    }
+    updateGLbl(gid);
+  }
+
+  // Hard goods
+  for(const h of (data.hardGoods||[])) {
+    addHG();
+    const hid = hCount;
+    await new Promise(r=>setTimeout(r,20));
+    setV('hg_desc_'+hid, h.hg_desc); setV('hg_design_'+hid, h.hg_design);
+    setV('hg_sku_'+hid, h.hg_sku); setV('hg_vendor_'+hid, h.hg_vendor);
+    setV('hg_colors_'+hid, h.hg_colors); setV('hg_dec_'+hid, h.hg_dec);
+    setV('other_hg_dec_'+hid, h.hg_dec_other);
+    setV('hg_qty_'+hid, h.hg_qty); setV('hg_cost_'+hid, h.hg_cost);
+    setV('hg_sc_'+hid, h.hg_sc); setV('hg_dc_'+hid, h.hg_dc);
+    setV('hg_rush_'+hid, h.hg_rush);
+  }
+
+  // Page 4
+  const p4 = data.page4||{};
+  setV('margin_pct', p4.marginPct||40); setV('rush_pct', p4.rushPct||0);
+  setV('art_hours', p4.artHours||0); setV('bagging', p4.bagging||0);
+  setV('labeling', p4.labeling||0); setV('oop', p4.oop||0);
+  setV('hg_margin_pct', p4.hgMarginPct||40);
+  setV('hg_setup_pct', p4.hgSetupPct||20);
+  setV('hg_rush_pct', p4.hgRushPct||20);
+
+  calcAll();
+  goTo(1);
 }
 
 </script>
