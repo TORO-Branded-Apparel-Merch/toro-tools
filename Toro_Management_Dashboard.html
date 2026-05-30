@@ -108,7 +108,7 @@ async function sendDashThreadMsg(){
 
 // ── Dashboard reporting ───────────────────────────────────────────────────
 function downloadDashReport(){
-  if(!quotes.length){ alert('No quotes loaded.'); return; }
+  if(!quotes.length){ bamAlert('No quotes loaded.'); return; }
   const clients=[...new Set(quotes.map(q=>q.clientCompany||q.clientName||'').filter(Boolean))].sort();
   const REPS_LIST=['Shannon','Stephen','Julia','Lexi','Amy','Debbie'];
 
@@ -179,7 +179,7 @@ function runDashReport(){
     return true;
   });
 
-  if(!filtered.length){ alert('No quotes match the selected filters.'); return; }
+  if(!filtered.length){ bamAlert('No quotes match the selected filters.'); return; }
 
   const HEADERS=['Quote #','Quote name','Client name','Company','Rep','Quote date','IHD','Commission period','Split','Sell','Net cost','GP','Margin %','Rep payout','House profit','Status','Paid','Paid date'];
   const rows=[HEADERS,...filtered.map(q=>[
@@ -219,7 +219,7 @@ function runDashReport(){
 
 
 async function dismissApproval(key){
-  if(!confirm('Remove this approval request? This cannot be undone.')) return;
+  if(!await bamConfirm('Remove this approval request? This cannot be undone.')) return;
   await fbSet('approvals/'+key, null);
   delete approvals[key];
   render();
@@ -276,6 +276,20 @@ tr:hover td{background:#fafafa}
 #toro-error-banner strong{display:block;margin-bottom:4px;font-size:14px}
 #toro-error-banner span{color:#ccc;font-size:12px}
 #toro-error-banner .close-err{position:absolute;top:8px;right:10px;background:none;border:none;color:#888;cursor:pointer;font-size:16px}
+
+
+#bam-modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:99998;align-items:center;justify-content:center}
+#bam-modal-overlay.open{display:flex}
+#bam-modal-box{background:#fff;border-radius:14px;padding:0;max-width:360px;width:90%;box-shadow:0 20px 60px rgba(0,0,0,.35);overflow:hidden}
+#bam-modal-header{background:#1a1a2e;color:#fff;padding:14px 18px;display:flex;align-items:center;gap:10px;font-size:15px;font-weight:700}
+#bam-modal-header span{font-size:22px}
+#bam-modal-body{padding:16px 18px;font-size:14px;color:#222;line-height:1.5}
+#bam-modal-footer{padding:12px 18px;display:flex;gap:8px;justify-content:flex-end;border-top:1px solid #eee}
+#bam-modal-footer button{padding:8px 20px;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;border:none}
+#bam-btn-ok{background:#C41E1E;color:#fff}
+#bam-btn-ok:hover{background:#a01818}
+#bam-btn-cancel{background:#f0f0f0;color:#333}
+#bam-btn-cancel:hover{background:#e0e0e0}
 
 </style>
 </head>
@@ -489,7 +503,7 @@ async function approveQuote(key){
     const decoded=decodeURIComponent(key);
     const encoded=encodeURIComponent(key);
     const found=approvals[decoded]||approvals[encoded]||Object.values(approvals).find(a=>a&&(a.quoteNum===key||a.quoteNum===decoded));
-    if(!found){ console.error('No approval found for key',key,'decoded',decoded,'keys',Object.keys(approvals)); alert('Could not find approval for key: '+key+'. Check browser console.'); return; }
+    if(!found){ console.error('No approval found for key',key,'decoded',decoded,'keys',Object.keys(approvals)); bamAlert('Could not find approval for key: '+key+'. Check browser console.'); return; }
     // Use found approval
     const realKey=approvals[decoded]?decoded:(approvals[encoded]?encoded:Object.keys(approvals).find(k=>approvals[k]===found));
     key=realKey;
@@ -516,10 +530,10 @@ async function rejectQuote(key){
   if(!approvals[key]){
     const decoded=decodeURIComponent(key);
     if(approvals[decoded]) key=decoded;
-    else{ alert('Could not find approval for key: '+key); return; }
+    else{ bamAlert('Could not find approval for key: '+key); return; }
   }
   const note=document.getElementById('note_'+key)&&document.getElementById('note_'+key).value||'';
-  if(!note.trim()){ alert('Please add a rejection note so the rep knows what to fix.'); return; }
+  if(!note.trim()){ bamAlert('Please add a rejection note so the rep knows what to fix.'); return; }
   await fbSet('approvals/'+key,{...approvals[key], status:'rejected', note, reviewedAt:new Date().toISOString()});
   const rep=approvals[key]&&approvals[key].rep;
   if(rep){
@@ -778,7 +792,7 @@ function render(){
 
 // ── Excel download ────────────────────────────────────────────────────────
 function downloadExcel(){
-  if(!quotes.length){ alert('No data loaded.'); return; }
+  if(!quotes.length){ bamAlert('No data loaded.'); return; }
   const wb=XLSX.utils.book_new();
   const HEADERS=['Quote #','Quote Name','Rep','IHD','Commission Period','Split','Sell','Cost','GP','Margin %','Commission','Paid','Paid Date','Status'];
   const rows=[HEADERS,...quotes.map(q=>[q.quoteNum||'',q.quoteName||'',q.rep||'',q.ihd||'',q.commissionReport||'',q.commissionSplit||'',q.totalSell||0,q.totalNetCost||0,(q.totalSell||0)-(q.totalNetCost||0),(q.avgMargin||0)/100,q.totalRepComm||0,q.paid?'Yes':'No',q.paidDate||'',q.workflowStatus||'active'])];
@@ -919,7 +933,7 @@ async function sendDashThreadMsg(){
 
 // ── Dashboard reporting ───────────────────────────────────────────────────
 function downloadDashReport(){
-  if(!quotes.length){ alert('No quotes loaded.'); return; }
+  if(!quotes.length){ bamAlert('No quotes loaded.'); return; }
   const clients=[...new Set(quotes.map(q=>q.clientCompany||q.clientName||'').filter(Boolean))].sort();
   const REPS_LIST=['Shannon','Stephen','Julia','Lexi','Amy','Debbie'];
 
@@ -990,7 +1004,7 @@ function runDashReport(){
     return true;
   });
 
-  if(!filtered.length){ alert('No quotes match the selected filters.'); return; }
+  if(!filtered.length){ bamAlert('No quotes match the selected filters.'); return; }
 
   const HEADERS=['Quote #','Quote name','Client name','Company','Rep','Quote date','IHD','Commission period','Split','Sell','Net cost','GP','Margin %','Rep payout','House profit','Status','Paid','Paid date'];
   const rows=[HEADERS,...filtered.map(q=>[
@@ -1030,18 +1044,63 @@ function runDashReport(){
 
 
 async function dismissApproval(key){
-  if(!confirm('Remove this approval request? This cannot be undone.')) return;
+  if(!await bamConfirm('Remove this approval request? This cannot be undone.')) return;
   await fbSet('approvals/'+key, null);
   delete approvals[key];
   render();
 }
 
+
+// ── BAM the Bull custom alert/confirm ────────────────────────────────────
+let _bamResolve=null;
+function bamAlert(msg){
+  return new Promise(resolve=>{
+    _bamResolve=resolve;
+    document.getElementById('bam-modal-body').textContent=msg;
+    document.getElementById('bam-btn-cancel').style.display='none';
+    document.getElementById('bam-btn-ok').textContent='OK';
+    document.getElementById('bam-modal-overlay').classList.add('open');
+    document.getElementById('bam-btn-ok').onclick=()=>{
+      document.getElementById('bam-modal-overlay').classList.remove('open');
+      resolve(true);
+    };
+  });
+}
+function bamConfirm(msg){
+  return new Promise(resolve=>{
+    _bamResolve=resolve;
+    document.getElementById('bam-modal-body').textContent=msg;
+    document.getElementById('bam-btn-cancel').style.display='';
+    document.getElementById('bam-btn-ok').textContent='Yes';
+    document.getElementById('bam-modal-overlay').classList.add('open');
+    document.getElementById('bam-btn-ok').onclick=()=>{
+      document.getElementById('bam-modal-overlay').classList.remove('open');
+      resolve(true);
+    };
+    document.getElementById('bam-btn-cancel').onclick=()=>{
+      document.getElementById('bam-modal-overlay').classList.remove('open');
+      resolve(false);
+    };
+  });
+}
 </script>
 
 <div id="toro-error-banner" onclick="this.style.display='none'">
   <button class="close-err" onclick="event.stopPropagation();this.parentElement.style.display='none'">&#10005;</button>
   <strong>&#9888; Something went wrong</strong>
   <span id="toro-error-msg">An unexpected error occurred. Please contact management if this continues.</span>
+</div>
+
+
+<div id="bam-modal-overlay">
+  <div id="bam-modal-box">
+    <div id="bam-modal-header"><span>🐂</span> BAM the Bull says</div>
+    <div id="bam-modal-body" id="bam-modal-msg"></div>
+    <div id="bam-modal-footer">
+      <button id="bam-btn-cancel" style="display:none">Cancel</button>
+      <button id="bam-btn-ok">OK</button>
+    </div>
+  </div>
 </div>
 
 </body>

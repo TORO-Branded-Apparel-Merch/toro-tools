@@ -66,6 +66,20 @@ details summary::-webkit-details-marker{display:none}
 .feedback-modal.open{display:flex}
 .feedback-box{background:#fff;border-radius:12px;padding:28px;max-width:420px;width:90%;box-shadow:0 20px 60px rgba(0,0,0,.3)}
 
+
+#bam-modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:99998;align-items:center;justify-content:center}
+#bam-modal-overlay.open{display:flex}
+#bam-modal-box{background:#fff;border-radius:14px;padding:0;max-width:360px;width:90%;box-shadow:0 20px 60px rgba(0,0,0,.35);overflow:hidden}
+#bam-modal-header{background:#1a1a2e;color:#fff;padding:14px 18px;display:flex;align-items:center;gap:10px;font-size:15px;font-weight:700}
+#bam-modal-header span{font-size:22px}
+#bam-modal-body{padding:16px 18px;font-size:14px;color:#222;line-height:1.5}
+#bam-modal-footer{padding:12px 18px;display:flex;gap:8px;justify-content:flex-end;border-top:1px solid #eee}
+#bam-modal-footer button{padding:8px 20px;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;border:none}
+#bam-btn-ok{background:#C41E1E;color:#fff}
+#bam-btn-ok:hover{background:#a01818}
+#bam-btn-cancel{background:#f0f0f0;color:#333}
+#bam-btn-cancel:hover{background:#e0e0e0}
+
 </style>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js">
 function openFeedback(){
@@ -169,9 +183,9 @@ async function sendThreadMsg(){
 
 // ── Reporting / Excel export ───────────────────────────────────────────────
 function downloadRepReport(){
-  if(!quotes.length){ alert('No quotes to export.'); return; }
+  if(!quotes.length){ bamAlert('No quotes to export.'); return; }
   // Load SheetJS
-  if(typeof XLSX==='undefined'){ alert('Excel library not loaded.'); return; }
+  if(typeof XLSX==='undefined'){ bamAlert('Excel library not loaded.'); return; }
 
   // Build filter UI
   const dateTypes=['Quote date','In-hands date','Commission period'];
@@ -243,7 +257,7 @@ function runReport(){
     return true;
   });
 
-  if(!filtered.length){ alert('No quotes match the selected filters.'); return; }
+  if(!filtered.length){ bamAlert('No quotes match the selected filters.'); return; }
 
   const HEADERS=['Quote #','Quote name','Client name','Company','Rep','Quote date','IHD','Commission period','Split','Sell','Net cost','GP','Margin %','Rep payout','House profit','Status','Paid'];
   const rows=[HEADERS,...filtered.map(q=>[
@@ -528,7 +542,7 @@ function loadFiles(files){
       try{
         const q=JSON.parse(e.target.result);
         if(!q.totalSell) return;
-        if(q.rep&&q.rep!==REP){ alert('This quote belongs to '+q.rep+', not Lexi.'); return; }
+        if(q.rep&&q.rep!==REP){ bamAlert('This quote belongs to '+q.rep+', not Lexi.'); return; }
         q.rep=REP; q.loadedAt=new Date().toISOString();
         if(!q.adjustments) q.adjustments=[];
         // Status fields
@@ -599,8 +613,8 @@ async function submitForApproval(qKey){
 
 async function submitForCommission(period){
   const readyQuotes=quotes.filter(q=>q.statusChecks&&q.statusChecks.readyForPayment&&q.workflowStatus==='active'&&(q.marginApproved||!q.needsApproval));
-  if(!readyQuotes.length){ alert('No quotes ready for submission.'); return; }
-  if(!confirm('Submit '+readyQuotes.length+' quote'+(readyQuotes.length!==1?'s':'')+' for commission? They will be locked and archived.')) return;
+  if(!readyQuotes.length){ bamAlert('No quotes ready for submission.'); return; }
+  if(!await bamConfirm('Submit '+readyQuotes.length+' quote'+(readyQuotes.length!==1?'s':'')+' for commission? They will be locked and archived.')) return;
   const submittedAt=new Date().toISOString();
   for(const q of readyQuotes){
     q.workflowStatus='submittedCommission';
@@ -631,7 +645,7 @@ function exportToBuilder(qKey){
 // ── Export commission bundle ──────────────────────────────────────────────
 function exportBundle(){
   const submitted=quotes.filter(q=>q.workflowStatus==='submittedCommission'||q.workflowStatus==='archived');
-  if(!submitted.length){ alert('No submitted quotes to export.'); return; }
+  if(!submitted.length){ bamAlert('No submitted quotes to export.'); return; }
   const bundle={type:'commission_bundle',rep:REP,exportedAt:new Date().toLocaleString(),quotes:submitted,
     totals:{totalSell:submitted.reduce((a,q)=>a+(q.totalSell||0),0),repPayout:submitted.reduce((a,q)=>a+(q.totalRepComm||0),0)}
   };
@@ -717,13 +731,13 @@ function quoteRow(q,idx,locked,showUndo){
 
 // ── Render ────────────────────────────────────────────────────────────────
 async function deleteQuote(qKey){
-  if(!confirm('Permanently remove this quote?')) return;
+  if(!await bamConfirm('Permanently remove this quote?')) return;
   const decoded=decodeURIComponent(qKey);
   let q=quotes.find(x=>(x._fbKey||x.quoteNum)===decoded);
   if(!q) q=quotes.find(x=>x._fbKey===decoded||x.quoteNum===decoded);
   if(!q) q=quotes.find(x=>x._localIdx===decoded);
   if(!q&&decoded.startsWith('idx_')){const i=parseInt(decoded.replace('idx_',''));if(!isNaN(i)&&quotes[i])q=quotes[i];}
-  if(!q){ console.warn('deleteQuote: not found',qKey); alert('Could not locate quote. Please refresh and try again.'); return; }
+  if(!q){ console.warn('deleteQuote: not found',qKey); bamAlert('Could not locate quote. Please refresh and try again.'); return; }
   const idx=quotes.indexOf(q);
   if(idx>=0) quotes.splice(idx,1);
   localStorage.setItem(STORAGE_KEY,JSON.stringify(quotes));
@@ -748,8 +762,8 @@ function undoReady(qKey){
   fbSave(q);
 }
 
-function clearLocalData(){
-  if(!confirm('Clear local cache and reload from Firebase?')) return;
+async function clearLocalData(){
+  if(!await bamConfirm('Clear local cache and reload from Firebase?')) return;
   localStorage.removeItem(STORAGE_KEY);
   quotes=[];
   render();
@@ -975,9 +989,9 @@ async function sendThreadMsg(){
 
 // ── Reporting / Excel export ───────────────────────────────────────────────
 function downloadRepReport(){
-  if(!quotes.length){ alert('No quotes to export.'); return; }
+  if(!quotes.length){ bamAlert('No quotes to export.'); return; }
   // Load SheetJS
-  if(typeof XLSX==='undefined'){ alert('Excel library not loaded.'); return; }
+  if(typeof XLSX==='undefined'){ bamAlert('Excel library not loaded.'); return; }
 
   // Build filter UI
   const dateTypes=['Quote date','In-hands date','Commission period'];
@@ -1049,7 +1063,7 @@ function runReport(){
     return true;
   });
 
-  if(!filtered.length){ alert('No quotes match the selected filters.'); return; }
+  if(!filtered.length){ bamAlert('No quotes match the selected filters.'); return; }
 
   const HEADERS=['Quote #','Quote name','Client name','Company','Rep','Quote date','IHD','Commission period','Split','Sell','Net cost','GP','Margin %','Rep payout','House profit','Status','Paid'];
   const rows=[HEADERS,...filtered.map(q=>[
@@ -1069,6 +1083,39 @@ function runReport(){
   document.getElementById('report-modal').style.display='none';
 }
 
+
+// ── BAM the Bull custom alert/confirm ────────────────────────────────────
+let _bamResolve=null;
+function bamAlert(msg){
+  return new Promise(resolve=>{
+    _bamResolve=resolve;
+    document.getElementById('bam-modal-body').textContent=msg;
+    document.getElementById('bam-btn-cancel').style.display='none';
+    document.getElementById('bam-btn-ok').textContent='OK';
+    document.getElementById('bam-modal-overlay').classList.add('open');
+    document.getElementById('bam-btn-ok').onclick=()=>{
+      document.getElementById('bam-modal-overlay').classList.remove('open');
+      resolve(true);
+    };
+  });
+}
+function bamConfirm(msg){
+  return new Promise(resolve=>{
+    _bamResolve=resolve;
+    document.getElementById('bam-modal-body').textContent=msg;
+    document.getElementById('bam-btn-cancel').style.display='';
+    document.getElementById('bam-btn-ok').textContent='Yes';
+    document.getElementById('bam-modal-overlay').classList.add('open');
+    document.getElementById('bam-btn-ok').onclick=()=>{
+      document.getElementById('bam-modal-overlay').classList.remove('open');
+      resolve(true);
+    };
+    document.getElementById('bam-btn-cancel').onclick=()=>{
+      document.getElementById('bam-modal-overlay').classList.remove('open');
+      resolve(false);
+    };
+  });
+}
 </script>
 
 <!-- Feedback modal -->
@@ -1082,6 +1129,18 @@ function runReport(){
     <div style="display:flex;gap:8px;margin-top:12px">
       <button class="btn btn-primary" onclick="submitFeedback()" style="flex:1">Send</button>
       <button class="btn btn-outline" onclick="closeFeedback()" style="flex:1">Cancel</button>
+    </div>
+  </div>
+</div>
+
+
+<div id="bam-modal-overlay">
+  <div id="bam-modal-box">
+    <div id="bam-modal-header"><span>🐂</span> BAM the Bull says</div>
+    <div id="bam-modal-body" id="bam-modal-msg"></div>
+    <div id="bam-modal-footer">
+      <button id="bam-btn-cancel" style="display:none">Cancel</button>
+      <button id="bam-btn-ok">OK</button>
     </div>
   </div>
 </div>

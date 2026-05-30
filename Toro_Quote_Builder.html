@@ -129,6 +129,20 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--red);box
   .main{padding:0;max-width:100%}
   .sum-print{border:1px solid #ccc}
 }
+
+#bam-modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:99998;align-items:center;justify-content:center}
+#bam-modal-overlay.open{display:flex}
+#bam-modal-box{background:#fff;border-radius:14px;padding:0;max-width:360px;width:90%;box-shadow:0 20px 60px rgba(0,0,0,.35);overflow:hidden}
+#bam-modal-header{background:#1a1a2e;color:#fff;padding:14px 18px;display:flex;align-items:center;gap:10px;font-size:15px;font-weight:700}
+#bam-modal-header span{font-size:22px}
+#bam-modal-body{padding:16px 18px;font-size:14px;color:#222;line-height:1.5}
+#bam-modal-footer{padding:12px 18px;display:flex;gap:8px;justify-content:flex-end;border-top:1px solid #eee}
+#bam-modal-footer button{padding:8px 20px;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;border:none}
+#bam-btn-ok{background:#C41E1E;color:#fff}
+#bam-btn-ok:hover{background:#a01818}
+#bam-btn-cancel{background:#f0f0f0;color:#333}
+#bam-btn-cancel:hover{background:#e0e0e0}
+
 </style>
 </head>
 <body>
@@ -235,7 +249,7 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--red);box
   </div>
 
 <div class="actions">
-  <button class="btn btn-outline" onclick="if(confirm('Start over? All current quote data will be cleared.'))startNew()">&#8635; Start over</button>
+  <button class="btn btn-outline" onclick="(async()=>{if(await bamConfirm('Start over? All current quote data will be cleared.'))startNew();})()" >&#8635; Start over</button>
   <div class="actions-right"><button class="btn btn-primary" onclick="if(validatePage(1))goTo(2)">Next: Apparel &#8594;</button></div>
 </div>
 </div>
@@ -836,13 +850,13 @@ function impHasData(iid, currentType){
   });
 }
 
-function setIT(iid,type){
+async function setIT(iid,type){
   // Get current active type
   const impEl=document.getElementById('imp_'+iid);
   const currentType=impEl?.dataset.type||'screen';
   // Warn if switching away from a method with data
   if(currentType!==type&&impHasData(iid,currentType)){
-    if(!confirm('Switching imprint methods will clear your current details for this imprint. Continue?')){
+    if(!await bamConfirm('Switching imprint methods will clear your current details for this imprint. Continue?')){
       return; // stay on current method
     }
     // Clear current method fields
@@ -2049,7 +2063,7 @@ function exportQuoteData(){
 }
 
 // ── Misc helpers ──────────────────────────────────────────────────────────
-function startNew(){
+async function startNew(){
   garments=[];hardGoods=[];gCount=0;hCount=0;iCtrs={};lastCalc={};
   miscCtrs={};hgMiscCtrs={};perItemMargins={};
   window.pricingMode={app:'margin',hg:'margin'};
@@ -2176,6 +2190,51 @@ document.addEventListener('focusin',function(e){if(e.target.tagName==='INPUT'&&(
 const _today=new Date();
 const _qd=document.getElementById('quote_date');if(_qd)_qd.value=_today.toISOString().slice(0,10);
 addGarment();
+
+// ── BAM the Bull custom alert/confirm ────────────────────────────────────
+let _bamResolve=null;
+function bamAlert(msg){
+  return new Promise(resolve=>{
+    _bamResolve=resolve;
+    document.getElementById('bam-modal-body').textContent=msg;
+    document.getElementById('bam-btn-cancel').style.display='none';
+    document.getElementById('bam-btn-ok').textContent='OK';
+    document.getElementById('bam-modal-overlay').classList.add('open');
+    document.getElementById('bam-btn-ok').onclick=()=>{
+      document.getElementById('bam-modal-overlay').classList.remove('open');
+      resolve(true);
+    };
+  });
+}
+function bamConfirm(msg){
+  return new Promise(resolve=>{
+    _bamResolve=resolve;
+    document.getElementById('bam-modal-body').textContent=msg;
+    document.getElementById('bam-btn-cancel').style.display='';
+    document.getElementById('bam-btn-ok').textContent='Yes';
+    document.getElementById('bam-modal-overlay').classList.add('open');
+    document.getElementById('bam-btn-ok').onclick=()=>{
+      document.getElementById('bam-modal-overlay').classList.remove('open');
+      resolve(true);
+    };
+    document.getElementById('bam-btn-cancel').onclick=()=>{
+      document.getElementById('bam-modal-overlay').classList.remove('open');
+      resolve(false);
+    };
+  });
+}
 </script>
+
+<div id="bam-modal-overlay">
+  <div id="bam-modal-box">
+    <div id="bam-modal-header"><span>🐂</span> BAM the Bull says</div>
+    <div id="bam-modal-body" id="bam-modal-msg"></div>
+    <div id="bam-modal-footer">
+      <button id="bam-btn-cancel" style="display:none">Cancel</button>
+      <button id="bam-btn-ok">OK</button>
+    </div>
+  </div>
+</div>
+
 </body>
 </html>
