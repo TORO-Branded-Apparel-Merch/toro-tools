@@ -481,6 +481,7 @@ function render(){
     return;
   }
 
+  try{
   status.textContent=quotes.length+' quote'+(quotes.length!==1?'s':'')+' loaded';
 
   // Categorize
@@ -570,6 +571,11 @@ function render(){
     html+=`</tbody></table></details></div>`;
   }
 
+  } catch(renderErr){
+    console.error('Render failed:', renderErr, renderErr.stack);
+    main.innerHTML='<div class="section-block"><div class="empty" style="color:red">Error: '+renderErr.message+' — check browser console</div></div>';
+    return;
+  }
   if(!html) html='<div class="section-block"><div class="empty">Drop exported quotes above to get started</div></div>';
   main.innerHTML=html;
 }
