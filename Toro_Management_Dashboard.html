@@ -2,1111 +2,557 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
 <title>TORO Management Dashboard</title>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js">
-// ── Feedback inbox ────────────────────────────────────────────────────────
-let feedbackData={};
-
-async function loadFeedback(){
-  const data=await fbGet('feedback');
-  feedbackData=data||{};
-  renderFeedback();
-  // Update badge
-  const unread=Object.values(feedbackData).filter(f=>!f.read).length;
-  const badge=document.getElementById('feedback-badge');
-  if(badge){badge.style.display=unread>0?'':'none';badge.textContent=unread;}
-}
-
-function renderFeedback(){
-  const wrap=document.getElementById('feedback-wrap');
-  if(!wrap) return;
-  const items=Object.entries(feedbackData).sort((a,b)=>b[1].sentAt>a[1].sentAt?1:-1);
-  if(!items.length){wrap.innerHTML='<div class="section-block"><div class="empty">No feedback yet</div></div>';return;}
-  let html='<div class="section-block">';
-  items.forEach(([key,f])=>{
-    const dt=f.sentAt?new Date(f.sentAt).toLocaleString('en-US',{month:'short',day:'numeric',hour:'numeric',minute:'2-digit'}):'';
-    html+=`<div style="padding:12px 16px;border-bottom:1px solid var(--border);${f.read?'opacity:.7':''}">
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
-        <div style="font-weight:700;font-size:13px">${f.rep||'Unknown'} <span style="font-size:11px;color:var(--text3);font-weight:400">${dt}</span></div>
-        ${!f.read?`<button class="btn btn-sm btn-outline" onclick="markFeedbackRead('${key}')">Mark read</button>`:'<span style="font-size:10px;color:var(--text3)">Read</span>'}
-      </div>
-      <div style="font-size:13px;color:var(--text2)">${f.message||''}</div>
-    </div>`;
-  });
-  html+='</div>';
-  wrap.innerHTML=html;
-}
-
-async function markFeedbackRead(key){
-  await fbPatch('feedback/'+key,{read:true});
-  feedbackData[key]&&(feedbackData[key].read=true);
-  renderFeedback();
-  const unread=Object.values(feedbackData).filter(f=>!f.read).length;
-  const badge=document.getElementById('feedback-badge');
-  if(badge){badge.style.display=unread>0?'':'none';badge.textContent=unread;}
-}
-
-// ── Approval thread messaging ─────────────────────────────────────────────
-function openApprovalThread(key, quoteName){
-  let modal=document.getElementById('dash-thread-modal');
-  if(!modal){
-    modal=document.createElement('div');
-    modal.id='dash-thread-modal';
-    modal.style.cssText='display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:10000;align-items:center;justify-content:center';
-    modal.innerHTML=`<div style="background:#fff;border-radius:12px;padding:24px;max-width:500px;width:92%;max-height:80vh;display:flex;flex-direction:column;box-shadow:0 20px 60px rgba(0,0,0,.3)">
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
-        <div style="font-size:15px;font-weight:700" id="dash-thread-title">Approval notes</div>
-        <button onclick="document.getElementById('dash-thread-modal').style.display='none'" style="background:none;border:none;font-size:20px;cursor:pointer;color:#888">&#10005;</button>
-      </div>
-      <div id="dash-thread-messages" style="flex:1;overflow-y:auto;border:1px solid var(--border);border-radius:6px;padding:10px;margin-bottom:12px;min-height:120px;max-height:300px;font-size:13px"></div>
-      <textarea id="dash-thread-input" rows="2" placeholder="Add a note..."
-        style="width:100%;padding:8px;font-size:13px;border:1px solid var(--border2);border-radius:6px;resize:none;box-sizing:border-box;font-family:inherit;margin-bottom:8px"></textarea>
-      <button class="btn btn-primary" onclick="sendDashThreadMsg()">Send note</button>
-    </div>`;
-    document.body.appendChild(modal);
-  }
-  modal.dataset.key=key;
-  document.getElementById('dash-thread-title').textContent='Notes: '+(quoteName||key);
-  modal.style.display='flex';
-  loadDashThreadMessages(key);
-}
-
-async function loadDashThreadMessages(key){
-  const msgEl=document.getElementById('dash-thread-messages');
-  if(!msgEl) return;
-  msgEl.innerHTML='<div style="color:var(--text3);font-size:12px">Loading...</div>';
-  const data=await fbGet('approvals/'+key+'/messages');
-  if(!data||Object.keys(data).length===0){
-    msgEl.innerHTML='<div style="color:var(--text3);font-size:12px;padding:8px">No messages yet.</div>';return;
-  }
-  const msgs=Object.values(data).sort((a,b)=>a.sentAt>b.sentAt?1:-1);
-  msgEl.innerHTML=msgs.map(m=>{
-    const isMgmt=m.sender==='Management'||m.sender==='Stephen';
-    const dt=m.sentAt?new Date(m.sentAt).toLocaleString('en-US',{month:'short',day:'numeric',hour:'numeric',minute:'2-digit'}):'';
-    return `<div style="margin-bottom:10px;${isMgmt?'text-align:right':''}">
-      <div style="display:inline-block;max-width:80%;background:${isMgmt?'var(--red)':'#f0f0f0'};color:${isMgmt?'#fff':'var(--text)'};padding:7px 10px;border-radius:8px;font-size:13px">${m.message}</div>
-      <div style="font-size:10px;color:var(--text3);margin-top:2px">${m.sender} · ${dt}</div>
-    </div>`;
-  }).join('');
-  msgEl.scrollTop=msgEl.scrollHeight;
-}
-
-async function sendDashThreadMsg(){
-  const modal=document.getElementById('dash-thread-modal');
-  const key=modal?.dataset.key;
-  const input=document.getElementById('dash-thread-input');
-  const msg=input?.value.trim();
-  if(!key||!msg) return;
-  const msgKey='msg_'+Date.now();
-  await fbSet('approvals/'+key+'/messages/'+msgKey,{
-    sender:'Management', message:msg, sentAt:new Date().toISOString()
-  });
-  if(input) input.value='';
-  loadDashThreadMessages(key);
-}
-
-// ── Dashboard reporting ───────────────────────────────────────────────────
-function downloadDashReport(){
-  if(!quotes.length){ bamAlert('No quotes loaded.'); return; }
-  const clients=[...new Set(quotes.map(q=>q.clientCompany||q.clientName||'').filter(Boolean))].sort();
-  const REPS_LIST=['Shannon','Stephen','Julia','Lexi','Amy','Debbie'];
-
-  let modal=document.getElementById('dash-report-modal');
-  if(!modal){
-    modal=document.createElement('div');
-    modal.id='dash-report-modal';
-    modal.style.cssText='display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:10000;align-items:center;justify-content:center';
-    modal.innerHTML=`<div style="background:#fff;border-radius:12px;padding:24px;max-width:400px;width:92%;box-shadow:0 20px 60px rgba(0,0,0,.3)">
-      <div style="font-size:15px;font-weight:700;margin-bottom:16px">Export report</div>
-      <div id="dash-report-filters"></div>
-    </div>`;
-    document.body.appendChild(modal);
-  }
-
-  document.getElementById('dash-report-filters').innerHTML=`
-    <div style="margin-bottom:12px">
-      <label style="font-size:12px;font-weight:700;display:block;margin-bottom:4px">Filter by rep</label>
-      <select id="drpt-rep" style="width:100%;padding:7px;border:1px solid #ccc;border-radius:4px;font-size:13px">
-        <option value="">All reps</option>
-        ${REPS_LIST.map(r=>`<option value="${r}">${r}</option>`).join('')}
-      </select>
-    </div>
-    <div style="margin-bottom:12px">
-      <label style="font-size:12px;font-weight:700;display:block;margin-bottom:4px">Date filter</label>
-      <select id="drpt-date-type" style="width:100%;padding:7px;border:1px solid #ccc;border-radius:4px;font-size:13px;margin-bottom:6px">
-        <option value="">All dates</option>
-        <option value="quoteDate">By quote date</option>
-        <option value="ihd">By in-hands date</option>
-        <option value="commissionReport">By commission period</option>
-      </select>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px">
-        <input type="date" id="drpt-from" style="padding:6px;border:1px solid #ccc;border-radius:4px;font-size:13px">
-        <input type="date" id="drpt-to" style="padding:6px;border:1px solid #ccc;border-radius:4px;font-size:13px">
-      </div>
-    </div>
-    <div style="margin-bottom:16px">
-      <label style="font-size:12px;font-weight:700;display:block;margin-bottom:4px">Filter by client</label>
-      <select id="drpt-client" style="width:100%;padding:7px;border:1px solid #ccc;border-radius:4px;font-size:13px">
-        <option value="">All clients</option>
-        ${clients.map(c=>`<option value="${c}">${c}</option>`).join('')}
-      </select>
-    </div>
-    <div style="display:flex;gap:8px">
-      <button onclick="runDashReport()" style="flex:1;padding:9px;background:#C41E1E;color:#fff;font-weight:700;border:none;border-radius:6px;cursor:pointer;font-size:13px">Download Excel</button>
-      <button onclick="document.getElementById('dash-report-modal').style.display='none'" style="flex:1;padding:9px;background:#f0f0f0;font-weight:700;border:none;border-radius:6px;cursor:pointer;font-size:13px">Cancel</button>
-    </div>`;
-  modal.style.display='flex';
-}
-
-function runDashReport(){
-  const repFilter=document.getElementById('drpt-rep')?.value||'';
-  const dateType=document.getElementById('drpt-date-type')?.value||'';
-  const dateFrom=document.getElementById('drpt-from')?.value||'';
-  const dateTo=document.getElementById('drpt-to')?.value||'';
-  const clientFilter=document.getElementById('drpt-client')?.value||'';
-
-  let filtered=quotes.filter(q=>{
-    if(repFilter&&q.rep!==repFilter) return false;
-    if(clientFilter&&(q.clientCompany||q.clientName||'')!==clientFilter) return false;
-    if(dateType&&(dateFrom||dateTo)){
-      let dv=dateType==='quoteDate'?(q.quoteDate||q.exportedAt||''):dateType==='ihd'?(q.ihd||''):(q.commissionReport||'');
-      if(!dv) return false;
-      const d=new Date(dv);if(isNaN(d.getTime())) return false;
-      if(dateFrom&&d<new Date(dateFrom)) return false;
-      if(dateTo&&d>new Date(dateTo+'T23:59:59')) return false;
-    }
-    return true;
-  });
-
-  if(!filtered.length){ bamAlert('No quotes match the selected filters.'); return; }
-
-  const HEADERS=['Quote #','Quote name','Client name','Company','Rep','Quote date','IHD','Commission period','Split','Sell','Net cost','GP','Margin %','Rep payout','House profit','Status','Paid','Paid date'];
-  const rows=[HEADERS,...filtered.map(q=>[
-    q.quoteNum||'',q.quoteName||'',q.clientName||'',q.clientCompany||'',
-    q.rep||'',q.quoteDate||q.exportedAt||'',q.ihd||'',q.commissionReport||'',
-    q.commissionSplit||'standard',
-    q.totalSell||0,q.totalNetCost||0,(q.totalSell||0)-(q.totalNetCost||0),
-    q.avgMargin||0,q.totalRepComm||0,q.totalHouseProfit||0,
-    q.workflowStatus||'active',q.paid?'Yes':'No',q.paidDate||''
-  ])];
-
-  const wb=XLSX.utils.book_new();
-  // Summary sheet
-  const ws=XLSX.utils.aoa_to_sheet(rows);
-  XLSX.utils.book_append_sheet(wb,ws,'All Quotes');
-
-  // Per-rep sheets
-  const REPS_LIST=['Shannon','Stephen','Julia','Lexi','Amy','Debbie'];
-  REPS_LIST.forEach(rep=>{
-    const repRows=filtered.filter(q=>q.rep===rep);
-    if(!repRows.length) return;
-    const wsRep=XLSX.utils.aoa_to_sheet([HEADERS,...repRows.map(q=>[
-      q.quoteNum||'',q.quoteName||'',q.clientName||'',q.clientCompany||'',
-      q.rep||'',q.quoteDate||q.exportedAt||'',q.ihd||'',q.commissionReport||'',
-      q.commissionSplit||'standard',
-      q.totalSell||0,q.totalNetCost||0,(q.totalSell||0)-(q.totalNetCost||0),
-      q.avgMargin||0,q.totalRepComm||0,q.totalHouseProfit||0,
-      q.workflowStatus||'active',q.paid?'Yes':'No',q.paidDate||''
-    ])]);
-    XLSX.utils.book_append_sheet(wb,wsRep,rep);
-  });
-
-  const date=new Date().toLocaleDateString('en-US').replace(/\//g,'-');
-  XLSX.writeFile(wb,'TORO_Dashboard_Report_'+date+'.xlsx');
-  document.getElementById('dash-report-modal').style.display='none';
-}
-
-
-async function dismissApproval(key){
-  if(!await bamConfirm('Remove this approval request? This cannot be undone.')) return;
-  await fbSet('approvals/'+key, null);
-  delete approvals[key];
-  render();
-}
-
-</script>
 <style>
 :root{
-  --red:#C41E1E;--green:#1a7f4b;--bg:#F7F7F8;--surface:#fff;
-  --border:#E2E3E6;--border2:#ccc;--text:#1a1a1f;--text2:#444;--text3:#888;
-  --brown:#7B3F00;--orange:#C46A1E;--radius:10px;
+  --red:#C41E1E;--red-dark:#9e1818;--red-light:#fff0f0;
+  --green:#1a7f4b;--green-bg:#e8f5ee;
+  --orange:#C46A1E;--orange-bg:#fff3e0;
+  --bg:#F5F5F7;--surface:#fff;--border:#E2E3E6;
+  --text:#1a1a1f;--text2:#444;--text3:#888;
+  --radius:10px;--radius-sm:6px;
 }
 *{box-sizing:border-box;margin:0;padding:0}
-body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:var(--bg);color:var(--text)}
-.topbar{background:#1a1a2e;border-bottom:3px solid var(--red);padding:14px 28px;display:flex;align-items:center;justify-content:space-between}
-.topbar h1{color:#fff;font-size:17px;font-weight:700}
-.container{max-width:1200px;margin:0 auto;padding:24px}
-.drop-zone{border:2px dashed var(--border2);border-radius:var(--radius);padding:28px;text-align:center;cursor:pointer;background:var(--surface);margin-bottom:20px;transition:all .2s}
-.drop-zone:hover{border-color:var(--red);background:#fff0f0}
-.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px;margin-bottom:20px}
-.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:12px 14px}
-.card-lbl{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--text3);margin-bottom:4px}
-.card-val{font-size:20px;font-weight:700}
-.green{color:var(--green)}.brown{color:var(--brown)}.red{color:var(--red)}.orange{color:var(--orange)}
-.tabs{display:flex;gap:0;border-bottom:2px solid var(--border);margin-bottom:20px}
-.tab{padding:9px 18px;font-size:13px;font-weight:600;cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-2px;color:var(--text3);transition:all .15s}
-.tab.active{color:var(--red);border-bottom-color:var(--red)}
-.tab-panel{display:none}.tab-panel.active{display:block}
-.section-block{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);margin-bottom:16px;overflow:hidden}
-.section-hdr{padding:11px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;font-size:13px;font-weight:700}
-.section-hdr.approval{background:#7B3F00;color:#fff}
-.section-hdr.commission{background:var(--green);color:#fff}
-.section-hdr.rep{background:#1a1a2e;color:#fff}
-table{width:100%;border-collapse:collapse;font-size:12px}
-th{padding:7px 10px;text-align:left;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--text3);border-bottom:1px solid var(--border);background:var(--bg)}
-th.r,td.r{text-align:right}
-td{padding:8px 10px;border-bottom:1px solid #f5f5f5;vertical-align:middle}
-tr:hover td{background:#fafafa}
-.mg-pill{display:inline-block;padding:1px 6px;border-radius:8px;font-size:10px;font-weight:700}
-.mg-green{background:#e6f4ee;color:var(--green)}.mg-yellow{background:#FFF8E1;color:#7A4F00}.mg-red{background:#FFEBEB;color:var(--red)}
-.btn{padding:6px 12px;font-size:12px;font-weight:700;border-radius:6px;cursor:pointer;border:none}
-.btn-primary{background:var(--red);color:#fff}.btn-green{background:var(--green);color:#fff}
-.btn-outline{background:#fff;border:1px solid var(--border2);color:var(--text2)}
-.btn-sm{padding:3px 8px;font-size:11px}
-.empty{padding:24px;text-align:center;color:var(--text3);font-size:13px}
-.totals-row td{background:#f8f8f8;font-weight:700;border-top:2px solid var(--border)}
-.note-input{width:100%;padding:6px 8px;font-size:12px;border:1px solid var(--border2);border-radius:4px;margin-top:4px}
-.status-badge{display:inline-block;font-size:10px;font-weight:700;padding:2px 7px;border-radius:8px}
-.badge-waiting{background:#FFF3E0;color:var(--orange)}
-.badge-approved{background:#e6f4ee;color:var(--green)}
-.badge-rejected{background:#FFEBEB;color:var(--red)}
-
-#toro-error-banner{display:none;position:fixed;bottom:16px;right:16px;max-width:360px;background:#1a1a2e;color:#fff;border-left:4px solid var(--red);border-radius:8px;padding:14px 16px;font-size:13px;z-index:99999;box-shadow:0 4px 20px rgba(0,0,0,.3);cursor:pointer}
-#toro-error-banner strong{display:block;margin-bottom:4px;font-size:14px}
-#toro-error-banner span{color:#ccc;font-size:12px}
-#toro-error-banner .close-err{position:absolute;top:8px;right:10px;background:none;border:none;color:#888;cursor:pointer;font-size:16px}
-
-
-#bam-modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:99998;align-items:center;justify-content:center}
-#bam-modal-overlay.open{display:flex}
-#bam-modal-box{background:#fff;border-radius:14px;padding:0;max-width:360px;width:90%;box-shadow:0 20px 60px rgba(0,0,0,.35);overflow:hidden}
-#bam-modal-header{background:#1a1a2e;color:#fff;padding:14px 18px;display:flex;align-items:center;gap:10px;font-size:15px;font-weight:700}
-#bam-modal-header span{font-size:22px}
-#bam-modal-body{padding:16px 18px;font-size:14px;color:#222;line-height:1.5}
-#bam-modal-footer{padding:12px 18px;display:flex;gap:8px;justify-content:flex-end;border-top:1px solid #eee}
-#bam-modal-footer button{padding:8px 20px;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;border:none}
-#bam-btn-ok{background:#C41E1E;color:#fff}
-#bam-btn-ok:hover{background:#a01818}
-#bam-btn-cancel{background:#f0f0f0;color:#333}
-#bam-btn-cancel:hover{background:#e0e0e0}
-
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;}
+#gate{position:fixed;inset:0;background:#fff;display:flex;align-items:center;justify-content:center;z-index:10000;}
+.gate-box{background:#fff;border:1px solid var(--border);border-radius:12px;padding:40px 36px;max-width:380px;width:90%;text-align:center;box-shadow:0 4px 24px rgba(0,0,0,0.08);}
+.gate-box h2{font-size:22px;font-weight:700;color:var(--red);margin-bottom:6px;}
+.gate-box p{font-size:14px;color:var(--text3);margin-bottom:24px;}
+.gate-box input{width:100%;padding:11px 14px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:15px;margin-bottom:14px;}
+.gate-box input:focus{outline:none;border-color:var(--red);}
+.gate-box button{width:100%;padding:11px;background:var(--red);color:#fff;border:none;border-radius:var(--radius-sm);font-size:15px;font-weight:600;cursor:pointer;}
+.gate-box .error{color:var(--red);font-size:13px;margin-top:8px;min-height:18px;}
+.header{background:var(--red);color:#fff;padding:14px 24px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100;box-shadow:0 2px 8px rgba(0,0,0,0.15);}
+.header h1{font-size:20px;font-weight:700;}
+.hdr-right{display:flex;gap:10px;align-items:center;}
+.hdr-btn{padding:7px 16px;border-radius:var(--radius-sm);font-size:13px;font-weight:600;cursor:pointer;border:none;background:rgba(255,255,255,0.2);color:#fff;}
+.container{max-width:1100px;margin:0 auto;padding:24px 16px;}
+.tabs{display:flex;background:#fff;border-bottom:1px solid var(--border);margin-bottom:24px;}
+.tab{padding:12px 22px;font-size:14px;font-weight:600;color:var(--text3);border-bottom:3px solid transparent;cursor:pointer;}
+.tab.active{color:var(--red);border-bottom-color:var(--red);}
+.section-title{font-size:16px;font-weight:700;margin-bottom:14px;display:flex;align-items:center;gap:8px;}
+.badge{background:var(--red);color:#fff;border-radius:10px;padding:1px 8px;font-size:12px;}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:20px;margin-bottom:16px;}
+.rep-section{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);margin-bottom:20px;overflow:hidden;}
+.rep-header{padding:14px 20px;background:#f8f8fa;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;}
+.rep-header h3{font-size:15px;font-weight:700;}
+.rep-body{padding:16px 20px;}
+.quote-row{display:grid;grid-template-columns:2fr 1fr 1fr 1fr 1fr 1fr auto;gap:10px;align-items:center;padding:10px 0;border-bottom:1px solid var(--border);font-size:13px;}
+.quote-row:last-child{border-bottom:none;}
+.quote-row .th{font-weight:600;color:var(--text3);font-size:12px;}
+.totals-row{display:flex;justify-content:flex-end;gap:20px;padding:10px 0 0;font-size:13px;font-weight:600;}
+.btn{padding:7px 14px;border-radius:var(--radius-sm);font-size:13px;font-weight:600;cursor:pointer;border:none;transition:all 0.15s;}
+.btn-red{background:var(--red);color:#fff;}
+.btn-red:hover{background:var(--red-dark);}
+.btn-green{background:var(--green);color:#fff;}
+.btn-green:hover{background:#156b3e;}
+.btn-outline{background:#fff;color:var(--red);border:1.5px solid var(--red);}
+.btn-outline:hover{background:var(--red-light);}
+.btn-gray{background:#f0f0f0;color:var(--text2);border:1px solid var(--border);}
+.btn-gray:hover{background:#e5e5e5;}
+.margin-badge{display:inline-block;padding:2px 8px;border-radius:10px;font-size:11px;font-weight:700;}
+.margin-ok{background:#e8f5ee;color:#1a7f4b;}
+.margin-warn{background:#fff0f0;color:#c41e1e;}
+.margin-low{background:#fff3e0;color:#c46a1e;}
+.approval-card{border:1px solid var(--border);border-radius:var(--radius);padding:16px;margin-bottom:12px;}
+.approval-card .ac-header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:12px;}
+.approval-card .ac-meta{font-size:13px;color:var(--text3);}
+.ac-actions{display:flex;gap:8px;flex-wrap:wrap;}
+.summary-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;margin-bottom:24px;}
+.summary-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:16px;text-align:center;}
+.summary-card .sc-val{font-size:26px;font-weight:700;color:var(--red);}
+.summary-card .sc-lbl{font-size:12px;color:var(--text3);margin-top:4px;}
+.notes-thread{margin-top:10px;background:#f8f8fa;border-radius:var(--radius-sm);padding:12px;max-height:200px;overflow-y:auto;}
+.note-item{margin-bottom:8px;font-size:13px;}
+.note-item .note-author{font-weight:700;color:var(--red);}
+.note-item .note-time{color:var(--text3);font-size:11px;}
+.paid-indicator{display:inline-block;padding:2px 10px;border-radius:10px;font-size:12px;font-weight:600;background:var(--green-bg);color:var(--green);}
+#bam-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:9999;align-items:center;justify-content:center;}
+#error-banner{display:none;position:fixed;top:0;left:0;right:0;background:#c41e1e;color:#fff;padding:10px 20px;font-size:14px;z-index:9998;text-align:center;}
+.sync-dot{width:8px;height:8px;border-radius:50%;background:#1a7f4b;display:inline-block;margin-right:4px;}
+.sync-dot.syncing{background:#ffd54f;animation:pulse 1s infinite;}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:0.3}}
 </style>
 </head>
 <body>
 
-<!-- Password gate -->
-<div id="gate" style="position:fixed;inset:0;background:#1a1a2e;display:flex;align-items:center;justify-content:center;z-index:9999">
-  <div style="background:#fff;border-radius:12px;padding:36px 44px;max-width:360px;width:90%;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,.4)">
-    <div style="font-size:28px;margin-bottom:10px">&#128274;</div>
-    <div style="font-size:20px;font-weight:700;color:#1a1a2e;margin-bottom:4px">TORO</div>
-    <div style="font-size:13px;color:#888;margin-bottom:24px">Management Dashboard</div>
-    <input id="pw-input" type="password" placeholder="Enter password"
-      style="width:100%;padding:10px 12px;font-size:14px;border:2px solid #e2e3e6;border-radius:8px;margin-bottom:10px;box-sizing:border-box;outline:none"
-      onkeydown="if(event.key==='Enter')checkPw()"
-      onfocus="this.style.borderColor='#C41E1E'" onblur="this.style.borderColor='#e2e3e6'">
-    <div id="pw-msg" style="font-size:12px;color:#C41E1E;min-height:16px;margin-bottom:10px"></div>
-    <button onclick="checkPw()" style="width:100%;padding:10px;background:#C41E1E;color:#fff;font-size:14px;font-weight:700;border:none;border-radius:8px;cursor:pointer">Unlock</button>
+<div id="error-banner">⚠️ Something went wrong. Please contact management. <button onclick="document.getElementById('error-banner').style.display='none'" style="background:none;border:none;color:#fff;cursor:pointer;font-size:16px;margin-left:10px;">✕</button></div>
+<script>
+window.onerror = function(msg,src,line,col,err) { console.error('Global error:',msg,src,line); document.getElementById('error-banner').style.display='block'; return false; };
+window.addEventListener('unhandledrejection', function(e) { console.error('Unhandled rejection:',e.reason); document.getElementById('error-banner').style.display='block'; });
+</script>
+
+<!-- BAM Modal -->
+<div id="bam-overlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:9999;align-items:center;justify-content:center;">
+  <div style="background:#fff;border-radius:12px;padding:28px 32px;max-width:420px;width:90%;box-shadow:0 8px 40px rgba(0,0,0,0.2);">
+    <div style="font-size:17px;font-weight:700;color:#C41E1E;margin-bottom:12px;">🐂 BAM the Bull says</div>
+    <div id="bam-msg" style="font-size:15px;color:#333;margin-bottom:22px;line-height:1.5;"></div>
+    <div id="bam-btns" style="display:flex;gap:10px;justify-content:flex-end;"></div>
   </div>
 </div>
 
-<div class="topbar">
-  <h1>&#9733; TORO Management Dashboard</h1>
-  <div style="display:flex;gap:8px;align-items:center">
-    <span id="last-updated" style="color:#888;font-size:11px">Loading...</span>
-    <button onclick="loadAll()" style="padding:6px 12px;background:#fff;border:none;border-radius:6px;font-size:12px;font-weight:700;cursor:pointer">&#8635; Refresh</button>
-    <button onclick="downloadDashReport()" style="padding:6px 12px;background:#1a7f4b;color:#fff;border:none;border-radius:6px;font-size:12px;font-weight:700;cursor:pointer">&#128202; Report</button>
-    <button onclick="downloadExcel()" style="padding:6px 12px;background:var(--green);color:#fff;border:none;border-radius:6px;font-size:12px;font-weight:700;cursor:pointer">&#128229; Export all</button>
+<div id="gate">
+  <div class="gate-box">
+    <h2>🐂 TORO</h2>
+    <p>Management Dashboard</p>
+    <input type="password" id="pw-input" placeholder="Enter password" onkeydown="if(event.key==='Enter')submitPw()">
+    <button onclick="submitPw()">Access Dashboard</button>
+    <div class="error" id="pw-error"></div>
   </div>
 </div>
 
-<div class="container">
-  <div class="drop-zone" id="drop-zone" onclick="document.getElementById('file-input').click()">
-    <input type="file" id="file-input" multiple accept=".json" style="display:none">
-    <div style="font-size:13px;font-weight:600;color:var(--text2)">Drop commission bundle files here, or use Refresh to sync from Firebase</div>
+<div id="app" style="display:none;">
+  <div class="header">
+    <h1>🐂 TORO Management Dashboard</h1>
+    <div class="hdr-right">
+      <span class="sync-dot" id="sync-dot"></span>
+      <span style="font-size:12px;opacity:0.8;" id="sync-label">Live</span>
+      <button class="hdr-btn" onclick="exportExcel()">📊 Export Excel</button>
+    </div>
   </div>
-
-  <div class="cards" id="summary-cards"></div>
-
-  <div class="tabs" id="tabs">
-    <div class="tab active" data-tab="approvals">Needs Approval</div>
-    <div class="tab" data-tab="commission">Ready for Commission</div>
-    <div class="tab" data-tab="by-rep">By Rep</div>
-    <div class="tab" data-tab="all">All Quotes</div>
-    <div class="tab" data-tab="feedback">&#128172; Feedback <span id="feedback-badge" style="display:none;background:var(--red);color:#fff;font-size:10px;padding:1px 5px;border-radius:8px;margin-left:4px">0</span></div>
+  <div class="container">
+    <div class="summary-grid" id="summary-grid"></div>
+    <div class="tabs">
+      <div class="tab active" onclick="switchTab('approvals')" id="tab-approvals">Needs Approval</div>
+      <div class="tab" onclick="switchTab('commission')" id="tab-commission">Commission Due</div>
+      <div class="tab" onclick="switchTab('all')" id="tab-all">All Quotes</div>
+    </div>
+    <div id="tab-content"></div>
   </div>
-
-  <div class="tab-panel active" id="panel-approvals"><div id="approvals-wrap"></div></div>
-  <div class="tab-panel" id="panel-commission"><div id="commission-wrap"></div></div>
-  <div class="tab-panel" id="panel-by-rep"><div id="rep-wrap"></div></div>
-  <div class="tab-panel" id="panel-all"><div id="all-wrap"></div></div>
-  <div class="tab-panel" id="panel-feedback"><div id="feedback-wrap"></div></div>
 </div>
 
 <script>
-const DASH_PW_KEY = 'toro_dash_pw';
-const DEFAULT_PW = 'Toro#Mv3kG';
-const DASH_LOCK = 'toro_dash_lock';
-const DASH_ATTEMPTS = 'toro_dash_attempts';
-let quotes = [];
-let approvals = {};
-let commissionSubmissions = {};
-const REPS = ['Shannon','Stephen','Julia','Lexi','Amy','Debbie'];
+const FIREBASE_DB_URL = 'https://toro-commission-318b4-default-rtdb.firebaseio.com';
+const DASH_PW = 'Toro#Mv3kG';
+const REPS = ['Shannon', 'Stephen', 'Julia', 'Lexi', 'Amy', 'Debbie'];
+let allQuotes = {};   // { rep: [quotes] }
+let approvals = {};   // { rep: { key: approval } }
+let currentTab = 'approvals';
+const LOCK_KEY = 'toro_dash_lock';
+const ATTEMPTS_KEY = 'toro_dash_attempts';
 
-// ── Password ──────────────────────────────────────────────────────────────
-function getDashPw(){ return localStorage.getItem(DASH_PW_KEY)||DEFAULT_PW; }
-function checkPw(){
-  const v=document.getElementById('pw-input').value;
-  const a=parseInt(localStorage.getItem(DASH_ATTEMPTS)||'0');
-  if(localStorage.getItem(DASH_LOCK)==='locked'){ document.getElementById('pw-msg').textContent='Account locked.'; return; }
-  if(v===getDashPw()){ localStorage.removeItem(DASH_ATTEMPTS); document.getElementById('gate').style.display='none'; }
-  else{
-    const na=a+1; localStorage.setItem(DASH_ATTEMPTS,na);
-    if(na>=5){ localStorage.setItem(DASH_LOCK,'locked'); document.getElementById('pw-msg').textContent='Account locked.'; }
-    else if(na>=3){ document.getElementById('pw-msg').textContent='Incorrect. '+(5-na)+' attempts remaining.'; }
-    else{ document.getElementById('pw-msg').textContent='Incorrect password.'; }
-    document.getElementById('pw-input').value='';
-  }
+function bamAlert(msg, cb) {
+  document.getElementById('bam-msg').innerHTML = msg;
+  const btns = document.getElementById('bam-btns');
+  btns.innerHTML = '';
+  const ok = document.createElement('button');
+  ok.textContent = 'OK';
+  ok.style.cssText = 'padding:8px 22px;background:#C41E1E;color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:14px;font-weight:600;';
+  ok.onclick = () => { document.getElementById('bam-overlay').style.display='none'; if(cb) cb(true); };
+  btns.appendChild(ok);
+  document.getElementById('bam-overlay').style.display='flex';
 }
-if(localStorage.getItem(DASH_LOCK)==='locked'){ document.getElementById('pw-msg').textContent='Account locked.'; document.getElementById('pw-input').disabled=true; }
+function bamConfirm(msg, cb) {
+  document.getElementById('bam-msg').innerHTML = msg;
+  const btns = document.getElementById('bam-btns');
+  btns.innerHTML = '';
+  const cancel = document.createElement('button');
+  cancel.textContent = 'Cancel';
+  cancel.style.cssText = 'padding:8px 18px;background:#f0f0f0;color:#333;border:none;border-radius:6px;cursor:pointer;font-size:14px;';
+  cancel.onclick = () => { document.getElementById('bam-overlay').style.display='none'; if(cb) cb(false); };
+  const ok = document.createElement('button');
+  ok.textContent = 'Yes, continue';
+  ok.style.cssText = 'padding:8px 18px;background:#C41E1E;color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:14px;font-weight:600;';
+  ok.onclick = () => { document.getElementById('bam-overlay').style.display='none'; if(cb) cb(true); };
+  btns.appendChild(cancel);
+  btns.appendChild(ok);
+  document.getElementById('bam-overlay').style.display='flex';
+}
+function bamPrompt(msg, defaultVal, cb) {
+  document.getElementById('bam-msg').innerHTML = msg + '<br><textarea id="bam-input" style="width:100%;margin-top:10px;padding:8px;border:1px solid #ddd;border-radius:6px;font-size:14px;min-height:70px;">'+(defaultVal||'')+'</textarea>';
+  const btns = document.getElementById('bam-btns');
+  btns.innerHTML = '';
+  const cancel = document.createElement('button');
+  cancel.textContent = 'Cancel';
+  cancel.style.cssText = 'padding:8px 18px;background:#f0f0f0;color:#333;border:none;border-radius:6px;cursor:pointer;font-size:14px;';
+  cancel.onclick = () => { document.getElementById('bam-overlay').style.display='none'; if(cb) cb(null); };
+  const ok = document.createElement('button');
+  ok.textContent = 'Submit';
+  ok.style.cssText = 'padding:8px 18px;background:#C41E1E;color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:14px;font-weight:600;';
+  ok.onclick = () => { const v=document.getElementById('bam-input').value; document.getElementById('bam-overlay').style.display='none'; if(cb) cb(v); };
+  btns.appendChild(cancel);
+  btns.appendChild(ok);
+  document.getElementById('bam-overlay').style.display='flex';
+  setTimeout(()=>document.getElementById('bam-input')?.focus(),50);
+}
 
-// ── Tabs ──────────────────────────────────────────────────────────────────
-document.querySelectorAll('.tab').forEach(t=>{
-  t.addEventListener('click',()=>{
-    document.querySelectorAll('.tab').forEach(x=>x.classList.remove('active'));
-    document.querySelectorAll('.tab-panel').forEach(x=>x.classList.remove('active'));
-    t.classList.add('active');
-    document.getElementById('panel-'+t.dataset.tab).classList.add('active');
-  });
-});
-
-// ── Firebase ──────────────────────────────────────────────────────────────
-// ── Firebase Integration ─────────────────────────────────────────────────
-// Uses Firebase Realtime Database for real-time sync across all devices
-const FIREBASE_DB_URL = "https://toro-commission-318b4-default-rtdb.firebaseio.com";
-
-// Firebase REST API helpers — no SDK needed, works in plain HTML
+async function fbSet(path, val) {
+  const url = FIREBASE_DB_URL + '/' + path + '.json';
+  const method = val === null ? 'DELETE' : 'PUT';
+  const r = await fetch(url, { method, headers:{'Content-Type':'application/json'}, body:val===null?undefined:JSON.stringify(val) });
+  if(!r.ok) throw new Error('HTTP ' + r.status);
+}
 async function fbGet(path) {
-  try {
-    const res = await fetch(`${FIREBASE_DB_URL}/${path}.json`);
-    if (!res.ok) return null;
-    return await res.json();
-  } catch(e) { console.warn('Firebase read failed:', e.message); return null; }
+  const r = await fetch(FIREBASE_DB_URL + '/' + path + '.json');
+  if(!r.ok) throw new Error('HTTP ' + r.status);
+  return await r.json();
+}
+function fbListen(path, cb) {
+  const es = new EventSource(FIREBASE_DB_URL + '/' + path + '.json');
+  es.addEventListener('put', e => { try { cb(JSON.parse(e.data)); } catch(err) { console.error('fbListen parse error', err); } });
+  es.onerror = err => console.error('fbListen error', path, err);
+  return es;
+}
+function fbKey(q) {
+  const raw = q._fbKey || q.quoteNum || ('idx_' + Date.now());
+  return raw.replace(/[.#$\/\[\]\s]/g, '_');
+}
+function quoteTotal(q, type) {
+  let t=0;
+  (q.garments||[]).forEach(g=>(g.sizes||[]).forEach(s=>{ if(s.qty>0) t+=s.qty*(type==='sell'?(s.sellPrice||0):(s.netCost||0)); }));
+  (q.hardGoods||[]).forEach(h=>{ if(h.qty>0) t+=h.qty*(type==='sell'?(h.sellPrice||0):(h.netCost||0)); });
+  return t;
+}
+function quoteComm(q) {
+  const sell=quoteTotal(q,'sell'), net=quoteTotal(q,'net');
+  const split=parseInt(q.split)||100;
+  return (sell-net)*(split/100)*0.5;
+}
+function marginBadge(net, sell) {
+  if(!sell) return '';
+  const m=(sell-net)/sell*100;
+  const cls=m>=30?'margin-ok':m>=20?'margin-low':'margin-warn';
+  return `<span class="margin-badge ${cls}">${m.toFixed(1)}%</span>`;
+}
+function setSyncing(on) {
+  const dot=document.getElementById('sync-dot'), lbl=document.getElementById('sync-label');
+  if(dot) dot.classList.toggle('syncing',on);
+  if(lbl) lbl.textContent=on?'Syncing...':'Live';
 }
 
-async function fbSet(path, data) {
-  try {
-    if(data === null) {
-      // Use DELETE to truly remove the node from Firebase
-      const res = await fetch(`${FIREBASE_DB_URL}/${path}.json`, { method: 'DELETE' });
-      return res.ok;
-    }
-    const res = await fetch(`${FIREBASE_DB_URL}/${path}.json`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(data)
-    });
-    return res.ok;
-  } catch(e) { console.warn('Firebase write failed:', e.message); return false; }
-}
-
-async function fbPatch(path, data) {
-  try {
-    const res = await fetch(`${FIREBASE_DB_URL}/${path}.json`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(data)
-    });
-    return res.ok;
-  } catch(e) { console.warn('Firebase patch failed:', e.message); return false; }
-}
-
-// Long-polling for real-time updates (SSE/EventSource)
-let fbListeners = {};
-function fbListen(path, callback) {
-  // Stop any existing listener on this path
-  if (fbListeners[path]) {
-    fbListeners[path].close();
-  }
-  try {
-    const es = new EventSource(
-      `${FIREBASE_DB_URL}/${path}.json`
-    );
-    es.addEventListener('put', e => {
-      try { callback(JSON.parse(e.data)); } catch(err) {}
-    });
-    es.addEventListener('patch', e => {
-      try { callback(JSON.parse(e.data)); } catch(err) {}
-    });
-    es.onerror = () => {
-      // Reconnect after 5 seconds on error
-      setTimeout(() => fbListen(path, callback), 5000);
-    };
-    fbListeners[path] = es;
-  } catch(e) {
-    console.warn('Firebase listener failed:', e.message);
-    // Fallback: poll every 10 seconds
-    fbListeners[path] = { close: () => {} };
-    setInterval(async () => {
-      const data = await fbGet(path);
-      if (data) callback({ data });
-    }, 10000);
-  }
-}
-
-function fbStopListening(path) {
-  if (fbListeners[path]) {
-    fbListeners[path].close();
-    delete fbListeners[path];
-  }
-}
-
-
-async function loadAll(){
-  document.getElementById('last-updated').textContent='Syncing...';
-  try{
-    // Load all quotes from all reps
-    let all=[];
-    for(const rep of REPS){
-      const data=await fbGet('quotes/'+rep.toLowerCase());
-      if(data) Object.values(data).filter(Boolean).forEach(q=>{ if(q.totalSell) all.push(q); });
-    }
-    quotes=all;
-
-    // Load approvals
-    const apData=await fbGet('approvals');
-    approvals=apData||{};
-
-    // Load commission submissions
-    const csData=await fbGet('commissionSubmissions');
-    commissionSubmissions=csData||{};
-
-    localStorage.setItem('toro_dash_quotes',JSON.stringify(quotes));
-    document.getElementById('last-updated').textContent=quotes.length+' quotes loaded';
-    render();
-    loadFeedback();
-  } catch(e){ console.error(e); document.getElementById('last-updated').textContent='Sync failed'; }
-}
-
-function startListeners(){
-  let firstQ=true, firstA=true, firstC=true;
-  fbListen('quotes',()=>{ if(firstQ){firstQ=false;return;} loadAll(); });
-  fbListen('approvals',event=>{
-    if(firstA){firstA=false;return;}
-    if(event&&event.data){ approvals=event.data||{}; render(); }
-  });
-  fbListen('commissionSubmissions',()=>{ if(firstC){firstC=false;return;} loadAll(); });
-}
-
-// ── Approval actions ──────────────────────────────────────────────────────
-async function approveQuote(key){
-  console.log('approveQuote called with key:', key);
-  console.log('approvals object keys:', Object.keys(approvals));
-  console.log('approvals[key]:', approvals[key]);
-  if(!approvals[key]){
-    // Try decoding/encoding variants
-    const decoded=decodeURIComponent(key);
-    const encoded=encodeURIComponent(key);
-    const found=approvals[decoded]||approvals[encoded]||Object.values(approvals).find(a=>a&&(a.quoteNum===key||a.quoteNum===decoded));
-    if(!found){ console.error('No approval found for key',key,'decoded',decoded,'keys',Object.keys(approvals)); bamAlert('Could not find approval for key: '+key+'. Check browser console.'); return; }
-    // Use found approval
-    const realKey=approvals[decoded]?decoded:(approvals[encoded]?encoded:Object.keys(approvals).find(k=>approvals[k]===found));
-    key=realKey;
-  }
-  await fbSet('approvals/'+key,{...approvals[key], status:'approved', reviewedAt:new Date().toISOString()});
-  // Update quote in rep's path
-  const rep=approvals[key]&&approvals[key].rep;
-  if(rep){
-    const data=await fbGet('quotes/'+rep.toLowerCase());
-    if(data){
-      const qKey=Object.keys(data).find(k=>k===key||data[k].quoteNum===approvals[key].quoteNum);
-      if(qKey){
-        await fbPatch('quotes/'+rep.toLowerCase()+'/'+qKey,{
-          approvalStatus:'approved', marginApproved:true, workflowStatus:'active'
-        });
-      }
-    }
-  }
-  await loadAll();
-}
-
-async function rejectQuote(key){
-  console.log('rejectQuote called with key:', key);
-  if(!approvals[key]){
-    const decoded=decodeURIComponent(key);
-    if(approvals[decoded]) key=decoded;
-    else{ bamAlert('Could not find approval for key: '+key); return; }
-  }
-  const note=document.getElementById('note_'+key)&&document.getElementById('note_'+key).value||'';
-  if(!note.trim()){ bamAlert('Please add a rejection note so the rep knows what to fix.'); return; }
-  await fbSet('approvals/'+key,{...approvals[key], status:'rejected', note, reviewedAt:new Date().toISOString()});
-  const rep=approvals[key]&&approvals[key].rep;
-  if(rep){
-    const data=await fbGet('quotes/'+rep.toLowerCase());
-    if(data){
-      const qKey=Object.keys(data).find(k=>k===key||data[k].quoteNum===approvals[key].quoteNum);
-      if(qKey){
-        await fbPatch('quotes/'+rep.toLowerCase()+'/'+qKey,{
-          approvalStatus:'rejected', approvalNote:note, workflowStatus:'needsApproval', marginApproved:false
-        });
-      }
-    }
-  }
-  await loadAll();
-}
-
-async function markPaid(fbKey,rep,paidDate){
-  const q=quotes.find(x=>x._fbKey===fbKey);
-  if(q){ q.paid=!!paidDate; q.paidDate=paidDate; }
-  await fbSet('paid/'+fbKey,{quoteNum:fbKey,rep,paid:!!paidDate,paidDate:paidDate||''});
-  await fbPatch('quotes/'+rep.toLowerCase()+'/'+fbKey,{paid:!!paidDate,paidDate:paidDate||''});
-  render();
-}
-
-function promptPaid(fbKey,rep){
-  const d=prompt('Enter paid date:','');
-  if(d===null) return;
-  markPaid(fbKey,rep,d.trim());
-}
-
-// ── File drop ─────────────────────────────────────────────────────────────
-const dz=document.getElementById('drop-zone');
-const fi=document.getElementById('file-input');
-dz.addEventListener('dragover',e=>{e.preventDefault();dz.style.borderColor='#C41E1E'});
-dz.addEventListener('dragleave',()=>dz.style.borderColor='#ccc');
-dz.addEventListener('drop',e=>{e.preventDefault();dz.style.borderColor='#ccc';loadFiles([...e.dataTransfer.files])});
-fi.addEventListener('change',()=>{loadFiles([...fi.files]);fi.value=''});
-function loadFiles(files){
-  files.forEach(f=>{
-    if(!f.name.endsWith('.json')) return;
-    const r=new FileReader();
-    r.onload=e=>{
-      try{
-        const data=JSON.parse(e.target.result);
-        const incoming=data.type==='commission_bundle'?data.quotes:[data];
-        incoming.forEach(q=>{
-          if(!q.totalSell) return;
-          const idx=quotes.findIndex(x=>x.quoteNum&&x.quoteNum===q.quoteNum);
-          if(idx>=0) quotes[idx]=q; else quotes.push(q);
-        });
-        localStorage.setItem('toro_dash_quotes',JSON.stringify(quotes));
-        render();
-      }catch(err){ console.error(err); }
-    };
-    r.readAsText(f);
-  });
-}
-
-// ── Helpers ───────────────────────────────────────────────────────────────
-const fmt=v=>'$'+parseFloat(v||0).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
-const pct=v=>(Math.round((v||0)*10)/10)+'%';
-function mgPill(m){ const c=m<30?'mg-red':m<35?'mg-yellow':'mg-green'; return `<span class="mg-pill ${c}">${pct(m)}</span>`; }
-function splitLabel(s){ return s==='standard'?'Standard':s==='ho_75_25'?'H/O 75/25':s==='ho_50_50'?'H/O 50/50':s==='ho_25_75'?'H/O 25/75':'Standard'; }
-function statusChecksDisplay(q){
-  if(!q.statusChecks) return '<span style="color:#ccc;font-size:11px">No status</span>';
-  const sc=q.statusChecks;
-  const checks=[['quoteApproved','QA'],['orderCompleted','OC'],['paidByClient','PC'],['readyForPayment','RFP']];
-  return checks.map(([f,l])=>`<span style="display:inline-block;padding:1px 5px;border-radius:4px;font-size:10px;font-weight:700;margin:1px;background:${sc[f]?'#e6f4ee':'#f0f0f0'};color:${sc[f]?'var(--green)':'#aaa'}">${l}</span>`).join('');
-}
-
-// ── Render ────────────────────────────────────────────────────────────────
-function render(){
-  const TH=`<thead><tr>
-    <th>Quote</th><th>Rep</th><th class="r">Cost</th><th class="r">Sell</th>
-    <th class="r">Margin</th><th class="r">Commission</th><th>Split</th><th>Status</th><th></th>
-  </tr></thead>`;
-
-  // Summary cards
-  const active=quotes.filter(q=>q.workflowStatus!=='submittedCommission'&&q.workflowStatus!=='archived');
-  const totSell=active.reduce((a,q)=>a+(q.totalSell||0),0);
-  const totNet=active.reduce((a,q)=>a+(q.totalNetCost||0),0);
-  const totRep=active.reduce((a,q)=>a+(q.totalRepComm||0),0);
-  const totHP=active.reduce((a,q)=>a+(q.totalHouseProfit||0),0);
-  const needsApprCount=Object.values(approvals).filter(a=>a&&a.status==='waiting').length;
-  const readyCount=quotes.filter(q=>q.workflowStatus==='submittedCommission').length;
-
-  document.getElementById('summary-cards').innerHTML=`
-    <div class="card"><div class="card-lbl">Total quotes</div><div class="card-val">${active.length}</div></div>
-    <div class="card"><div class="card-lbl">Total sell</div><div class="card-val green">${fmt(totSell)}</div></div>
-    <div class="card"><div class="card-lbl">Rep commissions</div><div class="card-val brown">${fmt(totRep)}</div></div>
-    <div class="card"><div class="card-lbl">House profit</div><div class="card-val">${fmt(totHP)}</div></div>
-    ${needsApprCount?`<div class="card"><div class="card-lbl">Needs approval</div><div class="card-val red">${needsApprCount}</div></div>`:''}
-    ${readyCount?`<div class="card"><div class="card-lbl">Ready for payment</div><div class="card-val green">${readyCount}</div></div>`:''}
-  `;
-
-  // ── Approvals tab ─────────────────────────────────────────────────────
-  const waiting=Object.entries(approvals).filter(([k,v])=>v&&v.status==='waiting');
-  const reviewed=Object.entries(approvals).filter(([k,v])=>v&&(v.status==='approved'||v.status==='rejected'));
-  let apHtml='';
-  if(waiting.length){
-    apHtml+=`<div class="section-block">
-      <div class="section-hdr approval">&#9888; Waiting for Approval (${waiting.length})</div>
-      <table><thead><tr><th>Quote</th><th>Rep</th><th class="r">Sell</th><th class="r">Margin</th><th>Split</th><th>Action</th></tr></thead><tbody>`;
-    waiting.forEach(([key,a])=>{
-      apHtml+=`<tr>
-        <td><strong>${a.quoteName||a.quoteNum||'Unnamed'}</strong>${a.quoteNum?`<br><span style="font-size:10px;color:var(--text3)">#${a.quoteNum}</span>`:''}</td>
-        <td>${a.rep||''}</td>
-        <td class="r">${fmt(a.sell)}</td>
-        <td class="r">${mgPill(a.margin||0)}</td>
-        <td style="font-size:11px">${splitLabel(a.commissionSplit)}</td>
-        <td>
-          <div style="display:flex;flex-direction:column;gap:4px;min-width:200px">
-            <div style="display:flex;gap:6px">
-              <button class="btn btn-sm btn-green" data-key="${encodeURIComponent(key)}" onclick="approveQuote(decodeURIComponent(this.dataset.key))">&#10003; Approve</button>
-              <button class="btn btn-sm btn-primary" data-key="${encodeURIComponent(key)}" onclick="rejectQuote(decodeURIComponent(this.dataset.key))">&#10005; Reject</button>
-              <button class="btn btn-sm btn-outline" data-key="${encodeURIComponent(key)}" data-name="${a.quoteName||a.quoteNum||''}" onclick="openApprovalThread(decodeURIComponent(this.dataset.key),this.dataset.name)">&#128172; Notes</button>
-              <button class="btn btn-sm" style="background:none;border:1px solid #ddd;color:#aaa;font-size:11px" data-key="${encodeURIComponent(key)}" onclick="dismissApproval(decodeURIComponent(this.dataset.key))">&#10005; Dismiss</button>
-            </div>
-            <input id="note_${key}" class="note-input" placeholder="Rejection note (required to reject)">
-          </div>
-        </td>
-      </tr>`;
-    });
-    apHtml+=`</tbody></table></div>`;
-  }
-  if(reviewed.length){
-    apHtml+=`<div class="section-block"><div class="section-hdr" style="background:var(--bg)">Recently Reviewed</div>
-      <table><thead><tr><th>Quote</th><th>Rep</th><th>Status</th><th>Note</th></tr></thead><tbody>`;
-    reviewed.forEach(([key,a])=>{
-      const badge=a.status==='approved'?'<span class="status-badge badge-approved">Approved</span>':'<span class="status-badge badge-rejected">Rejected</span>';
-      apHtml+=`<tr><td>${a.quoteName||a.quoteNum||'Unnamed'}</td><td>${a.rep||''}</td><td>${badge}</td><td style="font-size:11px;color:var(--text3)">${a.note||''}</td></tr>`;
-    });
-    apHtml+=`</tbody></table></div>`;
-  }
-  if(!apHtml) apHtml='<div class="section-block"><div class="empty">No quotes waiting for approval</div></div>';
-  document.getElementById('approvals-wrap').innerHTML=apHtml;
-
-  // ── Commission tab — per rep ──────────────────────────────────────────
-  const submitted=quotes.filter(q=>q.workflowStatus==='submittedCommission'||q.workflowStatus==='archived');
-  let commHtml='';
-  if(submitted.length){
-    REPS.forEach(rep=>{
-      const rqs=submitted.filter(q=>q.rep===rep);
-      if(!rqs.length) return;
-      const rSell=rqs.reduce((a,q)=>a+(q.totalSell||0),0);
-      const rNet=rqs.reduce((a,q)=>a+(q.totalNetCost||0),0);
-      const rRep=rqs.reduce((a,q)=>a+(q.totalRepComm||0),0);
-      const rMg=rSell>0?Math.round((1-rNet/rSell)*1000)/10:0;
-      commHtml+=`<div class="section-block">
-        <div class="section-hdr commission">
-          <span>&#9989; ${rep} — Ready for Commission Payment (${rqs.length} quotes)</span>
-          <span style="font-size:12px;font-weight:400">Total payout: <strong>${fmt(rRep)}</strong></span>
-        </div>
-        <table><thead><tr>
-          <th>Quote</th><th class="r">Cost</th><th class="r">Sell</th>
-          <th class="r">Margin</th><th class="r">Commission</th><th>Split</th><th>Paid</th>
-        </tr></thead><tbody>`;
-      rqs.forEach(q=>{
-        const mg=q.avgMargin||0;
-        commHtml+=`<tr>
-          <td>
-            <strong>${q.quoteName||('#'+(q.quoteNum||''))}</strong>
-            ${q.quoteNum&&q.quoteName?`<br><span style="font-size:10px;color:var(--text3)">#${q.quoteNum}</span>`:''}
-            ${q.commissionReport?`<br><span style="font-size:10px;color:var(--text3)">Period: ${q.commissionReport}</span>`:''}
-          </td>
-          <td class="r">${fmt(q.totalNetCost)}</td>
-          <td class="r">${fmt(q.totalSell)}</td>
-          <td class="r">${mgPill(mg)}</td>
-          <td class="r" style="color:var(--brown);font-weight:700">${fmt(q.totalRepComm)}</td>
-          <td style="font-size:11px">${splitLabel(q.commissionSplit)}</td>
-          <td>${q.paid
-            ?`<span style="background:#e6f4ee;color:var(--green);font-size:11px;font-weight:700;padding:2px 7px;border-radius:8px;cursor:pointer" onclick="markPaid('${q._fbKey||''}','${rep}','')" title="Click to clear">&#10003; ${q.paidDate||'Paid'}</span>`
-            :`<button class="btn btn-sm btn-outline" onclick="promptPaid('${q._fbKey||''}','${rep}')">Mark paid</button>`}
-          </td>
-        </tr>`;
-      });
-      // Totals row
-      commHtml+=`<tr class="totals-row">
-        <td>Totals</td>
-        <td class="r">${fmt(rNet)}</td>
-        <td class="r">${fmt(rSell)}</td>
-        <td class="r">${mgPill(rMg)}</td>
-        <td class="r" style="color:var(--brown)">${fmt(rRep)}</td>
-        <td></td><td></td>
-      </tr></tbody></table></div>`;
-    });
+function submitPw() {
+  if(localStorage.getItem(LOCK_KEY)) { document.getElementById('pw-error').textContent='Account locked. Contact management.'; return; }
+  const val=document.getElementById('pw-input').value;
+  const attempts=parseInt(localStorage.getItem(ATTEMPTS_KEY)||'0');
+  if(val===DASH_PW) {
+    localStorage.removeItem(ATTEMPTS_KEY);
+    document.getElementById('gate').style.display='none';
+    document.getElementById('app').style.display='';
+    init();
   } else {
-    commHtml='<div class="section-block"><div class="empty">No commission submissions yet</div></div>';
+    const n=attempts+1;
+    localStorage.setItem(ATTEMPTS_KEY,n);
+    if(n>=5) { localStorage.setItem(LOCK_KEY,'1'); document.getElementById('pw-error').textContent='Account locked after 5 failed attempts.'; }
+    else document.getElementById('pw-error').textContent=`Incorrect. ${5-n} attempt(s) remaining.`;
   }
-  document.getElementById('commission-wrap').innerHTML=commHtml;
-
-  // ── By rep tab ────────────────────────────────────────────────────────
-  let repHtml='';
-  REPS.forEach(rep=>{
-    const rqs=quotes.filter(q=>q.rep===rep&&q.workflowStatus!=='submittedCommission'&&q.workflowStatus!=='archived');
-    if(!rqs.length) return;
-    const rSell=rqs.reduce((a,q)=>a+(q.totalSell||0),0);
-    const rNet=rqs.reduce((a,q)=>a+(q.totalNetCost||0),0);
-    const rRep=rqs.reduce((a,q)=>a+(q.totalRepComm||0),0);
-    const rMg=rSell>0?Math.round((1-rNet/rSell)*1000)/10:0;
-    repHtml+=`<div class="section-block">
-      <div class="section-hdr rep">${rep} (${rqs.length} active quotes)</div>
-      <table>${TH}<tbody>`;
-    rqs.forEach(q=>{
-      const mg=q.avgMargin||0;
-      repHtml+=`<tr>
-        <td><strong>${q.quoteName||('#'+(q.quoteNum||'Unnamed'))}</strong>${q.quoteNum&&q.quoteName?`<br><span style="font-size:10px;color:var(--text3)">#${q.quoteNum}</span>`:''} ${(q.clientName||q.clientCompany)?`<br><span style="font-size:10px;color:var(--text2);font-weight:600">${[q.clientName,q.clientCompany].filter(Boolean).join(' — ')}</span>`:''}</td>
-        <td>${q.rep||''}</td>
-        <td class="r">${fmt(q.totalNetCost)}</td>
-        <td class="r">${fmt(q.totalSell)}</td>
-        <td class="r">${mgPill(mg)}</td>
-        <td class="r" style="color:var(--brown);font-weight:700">${fmt(q.totalRepComm)}</td>
-        <td style="font-size:11px">${splitLabel(q.commissionSplit)}</td>
-        <td>${statusChecksDisplay(q)}</td>
-        <td>${q.paid?`<span style="background:#e6f4ee;color:var(--green);font-size:11px;font-weight:700;padding:2px 6px;border-radius:6px">&#10003; ${q.paidDate||'Paid'}</span>`:`<button class="btn btn-sm btn-outline" onclick="promptPaid('${q._fbKey||''}','${q.rep||''}')">Mark paid</button>`}</td>
-      </tr>`;
-    });
-    repHtml+=`<tr class="totals-row">
-      <td colspan="2">Totals</td>
-      <td class="r">${fmt(rNet)}</td><td class="r">${fmt(rSell)}</td>
-      <td class="r">${mgPill(rMg)}</td>
-      <td class="r" style="color:var(--brown)">${fmt(rRep)}</td>
-      <td colspan="3"></td>
-    </tr></tbody></table></div>`;
-  });
-  if(!repHtml) repHtml='<div class="section-block"><div class="empty">No active quotes</div></div>';
-  document.getElementById('rep-wrap').innerHTML=repHtml;
-
-  // ── All quotes tab ────────────────────────────────────────────────────
-  let allHtml=`<div class="section-block"><table>${TH}<tbody>`;
-  if(quotes.length){
-    quotes.sort((a,b)=>(a.rep||'').localeCompare(b.rep||'')).forEach(q=>{
-      const mg=q.avgMargin||0;
-      const wf=q.workflowStatus||'active';
-      const wfBadge=wf==='waitingApproval'?'<span class="status-badge badge-waiting">Waiting Approval</span>':
-        wf==='needsApproval'?'<span class="status-badge" style="background:#fff8e1;color:#7a4f00">Needs Approval</span>':
-        wf==='submittedCommission'?'<span class="status-badge badge-approved">Submitted</span>':'';
-      allHtml+=`<tr>
-        <td><strong>${q.quoteName||('#'+(q.quoteNum||'Unnamed'))}</strong>${q.quoteNum&&q.quoteName?`<br><span style="font-size:10px;color:var(--text3)">#${q.quoteNum}</span>`:''} ${(q.clientName||q.clientCompany)?`<br><span style="font-size:10px;color:var(--text2);font-weight:600">${[q.clientName,q.clientCompany].filter(Boolean).join(' — ')}</span>`:''}</td>
-        <td>${q.rep||''}</td>
-        <td class="r">${fmt(q.totalNetCost)}</td>
-        <td class="r">${fmt(q.totalSell)}</td>
-        <td class="r">${mgPill(mg)}</td>
-        <td class="r" style="color:var(--brown);font-weight:700">${fmt(q.totalRepComm)}</td>
-        <td style="font-size:11px">${splitLabel(q.commissionSplit)}</td>
-        <td>${statusChecksDisplay(q)} ${wfBadge}</td>
-        <td>${q.paid?`<span style="color:var(--green);font-size:11px;font-weight:700">&#10003; ${q.paidDate||'Paid'}</span>`:`<button class="btn btn-sm btn-outline" onclick="promptPaid('${q._fbKey||''}','${q.rep||''}')">Mark paid</button>`}</td>
-      </tr>`;
-    });
-  } else {
-    allHtml+=`<tr><td colspan="9" class="empty">No quotes loaded</td></tr>`;
-  }
-  allHtml+=`</tbody></table></div>`;
-  document.getElementById('all-wrap').innerHTML=allHtml;
 }
+document.getElementById('pw-input').addEventListener('keydown', e=>{ if(e.key==='Enter') submitPw(); });
 
-// ── Excel download ────────────────────────────────────────────────────────
-function downloadExcel(){
-  if(!quotes.length){ bamAlert('No data loaded.'); return; }
-  const wb=XLSX.utils.book_new();
-  const HEADERS=['Quote #','Quote Name','Rep','IHD','Commission Period','Split','Sell','Cost','GP','Margin %','Commission','Paid','Paid Date','Status'];
-  const rows=[HEADERS,...quotes.map(q=>[q.quoteNum||'',q.quoteName||'',q.rep||'',q.ihd||'',q.commissionReport||'',q.commissionSplit||'',q.totalSell||0,q.totalNetCost||0,(q.totalSell||0)-(q.totalNetCost||0),(q.avgMargin||0)/100,q.totalRepComm||0,q.paid?'Yes':'No',q.paidDate||'',q.workflowStatus||'active'])];
-  const ws=XLSX.utils.aoa_to_sheet(rows);
-  XLSX.utils.book_append_sheet(wb,ws,'All Quotes');
-  const date=new Date().toLocaleDateString('en-US').replace(/\//g,'-');
-  XLSX.writeFile(wb,'TORO_Dashboard_'+date+'.xlsx');
-}
-
-// ── Init ──────────────────────────────────────────────────────────────────
-async function init(){
-  try{ quotes=JSON.parse(localStorage.getItem('toro_dash_quotes')||'[]'); }catch(e){ quotes=[]; }
-  render();
+async function init() {
+  setSyncing(true);
   await loadAll();
   startListeners();
-}
-init();
-
-// Global error handler
-function showErrorBanner(msg){
-  const banner=document.getElementById('toro-error-banner');
-  const msgEl=document.getElementById('toro-error-msg');
-  if(!banner) return;
-  if(msgEl) msgEl.textContent=msg||'An unexpected error occurred. Please contact management if this continues.';
-  banner.style.display='block';
-  setTimeout(()=>{ banner.style.display='none'; }, 8000);
-}
-window.addEventListener('error', function(e){
-  console.error('Global error:', e.message, e.filename, e.lineno);
-  showErrorBanner('Error: '+e.message+' — Please contact management if this continues.');
-});
-window.addEventListener('unhandledrejection', function(e){
-  console.error('Unhandled promise rejection:', e.reason);
-  const msg = e.reason && e.reason.message ? e.reason.message : String(e.reason);
-  showErrorBanner('Error: '+msg+' — Please contact management if this continues.');
-});
-
-// ── Feedback inbox ────────────────────────────────────────────────────────
-let feedbackData={};
-
-async function loadFeedback(){
-  const data=await fbGet('feedback');
-  feedbackData=data||{};
-  renderFeedback();
-  // Update badge
-  const unread=Object.values(feedbackData).filter(f=>!f.read).length;
-  const badge=document.getElementById('feedback-badge');
-  if(badge){badge.style.display=unread>0?'':'none';badge.textContent=unread;}
+  render();
+  setSyncing(false);
 }
 
-function renderFeedback(){
-  const wrap=document.getElementById('feedback-wrap');
-  if(!wrap) return;
-  const items=Object.entries(feedbackData).sort((a,b)=>b[1].sentAt>a[1].sentAt?1:-1);
-  if(!items.length){wrap.innerHTML='<div class="section-block"><div class="empty">No feedback yet</div></div>';return;}
-  let html='<div class="section-block">';
-  items.forEach(([key,f])=>{
-    const dt=f.sentAt?new Date(f.sentAt).toLocaleString('en-US',{month:'short',day:'numeric',hour:'numeric',minute:'2-digit'}):'';
-    html+=`<div style="padding:12px 16px;border-bottom:1px solid var(--border);${f.read?'opacity:.7':''}">
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
-        <div style="font-weight:700;font-size:13px">${f.rep||'Unknown'} <span style="font-size:11px;color:var(--text3);font-weight:400">${dt}</span></div>
-        ${!f.read?`<button class="btn btn-sm btn-outline" onclick="markFeedbackRead('${key}')">Mark read</button>`:'<span style="font-size:10px;color:var(--text3)">Read</span>'}
-      </div>
-      <div style="font-size:13px;color:var(--text2)">${f.message||''}</div>
-    </div>`;
-  });
-  html+='</div>';
-  wrap.innerHTML=html;
-}
-
-async function markFeedbackRead(key){
-  await fbPatch('feedback/'+key,{read:true});
-  feedbackData[key]&&(feedbackData[key].read=true);
-  renderFeedback();
-  const unread=Object.values(feedbackData).filter(f=>!f.read).length;
-  const badge=document.getElementById('feedback-badge');
-  if(badge){badge.style.display=unread>0?'':'none';badge.textContent=unread;}
-}
-
-// ── Approval thread messaging ─────────────────────────────────────────────
-function openApprovalThread(key, quoteName){
-  let modal=document.getElementById('dash-thread-modal');
-  if(!modal){
-    modal=document.createElement('div');
-    modal.id='dash-thread-modal';
-    modal.style.cssText='display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:10000;align-items:center;justify-content:center';
-    modal.innerHTML=`<div style="background:#fff;border-radius:12px;padding:24px;max-width:500px;width:92%;max-height:80vh;display:flex;flex-direction:column;box-shadow:0 20px 60px rgba(0,0,0,.3)">
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
-        <div style="font-size:15px;font-weight:700" id="dash-thread-title">Approval notes</div>
-        <button onclick="document.getElementById('dash-thread-modal').style.display='none'" style="background:none;border:none;font-size:20px;cursor:pointer;color:#888">&#10005;</button>
-      </div>
-      <div id="dash-thread-messages" style="flex:1;overflow-y:auto;border:1px solid var(--border);border-radius:6px;padding:10px;margin-bottom:12px;min-height:120px;max-height:300px;font-size:13px"></div>
-      <textarea id="dash-thread-input" rows="2" placeholder="Add a note..."
-        style="width:100%;padding:8px;font-size:13px;border:1px solid var(--border2);border-radius:6px;resize:none;box-sizing:border-box;font-family:inherit;margin-bottom:8px"></textarea>
-      <button class="btn btn-primary" onclick="sendDashThreadMsg()">Send note</button>
-    </div>`;
-    document.body.appendChild(modal);
+async function loadAll() {
+  for(const rep of REPS) {
+    try {
+      const data = await fbGet('quotes/' + rep.toLowerCase());
+      if(data && typeof data==='object') {
+        allQuotes[rep] = Object.entries(data)
+          .filter(([k,v])=>v&&typeof v==='object')
+          .map(([k,v])=>{return {...v, _fbKey:k};} );
+      } else {
+        allQuotes[rep] = [];
+      }
+    } catch(e) { allQuotes[rep]=[]; console.error('loadAll error',rep,e); }
+    try {
+      const apData = await fbGet('approvals/' + rep.toLowerCase());
+      approvals[rep.toLowerCase()] = (apData && typeof apData==='object') ? apData : {};
+    } catch(e) { approvals[rep.toLowerCase()]={}; }
   }
-  modal.dataset.key=key;
-  document.getElementById('dash-thread-title').textContent='Notes: '+(quoteName||key);
-  modal.style.display='flex';
-  loadDashThreadMessages(key);
 }
 
-async function loadDashThreadMessages(key){
-  const msgEl=document.getElementById('dash-thread-messages');
-  if(!msgEl) return;
-  msgEl.innerHTML='<div style="color:var(--text3);font-size:12px">Loading...</div>';
-  const data=await fbGet('approvals/'+key+'/messages');
-  if(!data||Object.keys(data).length===0){
-    msgEl.innerHTML='<div style="color:var(--text3);font-size:12px;padding:8px">No messages yet.</div>';return;
+function startListeners() {
+  for(const rep of REPS) {
+    const rl = rep.toLowerCase();
+    fbListen('quotes/'+rl, data => {
+      if(data && data.data !== null && typeof data.data==='object') {
+        allQuotes[rep] = Object.entries(data.data)
+          .filter(([k,v])=>v&&typeof v==='object')
+          .map(([k,v])=>{return {...v, _fbKey:k};} );
+      } else if(data && data.data===null) {
+        allQuotes[rep]=[];
+      }
+      render();
+    });
+    fbListen('approvals/'+rl, data => {
+      if(data && data.data && typeof data.data==='object') {
+        approvals[rl] = data.data;
+      } else {
+        approvals[rl]={};
+      }
+      render();
+    });
   }
-  const msgs=Object.values(data).sort((a,b)=>a.sentAt>b.sentAt?1:-1);
-  msgEl.innerHTML=msgs.map(m=>{
-    const isMgmt=m.sender==='Management'||m.sender==='Stephen';
-    const dt=m.sentAt?new Date(m.sentAt).toLocaleString('en-US',{month:'short',day:'numeric',hour:'numeric',minute:'2-digit'}):'';
-    return `<div style="margin-bottom:10px;${isMgmt?'text-align:right':''}">
-      <div style="display:inline-block;max-width:80%;background:${isMgmt?'var(--red)':'#f0f0f0'};color:${isMgmt?'#fff':'var(--text)'};padding:7px 10px;border-radius:8px;font-size:13px">${m.message}</div>
-      <div style="font-size:10px;color:var(--text3);margin-top:2px">${m.sender} · ${dt}</div>
-    </div>`;
-  }).join('');
-  msgEl.scrollTop=msgEl.scrollHeight;
 }
 
-async function sendDashThreadMsg(){
-  const modal=document.getElementById('dash-thread-modal');
-  const key=modal?.dataset.key;
-  const input=document.getElementById('dash-thread-input');
-  const msg=input?.value.trim();
-  if(!key||!msg) return;
-  const msgKey='msg_'+Date.now();
-  await fbSet('approvals/'+key+'/messages/'+msgKey,{
-    sender:'Management', message:msg, sentAt:new Date().toISOString()
+function switchTab(tab) {
+  currentTab = tab;
+  ['approvals','commission','all'].forEach(t=>{
+    document.getElementById('tab-'+t).classList.toggle('active', t===tab);
   });
-  if(input) input.value='';
-  loadDashThreadMessages(key);
-}
-
-// ── Dashboard reporting ───────────────────────────────────────────────────
-function downloadDashReport(){
-  if(!quotes.length){ bamAlert('No quotes loaded.'); return; }
-  const clients=[...new Set(quotes.map(q=>q.clientCompany||q.clientName||'').filter(Boolean))].sort();
-  const REPS_LIST=['Shannon','Stephen','Julia','Lexi','Amy','Debbie'];
-
-  let modal=document.getElementById('dash-report-modal');
-  if(!modal){
-    modal=document.createElement('div');
-    modal.id='dash-report-modal';
-    modal.style.cssText='display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:10000;align-items:center;justify-content:center';
-    modal.innerHTML=`<div style="background:#fff;border-radius:12px;padding:24px;max-width:400px;width:92%;box-shadow:0 20px 60px rgba(0,0,0,.3)">
-      <div style="font-size:15px;font-weight:700;margin-bottom:16px">Export report</div>
-      <div id="dash-report-filters"></div>
-    </div>`;
-    document.body.appendChild(modal);
-  }
-
-  document.getElementById('dash-report-filters').innerHTML=`
-    <div style="margin-bottom:12px">
-      <label style="font-size:12px;font-weight:700;display:block;margin-bottom:4px">Filter by rep</label>
-      <select id="drpt-rep" style="width:100%;padding:7px;border:1px solid #ccc;border-radius:4px;font-size:13px">
-        <option value="">All reps</option>
-        ${REPS_LIST.map(r=>`<option value="${r}">${r}</option>`).join('')}
-      </select>
-    </div>
-    <div style="margin-bottom:12px">
-      <label style="font-size:12px;font-weight:700;display:block;margin-bottom:4px">Date filter</label>
-      <select id="drpt-date-type" style="width:100%;padding:7px;border:1px solid #ccc;border-radius:4px;font-size:13px;margin-bottom:6px">
-        <option value="">All dates</option>
-        <option value="quoteDate">By quote date</option>
-        <option value="ihd">By in-hands date</option>
-        <option value="commissionReport">By commission period</option>
-      </select>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px">
-        <input type="date" id="drpt-from" style="padding:6px;border:1px solid #ccc;border-radius:4px;font-size:13px">
-        <input type="date" id="drpt-to" style="padding:6px;border:1px solid #ccc;border-radius:4px;font-size:13px">
-      </div>
-    </div>
-    <div style="margin-bottom:16px">
-      <label style="font-size:12px;font-weight:700;display:block;margin-bottom:4px">Filter by client</label>
-      <select id="drpt-client" style="width:100%;padding:7px;border:1px solid #ccc;border-radius:4px;font-size:13px">
-        <option value="">All clients</option>
-        ${clients.map(c=>`<option value="${c}">${c}</option>`).join('')}
-      </select>
-    </div>
-    <div style="display:flex;gap:8px">
-      <button onclick="runDashReport()" style="flex:1;padding:9px;background:#C41E1E;color:#fff;font-weight:700;border:none;border-radius:6px;cursor:pointer;font-size:13px">Download Excel</button>
-      <button onclick="document.getElementById('dash-report-modal').style.display='none'" style="flex:1;padding:9px;background:#f0f0f0;font-weight:700;border:none;border-radius:6px;cursor:pointer;font-size:13px">Cancel</button>
-    </div>`;
-  modal.style.display='flex';
-}
-
-function runDashReport(){
-  const repFilter=document.getElementById('drpt-rep')?.value||'';
-  const dateType=document.getElementById('drpt-date-type')?.value||'';
-  const dateFrom=document.getElementById('drpt-from')?.value||'';
-  const dateTo=document.getElementById('drpt-to')?.value||'';
-  const clientFilter=document.getElementById('drpt-client')?.value||'';
-
-  let filtered=quotes.filter(q=>{
-    if(repFilter&&q.rep!==repFilter) return false;
-    if(clientFilter&&(q.clientCompany||q.clientName||'')!==clientFilter) return false;
-    if(dateType&&(dateFrom||dateTo)){
-      let dv=dateType==='quoteDate'?(q.quoteDate||q.exportedAt||''):dateType==='ihd'?(q.ihd||''):(q.commissionReport||'');
-      if(!dv) return false;
-      const d=new Date(dv);if(isNaN(d.getTime())) return false;
-      if(dateFrom&&d<new Date(dateFrom)) return false;
-      if(dateTo&&d>new Date(dateTo+'T23:59:59')) return false;
-    }
-    return true;
-  });
-
-  if(!filtered.length){ bamAlert('No quotes match the selected filters.'); return; }
-
-  const HEADERS=['Quote #','Quote name','Client name','Company','Rep','Quote date','IHD','Commission period','Split','Sell','Net cost','GP','Margin %','Rep payout','House profit','Status','Paid','Paid date'];
-  const rows=[HEADERS,...filtered.map(q=>[
-    q.quoteNum||'',q.quoteName||'',q.clientName||'',q.clientCompany||'',
-    q.rep||'',q.quoteDate||q.exportedAt||'',q.ihd||'',q.commissionReport||'',
-    q.commissionSplit||'standard',
-    q.totalSell||0,q.totalNetCost||0,(q.totalSell||0)-(q.totalNetCost||0),
-    q.avgMargin||0,q.totalRepComm||0,q.totalHouseProfit||0,
-    q.workflowStatus||'active',q.paid?'Yes':'No',q.paidDate||''
-  ])];
-
-  const wb=XLSX.utils.book_new();
-  // Summary sheet
-  const ws=XLSX.utils.aoa_to_sheet(rows);
-  XLSX.utils.book_append_sheet(wb,ws,'All Quotes');
-
-  // Per-rep sheets
-  const REPS_LIST=['Shannon','Stephen','Julia','Lexi','Amy','Debbie'];
-  REPS_LIST.forEach(rep=>{
-    const repRows=filtered.filter(q=>q.rep===rep);
-    if(!repRows.length) return;
-    const wsRep=XLSX.utils.aoa_to_sheet([HEADERS,...repRows.map(q=>[
-      q.quoteNum||'',q.quoteName||'',q.clientName||'',q.clientCompany||'',
-      q.rep||'',q.quoteDate||q.exportedAt||'',q.ihd||'',q.commissionReport||'',
-      q.commissionSplit||'standard',
-      q.totalSell||0,q.totalNetCost||0,(q.totalSell||0)-(q.totalNetCost||0),
-      q.avgMargin||0,q.totalRepComm||0,q.totalHouseProfit||0,
-      q.workflowStatus||'active',q.paid?'Yes':'No',q.paidDate||''
-    ])]);
-    XLSX.utils.book_append_sheet(wb,wsRep,rep);
-  });
-
-  const date=new Date().toLocaleDateString('en-US').replace(/\//g,'-');
-  XLSX.writeFile(wb,'TORO_Dashboard_Report_'+date+'.xlsx');
-  document.getElementById('dash-report-modal').style.display='none';
-}
-
-
-async function dismissApproval(key){
-  if(!await bamConfirm('Remove this approval request? This cannot be undone.')) return;
-  await fbSet('approvals/'+key, null);
-  delete approvals[key];
   render();
 }
 
+function render() {
+  renderSummary();
+  if(currentTab==='approvals') renderApprovals();
+  else if(currentTab==='commission') renderCommission();
+  else renderAll();
+}
 
-// ── BAM the Bull custom alert/confirm ────────────────────────────────────
-let _bamResolve=null;
-function bamAlert(msg){
-  return new Promise(resolve=>{
-    _bamResolve=resolve;
-    document.getElementById('bam-modal-body').textContent=msg;
-    document.getElementById('bam-btn-cancel').style.display='none';
-    document.getElementById('bam-btn-ok').textContent='OK';
-    document.getElementById('bam-modal-overlay').classList.add('open');
-    document.getElementById('bam-btn-ok').onclick=()=>{
-      document.getElementById('bam-modal-overlay').classList.remove('open');
-      resolve(true);
-    };
+function renderSummary() {
+  let totalQuotes=0, totalSell=0, totalComm=0, pendingApprovals=0;
+  for(const rep of REPS) {
+    const qs = allQuotes[rep]||[];
+    totalQuotes+=qs.length;
+    qs.forEach(q=>{ totalSell+=quoteTotal(q,'sell'); totalComm+=quoteComm(q); });
+    const rl=rep.toLowerCase();
+    const repApprovals=approvals[rl]||{};
+    pendingApprovals+=Object.values(repApprovals).filter(a=>a&&a.status==='pending').length;
+  }
+  document.getElementById('summary-grid').innerHTML = `
+    <div class="summary-card"><div class="sc-val">${totalQuotes}</div><div class="sc-lbl">Total Quotes</div></div>
+    <div class="summary-card"><div class="sc-val">${pendingApprovals}</div><div class="sc-lbl">Pending Approvals</div></div>
+    <div class="summary-card"><div class="sc-val">$${totalSell.toFixed(0)}</div><div class="sc-lbl">Total Pipeline</div></div>
+    <div class="summary-card"><div class="sc-val">$${totalComm.toFixed(0)}</div><div class="sc-lbl">Est. Total Commission</div></div>
+  `;
+}
+
+function renderApprovals() {
+  let html = '';
+  for(const rep of REPS) {
+    const rl = rep.toLowerCase();
+    const repApprovals = approvals[rl]||{};
+    const pending = Object.entries(repApprovals).filter(([k,a])=>a&&a.status==='pending');
+    if(pending.length===0) continue;
+    html += `<div class="rep-section">
+      <div class="rep-header"><h3>${rep} <span class="badge">${pending.length} pending</span></h3></div>
+      <div class="rep-body">`;
+    pending.forEach(([key, a]) => {
+      const sell=parseFloat(a.sellTotal||0), net=parseFloat(a.netTotal||0);
+      const margin=sell>0?((sell-net)/sell*100).toFixed(1):a.margin||'—';
+      html += `<div class="approval-card">
+        <div class="ac-header">
+          <div>
+            <div style="font-weight:700;font-size:14px;">${a.quoteName||a.quoteNum||key}</div>
+            <div class="ac-meta">Quote #${a.quoteNum||'—'} · Rep: ${a.rep||rep} · Margin: ${margin}% · Sell: $${sell.toFixed(2)}</div>
+            <div class="ac-meta">Requested: ${a.requestedAt?new Date(a.requestedAt).toLocaleDateString():'—'}</div>
+          </div>
+          ${marginBadge(net, sell)}
+        </div>
+        <div class="ac-actions">
+          <button class="btn btn-green" onclick="approveQuote('${rl}','${encodeURIComponent(key)}')">✅ Approve</button>
+          <button class="btn btn-outline" onclick="rejectQuote('${rl}','${encodeURIComponent(key)}')">❌ Reject</button>
+          <button class="btn btn-gray" onclick="addNote('${rl}','${encodeURIComponent(key)}')">💬 Add Note</button>
+          <button class="btn btn-gray" style="font-size:11px;color:#aaa;" onclick="dismissApproval('${rl}','${encodeURIComponent(key)}')">✕ Dismiss</button>
+        </div>
+        ${a.notes && a.notes.length ? `<div class="notes-thread">${a.notes.map(n=>`<div class="note-item"><span class="note-author">${n.author}</span> <span class="note-time">${new Date(n.time).toLocaleString()}</span><br>${n.text}</div>`).join('')}</div>` : ''}
+      </div>`;
+    });
+    html += '</div></div>';
+  }
+  if(!html) html = '<div class="card" style="color:var(--text3);text-align:center;padding:32px;">No pending margin approvals.</div>';
+  document.getElementById('tab-content').innerHTML = html;
+}
+
+function renderCommission() {
+  let html = '';
+  let grandNet=0, grandSell=0, grandComm=0;
+  for(const rep of REPS) {
+    const qs = (allQuotes[rep]||[]).filter(q=>q.workflowStatus==='readyForSubmission'||q.workflowStatus==='submittedCommission');
+    if(qs.length===0) continue;
+    let repNet=0, repSell=0, repComm=0;
+    qs.forEach(q=>{ repNet+=quoteTotal(q,'net'); repSell+=quoteTotal(q,'sell'); repComm+=quoteComm(q); });
+    grandNet+=repNet; grandSell+=repSell; grandComm+=repComm;
+    html += `<div class="rep-section">
+      <div class="rep-header">
+        <h3>${rep}</h3>
+        <div style="font-size:13px;color:var(--text3);">Est. Commission: <strong style="color:var(--green);">$${repComm.toFixed(2)}</strong></div>
+      </div>
+      <div class="rep-body">
+        <div class="quote-row" style="border-bottom:2px solid var(--border);">
+          <div class="th">Quote</div><div class="th">Period</div><div class="th">Net</div><div class="th">Sell</div><div class="th">Margin</div><div class="th">Commission</div><div class="th">Status</div>
+        </div>`;
+    qs.forEach(q => {
+      const net=quoteTotal(q,'net'), sell=quoteTotal(q,'sell');
+      const margin=sell>0?((sell-net)/sell*100).toFixed(1):0;
+      const comm=quoteComm(q);
+      const isPaid = q.workflowStatus==='paid';
+      html += `<div class="quote-row">
+        <div><strong>${q.quoteName||q.quoteNum||'—'}</strong><br><span style="font-size:11px;color:var(--text3);">#${q.quoteNum}</span></div>
+        <div>${q.period||'—'}</div>
+        <div>$${net.toFixed(2)}</div>
+        <div>$${sell.toFixed(2)}</div>
+        <div>${marginBadge(net,sell)}</div>
+        <div style="color:var(--green);font-weight:700;">$${comm.toFixed(2)}</div>
+        <div>${isPaid?'<span class="paid-indicator">Paid</span>':`<button class="btn btn-green" style="font-size:11px;padding:4px 10px;" onclick="markPaid('${rep}','${encodeURIComponent(fbKey(q))}')">Mark Paid</button>`}</div>
+      </div>`;
+    });
+    html += `<div class="totals-row"><span>Rep Total Comm: <strong style="color:var(--green);">$${repComm.toFixed(2)}</strong></span></div>
+      </div></div>`;
+  }
+  if(!html) html = '<div class="card" style="color:var(--text3);text-align:center;padding:32px;">No quotes ready for commission.</div>';
+  else html += `<div class="card" style="text-align:right;"><strong>Grand Total Commission Due: <span style="color:var(--green);font-size:18px;">$${grandComm.toFixed(2)}</span></strong></div>`;
+  document.getElementById('tab-content').innerHTML = html;
+}
+
+function renderAll() {
+  let html = '';
+  for(const rep of REPS) {
+    const qs = allQuotes[rep]||[];
+    if(qs.length===0) continue;
+    html += `<div class="rep-section">
+      <div class="rep-header"><h3>${rep} <span style="font-size:13px;font-weight:400;color:var(--text3);">${qs.length} quote(s)</span></h3></div>
+      <div class="rep-body">
+        <div class="quote-row" style="border-bottom:2px solid var(--border);">
+          <div class="th">Quote</div><div class="th">Period</div><div class="th">Net</div><div class="th">Sell</div><div class="th">Margin</div><div class="th">Est. Comm</div><div class="th">Status</div>
+        </div>`;
+    qs.forEach(q => {
+      const net=quoteTotal(q,'net'), sell=quoteTotal(q,'sell');
+      const margin=sell>0?((sell-net)/sell*100).toFixed(1):0;
+      const comm=quoteComm(q);
+      const statusLabels={active:'Active',readyForSubmission:'Ready',submittedCommission:'Submitted',paid:'Paid',waitingApproval:'Awaiting Approval',needsApproval:'Needs Approval',rejected:'Rejected'};
+      const statusLabel=statusLabels[q.workflowStatus]||q.workflowStatus||'Active';
+      html += `<div class="quote-row">
+        <div><strong>${q.quoteName||q.quoteNum||'—'}</strong><br><span style="font-size:11px;color:var(--text3);">#${q.quoteNum}</span></div>
+        <div>${q.period||'—'}</div>
+        <div>$${net.toFixed(2)}</div>
+        <div>$${sell.toFixed(2)}</div>
+        <div>${marginBadge(net,sell)}</div>
+        <div>$${comm.toFixed(2)}</div>
+        <div><span style="font-size:12px;background:#f0f0f0;padding:2px 8px;border-radius:10px;">${statusLabel}</span></div>
+      </div>`;
+    });
+    html += '</div></div>';
+  }
+  if(!html) html = '<div class="card" style="color:var(--text3);text-align:center;padding:32px;">No quotes in the system yet.</div>';
+  document.getElementById('tab-content').innerHTML = html;
+}
+
+// ── Approval actions ───────────────────────────────────────────────────────
+async function approveQuote(repLower, encKey) {
+  const key = decodeURIComponent(encKey);
+  bamPrompt('Approval note (optional):', '', async note => {
+    if(note === null) return;
+    try {
+      const updated = {
+        ...((approvals[repLower]||{})[key]||{}),
+        status: 'approved',
+        note: note||'',
+        decidedAt: new Date().toISOString(),
+      };
+      await fbSet('approvals/'+repLower+'/'+key, updated);
+      // Also update the quote workflowStatus
+      const rep = REPS.find(r=>r.toLowerCase()===repLower);
+      const q = (allQuotes[rep]||[]).find(x=>fbKey(x)===key);
+      if(q) {
+        q.workflowStatus = 'active';
+        await fbSet('quotes/'+repLower+'/'+fbKey(q), q);
+      }
+      bamAlert('Quote approved! The rep has been notified.');
+    } catch(e) { console.error('approveQuote error:',e); bamAlert('Error saving approval. Please try again.'); }
   });
 }
-function bamConfirm(msg){
-  return new Promise(resolve=>{
-    _bamResolve=resolve;
-    document.getElementById('bam-modal-body').textContent=msg;
-    document.getElementById('bam-btn-cancel').style.display='';
-    document.getElementById('bam-btn-ok').textContent='Yes';
-    document.getElementById('bam-modal-overlay').classList.add('open');
-    document.getElementById('bam-btn-ok').onclick=()=>{
-      document.getElementById('bam-modal-overlay').classList.remove('open');
-      resolve(true);
-    };
-    document.getElementById('bam-btn-cancel').onclick=()=>{
-      document.getElementById('bam-modal-overlay').classList.remove('open');
-      resolve(false);
-    };
+
+async function rejectQuote(repLower, encKey) {
+  const key = decodeURIComponent(encKey);
+  bamPrompt('Rejection reason (will be shown to the rep):', '', async note => {
+    if(note === null) return;
+    try {
+      const updated = {
+        ...((approvals[repLower]||{})[key]||{}),
+        status: 'rejected',
+        note: note||'',
+        decidedAt: new Date().toISOString(),
+      };
+      await fbSet('approvals/'+repLower+'/'+key, updated);
+      const rep = REPS.find(r=>r.toLowerCase()===repLower);
+      const q = (allQuotes[rep]||[]).find(x=>fbKey(x)===key);
+      if(q) {
+        q.workflowStatus = 'rejected';
+        await fbSet('quotes/'+repLower+'/'+fbKey(q), q);
+      }
+      bamAlert('Quote rejected. The rep will see your note.');
+    } catch(e) { console.error('rejectQuote error:',e); bamAlert('Error saving rejection. Please try again.'); }
   });
+}
+
+async function addNote(repLower, encKey) {
+  const key = decodeURIComponent(encKey);
+  bamPrompt('Add a note:', '', async text => {
+    if(!text) return;
+    try {
+      const existing = (approvals[repLower]||{})[key] || {};
+      const notes = existing.notes || [];
+      notes.push({author:'Management', time:new Date().toISOString(), text});
+      await fbSet('approvals/'+repLower+'/'+key+'/notes', notes);
+    } catch(e) { console.error('addNote error:',e); bamAlert('Error saving note.'); }
+  });
+}
+
+async function dismissApproval(repLower, encKey) {
+  const key = decodeURIComponent(encKey);
+  bamConfirm('Dismiss this approval request? This cannot be undone.', async ok => {
+    if(!ok) return;
+    try {
+      await fbSet('approvals/'+repLower+'/'+key, null);
+      if(approvals[repLower]) delete approvals[repLower][key];
+      render();
+    } catch(e) { console.error('dismissApproval error:',e); bamAlert('Error dismissing. Please try again.'); }
+  });
+}
+
+async function markPaid(rep, encKey) {
+  const key = decodeURIComponent(encKey);
+  bamConfirm('Mark this commission as paid?', async ok => {
+    if(!ok) return;
+    try {
+      const rl = rep.toLowerCase();
+      const q = (allQuotes[rep]||[]).find(x=>fbKey(x)===key);
+      if(q) {
+        q.workflowStatus = 'paid';
+        await fbSet('quotes/'+rl+'/'+fbKey(q), q);
+        await fbSet('paid/'+rl+'/'+fbKey(q), true);
+        bamAlert('Marked as paid!');
+      }
+    } catch(e) { console.error('markPaid error:',e); bamAlert('Error marking paid.'); }
+  });
+}
+
+function exportExcel() {
+  // Build CSV
+  let rows = [['Rep','Quote Name','Quote #','Period','IHD','Net','Sell','Margin %','Commission','Status']];
+  for(const rep of REPS) {
+    (allQuotes[rep]||[]).forEach(q=>{
+      const net=quoteTotal(q,'net'), sell=quoteTotal(q,'sell');
+      const margin=sell>0?((sell-net)/sell*100).toFixed(1):0;
+      const comm=quoteComm(q);
+      rows.push([
+        rep,
+        (q.quoteName||'').replace(/,/g,' '),
+        (q.quoteNum||'').replace(/,/g,' '),
+        q.period||'',
+        q.ihd||'',
+        net.toFixed(2),
+        sell.toFixed(2),
+        margin,
+        comm.toFixed(2),
+        q.workflowStatus||'active'
+      ]);
+    });
+  }
+  const csv = rows.map(r=>r.join(',')).join('\n');
+  const blob = new Blob([csv], {type:'text/csv'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'TORO_Commission_' + new Date().toISOString().split('T')[0] + '.csv';
+  a.click();
 }
 </script>
-
-<div id="toro-error-banner" onclick="this.style.display='none'">
-  <button class="close-err" onclick="event.stopPropagation();this.parentElement.style.display='none'">&#10005;</button>
-  <strong>&#9888; Something went wrong</strong>
-  <span id="toro-error-msg">An unexpected error occurred. Please contact management if this continues.</span>
-</div>
-
-
-<div id="bam-modal-overlay">
-  <div id="bam-modal-box">
-    <div id="bam-modal-header"><span>🐂</span> BAM the Bull says</div>
-    <div id="bam-modal-body" id="bam-modal-msg"></div>
-    <div id="bam-modal-footer">
-      <button id="bam-btn-cancel" style="display:none">Cancel</button>
-      <button id="bam-btn-ok">OK</button>
-    </div>
-  </div>
-</div>
-
 </body>
 </html>

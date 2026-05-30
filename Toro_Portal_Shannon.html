@@ -2,1153 +2,758 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
 <title>TORO Shannon Commission Portal</title>
 <style>
 :root{
-  --red:#C41E1E;--red-light:#fff0f0;--green:#1a7f4b;--bg:#F7F7F8;
-  --surface:#fff;--border:#E2E3E6;--border2:#ccc;--text:#1a1a1f;
-  --text2:#444;--text3:#888;--brown:#7B3F00;--radius:10px;--radius-sm:6px;
-  --orange:#C46A1E;
+  --red:#C41E1E;--red-dark:#9e1818;--red-light:#fff0f0;
+  --green:#1a7f4b;--green-bg:#e8f5ee;
+  --orange:#C46A1E;--orange-bg:#fff3e0;
+  --bg:#F5F5F7;--surface:#fff;--border:#E2E3E6;
+  --text:#1a1a1f;--text2:#444;--text3:#888;
+  --radius:10px;--radius-sm:6px;
 }
 *{box-sizing:border-box;margin:0;padding:0}
-body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:var(--bg);color:var(--text);min-height:100vh}
-.topbar{background:#1a1a2e;border-bottom:3px solid var(--red);padding:14px 28px;display:flex;align-items:center;justify-content:space-between}
-.topbar h1{color:#fff;font-size:17px;font-weight:700}
-.rep-badge{background:var(--red);color:#fff;font-size:12px;font-weight:700;padding:3px 10px;border-radius:10px;margin-left:12px}
-.container{max-width:1140px;margin:0 auto;padding:24px}
-.drop-zone{border:2px dashed var(--border2);border-radius:var(--radius);padding:28px;text-align:center;cursor:pointer;transition:all .2s;background:var(--surface);margin-bottom:20px}
-.drop-zone:hover,.drop-zone.over{border-color:var(--red);background:var(--red-light)}
-.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:20px}
-.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:12px 14px}
-.card-lbl{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--text3);margin-bottom:4px}
-.card-val{font-size:20px;font-weight:700}
-.green{color:var(--green)}.brown{color:var(--brown)}.red{color:var(--red)}.orange{color:var(--orange)}
-.section-block{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);margin-bottom:16px;overflow:hidden}
-.section-hdr{padding:11px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;font-size:13px;font-weight:700}
-.section-hdr.ready{background:#1a7f4b;color:#fff}
-.section-hdr.approval{background:#7B3F00;color:#fff}
-.section-hdr.active{background:#1a1a2e;color:#fff}
-.section-hdr.archive{background:var(--bg);color:var(--text3)}
-table{width:100%;border-collapse:collapse;font-size:12px}
-th{padding:7px 10px;text-align:left;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--text3);border-bottom:1px solid var(--border);background:var(--bg)}
-th.r,td.r{text-align:right}
-td{padding:8px 10px;border-bottom:1px solid #f5f5f5;vertical-align:middle}
-tr:hover td{background:#fafafa}
-.mg-pill{display:inline-block;padding:1px 6px;border-radius:8px;font-size:10px;font-weight:700}
-.mg-green{background:#e6f4ee;color:var(--green)}
-.mg-yellow{background:#FFF8E1;color:#7A4F00}
-.mg-red{background:#FFEBEB;color:var(--red)}
-.btn{padding:6px 12px;font-size:12px;font-weight:700;border-radius:6px;cursor:pointer;border:none;transition:all .15s}
-.btn-primary{background:var(--red);color:#fff}.btn-primary:hover{background:#a51818}
-.btn-green{background:var(--green);color:#fff}
-.btn-outline{background:#fff;border:1px solid var(--border2);color:var(--text2)}.btn-outline:hover{border-color:var(--red);color:var(--red)}
-.btn-sm{padding:3px 8px;font-size:11px}
-.empty{padding:24px;text-align:center;color:var(--text3);font-size:13px}
-.status-checks{display:flex;gap:12px;flex-wrap:wrap}
-.status-check{display:flex;align-items:center;gap:4px;font-size:11px;color:var(--text3);cursor:pointer;padding:3px 0}
-.status-check input{width:13px;height:13px;accent-color:var(--green);cursor:pointer}
-.status-check.checked{color:var(--green);font-weight:700}
-.status-badge{display:inline-block;font-size:10px;font-weight:700;padding:2px 7px;border-radius:8px}
-.badge-waiting{background:#FFF3E0;color:var(--orange)}
-.badge-approved{background:#e6f4ee;color:var(--green)}
-.badge-rejected{background:#FFEBEB;color:var(--red)}
-.badge-needs{background:#FFF8E1;color:#7A4F00}
-.rejection-note{background:#FFEBEB;border-left:3px solid var(--red);padding:6px 10px;font-size:11px;color:#a32d2d;margin-top:4px;border-radius:0 4px 4px 0}
-.summary-bar{padding:10px 16px;background:#f0faf4;border-top:1px solid var(--border);font-size:12px;display:flex;gap:20px;flex-wrap:wrap}
-.del-btn{background:#fff;border:1px solid #ddd;border-radius:4px;cursor:pointer;color:#aaa;font-size:12px;padding:2px 7px;font-weight:700}
-.del-btn:hover{color:var(--red);border-color:var(--red);background:#fff0f0}
-.locked-badge{font-size:10px;background:#e8e8e8;color:#888;padding:1px 6px;border-radius:6px;margin-left:4px}
-details summary{padding:10px 16px;cursor:pointer;font-size:12px;color:var(--text3);user-select:none;list-style:none}
-details summary::-webkit-details-marker{display:none}
-
-.feedback-modal{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:10000;align-items:center;justify-content:center}
-.feedback-modal.open{display:flex}
-.feedback-box{background:#fff;border-radius:12px;padding:28px;max-width:420px;width:90%;box-shadow:0 20px 60px rgba(0,0,0,.3)}
-
-
-#bam-modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:99998;align-items:center;justify-content:center}
-#bam-modal-overlay.open{display:flex}
-#bam-modal-box{background:#fff;border-radius:14px;padding:0;max-width:360px;width:90%;box-shadow:0 20px 60px rgba(0,0,0,.35);overflow:hidden}
-#bam-modal-header{background:#1a1a2e;color:#fff;padding:14px 18px;display:flex;align-items:center;gap:10px;font-size:15px;font-weight:700}
-#bam-modal-header span{font-size:22px}
-#bam-modal-body{padding:16px 18px;font-size:14px;color:#222;line-height:1.5}
-#bam-modal-footer{padding:12px 18px;display:flex;gap:8px;justify-content:flex-end;border-top:1px solid #eee}
-#bam-modal-footer button{padding:8px 20px;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;border:none}
-#bam-btn-ok{background:#C41E1E;color:#fff}
-#bam-btn-ok:hover{background:#a01818}
-#bam-btn-cancel{background:#f0f0f0;color:#333}
-#bam-btn-cancel:hover{background:#e0e0e0}
-
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;}
+/* Gate */
+#gate{position:fixed;inset:0;background:#fff;display:flex;align-items:center;justify-content:center;z-index:10000;}
+.gate-box{background:#fff;border:1px solid var(--border);border-radius:12px;padding:40px 36px;max-width:380px;width:90%;text-align:center;box-shadow:0 4px 24px rgba(0,0,0,0.08);}
+.gate-box h2{font-size:22px;font-weight:700;color:var(--red);margin-bottom:6px;}
+.gate-box p{font-size:14px;color:var(--text3);margin-bottom:24px;}
+.gate-box input{width:100%;padding:11px 14px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:15px;margin-bottom:14px;}
+.gate-box input:focus{outline:none;border-color:var(--red);}
+.gate-box button{width:100%;padding:11px;background:var(--red);color:#fff;border:none;border-radius:var(--radius-sm);font-size:15px;font-weight:600;cursor:pointer;}
+.gate-box .error{color:var(--red);font-size:13px;margin-top:8px;min-height:18px;}
+/* Header */
+.header{background:var(--red);color:#fff;padding:14px 20px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100;box-shadow:0 2px 8px rgba(0,0,0,0.15);}
+.header h1{font-size:18px;font-weight:700;}
+.header .hdr-right{display:flex;gap:10px;align-items:center;}
+.hdr-btn{padding:6px 14px;border-radius:var(--radius-sm);font-size:13px;font-weight:600;cursor:pointer;border:none;}
+/* Layout */
+.container{max-width:900px;margin:0 auto;padding:20px 16px;}
+/* Section titles */
+.section-title{font-size:15px;font-weight:700;padding:10px 0 8px;display:flex;align-items:center;gap:8px;}
+.section-title .badge{background:var(--red);color:#fff;border-radius:10px;padding:1px 8px;font-size:12px;}
+/* Quote cards */
+.quote-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);margin-bottom:12px;overflow:hidden;transition:box-shadow 0.15s;}
+.quote-card:hover{box-shadow:0 2px 12px rgba(0,0,0,0.07);}
+.qc-header{padding:13px 16px;display:flex;align-items:center;justify-content:space-between;cursor:pointer;}
+.qc-meta{display:flex;flex-direction:column;gap:3px;}
+.qc-title{font-size:15px;font-weight:700;}
+.qc-sub{font-size:12px;color:var(--text3);}
+.qc-actions{display:flex;gap:8px;align-items:center;flex-shrink:0;}
+.qc-body{padding:14px 16px;border-top:1px solid var(--border);background:#fafafa;}
+/* Status checkboxes */
+.status-checks{display:flex;flex-wrap:wrap;gap:10px;margin-bottom:12px;}
+.status-check label{display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer;padding:6px 12px;border-radius:20px;border:1px solid var(--border);background:#fff;transition:all 0.15s;user-select:none;}
+.status-check label:hover{border-color:var(--red);}
+.status-check input{accent-color:var(--green);width:15px;height:15px;}
+.status-check.checked label{background:var(--green-bg);border-color:var(--green);}
+/* Buttons */
+.btn{padding:8px 16px;border-radius:var(--radius-sm);font-size:13px;font-weight:600;cursor:pointer;border:none;transition:all 0.15s;}
+.btn-red{background:var(--red);color:#fff;}
+.btn-red:hover{background:var(--red-dark);}
+.btn-green{background:var(--green);color:#fff;}
+.btn-green:hover{background:#156b3e;}
+.btn-outline{background:#fff;color:var(--red);border:1.5px solid var(--red);}
+.btn-outline:hover{background:var(--red-light);}
+.btn-gray{background:#f0f0f0;color:var(--text2);border:1px solid var(--border);}
+.btn-gray:hover{background:#e5e5e5;}
+.del-btn{background:#fff;border:1px solid #ddd;color:#c41e1e;padding:5px 12px;border-radius:var(--radius-sm);font-size:12px;font-weight:600;cursor:pointer;}
+.del-btn:hover{background:var(--red-light);border-color:var(--red);}
+/* Drop zone */
+.drop-zone{border:2px dashed var(--border);border-radius:var(--radius);padding:28px;text-align:center;color:var(--text3);cursor:pointer;transition:all 0.15s;background:#fafafa;}
+.drop-zone:hover,.drop-zone.over{border-color:var(--red);color:var(--red);background:var(--red-light);}
+/* Summary cards (mini) */
+.summary-cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin-bottom:20px;}
+.summary-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:14px;text-align:center;}
+.summary-card .sc-val{font-size:22px;font-weight:700;color:var(--red);}
+.summary-card .sc-lbl{font-size:12px;color:var(--text3);margin-top:4px;}
+/* Approval/rejection styling */
+.approval-pending{background:#fff8e1;border:1px solid #ffd54f;border-radius:var(--radius-sm);padding:8px 12px;font-size:13px;color:#b8860b;margin-bottom:8px;}
+.rejection-note{background:var(--red-light);border:1px solid #f5c6c6;border-radius:var(--radius-sm);padding:8px 12px;font-size:13px;color:var(--red);margin-bottom:8px;}
+.approved-note{background:var(--green-bg);border:1px solid #a5d6b8;border-radius:var(--radius-sm);padding:8px 12px;font-size:13px;color:var(--green);margin-bottom:8px;}
+/* Archive */
+.archive-toggle{font-size:13px;color:var(--text3);cursor:pointer;padding:8px 0;user-select:none;}
+.archive-toggle:hover{color:var(--red);}
+/* Change password */
+#change-pw-panel{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.4);z-index:5000;align-items:center;justify-content:center;}
+#change-pw-panel.open{display:flex;}
+.pw-box{background:#fff;border-radius:12px;padding:32px;max-width:360px;width:90%;}
+/* BAM Modal */
+#bam-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:9999;align-items:center;justify-content:center;}
+/* Sync indicator */
+.sync-dot{width:8px;height:8px;border-radius:50%;background:#1a7f4b;display:inline-block;margin-right:6px;}
+.sync-dot.syncing{background:#ffd54f;animation:pulse 1s infinite;}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:0.3}}
+/* Error banner */
+#error-banner{display:none;position:fixed;top:0;left:0;right:0;background:#c41e1e;color:#fff;padding:10px 20px;font-size:14px;z-index:9998;text-align:center;}
+@media(max-width:600px){
+  .status-checks{gap:6px;}
+  .qc-actions{flex-wrap:wrap;}
+}
 </style>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js">
-function openFeedback(){
-  document.getElementById('feedback-modal').classList.add('open');
-  document.getElementById('feedback-text').value='';
-  document.getElementById('feedback-status').textContent='';
-  setTimeout(()=>document.getElementById('feedback-text').focus(),100);
-}
-function closeFeedback(){
-  document.getElementById('feedback-modal').classList.remove('open');
-}
-async function submitFeedback(){
-  const msg=document.getElementById('feedback-text').value.trim();
-  const status=document.getElementById('feedback-status');
-  if(!msg){status.style.color='var(--red)';status.textContent='Please enter a message.';return;}
-  status.style.color='var(--text3)';status.textContent='Sending...';
-  const key='fb_'+Date.now();
-  const ok=await fbSet('feedback/'+key,{
-    rep:REP, message:msg, sentAt:new Date().toISOString(), read:false
-  });
-  if(ok!==null){
-    status.style.color='var(--green)';status.textContent='Sent! Thank you.';
-    setTimeout(closeFeedback,1500);
-  } else {
-    status.style.color='var(--red)';status.textContent='Failed to send. Please try again.';
-  }
-}
-
-
-// ── Approval messaging ────────────────────────────────────────────────────
-let approvalThreads={};
-
-function openApprovalThread(qKey){
-  const q=quotes.find(x=>(x._fbKey||x.quoteNum)===qKey);
-  if(!q) return;
-  const key=q._fbKey||(q.quoteNum?q.quoteNum.replace(/[.#$\/\[\]]/g,'_'):null);
-  if(!key) return;
-
-  // Build modal
-  let modal=document.getElementById('approval-thread-modal');
-  if(!modal){
-    modal=document.createElement('div');
-    modal.id='approval-thread-modal';
-    modal.style.cssText='display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:10000;align-items:center;justify-content:center';
-    modal.innerHTML=`<div style="background:#fff;border-radius:12px;padding:24px;max-width:500px;width:92%;max-height:80vh;display:flex;flex-direction:column;box-shadow:0 20px 60px rgba(0,0,0,.3)">
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
-        <div style="font-size:15px;font-weight:700" id="thread-title">Approval thread</div>
-        <button onclick="document.getElementById('approval-thread-modal').style.display='none'" style="background:none;border:none;font-size:20px;cursor:pointer;color:#888">&#10005;</button>
-      </div>
-      <div id="thread-messages" style="flex:1;overflow-y:auto;border:1px solid var(--border);border-radius:6px;padding:10px;margin-bottom:12px;min-height:120px;max-height:300px;font-size:13px"></div>
-      <textarea id="thread-input" rows="2" placeholder="Add a note..."
-        style="width:100%;padding:8px;font-size:13px;border:1px solid var(--border2);border-radius:6px;resize:none;box-sizing:border-box;font-family:inherit;margin-bottom:8px"></textarea>
-      <div style="display:flex;gap:8px">
-        <button class="btn btn-primary" onclick="sendThreadMsg()" style="flex:1">Send note</button>
-      </div>
-    </div>`;
-    document.body.appendChild(modal);
-  }
-
-  modal.dataset.qkey=key;
-  modal.style.display='flex';
-  document.getElementById('thread-title').textContent='Notes: '+(q.quoteName||q.quoteNum||'Quote');
-  loadThreadMessages(key);
-}
-
-async function loadThreadMessages(key){
-  const msgEl=document.getElementById('thread-messages');
-  if(!msgEl) return;
-  msgEl.innerHTML='<div style="color:var(--text3);font-size:12px">Loading...</div>';
-  const data=await fbGet('approvals/'+key+'/messages');
-  if(!data||Object.keys(data).length===0){
-    msgEl.innerHTML='<div style="color:var(--text3);font-size:12px;padding:8px">No messages yet. Add the first note.</div>';
-    return;
-  }
-  const msgs=Object.values(data).sort((a,b)=>a.sentAt>b.sentAt?1:-1);
-  msgEl.innerHTML=msgs.map(m=>{
-    const isRep=m.sender===REP;
-    const dt=m.sentAt?new Date(m.sentAt).toLocaleString('en-US',{month:'short',day:'numeric',hour:'numeric',minute:'2-digit'}):'';
-    return `<div style="margin-bottom:10px;${isRep?'text-align:right':''}">
-      <div style="display:inline-block;max-width:80%;background:${isRep?'var(--red)':'#f0f0f0'};color:${isRep?'#fff':'var(--text)'};padding:7px 10px;border-radius:8px;font-size:13px">${m.message}</div>
-      <div style="font-size:10px;color:var(--text3);margin-top:2px">${m.sender} · ${dt}</div>
-    </div>`;
-  }).join('');
-  msgEl.scrollTop=msgEl.scrollHeight;
-}
-
-async function sendThreadMsg(){
-  const modal=document.getElementById('approval-thread-modal');
-  const key=modal?.dataset.qkey;
-  const input=document.getElementById('thread-input');
-  const msg=input?.value.trim();
-  if(!key||!msg) return;
-  const msgKey='msg_'+Date.now();
-  await fbSet('approvals/'+key+'/messages/'+msgKey,{
-    sender:REP, message:msg, sentAt:new Date().toISOString()
-  });
-  if(input) input.value='';
-  loadThreadMessages(key);
-}
-
-
-// ── Reporting / Excel export ───────────────────────────────────────────────
-function downloadRepReport(){
-  if(!quotes.length){ bamAlert('No quotes to export.'); return; }
-  // Load SheetJS
-  if(typeof XLSX==='undefined'){ bamAlert('Excel library not loaded.'); return; }
-
-  // Build filter UI
-  const dateTypes=['Quote date','In-hands date','Commission period'];
-  const clients=[...new Set(quotes.map(q=>q.clientCompany||q.clientName||'').filter(Boolean))].sort();
-
-  let filterHtml=`<div style="font-family:sans-serif;padding:0">
-    <div style="margin-bottom:12px">
-      <label style="font-size:12px;font-weight:700;display:block;margin-bottom:4px">Date filter</label>
-      <select id="rpt-date-type" style="width:100%;padding:7px;border:1px solid #ccc;border-radius:4px;font-size:13px;margin-bottom:6px">
-        <option value="">All dates</option>
-        <option value="quoteDate">By quote date</option>
-        <option value="ihd">By in-hands date</option>
-        <option value="commissionReport">By commission period</option>
-      </select>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px">
-        <input type="date" id="rpt-date-from" style="padding:6px;border:1px solid #ccc;border-radius:4px;font-size:13px" placeholder="From">
-        <input type="date" id="rpt-date-to" style="padding:6px;border:1px solid #ccc;border-radius:4px;font-size:13px" placeholder="To">
-      </div>
-    </div>
-    <div style="margin-bottom:16px">
-      <label style="font-size:12px;font-weight:700;display:block;margin-bottom:4px">Client filter</label>
-      <select id="rpt-client" style="width:100%;padding:7px;border:1px solid #ccc;border-radius:4px;font-size:13px">
-        <option value="">All clients</option>
-        ${clients.map(c=>`<option value="${c}">${c}</option>`).join('')}
-      </select>
-    </div>
-    <div style="display:flex;gap:8px">
-      <button onclick="runReport()" style="flex:1;padding:9px;background:#C41E1E;color:#fff;font-weight:700;border:none;border-radius:6px;cursor:pointer;font-size:13px">Download Excel</button>
-      <button onclick="document.getElementById('report-modal').style.display='none'" style="flex:1;padding:9px;background:#f0f0f0;font-weight:700;border:none;border-radius:6px;cursor:pointer;font-size:13px">Cancel</button>
-    </div>
-  </div>`;
-
-  let modal=document.getElementById('report-modal');
-  if(!modal){
-    modal=document.createElement('div');
-    modal.id='report-modal';
-    modal.style.cssText='display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:10000;align-items:center;justify-content:center';
-    modal.innerHTML=`<div style="background:#fff;border-radius:12px;padding:24px;max-width:380px;width:90%;box-shadow:0 20px 60px rgba(0,0,0,.3)">
-      <div style="font-size:15px;font-weight:700;margin-bottom:16px">Export report</div>
-      <div id="report-filters"></div>
-    </div>`;
-    document.body.appendChild(modal);
-  }
-  document.getElementById('report-filters').innerHTML=filterHtml;
-  modal.style.display='flex';
-}
-
-function runReport(){
-  const dateType=document.getElementById('rpt-date-type')?.value||'';
-  const dateFrom=document.getElementById('rpt-date-from')?.value||'';
-  const dateTo=document.getElementById('rpt-date-to')?.value||'';
-  const clientFilter=document.getElementById('rpt-client')?.value||'';
-
-  let filtered=quotes.filter(q=>{
-    // Client filter
-    if(clientFilter&&(q.clientCompany||q.clientName||'')!==clientFilter) return false;
-    // Date filter
-    if(dateType&&(dateFrom||dateTo)){
-      let dateVal='';
-      if(dateType==='quoteDate') dateVal=q.quoteDate||q.exportedAt||'';
-      else if(dateType==='ihd') dateVal=q.ihd||'';
-      else if(dateType==='commissionReport') dateVal=q.commissionReport||'';
-      if(!dateVal) return false;
-      const d=new Date(dateVal);
-      if(isNaN(d.getTime())) return false;
-      if(dateFrom&&d<new Date(dateFrom)) return false;
-      if(dateTo&&d>new Date(dateTo+'T23:59:59')) return false;
-    }
-    return true;
-  });
-
-  if(!filtered.length){ bamAlert('No quotes match the selected filters.'); return; }
-
-  const HEADERS=['Quote #','Quote name','Client name','Company','Rep','Quote date','IHD','Commission period','Split','Sell','Net cost','GP','Margin %','Rep payout','House profit','Status','Paid'];
-  const rows=[HEADERS,...filtered.map(q=>[
-    q.quoteNum||'',q.quoteName||'',q.clientName||'',q.clientCompany||'',
-    q.rep||'',q.quoteDate||q.exportedAt||'',q.ihd||'',q.commissionReport||'',
-    q.commissionSplit||'standard',
-    q.totalSell||0,q.totalNetCost||0,(q.totalSell||0)-(q.totalNetCost||0),
-    q.avgMargin||0,q.totalRepComm||0,q.totalHouseProfit||0,
-    q.workflowStatus||'active',q.paid?'Yes':'No'
-  ])];
-
-  const wb=XLSX.utils.book_new();
-  const ws=XLSX.utils.aoa_to_sheet(rows);
-  XLSX.utils.book_append_sheet(wb,ws,REP+' Quotes');
-  const date=new Date().toLocaleDateString('en-US').replace(/\//g,'-');
-  XLSX.writeFile(wb,'TORO_Report_'+REP+'_'+date+'.xlsx');
-  document.getElementById('report-modal').style.display='none';
-}
-
-</script>
 </head>
 <body>
 
-<!-- Password gate -->
-<div id="gate" style="position:fixed;inset:0;background:#1a1a2e;display:flex;align-items:center;justify-content:center;z-index:9999">
-  <div style="background:#fff;border-radius:12px;padding:36px 44px;max-width:360px;width:90%;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,.4)">
-    <div style="font-size:28px;margin-bottom:10px">&#128274;</div>
-    <div style="font-size:20px;font-weight:700;color:#1a1a2e;margin-bottom:4px">TORO</div>
-    <div style="font-size:13px;color:#888;margin-bottom:24px">Shannon Commission Portal</div>
-    <input id="pw-input" type="password" placeholder="Enter password"
-      style="width:100%;padding:10px 12px;font-size:14px;border:2px solid #e2e3e6;border-radius:8px;margin-bottom:10px;box-sizing:border-box;outline:none"
-      onkeydown="if(event.key==='Enter')checkPw()"
-      onfocus="this.style.borderColor='#C41E1E'" onblur="this.style.borderColor='#e2e3e6'">
-    <div id="pw-msg" style="font-size:12px;color:#C41E1E;min-height:16px;margin-bottom:10px"></div>
-    <button onclick="checkPw()" style="width:100%;padding:10px;background:#C41E1E;color:#fff;font-size:14px;font-weight:700;border:none;border-radius:8px;cursor:pointer">Unlock</button>
-    <div style="margin-top:16px;border-top:1px solid #f0f0f0;padding-top:12px">
-      <a href="#" onclick="showChangePw();return false" style="font-size:11px;color:#888;text-decoration:none">Change my password</a>
-    </div>
+<!-- Error Banner -->
+<div id="error-banner">⚠️ Something went wrong. Please contact management. <button onclick="document.getElementById('error-banner').style.display='none'" style="background:none;border:none;color:#fff;cursor:pointer;margin-left:10px;font-size:16px;">✕</button></div>
+
+<!-- Global error handler -->
+<script>
+window.onerror = function(msg, src, line, col, err) {
+  console.error('Global error:', msg, src, line);
+  document.getElementById('error-banner').style.display = 'block';
+  return false;
+};
+window.addEventListener('unhandledrejection', function(e) {
+  console.error('Unhandled promise rejection:', e.reason);
+  document.getElementById('error-banner').style.display = 'block';
+});
+</script>
+
+<!-- BAM Modal -->
+<div id="bam-overlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:9999;align-items:center;justify-content:center;">
+  <div style="background:#fff;border-radius:12px;padding:28px 32px;max-width:420px;width:90%;box-shadow:0 8px 40px rgba(0,0,0,0.2);">
+    <div style="font-size:17px;font-weight:700;color:#C41E1E;margin-bottom:12px;">🐂 BAM the Bull says</div>
+    <div id="bam-msg" style="font-size:15px;color:#333;margin-bottom:22px;line-height:1.5;"></div>
+    <div id="bam-btns" style="display:flex;gap:10px;justify-content:flex-end;"></div>
   </div>
 </div>
-<div id="change-pw-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);align-items:center;justify-content:center;z-index:10000">
-  <div style="background:#fff;border-radius:12px;padding:28px 36px;max-width:340px;width:90%">
-    <div style="font-size:16px;font-weight:700;margin-bottom:16px">Change password</div>
-    <input id="pw-current" type="password" placeholder="Current password" style="width:100%;padding:9px 11px;font-size:13px;border:1px solid #ccc;border-radius:6px;margin-bottom:8px;box-sizing:border-box">
-    <input id="pw-new" type="password" placeholder="New password (min 6 chars)" style="width:100%;padding:9px 11px;font-size:13px;border:1px solid #ccc;border-radius:6px;margin-bottom:8px;box-sizing:border-box">
-    <input id="pw-confirm" type="password" placeholder="Confirm new password" style="width:100%;padding:9px 11px;font-size:13px;border:1px solid #ccc;border-radius:6px;margin-bottom:8px;box-sizing:border-box">
-    <div id="change-msg" style="font-size:11px;color:#C41E1E;min-height:14px;margin-bottom:8px"></div>
-    <div style="display:flex;gap:8px">
-      <button onclick="submitChangePw()" style="flex:1;padding:9px;background:#C41E1E;color:#fff;font-weight:700;border:none;border-radius:6px;cursor:pointer">Save</button>
-      <button onclick="hideChangePw()" style="flex:1;padding:9px;background:#f0f0f0;color:#333;font-weight:700;border:none;border-radius:6px;cursor:pointer">Cancel</button>
+
+<!-- Password Gate -->
+<div id="gate">
+  <div class="gate-box">
+    <h2>🐂 TORO</h2>
+    <p>Shannon Commission Portal</p>
+    <input type="password" id="pw-input" placeholder="Enter password" onkeydown="if(event.key==='Enter')submitPw()">
+    <button onclick="submitPw()">Access Portal</button>
+    <div class="error" id="pw-error"></div>
+  </div>
+</div>
+
+<!-- Change Password Panel -->
+<div id="change-pw-panel">
+  <div class="pw-box">
+    <h3 style="margin-bottom:16px;">Change Password</h3>
+    <div style="margin-bottom:10px;"><label style="font-size:13px;font-weight:600;display:block;margin-bottom:5px;">Current Password</label>
+      <input type="password" id="cp-current" style="width:100%;padding:9px;border:1px solid #ddd;border-radius:6px;font-size:14px;"></div>
+    <div style="margin-bottom:10px;"><label style="font-size:13px;font-weight:600;display:block;margin-bottom:5px;">New Password</label>
+      <input type="password" id="cp-new" style="width:100%;padding:9px;border:1px solid #ddd;border-radius:6px;font-size:14px;"></div>
+    <div style="margin-bottom:16px;"><label style="font-size:13px;font-weight:600;display:block;margin-bottom:5px;">Confirm New Password</label>
+      <input type="password" id="cp-confirm" style="width:100%;padding:9px;border:1px solid #ddd;border-radius:6px;font-size:14px;"></div>
+    <div id="cp-error" style="color:#c41e1e;font-size:13px;min-height:18px;margin-bottom:12px;"></div>
+    <div style="display:flex;gap:10px;">
+      <button class="btn btn-gray" style="flex:1" onclick="closeChangePw()">Cancel</button>
+      <button class="btn btn-red" style="flex:1" onclick="submitChangePw()">Change Password</button>
     </div>
   </div>
 </div>
 
-<div class="topbar">
-  <div style="display:flex;align-items:center">
-    <h1>TORO Commission Portal</h1>
-    <span class="rep-badge">Shannon</span>
-  </div>
-  <button onclick="openFeedback()" style="padding:5px 10px;background:none;border:1px solid #555;border-radius:6px;color:#aaa;font-size:11px;cursor:pointer;margin-right:8px" title="Send feedback to management">&#128172; Feedback</button><span id="status-text" style="color:#888;font-size:12px">Loading...</span>
-</div>
-
-<div class="container">
-  <div class="drop-zone" id="drop-zone" onclick="document.getElementById('file-input').click()">
-    <input type="file" id="file-input" multiple accept=".json" style="display:none" onclick="event.stopPropagation()">
-    <div style="font-size:24px;margin-bottom:6px">&#128190;</div>
-    <div style="font-size:14px;font-weight:700;color:var(--text2);margin-bottom:4px">Drop exported quote files here</div>
-    <div style="font-size:11px;color:var(--text3)">Click or drag .json files from the TORO Quote Builder</div>
-  </div>
-
-  <div class="cards" id="summary-cards"></div>
-  <div id="action-bar" style="display:none;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:12px 16px;margin-bottom:16px;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px">
-    <span style="font-size:13px;font-weight:600;color:var(--text2)">Ready to submit to Stephen?</span>
-    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
-      <button class="btn btn-outline btn-sm" onclick="clearLocalData()" title="Clear local cache">&#8635; Reset</button>
-      <button class="btn btn-primary" onclick="exportBundle()">&#128190; Export commission bundle</button>
+<!-- Main App -->
+<div id="app" style="display:none;">
+  <div class="header">
+    <h1>🐂 Shannon</h1>
+    <div class="hdr-right">
+      <span class="sync-dot" id="sync-dot"></span>
+      <span style="font-size:12px;opacity:0.8;" id="sync-label">Live</span>
+      <button class="hdr-btn" style="background:rgba(255,255,255,0.2);color:#fff;" onclick="openChangePw()">🔑 Password</button>
     </div>
   </div>
-  <div id="main-content"><div class="section-block"><div class="empty">Loading...</div></div></div>
+  <div class="container">
+    <!-- Summary cards -->
+    <div class="summary-cards" id="summary-cards"></div>
+    <!-- Action bar -->
+    <div id="action-bar" style="display:flex;gap:10px;margin-bottom:20px;flex-wrap:wrap;align-items:center;">
+      <div class="drop-zone" id="drop-zone" style="flex:1;min-width:200px;padding:14px;" onclick="document.getElementById('file-input').click()">
+        📂 Drop or click to upload a quote JSON
+      </div>
+      <input type="file" id="file-input" accept=".json" style="display:none">
+    </div>
+    <!-- Sections -->
+    <div id="section-approval"></div>
+    <div id="section-ready"></div>
+    <div id="section-active"></div>
+    <div id="section-archive"></div>
+  </div>
 </div>
 
 <script>
+// ── Constants ──────────────────────────────────────────────────────────────
 const REP = 'Shannon';
-const STORAGE_KEY = 'toro_portal_shannon_v3';
+const REP_LOWER = 'shannon';
+const STORAGE_KEY = 'toro_quotes_shannon';
 const PW_KEY = 'toro_pw_shannon';
-const DEFAULT_PW = 'Toro#Kw9mP';
 const LOCK_KEY = 'toro_lock_shannon';
 const ATTEMPTS_KEY = 'toro_attempts_shannon';
-let quotes = [];
-let fbListenerActive = false;
+const DEFAULT_PW = 'Toro#Kw9mP';
+const FIREBASE_DB_URL = 'https://toro-commission-318b4-default-rtdb.firebaseio.com';
 
-// ── Password ──────────────────────────────────────────────────────────────
-function getStoredPw(){ return localStorage.getItem(PW_KEY)||DEFAULT_PW; }
-function getAttempts(){ return parseInt(localStorage.getItem(ATTEMPTS_KEY)||'0'); }
-function setAttempts(n){ localStorage.setItem(ATTEMPTS_KEY,n); }
-function isLocked(){ return localStorage.getItem(LOCK_KEY)==='locked'; }
-function checkPw(){
-  if(isLocked()){ document.getElementById('pw-msg').textContent='Account locked. Contact your administrator.'; return; }
-  const val=document.getElementById('pw-input').value;
-  if(val===getStoredPw()){ setAttempts(0); document.getElementById('gate').style.display='none'; }
-  else{
-    const a=getAttempts()+1; setAttempts(a);
-    const rem=5-a;
-    if(a>=5){ localStorage.setItem(LOCK_KEY,'locked'); document.getElementById('pw-msg').textContent='Account locked after 5 failed attempts.'; document.getElementById('pw-input').disabled=true; }
-    else if(a>=3){ document.getElementById('pw-msg').textContent='Incorrect. '+rem+' attempt'+(rem===1?'':'s')+' remaining.'; }
-    else{ document.getElementById('pw-msg').textContent='Incorrect password. Please try again.'; }
-    document.getElementById('pw-input').value=''; document.getElementById('pw-input').focus();
-  }
+// ── BAM Modal ──────────────────────────────────────────────────────────────
+function bamAlert(msg, cb) {
+  document.getElementById('bam-msg').innerHTML = msg;
+  const btns = document.getElementById('bam-btns');
+  btns.innerHTML = '';
+  const ok = document.createElement('button');
+  ok.textContent = 'OK';
+  ok.style.cssText = 'padding:8px 22px;background:#C41E1E;color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:14px;font-weight:600;';
+  ok.onclick = () => { document.getElementById('bam-overlay').style.display='none'; if(cb) cb(true); };
+  btns.appendChild(ok);
+  document.getElementById('bam-overlay').style.display='flex';
 }
-function showChangePw(){ document.getElementById('change-pw-modal').style.display='flex'; }
-function hideChangePw(){ document.getElementById('change-pw-modal').style.display='none'; }
-function submitChangePw(){
-  const c=document.getElementById('pw-current').value,n=document.getElementById('pw-new').value,cf=document.getElementById('pw-confirm').value,m=document.getElementById('change-msg');
-  if(c!==getStoredPw()){ m.textContent='Current password incorrect.'; return; }
-  if(n.length<6){ m.textContent='Min 6 characters.'; return; }
-  if(n!==cf){ m.textContent='Passwords do not match.'; return; }
-  localStorage.setItem(PW_KEY,n); m.style.color='#1a7f4b'; m.textContent='Password changed.';
-  setTimeout(hideChangePw,1500);
+function bamConfirm(msg, cb) {
+  document.getElementById('bam-msg').innerHTML = msg;
+  const btns = document.getElementById('bam-btns');
+  btns.innerHTML = '';
+  const cancel = document.createElement('button');
+  cancel.textContent = 'Cancel';
+  cancel.style.cssText = 'padding:8px 18px;background:#f0f0f0;color:#333;border:none;border-radius:6px;cursor:pointer;font-size:14px;';
+  cancel.onclick = () => { document.getElementById('bam-overlay').style.display='none'; if(cb) cb(false); };
+  const ok = document.createElement('button');
+  ok.textContent = 'Yes, continue';
+  ok.style.cssText = 'padding:8px 18px;background:#C41E1E;color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:14px;font-weight:600;';
+  ok.onclick = () => { document.getElementById('bam-overlay').style.display='none'; if(cb) cb(true); };
+  btns.appendChild(cancel);
+  btns.appendChild(ok);
+  document.getElementById('bam-overlay').style.display='flex';
 }
-if(isLocked()){ document.getElementById('pw-msg').textContent='Account locked.'; document.getElementById('pw-input').disabled=true; }
+function bamPrompt(msg, defaultVal, cb) {
+  document.getElementById('bam-msg').innerHTML = msg + '<br><input id="bam-input" type="text" value="'+(defaultVal||'')+'" style="width:100%;margin-top:10px;padding:8px;border:1px solid #ddd;border-radius:6px;font-size:14px;">';
+  const btns = document.getElementById('bam-btns');
+  btns.innerHTML = '';
+  const cancel = document.createElement('button');
+  cancel.textContent = 'Cancel';
+  cancel.style.cssText = 'padding:8px 18px;background:#f0f0f0;color:#333;border:none;border-radius:6px;cursor:pointer;font-size:14px;';
+  cancel.onclick = () => { document.getElementById('bam-overlay').style.display='none'; if(cb) cb(null); };
+  const ok = document.createElement('button');
+  ok.textContent = 'OK';
+  ok.style.cssText = 'padding:8px 18px;background:#C41E1E;color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:14px;font-weight:600;';
+  ok.onclick = () => { const v=document.getElementById('bam-input').value; document.getElementById('bam-overlay').style.display='none'; if(cb) cb(v); };
+  btns.appendChild(cancel);
+  btns.appendChild(ok);
+  document.getElementById('bam-overlay').style.display='flex';
+  setTimeout(()=>document.getElementById('bam-input')?.focus(),50);
+}
 
-// ── Firebase ──────────────────────────────────────────────────────────────
-// ── Firebase Integration ─────────────────────────────────────────────────
-// Uses Firebase Realtime Database for real-time sync across all devices
-const FIREBASE_DB_URL = "https://toro-commission-318b4-default-rtdb.firebaseio.com";
-
-// Firebase REST API helpers — no SDK needed, works in plain HTML
+// ── Firebase helpers ───────────────────────────────────────────────────────
+async function fbSet(path, val) {
+  const url = FIREBASE_DB_URL + '/' + path + '.json';
+  const method = val === null ? 'DELETE' : 'PUT';
+  try {
+    const r = await fetch(url, {
+      method,
+      headers: {'Content-Type':'application/json'},
+      body: val === null ? undefined : JSON.stringify(val)
+    });
+    if(!r.ok) throw new Error('HTTP ' + r.status);
+  } catch(e) { console.error('fbSet error:', path, e); throw e; }
+}
 async function fbGet(path) {
   try {
-    const res = await fetch(`${FIREBASE_DB_URL}/${path}.json`);
-    if (!res.ok) return null;
-    return await res.json();
-  } catch(e) { console.warn('Firebase read failed:', e.message); return null; }
+    const r = await fetch(FIREBASE_DB_URL + '/' + path + '.json');
+    if(!r.ok) throw new Error('HTTP ' + r.status);
+    return await r.json();
+  } catch(e) { console.error('fbGet error:', path, e); return null; }
 }
-
-async function fbSet(path, data) {
-  try {
-    if(data === null) {
-      // Use DELETE to truly remove the node from Firebase
-      const res = await fetch(`${FIREBASE_DB_URL}/${path}.json`, { method: 'DELETE' });
-      return res.ok;
-    }
-    const res = await fetch(`${FIREBASE_DB_URL}/${path}.json`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(data)
-    });
-    return res.ok;
-  } catch(e) { console.warn('Firebase write failed:', e.message); return false; }
-}
-
-async function fbPatch(path, data) {
-  try {
-    const res = await fetch(`${FIREBASE_DB_URL}/${path}.json`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(data)
-    });
-    return res.ok;
-  } catch(e) { console.warn('Firebase patch failed:', e.message); return false; }
-}
-
-// Long-polling for real-time updates (SSE/EventSource)
-let fbListeners = {};
-function fbListen(path, callback) {
-  // Stop any existing listener on this path
-  if (fbListeners[path]) {
-    fbListeners[path].close();
-  }
-  try {
-    const es = new EventSource(
-      `${FIREBASE_DB_URL}/${path}.json`
-    );
-    es.addEventListener('put', e => {
-      try { callback(JSON.parse(e.data)); } catch(err) {}
-    });
-    es.addEventListener('patch', e => {
-      try { callback(JSON.parse(e.data)); } catch(err) {}
-    });
-    es.onerror = () => {
-      // Reconnect after 5 seconds on error
-      setTimeout(() => fbListen(path, callback), 5000);
-    };
-    fbListeners[path] = es;
-  } catch(e) {
-    console.warn('Firebase listener failed:', e.message);
-    // Fallback: poll every 10 seconds
-    fbListeners[path] = { close: () => {} };
-    setInterval(async () => {
-      const data = await fbGet(path);
-      if (data) callback({ data });
-    }, 10000);
-  }
-}
-
-function fbStopListening(path) {
-  if (fbListeners[path]) {
-    fbListeners[path].close();
-    delete fbListeners[path];
-  }
-}
-
-const FB_PATH='quotes/'+REP.toLowerCase();
-
-let _saving=false;
-async function fbSave(q){
-  const key=q.quoteNum?q.quoteNum.replace(/[.#$\/\[\]]/g,'_'):(q._fbKey||'q_'+Date.now());
-  q._fbKey=key;
-  _saving=true;
-  await fbSet(FB_PATH+'/'+key,q);
-  setTimeout(()=>{_saving=false;},1000);
-}
-async function fbDelete(q){
-  const key=q.quoteNum?q.quoteNum.replace(/[.#$\/\[\]]/g,'_'):q._fbKey;
-  if(!key) return;
-  await fbSet(FB_PATH+'/'+key,null);
-}
-async function loadFromFirebase(){
-  const data=await fbGet(FB_PATH);
-  if(data){
-    const fbQuotes=Object.values(data).filter(q=>q&&q.totalSell);
-    // Firebase is source of truth — merge into local array
-    fbQuotes.forEach(q=>{
-      if(!q._fbKey&&q.quoteNum) q._fbKey=q.quoteNum.replace(/[.#$\/\[\]]/g,'_');
-      if(!q.workflowStatus) q.workflowStatus='active';
-      if(!q.statusChecks) q.statusChecks={quoteApproved:false,orderCompleted:false,paidByClient:false,readyForPayment:false};
-      const idx=quotes.findIndex(x=>x.quoteNum&&x.quoteNum===q.quoteNum);
-      if(idx>=0) quotes[idx]=q; else quotes.push(q);
-    });
-    quotes=quotes.filter(q=>{if(!q.quoteNum)return true;return fbQuotes.some(f=>f.quoteNum===q.quoteNum);});
-  } else { quotes=[]; }
-  localStorage.setItem(STORAGE_KEY,JSON.stringify(quotes));
-  render();
-}
-function startListeners(){
-  if(fbListenerActive) return;
-  fbListenerActive=true;
-  let first=true;
-  fbListen(FB_PATH,event=>{
-    if(!event||!event.data) return;
-    if(first){ first=false; return; }
-    if(_saving) return;
-    loadFromFirebase();
+function fbListen(path, cb) {
+  const url = FIREBASE_DB_URL + '/' + path + '.json';
+  const es = new EventSource(url);
+  es.addEventListener('put', e => {
+    try { cb(JSON.parse(e.data)); } catch(err) { console.error('fbListen parse error', err); }
   });
-  // Listen for approval updates from dashboard
-  fbListen('approvals',event=>{
-    if(!event||!event.data||typeof event.data!=='object') return;
-    let changed=false;
-    Object.entries(event.data).forEach(([key,val])=>{
-      if(!val) return;
-      const idx=quotes.findIndex(q=>q._fbKey===key||q.quoteNum&&q.quoteNum.replace(/[.#$\/\[\]]/g,'_')===key);
-      if(idx>=0){
-        quotes[idx].approvalStatus=val.status;
-        quotes[idx].approvalNote=val.note||'';
-        if(val.status==='approved') quotes[idx].marginApproved=true;
-        changed=true;
-      }
-    });
-    if(changed){ localStorage.setItem(STORAGE_KEY,JSON.stringify(quotes)); render(); }
-  });
-  // Listen for paid status from dashboard
-  fbListen('paid',event=>{
-    if(!event||!event.data||typeof event.data!=='object') return;
-    let changed=false;
-    Object.entries(event.data).forEach(([key,val])=>{
-      if(!val) return;
-      const idx=quotes.findIndex(q=>q._fbKey===key);
-      if(idx>=0&&val.rep===REP){ quotes[idx].paid=val.paid; quotes[idx].paidDate=val.paidDate; changed=true; }
-    });
-    if(changed){ localStorage.setItem(STORAGE_KEY,JSON.stringify(quotes)); render(); }
-  });
+  es.onerror = err => console.error('fbListen error', path, err);
+  return es;
 }
 
-// ── File loading ──────────────────────────────────────────────────────────
-const dz=document.getElementById('drop-zone');
-const fi=document.getElementById('file-input');
-dz.addEventListener('dragover',e=>{e.preventDefault();dz.classList.add('over')});
-dz.addEventListener('dragleave',()=>dz.classList.remove('over'));
-dz.addEventListener('drop',e=>{e.preventDefault();dz.classList.remove('over');loadFiles([...e.dataTransfer.files])});
-fi.addEventListener('change',()=>{loadFiles([...fi.files]);fi.value=''});
-
-function loadFiles(files){
-  files.forEach(f=>{
-    if(!f.name.endsWith('.json')) return;
-    const r=new FileReader();
-    r.onload=async e=>{
-      try{
-        const q=JSON.parse(e.target.result);
-        if(!q.totalSell) return;
-        if(q.rep&&q.rep!==REP){ bamAlert('This quote belongs to '+q.rep+', not Shannon.'); return; }
-        q.rep=REP; q.loadedAt=new Date().toISOString();
-        if(!q.adjustments) q.adjustments=[];
-        // Status fields
-        if(!q.statusChecks) q.statusChecks={quoteApproved:false,orderCompleted:false,paidByClient:false,readyForPayment:false};
-        if(!q.workflowStatus) q.workflowStatus='active'; // active|needsApproval|waitingApproval|submittedCommission|archived
-        // Handle re-import of a quote needing correction (reset approval)
-        if(q.quoteNum){
-          const existing=quotes.findIndex(x=>x.quoteNum===q.quoteNum);
-          if(existing>=0){
-            const old=quotes[existing];
-            q.adjustments=old.adjustments||[];
-            q.statusChecks=old.statusChecks||q.statusChecks;
-            // Reset approval if was rejected
-            if(old.approvalStatus==='rejected'){
-              q.approvalStatus=''; q.marginApproved=false; q.workflowStatus='active';
-              await fbSet('approvals/'+q._fbKey,null); // clear old rejection
-            } else {
-              q.approvalStatus=old.approvalStatus||'';
-              q.marginApproved=old.marginApproved||false;
-            }
-            quotes.splice(existing,1);
-          }
-        }
-        // Check if needs margin approval
-        if(q.needsApproval&&!q.marginApproved&&!q.approvalStatus){
-          q.workflowStatus='needsApproval';
-        }
-        quotes.push(q);
-        render(); // render immediately so user sees it
-        await fbSave(q);
-        localStorage.setItem(STORAGE_KEY,JSON.stringify(quotes));
-      } catch(err){ console.error(err); }
-    };
-    r.readAsText(f);
-  });
+// Key sanitizer — MUST be consistent everywhere
+function fbKey(q) {
+  const raw = q._fbKey || q.quoteNum || ('idx_' + Date.now());
+  return raw.replace(/[.#$\/\[\]\s]/g, '_');
 }
 
-// ── Status updates ────────────────────────────────────────────────────────
-async function toggleStatus(qKey,field){
-  const decoded=decodeURIComponent(qKey);
-  let q=quotes.find(x=>(x._fbKey||x.quoteNum)===decoded);
-  if(!q) q=quotes.find(x=>x._localIdx===decoded);
-  if(!q&&decoded.startsWith('idx_')){const i=parseInt(decoded.replace('idx_',''));if(!isNaN(i)&&quotes[i])q=quotes[i];}
-  if(!q) return;
-  if(q.workflowStatus==='submittedCommission'||quotes[qIdx].workflowStatus==='archived') return;
-  if(!quotes[qIdx].statusChecks) quotes[qIdx].statusChecks={quoteApproved:false,orderCompleted:false,paidByClient:false,readyForPayment:false};
-  quotes[qIdx].statusChecks[field]=!quotes[qIdx].statusChecks[field];
-  await fbSave(quotes[qIdx]);
-  localStorage.setItem(STORAGE_KEY,JSON.stringify(quotes));
-  render();
-}
+// ── State ──────────────────────────────────────────────────────────────────
+let quotes = [];
+let approvals = {};
+let _saving = false;
+let fbListenerActive = false;
+let archiveOpen = false;
 
-async function submitForApproval(qKey){
-  quotes[qIdx].workflowStatus='waitingApproval';
-  quotes[qIdx].approvalStatus='waiting';
-  // Write to Firebase approvals path so dashboard picks it up
-  const key=quotes[qIdx]._fbKey||quotes[qIdx].quoteNum;
-  await fbSet('approvals/'+key,{
-    quoteNum:quotes[qIdx].quoteNum, quoteName:quotes[qIdx].quoteName,
-    rep:REP, status:'waiting', requestedAt:new Date().toISOString(),
-    sell:quotes[qIdx].totalSell, margin:quotes[qIdx].avgMargin,
-    commissionSplit:quotes[qIdx].commissionSplit
-  });
-  await fbSave(quotes[qIdx]);
-  localStorage.setItem(STORAGE_KEY,JSON.stringify(quotes));
-  render();
-}
-
-async function submitForCommission(period){
-  const readyQuotes=quotes.filter(q=>q.statusChecks&&q.statusChecks.readyForPayment&&q.workflowStatus==='active'&&(q.marginApproved||!q.needsApproval));
-  if(!readyQuotes.length){ bamAlert('No quotes ready for submission.'); return; }
-  if(!await bamConfirm('Submit '+readyQuotes.length+' quote'+(readyQuotes.length!==1?'s':'')+' for commission? They will be locked and archived.')) return;
-  const submittedAt=new Date().toISOString();
-  for(const q of readyQuotes){
-    q.workflowStatus='submittedCommission';
-    q.submittedAt=submittedAt;
-    q.locked=true;
-    await fbSave(q);
-    // Write to commissionSubmissions for dashboard
-    const key=q._fbKey||q.quoteNum;
-    await fbSet('commissionSubmissions/'+REP.toLowerCase()+'/'+key,{
-      ...q, submittedAt, rep:REP
-    });
-  }
-  localStorage.setItem(STORAGE_KEY,JSON.stringify(quotes));
-  render();
-}
-
-// ── Export quote back to builder ──────────────────────────────────────────
-function exportToBuilder(qKey){
-  const q=quotes.find(x=>(x._fbKey||x.quoteNum)===qKey);
-  if(!q) return;
-  const blob=new Blob([JSON.stringify(q,null,2)],{type:'application/json'});
-  const a=document.createElement('a');
-  const name='TORO_Edit_'+(q.quoteNum||'quote')+'_'+(q.quoteName||'').replace(/[^a-z0-9]/gi,'_')+'.json';
-  a.href=URL.createObjectURL(blob); a.download=name; a.click();
-  URL.revokeObjectURL(a.href);
-}
-
-// ── Export commission bundle ──────────────────────────────────────────────
-function exportBundle(){
-  const submitted=quotes.filter(q=>q.workflowStatus==='submittedCommission'||q.workflowStatus==='archived');
-  if(!submitted.length){ bamAlert('No submitted quotes to export.'); return; }
-  const bundle={type:'commission_bundle',rep:REP,exportedAt:new Date().toLocaleString(),quotes:submitted,
-    totals:{totalSell:submitted.reduce((a,q)=>a+(q.totalSell||0),0),repPayout:submitted.reduce((a,q)=>a+(q.totalRepComm||0),0)}
-  };
-  const blob=new Blob([JSON.stringify(bundle,null,2)],{type:'application/json'});
-  const a=document.createElement('a');
-  a.href=URL.createObjectURL(blob);
-  a.download='TORO_Commission_Shannon_'+new Date().toLocaleDateString('en-US').replace(/\//g,'-')+'.json';
-  a.click(); URL.revokeObjectURL(a.href);
-}
-
-// ── Helpers ───────────────────────────────────────────────────────────────
-const fmt=v=>'$'+parseFloat(v||0).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
-const pct=v=>(Math.round((v||0)*10)/10)+'%';
-
-function approvalBadge(q){
-  if(q.workflowStatus==='waitingApproval') return '<span class="status-badge badge-waiting">Waiting for Approval</span>';
-  if(q.approvalStatus==='approved'||q.marginApproved) return '<span class="status-badge badge-approved">Approved</span>';
-  if(q.approvalStatus==='rejected') return '<span class="status-badge badge-rejected">Rejected</span>';
-  if(q.workflowStatus==='needsApproval') return '<span class="status-badge badge-needs">Needs Approval</span>';
-  return '';
-}
-
-function statusChecksHtml(q,idx){
-  const locked=q.locked||q.workflowStatus==='submittedCommission'||q.workflowStatus==='archived';
-  const sc=q.statusChecks||{};
-  const qKey=encodeURIComponent(q._fbKey||q.quoteNum||q._localIdx||('idx_'+idx));
-  const checks=[
-    ['quoteApproved','Quote Approved'],
-    ['orderCompleted','Order Completed'],
-    ['paidByClient','Paid by Client'],
-    ['readyForPayment','Ready for Payment']
-  ];
-  return '<div class="status-checks">'+checks.map(([field,label])=>{
-    const checked=sc[field]||false;
-    return '<label class="status-check '+(checked?'checked':'')+'" style="cursor:pointer">'+
-      '<input type="checkbox"'+(checked?' checked':'')+
-      ' data-key="'+qKey+'" data-field="'+field+
-      '" onchange="toggleStatus(decodeURIComponent(this.dataset.key),this.dataset.field)"'+(locked?' disabled':'')+'> '+label+
-      '</label>';
-  }).join('')+'</div>';
-}
-
-function quoteRow(q,idx,locked,showUndo){
-  const mg=q.avgMargin||0;
-  const mgC=mg<30?'mg-red':mg<35?'mg-yellow':'mg-green';
-  const name=q.quoteName||(q.quoteNum?'#'+q.quoteNum:'Unnamed');
-  const splitLbl=q.commissionSplit==='standard'?'Standard':q.commissionSplit==='ho_75_25'?'H/O 75/25':q.commissionSplit==='ho_50_50'?'H/O 50/50':q.commissionSplit==='ho_25_75'?'H/O 25/75':'Standard';
-  // Stamp _localIdx so lookups work for quotes without fbKey/quoteNum
-  if(!q._fbKey&&!q.quoteNum) q._localIdx='idx_'+idx;
-  const qKey=encodeURIComponent(q._fbKey||q.quoteNum||q._localIdx||('idx_'+idx));
-  let actionBtns='';
-  if(!locked){
-    if(q.workflowStatus==='needsApproval'){
-      actionBtns+='<button class="btn btn-sm" style="background:var(--orange);color:#fff;margin-bottom:3px;display:block" data-key="'+qKey+'" onclick="submitForApproval(decodeURIComponent(this.dataset.key))">Submit for Approval</button>';
-    }
-    if(showUndo){
-      actionBtns+='<button class="btn btn-outline btn-sm" data-key="'+qKey+'" onclick="undoReady(decodeURIComponent(this.dataset.key))" style="margin-right:4px">&#8630; Undo</button>';
-    }
-    actionBtns+='<button class="btn btn-outline btn-sm" data-key="'+qKey+'" onclick="exportToBuilder(decodeURIComponent(this.dataset.key))" style="margin-right:4px">&#9998; Edit</button>';
-    actionBtns+='<button class="del-btn" data-key="'+qKey+'" onclick="deleteQuote(decodeURIComponent(this.dataset.key))" title="Delete">&#10005;</button>';
+// ── Auth ───────────────────────────────────────────────────────────────────
+function getStoredPw() { return localStorage.getItem(PW_KEY) || DEFAULT_PW; }
+function submitPw() {
+  const locked = localStorage.getItem(LOCK_KEY);
+  if(locked) { document.getElementById('pw-error').textContent = 'Account locked after 5 failed attempts. Contact management.'; return; }
+  const val = document.getElementById('pw-input').value;
+  const attempts = parseInt(localStorage.getItem(ATTEMPTS_KEY)||'0');
+  if(val === getStoredPw()) {
+    localStorage.removeItem(ATTEMPTS_KEY);
+    document.getElementById('gate').style.display = 'none';
+    document.getElementById('app').style.display = '';
+    init();
   } else {
-    actionBtns='<button class="btn btn-outline btn-sm" data-key="'+qKey+'" onclick="exportToBuilder(decodeURIComponent(this.dataset.key))">&#128190; Export</button>';
+    const newAttempts = attempts + 1;
+    localStorage.setItem(ATTEMPTS_KEY, newAttempts);
+    if(newAttempts >= 5) {
+      localStorage.setItem(LOCK_KEY, '1');
+      document.getElementById('pw-error').textContent = 'Account locked after 5 failed attempts. Contact management.';
+    } else {
+      document.getElementById('pw-error').textContent = `Incorrect password. ${5-newAttempts} attempt(s) remaining.`;
+    }
   }
-  let html='<tr>';
-  html+='<td>';
-  html+='<div style="font-weight:700;font-size:13px">'+name+(locked?'<span class="locked-badge"> LOCKED</span>':'')+'</div>';
-  if(q.quoteNum&&q.quoteName) html+='<div style="font-size:10px;color:var(--text3)">#'+q.quoteNum+'</div>';
-  if(q.clientName||q.clientCompany) html+='<div style="font-size:10px;color:var(--text2);font-weight:600">'+(q.clientName||'')+(q.clientName&&q.clientCompany?' — ':'')+(q.clientCompany||'')+'</div>';
-  if(q.ihd) html+='<div style="font-size:10px;color:var(--text3)">IHD: '+q.ihd+'</div>';
-  if(q.commissionReport) html+='<div style="font-size:10px;color:var(--text3)">Period: '+q.commissionReport+'</div>';
-  if(q.approvalStatus==='rejected'&&q.approvalNote) html+='<div class="rejection-note">&#9888; '+q.approvalNote+'</div>';
-  html+='</td>';
-  html+='<td class="r">'+fmt(q.totalNetCost)+'</td>';
-  html+='<td class="r">'+fmt(q.totalSell)+'</td>';
-  html+='<td class="r"><span class="mg-pill '+mgC+'">'+pct(mg)+'</span></td>';
-  html+='<td class="r" style="color:var(--brown);font-weight:700">'+fmt(q.totalRepComm)+'</td>';
-  html+='<td style="font-size:11px">'+splitLbl+'</td>';
-  html+='<td>'+approvalBadge(q)+(locked?'':statusChecksHtml(q,idx))+'</td>';
-  html+='<td style="white-space:nowrap">'+actionBtns+'</td>';
-  html+='</tr>';
-  return html;
+}
+document.getElementById('pw-input').addEventListener('keydown', e => { if(e.key==='Enter') submitPw(); });
+
+function openChangePw() { document.getElementById('change-pw-panel').classList.add('open'); }
+function closeChangePw() { document.getElementById('change-pw-panel').classList.remove('open'); ['cp-current','cp-new','cp-confirm'].forEach(id=>document.getElementById(id).value=''); document.getElementById('cp-error').textContent=''; }
+function submitChangePw() {
+  const cur = document.getElementById('cp-current').value;
+  const nw = document.getElementById('cp-new').value;
+  const conf = document.getElementById('cp-confirm').value;
+  if(cur !== getStoredPw()) { document.getElementById('cp-error').textContent = 'Current password is incorrect.'; return; }
+  if(nw.length < 6) { document.getElementById('cp-error').textContent = 'New password must be at least 6 characters.'; return; }
+  if(nw !== conf) { document.getElementById('cp-error').textContent = 'Passwords do not match.'; return; }
+  localStorage.setItem(PW_KEY, nw);
+  closeChangePw();
+  bamAlert('Password changed successfully!');
 }
 
-// ── Render ────────────────────────────────────────────────────────────────
-async function deleteQuote(qKey){
-  if(!await bamConfirm('Permanently remove this quote?')) return;
-  const decoded=decodeURIComponent(qKey);
-  let q=quotes.find(x=>(x._fbKey||x.quoteNum)===decoded);
-  if(!q) q=quotes.find(x=>x._fbKey===decoded||x.quoteNum===decoded);
-  if(!q) q=quotes.find(x=>x._localIdx===decoded);
-  if(!q&&decoded.startsWith('idx_')){const i=parseInt(decoded.replace('idx_',''));if(!isNaN(i)&&quotes[i])q=quotes[i];}
-  if(!q){ console.warn('deleteQuote: not found',qKey); bamAlert('Could not locate quote. Please refresh and try again.'); return; }
-  const idx=quotes.indexOf(q);
-  if(idx>=0) quotes.splice(idx,1);
-  localStorage.setItem(STORAGE_KEY,JSON.stringify(quotes));
-  render();
-  fbListenerActive=false;
-  await fbDelete(q);
-  // Also remove any approval record for this quote
-  const approvalKey=q._fbKey||(q.quoteNum?q.quoteNum.replace(/[.#$\/\[\]]/g,'_'):null);
-  if(approvalKey) await fbSet('approvals/'+approvalKey, null);
-  setTimeout(()=>{ fbListenerActive=true; },2000);
-}
-
-function undoReady(qKey){
-  const decoded=decodeURIComponent(qKey);
-  let q=quotes.find(x=>(x._fbKey||x.quoteNum)===decoded);
-  if(!q) q=quotes.find(x=>x._localIdx===decoded);
-  if(!q&&decoded.startsWith('idx_')){const i=parseInt(decoded.replace('idx_',''));if(!isNaN(i)&&quotes[i])q=quotes[i];}
-  if(!q||!q.statusChecks) return;
-  q.statusChecks.readyForPayment=false;
-  localStorage.setItem(STORAGE_KEY,JSON.stringify(quotes));
-  render();
-  fbSave(q);
-}
-
-async function clearLocalData(){
-  if(!await bamConfirm('Clear local cache and reload from Firebase?')) return;
-  localStorage.removeItem(STORAGE_KEY);
-  quotes=[];
+// ── Init ───────────────────────────────────────────────────────────────────
+function init() {
+  // Load local cache first
+  try {
+    const cached = localStorage.getItem(STORAGE_KEY);
+    if(cached) { quotes = JSON.parse(cached); }
+  } catch(e) { quotes = []; }
   render();
   loadFromFirebase();
-}
-
-
-function render(){
-  const status=document.getElementById('status-text');
-  const cards=document.getElementById('summary-cards');
-  const main=document.getElementById('main-content');
-
-  if(!quotes.length){
-    status.textContent='No quotes loaded';
-    cards.innerHTML='';
-    main.innerHTML='<div class="section-block"><div class="empty">Drop exported quotes above to get started</div></div>';
-    return;
-  }
-
-  status.textContent=quotes.length+' quote'+(quotes.length!==1?'s':'')+' loaded';
-
-  // Categorize
-  const needsApproval=quotes.filter((q,i)=>q.workflowStatus==='needsApproval'||q.workflowStatus==='waitingApproval'||q.approvalStatus==='rejected');
-  const readyForSub=quotes.filter((q,i)=>q.statusChecks&&q.statusChecks.readyForPayment&&q.workflowStatus==='active'&&(q.marginApproved||!q.needsApproval));
-  const active=quotes.filter((q,i)=>q.workflowStatus==='active'&&!(q.statusChecks&&q.statusChecks.readyForPayment));
-  const archived=quotes.filter((q,i)=>q.workflowStatus==='submittedCommission'||q.workflowStatus==='archived');
-
-  // Summary cards
-  const allActive=[...readyForSub,...active];
-  const totSell=allActive.reduce((a,q)=>a+(q.totalSell||0),0);
-  const totNet=allActive.reduce((a,q)=>a+(q.totalNetCost||0),0);
-  const totRep=allActive.reduce((a,q)=>a+(q.totalRepComm||0),0);
-  const totGP=totSell-totNet;
-  const avgMg=totSell>0?Math.round((1-totNet/totSell)*1000)/10:0;
-
-  cards.innerHTML=`
-    <div class="card"><div class="card-lbl">Active quotes</div><div class="card-val">${allActive.length}</div></div>
-    <div class="card"><div class="card-lbl">Total sell</div><div class="card-val green">${fmt(totSell)}</div></div>
-    <div class="card"><div class="card-lbl">Gross profit</div><div class="card-val green">${fmt(totGP)}</div></div>
-    <div class="card"><div class="card-lbl">Avg margin</div><div class="card-val ${avgMg<30?'red':avgMg<35?'orange':'green'}">${pct(avgMg)}</div></div>
-    <div class="card"><div class="card-lbl">My commission</div><div class="card-val brown">${fmt(totRep)}</div></div>
-    ${needsApproval.length?'<div class="card"><div class="card-lbl">Needs attention</div><div class="card-val red">'+needsApproval.length+'</div></div>':''}
-  `;
-
-  const TH='<thead><tr><th>Project</th><th class="r">Cost</th><th class="r">Sell</th><th class="r">Margin</th><th class="r">Commission</th><th>Split</th><th>Status</th><th></th></tr></thead>';
-  let html='';
-
-  // ── Needs approval section ──────────────────────────────────────────────
-  if(needsApproval.length){
-    html+=`<div class="section-block">
-      <div class="section-hdr approval">
-        <span>&#9888; Approval Required (${needsApproval.length})</span>
-      </div>
-      <table>${TH}<tbody>`;
-    needsApproval.forEach(q=>{ const i=quotes.findIndex(x=>x===q||(x.quoteNum&&x.quoteNum===q.quoteNum)); html+=quoteRow(q,i,false); });
-    html+=`</tbody></table></div>`;
-  }
-
-  // ── Ready for submission ────────────────────────────────────────────────
-  if(readyForSub.length){
-    const subSell=readyForSub.reduce((a,q)=>a+(q.totalSell||0),0);
-    const subNet=readyForSub.reduce((a,q)=>a+(q.totalNetCost||0),0);
-    const subRep=readyForSub.reduce((a,q)=>a+(q.totalRepComm||0),0);
-    const subMg=subSell>0?Math.round((1-subNet/subSell)*1000)/10:0;
-    html+=`<div class="section-block">
-      <div class="section-hdr ready">
-        <span>&#9989; Ready for Commission Submission (${readyForSub.length})</span>
-        <button class="btn btn-sm" style="background:#fff;color:var(--green);font-weight:700" onclick="submitForCommission()">Submit for Commission</button>
-      </div>
-      <div style="padding:8px 16px;background:#e6f4ee;border-bottom:1px solid #c8e6c9;font-size:12px;display:flex;gap:20px;flex-wrap:wrap">
-        <span>Quotes: <strong>${readyForSub.length}</strong></span>
-        <span>Total sell: <strong>${fmt(subSell)}</strong></span>
-        <span>Gross profit: <strong>${fmt(subSell-subNet)}</strong></span>
-        <span>Avg margin: <strong><span class="mg-pill ${subMg<30?'mg-red':subMg<35?'mg-yellow':'mg-green'}">${pct(subMg)}</span></strong></span>
-        <span>My commission: <strong style="color:var(--brown)">${fmt(subRep)}</strong></span>
-      </div>
-      <table>${TH}<tbody>`;
-    readyForSub.forEach(q=>{ const i=quotes.findIndex(x=>x===q||(x.quoteNum&&x.quoteNum===q.quoteNum)); html+=quoteRow(q,i,false,true); });
-    html+=`</tbody></table></div>`;
-  }
-
-  // ── Active quotes ───────────────────────────────────────────────────────
-  if(active.length){
-    html+=`<div class="section-block">
-      <div class="section-hdr active">
-        <span>&#128203; Active Quotes (${active.length})</span>
-      </div>
-      <table>${TH}<tbody>`;
-    active.forEach(q=>{ const i=quotes.findIndex(x=>x===q||(x.quoteNum&&x.quoteNum===q.quoteNum)); html+=quoteRow(q,i,false); });
-    html+=`</tbody></table></div>`;
-  }
-
-  // ── Archive ─────────────────────────────────────────────────────────────
-  if(archived.length){
-    const arcSell=archived.reduce((a,q)=>a+(q.totalSell||0),0);
-    const arcRep=archived.reduce((a,q)=>a+(q.totalRepComm||0),0);
-    html+=`<div class="section-block">
-      <details>
-        <summary style="background:var(--bg);font-weight:700;color:var(--text3)">
-          &#128229; Archived / Submitted (${archived.length}) &nbsp;
-          <span style="font-weight:400;font-size:11px">Total sell: ${fmt(arcSell)} | Commission: ${fmt(arcRep)}</span>
-          <button class="btn btn-outline btn-sm" style="margin-left:12px;font-size:10px" onclick="event.preventDefault();exportBundle()">&#128190; Export bundle</button>
-        </summary>
-        <table>${TH}<tbody>`;
-    archived.forEach(q=>{ const i=quotes.findIndex(x=>x===q||(x.quoteNum&&x.quoteNum===q.quoteNum)); html+=quoteRow(q,i,true); });
-    html+=`</tbody></table></details></div>`;
-  }
-
-  if(!html) html='<div class="section-block"><div class="empty">Drop exported quotes above to get started</div></div>';
-  main.innerHTML=html;
-}
-
-// ── Init ──────────────────────────────────────────────────────────────────
-async function init(){
-  // Clear old v1/v2 keys, load cache first for instant display
-  localStorage.removeItem('toro_portal_shannon');
-  localStorage.removeItem('toro_portal_shannon_v2');
-  try{ quotes=JSON.parse(localStorage.getItem(STORAGE_KEY)||'[]'); }catch(e){ quotes=[]; }
-  if(quotes.length) render();
-  await loadFromFirebase();
   startListeners();
 }
-init();
 
-function openFeedback(){
-  document.getElementById('feedback-modal').classList.add('open');
-  document.getElementById('feedback-text').value='';
-  document.getElementById('feedback-status').textContent='';
-  setTimeout(()=>document.getElementById('feedback-text').focus(),100);
+async function loadFromFirebase() {
+  setSyncing(true);
+  try {
+    // Firebase is source of truth
+    const fbData = await fbGet('quotes/' + REP_LOWER);
+    if(fbData && typeof fbData === 'object') {
+      const fbQuotes = [];
+      fbQuotes.forEach = Array.prototype.forEach.bind(Object.entries(fbData).map(([k,v]) => ({...v, _fbKey: k})));
+      Object.entries(fbData).forEach(([k, v]) => {
+        if(v && typeof v === 'object') {
+          const q = {...v, _fbKey: k};
+          if(!q.workflowStatus) q.workflowStatus = 'active';
+          fbQuotes.push(q);
+        }
+      });
+      quotes = fbQuotes;
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(quotes));
+      render();
+    }
+  } catch(e) { console.error('loadFromFirebase error:', e); }
+  setSyncing(false);
 }
-function closeFeedback(){
-  document.getElementById('feedback-modal').classList.remove('open');
-}
-async function submitFeedback(){
-  const msg=document.getElementById('feedback-text').value.trim();
-  const status=document.getElementById('feedback-status');
-  if(!msg){status.style.color='var(--red)';status.textContent='Please enter a message.';return;}
-  status.style.color='var(--text3)';status.textContent='Sending...';
-  const key='fb_'+Date.now();
-  const ok=await fbSet('feedback/'+key,{
-    rep:REP, message:msg, sentAt:new Date().toISOString(), read:false
+
+function startListeners() {
+  fbListenerActive = true;
+  // Listen for changes to this rep's quotes
+  fbListen('quotes/' + REP_LOWER, data => {
+    if(_saving) return; // skip during our own saves
+    if(data && data.data !== null && typeof data.data === 'object') {
+      const fbQuotes = [];
+      Object.entries(data.data).forEach(([k, v]) => {
+        if(v && typeof v === 'object') {
+          const q = {...v, _fbKey: k};
+          if(!q.workflowStatus) q.workflowStatus = 'active';
+          fbQuotes.push(q);
+        }
+      });
+      quotes = fbQuotes;
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(quotes));
+      render();
+    } else if(data && data.data === null) {
+      quotes = [];
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(quotes));
+      render();
+    }
   });
-  if(ok!==null){
-    status.style.color='var(--green)';status.textContent='Sent! Thank you.';
-    setTimeout(closeFeedback,1500);
-  } else {
-    status.style.color='var(--red)';status.textContent='Failed to send. Please try again.';
-  }
-}
-
-
-// ── Approval messaging ────────────────────────────────────────────────────
-let approvalThreads={};
-
-function openApprovalThread(qKey){
-  const q=quotes.find(x=>(x._fbKey||x.quoteNum)===qKey);
-  if(!q) return;
-  const key=q._fbKey||(q.quoteNum?q.quoteNum.replace(/[.#$\/\[\]]/g,'_'):null);
-  if(!key) return;
-
-  // Build modal
-  let modal=document.getElementById('approval-thread-modal');
-  if(!modal){
-    modal=document.createElement('div');
-    modal.id='approval-thread-modal';
-    modal.style.cssText='display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:10000;align-items:center;justify-content:center';
-    modal.innerHTML=`<div style="background:#fff;border-radius:12px;padding:24px;max-width:500px;width:92%;max-height:80vh;display:flex;flex-direction:column;box-shadow:0 20px 60px rgba(0,0,0,.3)">
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
-        <div style="font-size:15px;font-weight:700" id="thread-title">Approval thread</div>
-        <button onclick="document.getElementById('approval-thread-modal').style.display='none'" style="background:none;border:none;font-size:20px;cursor:pointer;color:#888">&#10005;</button>
-      </div>
-      <div id="thread-messages" style="flex:1;overflow-y:auto;border:1px solid var(--border);border-radius:6px;padding:10px;margin-bottom:12px;min-height:120px;max-height:300px;font-size:13px"></div>
-      <textarea id="thread-input" rows="2" placeholder="Add a note..."
-        style="width:100%;padding:8px;font-size:13px;border:1px solid var(--border2);border-radius:6px;resize:none;box-sizing:border-box;font-family:inherit;margin-bottom:8px"></textarea>
-      <div style="display:flex;gap:8px">
-        <button class="btn btn-primary" onclick="sendThreadMsg()" style="flex:1">Send note</button>
-      </div>
-    </div>`;
-    document.body.appendChild(modal);
-  }
-
-  modal.dataset.qkey=key;
-  modal.style.display='flex';
-  document.getElementById('thread-title').textContent='Notes: '+(q.quoteName||q.quoteNum||'Quote');
-  loadThreadMessages(key);
-}
-
-async function loadThreadMessages(key){
-  const msgEl=document.getElementById('thread-messages');
-  if(!msgEl) return;
-  msgEl.innerHTML='<div style="color:var(--text3);font-size:12px">Loading...</div>';
-  const data=await fbGet('approvals/'+key+'/messages');
-  if(!data||Object.keys(data).length===0){
-    msgEl.innerHTML='<div style="color:var(--text3);font-size:12px;padding:8px">No messages yet. Add the first note.</div>';
-    return;
-  }
-  const msgs=Object.values(data).sort((a,b)=>a.sentAt>b.sentAt?1:-1);
-  msgEl.innerHTML=msgs.map(m=>{
-    const isRep=m.sender===REP;
-    const dt=m.sentAt?new Date(m.sentAt).toLocaleString('en-US',{month:'short',day:'numeric',hour:'numeric',minute:'2-digit'}):'';
-    return `<div style="margin-bottom:10px;${isRep?'text-align:right':''}">
-      <div style="display:inline-block;max-width:80%;background:${isRep?'var(--red)':'#f0f0f0'};color:${isRep?'#fff':'var(--text)'};padding:7px 10px;border-radius:8px;font-size:13px">${m.message}</div>
-      <div style="font-size:10px;color:var(--text3);margin-top:2px">${m.sender} · ${dt}</div>
-    </div>`;
-  }).join('');
-  msgEl.scrollTop=msgEl.scrollHeight;
-}
-
-async function sendThreadMsg(){
-  const modal=document.getElementById('approval-thread-modal');
-  const key=modal?.dataset.qkey;
-  const input=document.getElementById('thread-input');
-  const msg=input?.value.trim();
-  if(!key||!msg) return;
-  const msgKey='msg_'+Date.now();
-  await fbSet('approvals/'+key+'/messages/'+msgKey,{
-    sender:REP, message:msg, sentAt:new Date().toISOString()
+  // Listen for paid status
+  fbListen('paid/' + REP_LOWER, data => {
+    if(data && data.data && typeof data.data === 'object') {
+      let changed = false;
+      Object.entries(data.data).forEach(([k, v]) => {
+        const q = quotes.find(x => fbKey(x) === k);
+        if(q && v === true) {
+          q.workflowStatus = 'paid';
+          changed = true;
+        }
+      });
+      if(changed) { localStorage.setItem(STORAGE_KEY, JSON.stringify(quotes)); render(); }
+    }
   });
-  if(input) input.value='';
-  loadThreadMessages(key);
+  // Listen for approval decisions
+  fbListen('approvals/' + REP_LOWER, data => {
+    if(data && data.data && typeof data.data === 'object') {
+      approvals = data.data;
+      render();
+    } else {
+      approvals = {};
+    }
+  });
 }
 
+function setSyncing(on) {
+  const dot = document.getElementById('sync-dot');
+  const lbl = document.getElementById('sync-label');
+  if(dot) dot.classList.toggle('syncing', on);
+  if(lbl) lbl.textContent = on ? 'Syncing...' : 'Live';
+}
 
-// ── Reporting / Excel export ───────────────────────────────────────────────
-function downloadRepReport(){
-  if(!quotes.length){ bamAlert('No quotes to export.'); return; }
-  // Load SheetJS
-  if(typeof XLSX==='undefined'){ bamAlert('Excel library not loaded.'); return; }
+// ── File drop ──────────────────────────────────────────────────────────────
+(function() {
+  const dz = document.getElementById('drop-zone');
+  const fi = document.getElementById('file-input');
+  dz.addEventListener('dragover', e => { e.preventDefault(); dz.classList.add('over'); });
+  dz.addEventListener('dragleave', () => dz.classList.remove('over'));
+  dz.addEventListener('drop', e => {
+    e.preventDefault();
+    dz.classList.remove('over');
+    const file = e.dataTransfer.files[0];
+    if(file) processFile(file);
+  });
+  fi.addEventListener('change', e => {
+    e.stopPropagation();
+    if(fi.files[0]) { processFile(fi.files[0]); fi.value=''; }
+  });
+})();
 
-  // Build filter UI
-  const dateTypes=['Quote date','In-hands date','Commission period'];
-  const clients=[...new Set(quotes.map(q=>q.clientCompany||q.clientName||'').filter(Boolean))].sort();
+async function processFile(file) {
+  try {
+    const text = await file.text();
+    const data = JSON.parse(text);
+    // Check rep
+    if(data.rep && data.rep.toLowerCase() !== REP.toLowerCase()) {
+      bamAlert('This quote belongs to ' + data.rep + ', not ' + REP + '. Please upload it to the correct portal.');
+      return;
+    }
+    const key = fbKey(data);
+    // Check for duplicate
+    const existing = quotes.findIndex(q => fbKey(q) === key);
+    if(existing >= 0) {
+      bamConfirm('A quote with the same Quote # already exists. Replace it?', async ok => {
+        if(!ok) return;
+        quotes.splice(existing, 1);
+        // Remove approval for old version
+        await fbSet('approvals/' + REP_LOWER + '/' + key, null);
+        await addQuote(data);
+      });
+      return;
+    }
+    await addQuote(data);
+  } catch(e) {
+    console.error('processFile error:', e);
+    bamAlert('Could not read that file. Make sure it\'s a valid TORO quote JSON.');
+  }
+}
 
-  let filterHtml=`<div style="font-family:sans-serif;padding:0">
-    <div style="margin-bottom:12px">
-      <label style="font-size:12px;font-weight:700;display:block;margin-bottom:4px">Date filter</label>
-      <select id="rpt-date-type" style="width:100%;padding:7px;border:1px solid #ccc;border-radius:4px;font-size:13px;margin-bottom:6px">
-        <option value="">All dates</option>
-        <option value="quoteDate">By quote date</option>
-        <option value="ihd">By in-hands date</option>
-        <option value="commissionReport">By commission period</option>
-      </select>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px">
-        <input type="date" id="rpt-date-from" style="padding:6px;border:1px solid #ccc;border-radius:4px;font-size:13px" placeholder="From">
-        <input type="date" id="rpt-date-to" style="padding:6px;border:1px solid #ccc;border-radius:4px;font-size:13px" placeholder="To">
-      </div>
+async function addQuote(data) {
+  const q = {
+    ...data,
+    _fbKey: fbKey(data),
+    workflowStatus: data.workflowStatus || 'active',
+    status: data.status || {},
+  };
+  quotes.push(q);
+  render(); // render immediately
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(quotes));
+  _saving = true;
+  try {
+    await fbSet('quotes/' + REP_LOWER + '/' + q._fbKey, q);
+  } catch(e) {
+    console.error('addQuote fbSet error:', e);
+  } finally {
+    setTimeout(() => { _saving = false; }, 1500);
+  }
+  bamAlert('Quote <strong>' + (q.quoteNum||q._fbKey) + '</strong> added successfully!');
+}
+
+// ── Render ─────────────────────────────────────────────────────────────────
+function render() {
+  const needApproval = quotes.filter(q => q.workflowStatus === 'needsApproval');
+  const waitingApproval = quotes.filter(q => q.workflowStatus === 'waitingApproval');
+  const ready = quotes.filter(q => q.workflowStatus === 'readyForSubmission');
+  const active = quotes.filter(q => !q.workflowStatus || q.workflowStatus === 'active' || q.workflowStatus === 'rejected');
+  const archived = quotes.filter(q => q.workflowStatus === 'submittedCommission' || q.workflowStatus === 'paid');
+
+  // Summary cards
+  const totalActive = active.length + ready.length + needApproval.length + waitingApproval.length;
+  const totalPending = ready.length;
+  const totalSell = quotes.filter(q=>q.workflowStatus!=='paid').reduce((s,q)=>s+quoteTotal(q,'sell'),0);
+  const totalComm = quotes.filter(q=>q.workflowStatus!=='paid').reduce((s,q)=>s+quoteComm(q),0);
+  document.getElementById('summary-cards').innerHTML = `
+    <div class="summary-card"><div class="sc-val">${totalActive}</div><div class="sc-lbl">Active Quotes</div></div>
+    <div class="summary-card"><div class="sc-val">${totalPending}</div><div class="sc-lbl">Ready to Submit</div></div>
+    <div class="summary-card"><div class="sc-val">$${totalSell.toFixed(0)}</div><div class="sc-lbl">Est. Revenue</div></div>
+    <div class="summary-card"><div class="sc-val">$${totalComm.toFixed(0)}</div><div class="sc-lbl">Est. Commission</div></div>
+  `;
+
+  // Needs approval section
+  const allApprovalNeeded = [...needApproval, ...waitingApproval];
+  document.getElementById('section-approval').innerHTML = allApprovalNeeded.length > 0 ? `
+    <div class="section-title">🔴 Margin Approval Required <span class="badge">${allApprovalNeeded.length}</span></div>
+    ${allApprovalNeeded.map(q => quoteCard(q)).join('')}
+  ` : '';
+
+  // Ready for submission
+  document.getElementById('section-ready').innerHTML = ready.length > 0 ? `
+    <div class="section-title">✅ Ready for Commission Submission <span class="badge">${ready.length}</span></div>
+    ${ready.map(q => quoteCard(q)).join('')}
+  ` : '';
+
+  // Active
+  document.getElementById('section-active').innerHTML = `
+    <div class="section-title">📋 Active Quotes <span class="badge">${active.length}</span></div>
+    ${active.length > 0 ? active.map(q => quoteCard(q)).join('') : '<p style="color:var(--text3);font-size:14px;padding:8px 0;">No active quotes. Upload a quote JSON above.</p>'}
+  `;
+
+  // Archive
+  document.getElementById('section-archive').innerHTML = archived.length > 0 ? `
+    <div class="archive-toggle" onclick="archiveOpen=!archiveOpen;render()">
+      ${archiveOpen ? '▼' : '▶'} Archived / Submitted (${archived.length})
     </div>
-    <div style="margin-bottom:16px">
-      <label style="font-size:12px;font-weight:700;display:block;margin-bottom:4px">Client filter</label>
-      <select id="rpt-client" style="width:100%;padding:7px;border:1px solid #ccc;border-radius:4px;font-size:13px">
-        <option value="">All clients</option>
-        ${clients.map(c=>`<option value="${c}">${c}</option>`).join('')}
-      </select>
-    </div>
-    <div style="display:flex;gap:8px">
-      <button onclick="runReport()" style="flex:1;padding:9px;background:#C41E1E;color:#fff;font-weight:700;border:none;border-radius:6px;cursor:pointer;font-size:13px">Download Excel</button>
-      <button onclick="document.getElementById('report-modal').style.display='none'" style="flex:1;padding:9px;background:#f0f0f0;font-weight:700;border:none;border-radius:6px;cursor:pointer;font-size:13px">Cancel</button>
-    </div>
+    ${archiveOpen ? archived.map(q => quoteCard(q, true)).join('') : ''}
+  ` : '';
+}
+
+function quoteTotal(q, type) {
+  let total = 0;
+  (q.garments||[]).forEach(g => (g.sizes||[]).forEach(s => {
+    if(s.qty > 0) total += s.qty * (type==='sell' ? (s.sellPrice||0) : (s.netCost||0));
+  }));
+  (q.hardGoods||[]).forEach(h => {
+    if(h.qty > 0) total += h.qty * (type==='sell' ? (h.sellPrice||0) : (h.netCost||0));
+  });
+  return total;
+}
+
+function quoteComm(q) {
+  const sell = quoteTotal(q,'sell');
+  const net = quoteTotal(q,'net');
+  const split = parseInt(q.split)||100;
+  return (sell - net) * (split/100) * 0.5;
+}
+
+function quoteCard(q, locked) {
+  const key = fbKey(q);
+  const encKey = encodeURIComponent(key);
+  const sell = quoteTotal(q,'sell');
+  const net = quoteTotal(q,'net');
+  const margin = sell>0?((sell-net)/sell*100).toFixed(1):0;
+  const comm = quoteComm(q);
+  const split = parseInt(q.split)||100;
+
+  // Approval status display
+  const repApprovals = approvals && approvals[REP_LOWER] ? approvals[REP_LOWER] : approvals;
+  const approval = repApprovals[key];
+  let approvalHtml = '';
+  if(q.workflowStatus === 'waitingApproval') {
+    approvalHtml = '<div class="approval-pending">⏳ Submitted for margin approval — awaiting management response.</div>';
+  } else if(q.workflowStatus === 'needsApproval' || (q.needsApproval && q.workflowStatus !== 'rejected')) {
+    approvalHtml = '<div class="approval-pending">⚠️ Margin below 30% — must submit for approval before presenting to client.</div>';
+  }
+  if(approval && approval.status === 'approved') {
+    approvalHtml = '<div class="approved-note">✅ Approved by management' + (approval.note ? ': ' + approval.note : '') + '</div>';
+  } else if(approval && approval.status === 'rejected') {
+    approvalHtml = '<div class="rejection-note">❌ Rejected by management' + (approval.note ? ': ' + approval.note : '') + '</div>';
+  }
+
+  // Status checkboxes
+  const statusFields = [
+    {field:'quoteApproved', label:'Quote Approved'},
+    {field:'orderCompleted', label:'Order Completed'},
+    {field:'paidByClient', label:'Paid by Client'},
+    {field:'readyForPayment', label:'Ready for Payment'},
+  ];
+  const checksHtml = locked ? '' : `<div class="status-checks">
+    ${statusFields.map(sf => {
+      const checked = (q.status||{})[sf.field];
+      return `<div class="status-check ${checked?'checked':''}">
+        <label>
+          <input type="checkbox" ${checked?'checked':''} ${locked?'disabled':''}
+            data-key="${encKey}" data-field="${sf.field}"
+            onchange="toggleStatus(decodeURIComponent(this.dataset.key), this.dataset.field, this.checked)">
+          ${sf.label}
+        </label>
+      </div>`;
+    }).join('')}
   </div>`;
 
-  let modal=document.getElementById('report-modal');
-  if(!modal){
-    modal=document.createElement('div');
-    modal.id='report-modal';
-    modal.style.cssText='display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:10000;align-items:center;justify-content:center';
-    modal.innerHTML=`<div style="background:#fff;border-radius:12px;padding:24px;max-width:380px;width:90%;box-shadow:0 20px 60px rgba(0,0,0,.3)">
-      <div style="font-size:15px;font-weight:700;margin-bottom:16px">Export report</div>
-      <div id="report-filters"></div>
-    </div>`;
-    document.body.appendChild(modal);
-  }
-  document.getElementById('report-filters').innerHTML=filterHtml;
-  modal.style.display='flex';
-}
-
-function runReport(){
-  const dateType=document.getElementById('rpt-date-type')?.value||'';
-  const dateFrom=document.getElementById('rpt-date-from')?.value||'';
-  const dateTo=document.getElementById('rpt-date-to')?.value||'';
-  const clientFilter=document.getElementById('rpt-client')?.value||'';
-
-  let filtered=quotes.filter(q=>{
-    // Client filter
-    if(clientFilter&&(q.clientCompany||q.clientName||'')!==clientFilter) return false;
-    // Date filter
-    if(dateType&&(dateFrom||dateTo)){
-      let dateVal='';
-      if(dateType==='quoteDate') dateVal=q.quoteDate||q.exportedAt||'';
-      else if(dateType==='ihd') dateVal=q.ihd||'';
-      else if(dateType==='commissionReport') dateVal=q.commissionReport||'';
-      if(!dateVal) return false;
-      const d=new Date(dateVal);
-      if(isNaN(d.getTime())) return false;
-      if(dateFrom&&d<new Date(dateFrom)) return false;
-      if(dateTo&&d>new Date(dateTo+'T23:59:59')) return false;
+  // Action buttons
+  let actionBtns = '';
+  if(!locked) {
+    if(q.workflowStatus === 'readyForSubmission') {
+      actionBtns += `<button class="btn btn-green" onclick="submitForCommission(decodeURIComponent('${encKey}'))">📤 Submit for Commission</button>`;
+      actionBtns += `<button class="btn btn-gray" onclick="undoReady(decodeURIComponent('${encKey}'))">↩ Undo</button>`;
+    } else if(q.workflowStatus === 'needsApproval' && q.workflowStatus !== 'waitingApproval') {
+      actionBtns += `<button class="btn btn-outline" onclick="submitForApproval(decodeURIComponent('${encKey}'))">🔔 Submit for Approval</button>`;
     }
-    return true;
-  });
+    actionBtns += `<button class="btn btn-gray" onclick="exportToBuilder(decodeURIComponent('${encKey}'))">✏️ Edit</button>`;
+    actionBtns += `<button class="del-btn" onclick="deleteQuote(decodeURIComponent('${encKey}'))">🗑 Delete</button>`;
+  }
 
-  if(!filtered.length){ bamAlert('No quotes match the selected filters.'); return; }
-
-  const HEADERS=['Quote #','Quote name','Client name','Company','Rep','Quote date','IHD','Commission period','Split','Sell','Net cost','GP','Margin %','Rep payout','House profit','Status','Paid'];
-  const rows=[HEADERS,...filtered.map(q=>[
-    q.quoteNum||'',q.quoteName||'',q.clientName||'',q.clientCompany||'',
-    q.rep||'',q.quoteDate||q.exportedAt||'',q.ihd||'',q.commissionReport||'',
-    q.commissionSplit||'standard',
-    q.totalSell||0,q.totalNetCost||0,(q.totalSell||0)-(q.totalNetCost||0),
-    q.avgMargin||0,q.totalRepComm||0,q.totalHouseProfit||0,
-    q.workflowStatus||'active',q.paid?'Yes':'No'
-  ])];
-
-  const wb=XLSX.utils.book_new();
-  const ws=XLSX.utils.aoa_to_sheet(rows);
-  XLSX.utils.book_append_sheet(wb,ws,REP+' Quotes');
-  const date=new Date().toLocaleDateString('en-US').replace(/\//g,'-');
-  XLSX.writeFile(wb,'TORO_Report_'+REP+'_'+date+'.xlsx');
-  document.getElementById('report-modal').style.display='none';
+  return `<div class="quote-card" id="qc-${key.replace(/[^a-zA-Z0-9]/g,'_')}">
+    <div class="qc-header" onclick="toggleCard(this)">
+      <div class="qc-meta">
+        <div class="qc-title">${q.quoteName||q.quoteNum||'Untitled'} <span style="font-size:12px;color:var(--text3);font-weight:400;">#${q.quoteNum||'—'}</span></div>
+        <div class="qc-sub">Period: ${q.period||'—'} · ${q.ihd||'—'}${q.ihdFirm?' 🔒 Firm':''} · Sell: $${sell.toFixed(2)} · Margin: ${margin}% · Est. Comm: $${comm.toFixed(2)}</div>
+      </div>
+      <div class="qc-actions" onclick="event.stopPropagation()">
+        ${actionBtns}
+      </div>
+    </div>
+    <div class="qc-body" style="display:none;">
+      ${approvalHtml}
+      ${checksHtml}
+      <div style="font-size:12px;color:var(--text3);">
+        Rep: ${q.rep||REP} · Split: ${split}% · AM: ${q.am?'Yes':'No'} · Garments: ${(q.garments||[]).length} · HG: ${(q.hardGoods||[]).length}
+        ${q.notes?'<br>Notes: '+q.notes:''}
+      </div>
+    </div>
+  </div>`;
 }
 
+function toggleCard(header) {
+  const body = header.nextElementSibling;
+  body.style.display = body.style.display === 'none' ? '' : 'none';
+}
 
-// ── BAM the Bull custom alert/confirm ────────────────────────────────────
-let _bamResolve=null;
-function bamAlert(msg){
-  return new Promise(resolve=>{
-    _bamResolve=resolve;
-    document.getElementById('bam-modal-body').textContent=msg;
-    document.getElementById('bam-btn-cancel').style.display='none';
-    document.getElementById('bam-btn-ok').textContent='OK';
-    document.getElementById('bam-modal-overlay').classList.add('open');
-    document.getElementById('bam-btn-ok').onclick=()=>{
-      document.getElementById('bam-modal-overlay').classList.remove('open');
-      resolve(true);
-    };
+// ── Quote actions ──────────────────────────────────────────────────────────
+async function toggleStatus(key, field, checked) {
+  const q = quotes.find(x => fbKey(x) === key);
+  if(!q) { console.warn('toggleStatus: quote not found for key:', key); return; }
+  if(!q.status) q.status = {};
+  q.status[field] = checked;
+  // If readyForPayment checked -> move to readyForSubmission
+  if(field === 'readyForPayment' && checked) {
+    if(q.needsApproval && q.workflowStatus !== 'waitingApproval') {
+      const repApprovals = approvals && approvals[REP_LOWER] ? approvals[REP_LOWER] : approvals;
+      const approval = repApprovals[key];
+      if(!approval || approval.status !== 'approved') {
+        bamAlert('This quote requires margin approval before it can be submitted. Use the Submit for Approval button first.');
+        q.status[field] = false;
+        render();
+        return;
+      }
+    }
+    q.workflowStatus = 'readyForSubmission';
+  } else if(field === 'readyForPayment' && !checked) {
+    if(q.workflowStatus === 'readyForSubmission') q.workflowStatus = 'active';
+  }
+  render();
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(quotes));
+  _saving = true;
+  try {
+    await fbSet('quotes/' + REP_LOWER + '/' + fbKey(q), q);
+  } catch(e) { console.error('toggleStatus fbSet error:', e); } finally {
+    setTimeout(() => { _saving = false; }, 1500);
+  }
+}
+
+async function submitForApproval(key) {
+  const q = quotes.find(x => fbKey(x) === key);
+  if(!q) { console.warn('submitForApproval: quote not found for key:', key); return; }
+  bamConfirm('Submit this quote for margin approval? Management will review before you can present it to the client.', async ok => {
+    if(!ok) return;
+    q.workflowStatus = 'waitingApproval';
+    render();
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(quotes));
+    _saving = true;
+    try {
+      await fbSet('quotes/' + REP_LOWER + '/' + fbKey(q), q);
+      // Write approval request
+      const approvalKey = fbKey(q);
+      await fbSet('approvals/' + REP_LOWER + '/' + approvalKey, {
+        rep: REP,
+        quoteNum: q.quoteNum,
+        quoteName: q.quoteName,
+        status: 'pending',
+        requestedAt: new Date().toISOString(),
+        sellTotal: quoteTotal(q,'sell'),
+        netTotal: quoteTotal(q,'net'),
+        margin: quoteTotal(q,'sell') > 0 ? ((quoteTotal(q,'sell')-quoteTotal(q,'net'))/quoteTotal(q,'sell')*100).toFixed(1) : 0,
+      });
+    } catch(e) { console.error('submitForApproval error:', e); } finally {
+      setTimeout(() => { _saving = false; }, 1500);
+    }
+    bamAlert('Submitted for approval! You\'ll see the decision here when management responds.');
   });
 }
-function bamConfirm(msg){
-  return new Promise(resolve=>{
-    _bamResolve=resolve;
-    document.getElementById('bam-modal-body').textContent=msg;
-    document.getElementById('bam-btn-cancel').style.display='';
-    document.getElementById('bam-btn-ok').textContent='Yes';
-    document.getElementById('bam-modal-overlay').classList.add('open');
-    document.getElementById('bam-btn-ok').onclick=()=>{
-      document.getElementById('bam-modal-overlay').classList.remove('open');
-      resolve(true);
-    };
-    document.getElementById('bam-btn-cancel').onclick=()=>{
-      document.getElementById('bam-modal-overlay').classList.remove('open');
-      resolve(false);
-    };
+
+function submitForCommission(key) {
+  const q = quotes.find(x => fbKey(x) === key);
+  if(!q) { console.warn('submitForCommission: quote not found for key:', key); return; }
+  bamConfirm('Submit this quote for commission payment? It will be archived.', async ok => {
+    if(!ok) return;
+    q.workflowStatus = 'submittedCommission';
+    render();
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(quotes));
+    _saving = true;
+    try {
+      await fbSet('quotes/' + REP_LOWER + '/' + fbKey(q), q);
+    } catch(e) { console.error('submitForCommission error:', e); } finally {
+      setTimeout(() => { _saving = false; }, 1500);
+    }
+    bamAlert('Commission submission recorded!');
+  });
+}
+
+function undoReady(key) {
+  const q = quotes.find(x => fbKey(x) === key);
+  if(!q) return;
+  bamConfirm('Move this quote back to Active?', async ok => {
+    if(!ok) return;
+    q.workflowStatus = 'active';
+    if(q.status) q.status.readyForPayment = false;
+    render();
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(quotes));
+    _saving = true;
+    try {
+      await fbSet('quotes/' + REP_LOWER + '/' + fbKey(q), q);
+    } catch(e) { console.error('undoReady error:', e); } finally {
+      setTimeout(() => { _saving = false; }, 1500);
+    }
+  });
+}
+
+function exportToBuilder(key) {
+  const q = quotes.find(x => fbKey(x) === key);
+  if(!q) return;
+  const blob = new Blob([JSON.stringify(q, null, 2)], {type:'application/json'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `TORO_Quote_${(q.quoteNum||key).replace(/[^a-zA-Z0-9]/g,'_')}_edit.json`;
+  a.click();
+  bamAlert('Quote exported! Open the Quote Builder, use the re-import toggle at the top, and drop in this file to edit.');
+}
+
+async function deleteQuote(key) {
+  const q = quotes.find(x => fbKey(x) === key);
+  if(!q) { console.warn('deleteQuote: quote not found for key:', key); bamAlert('Could not locate that quote. Please refresh and try again.'); return; }
+  bamConfirm('Permanently delete <strong>' + (q.quoteName||q.quoteNum||'this quote') + '</strong>? This cannot be undone.', async ok => {
+    if(!ok) return;
+    const idx = quotes.indexOf(q);
+    if(idx >= 0) quotes.splice(idx, 1);
+    render();
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(quotes));
+    fbListenerActive = false;
+    _saving = true;
+    try {
+      await fbSet('quotes/' + REP_LOWER + '/' + fbKey(q), null);
+      // Also remove any approval record
+      await fbSet('approvals/' + REP_LOWER + '/' + fbKey(q), null);
+    } catch(e) { console.error('deleteQuote error:', e); } finally {
+      setTimeout(() => { _saving = false; fbListenerActive = true; }, 2000);
+    }
   });
 }
 </script>
-
-<!-- Feedback modal -->
-<div class="feedback-modal" id="feedback-modal">
-  <div class="feedback-box">
-    <div style="font-size:16px;font-weight:700;margin-bottom:4px">Send feedback to management</div>
-    <div style="font-size:12px;color:var(--text3);margin-bottom:16px">Share suggestions, issues, or anything on your mind.</div>
-    <textarea id="feedback-text" rows="4" placeholder="Type your feedback here..."
-      style="width:100%;padding:10px;font-size:13px;border:1px solid var(--border2);border-radius:6px;resize:vertical;box-sizing:border-box;font-family:inherit"></textarea>
-    <div id="feedback-status" style="font-size:12px;min-height:16px;margin-top:6px"></div>
-    <div style="display:flex;gap:8px;margin-top:12px">
-      <button class="btn btn-primary" onclick="submitFeedback()" style="flex:1">Send</button>
-      <button class="btn btn-outline" onclick="closeFeedback()" style="flex:1">Cancel</button>
-    </div>
-  </div>
-</div>
-
-
-<div id="bam-modal-overlay">
-  <div id="bam-modal-box">
-    <div id="bam-modal-header"><span>🐂</span> BAM the Bull says</div>
-    <div id="bam-modal-body" id="bam-modal-msg"></div>
-    <div id="bam-modal-footer">
-      <button id="bam-btn-cancel" style="display:none">Cancel</button>
-      <button id="bam-btn-ok">OK</button>
-    </div>
-  </div>
-</div>
-
 </body>
 </html>
