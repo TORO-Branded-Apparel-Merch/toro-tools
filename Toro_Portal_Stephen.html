@@ -252,16 +252,14 @@ async function loadFromFirebase(){
   if(data){
     const fbQuotes=Object.values(data).filter(q=>q&&q.totalSell);
     fbQuotes.forEach(q=>{
+      if(!q._fbKey&&q.quoteNum) q._fbKey=q.quoteNum.replace(/[.#$/\[\]]/g,'_');
+      if(!q.workflowStatus) q.workflowStatus='active';
+      if(!q.statusChecks) q.statusChecks={quoteApproved:false,orderCompleted:false,paidByClient:false,readyForPayment:false};
       const idx=quotes.findIndex(x=>x.quoteNum&&x.quoteNum===q.quoteNum);
       if(idx>=0) quotes[idx]=q; else quotes.push(q);
     });
-    quotes=quotes.filter(q=>{
-      if(!q.quoteNum) return true;
-      return fbQuotes.some(f=>f.quoteNum===q.quoteNum);
-    });
-  } else {
-    quotes=[];
-  }
+    quotes=quotes.filter(q=>{ if(!q.quoteNum) return true; return fbQuotes.some(f=>f.quoteNum===q.quoteNum); });
+  } else { quotes=[]; }
   localStorage.setItem(STORAGE_KEY,JSON.stringify(quotes));
   render();
 }
@@ -349,7 +347,7 @@ function loadFiles(files){
           q.workflowStatus='needsApproval';
         }
         quotes.push(q);
-        render(); // render immediately so user sees it
+        render();
         await fbSave(q);
         localStorage.setItem(STORAGE_KEY,JSON.stringify(quotes));
       } catch(err){ console.error(err); }
@@ -408,6 +406,18 @@ async function submitForCommission(period){
 }
 
 // ── Export quote back to builder ──────────────────────────────────────────
+async function deleteQuote(qKey){
+  if(!confirm('Permanently remove this quote?')) return;
+  const q=quotes.find(x=>(x._fbKey||x.quoteNum)===qKey);
+  if(!q) return;
+  const idx=quotes.indexOf(q);
+  if(idx>=0) quotes.splice(idx,1);
+  localStorage.setItem(STORAGE_KEY,JSON.stringify(quotes));
+  render();
+  fbListenerActive=false;
+  await fbDelete(q);
+  setTimeout(()=>{ fbListenerActive=true; },2000);
+}
 function exportToBuilder(qIdx){
   const q=quotes[qIdx];
   const blob=new Blob([JSON.stringify(q,null,2)],{type:'application/json'});
@@ -446,21 +456,44 @@ function approvalBadge(q){
 function statusChecksHtml(q,idx){
   const sc=q.statusChecks||{};
   const qKey=encodeURIComponent(q._fbKey||q.quoteNum||('idx_'+idx));
-  const checks=[
-    ['quoteApproved','Quote Approved'],
-    ['orderCompleted','Order Completed'],
-    ['paidByClient','Paid by Client'],
-    ['readyForPayment','Ready for Payment']
-  ];
+  const checks=[['quoteApproved','Quote Approved'],['orderCompleted','Order Completed'],['paidByClient','Paid by Client'],['readyForPayment','Ready for Payment']];
   return '<div class="status-checks">'+checks.map(function([field,label]){
     const checked=sc[field]||false;
     return '<label class="status-check'+(checked?' checked':'')+'" style="cursor:pointer">'+
-      '<input type="checkbox"'+(checked?' checked':'')+
-      ' data-key="'+qKey+'" data-field="'+field+'"'+
-      ' onchange="toggleStatus(decodeURIComponent(this.dataset.key),this.dataset.field)"> '+label+
+      '<input type="checkbox"'+(checked?' checked':'')+' data-key="'+qKey+'" data-field="'+field+'" onchange="toggleStatus(decodeURIComponent(this.dataset.key),this.dataset.field)"> '+label+
       '</label>';
   }).join('')+'</div>';
 }
+
+function quoteRow(q,idx,locked){
+  const mg=q.avgMargin||0;
+  const mgC=mg<30?'mg-red':mg<35?'mg-yellow':'mg-green';
+  const name=q.quoteName||(q.quoteNum?'#'+q.quoteNum:'Unnamed');
+  return `<tr>
+    <td>
+      <div style="font-weight:700;font-size:13px">${name}${locked?'<span class="locked-badge">LOCKED</span>':''}</div>
+      ${q.quoteNum?'<div style="font-size:10px;color:var(--text3)">#'+q.quoteNum+'</div>':''}
+      ${q.ihd?'<div style="font-size:10px;color:var(--text3)">IHD: '+q.ihd+'</div>':''}
+      ${q.commissionReport?'<div style="font-size:10px;color:var(--text3)">Period: '+q.commissionReport+'</div>':''}
+      ${q.approvalStatus==='rejected'&&q.approvalNote?'<div class="rejection-note">&#9888; '+q.approvalNote+'</div>':''}
+    </td>
+    <td class="r">${fmt(q.totalNetCost)}</td>
+    <td class="r">${fmt(q.totalSell)}</td>
+    <td class="r"><span class="mg-pill ${mgC}">${pct(mg)}</span></td>
+    <td class="r" style="color:var(--brown);font-weight:700">${fmt(q.totalRepComm)}</td>
+    <td style="font-size:11px">${q.commissionSplit==='standard'?'Standard':q.commissionSplit==='ho_75_25'?'H/O 75/25':q.commissionSplit==='ho_50_50'?'H/O 50/50':q.commissionSplit==='ho_25_75'?'H/O 25/75':'Standard'}</td>
+    <td>
+      ${approvalBadge(q)}
+      ${!locked?statusChecksHtml(q,idx):''}
+    </td>
+    <td style="white-space:nowrap">
+      ${!locked&&q.workflowStatus==='needsApproval'?'<button class="btn btn-sm" style="background:var(--orange);color:#fff" onclick="submitForApproval('+idx+')">Submit for Approval</button>':''}
+      ${!locked?'<button class="btn btn-outline btn-sm" onclick="exportToBuilder('+idx+')" title="Export to Quote Builder for editing">&#9998; Edit</button>':''}
+      ${locked?'<button class="btn btn-outline btn-sm" onclick="exportToBuilder('+idx+')" title="Export for reference">&#128190; Export</button>':''}
+    </td>
+  </tr>`;
+}
+
 // ── Render ────────────────────────────────────────────────────────────────
 function render(){
   const status=document.getElementById('status-text');
@@ -569,38 +602,21 @@ function render(){
 
 // ── Init ──────────────────────────────────────────────────────────────────
 async function init(){
-  // Load local cache first for instant display
   try{ quotes=JSON.parse(localStorage.getItem(STORAGE_KEY)||'[]'); }catch(e){ quotes=[]; }
   if(quotes.length) render();
-  // Then sync from Firebase
   await loadFromFirebase();
   startListeners();
 }
 init();
-
-async function deleteQuote(qKey){
-  if(!confirm('Permanently remove this quote?')) return;
-  const idx=quotes.findIndex(x=>(x._fbKey||x.quoteNum)===qKey);
-  if(idx<0) return;
-  const q=quotes[idx];
-  quotes.splice(idx,1);
-  localStorage.setItem(STORAGE_KEY,JSON.stringify(quotes));
-  render();
-  fbListenerActive=false;
-  await fbDelete(q);
-  setTimeout(()=>{ fbListenerActive=true; },2000);
-}
-
 
 function undoReady(qKey){
   const q=quotes.find(x=>(x._fbKey||x.quoteNum)===qKey);
   if(!q||!q.statusChecks) return;
   q.statusChecks.readyForPayment=false;
   localStorage.setItem(STORAGE_KEY,JSON.stringify(quotes));
-  render(); // render immediately
+  render();
   fbSave(q);
 }
-
 </script>
 </body>
 </html>
