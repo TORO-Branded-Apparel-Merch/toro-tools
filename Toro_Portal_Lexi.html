@@ -363,29 +363,32 @@ function loadFiles(files){
 }
 
 // ── Status updates ────────────────────────────────────────────────────────
-async function toggleStatus(qIdx,field){
-  if(quotes[qIdx].workflowStatus==='submittedCommission'||quotes[qIdx].workflowStatus==='archived') return;
-  if(!quotes[qIdx].statusChecks) quotes[qIdx].statusChecks={quoteApproved:false,orderCompleted:false,paidByClient:false,readyForPayment:false};
-  quotes[qIdx].statusChecks[field]=!quotes[qIdx].statusChecks[field];
-  await fbSave(quotes[qIdx]);
+async function toggleStatus(qKey,field){
+  const q=quotes.find(x=>(x._fbKey||x.quoteNum)===qKey);
+  if(!q) return;
+  if(q.workflowStatus==='submittedCommission'||q.workflowStatus==='archived') return;
+  if(!q.statusChecks) q.statusChecks={quoteApproved:false,orderCompleted:false,paidByClient:false,readyForPayment:false};
+  q.statusChecks[field]=!q.statusChecks[field];
   localStorage.setItem(STORAGE_KEY,JSON.stringify(quotes));
-  render();
+  render(); // render immediately so UI updates
+  await fbSave(q);
 }
 
-async function submitForApproval(qIdx){
-  quotes[qIdx].workflowStatus='waitingApproval';
-  quotes[qIdx].approvalStatus='waiting';
-  // Write to Firebase approvals path so dashboard picks it up
-  const key=quotes[qIdx]._fbKey||quotes[qIdx].quoteNum;
-  await fbSet('approvals/'+key,{
-    quoteNum:quotes[qIdx].quoteNum, quoteName:quotes[qIdx].quoteName,
-    rep:REP, status:'waiting', requestedAt:new Date().toISOString(),
-    sell:quotes[qIdx].totalSell, margin:quotes[qIdx].avgMargin,
-    commissionSplit:quotes[qIdx].commissionSplit
-  });
-  await fbSave(quotes[qIdx]);
+async function submitForApproval(qKey){
+  const q=quotes.find(x=>(x._fbKey||x.quoteNum)===qKey);
+  if(!q) return;
+  q.workflowStatus='waitingApproval';
+  q.approvalStatus='waiting';
   localStorage.setItem(STORAGE_KEY,JSON.stringify(quotes));
-  render();
+  render(); // render immediately so button feedback is instant
+  const key=q._fbKey||q.quoteNum;
+  await fbSet('approvals/'+key,{
+    quoteNum:q.quoteNum, quoteName:q.quoteName,
+    rep:REP, status:'waiting', requestedAt:new Date().toISOString(),
+    sell:q.totalSell, margin:q.avgMargin,
+    commissionSplit:q.commissionSplit
+  });
+  await fbSave(q);
 }
 
 async function submitForCommission(period){
@@ -446,6 +449,7 @@ function approvalBadge(q){
 
 function statusChecksHtml(q,idx){
   const sc=q.statusChecks||{};
+  const qKey=encodeURIComponent(q._fbKey||q.quoteNum||('idx_'+idx));
   const checks=[
     ['quoteApproved','Quote Approved'],
     ['orderCompleted','Order Completed'],
@@ -455,44 +459,11 @@ function statusChecksHtml(q,idx){
   return '<div class="status-checks">'+checks.map(function([field,label]){
     const checked=sc[field]||false;
     return '<label class="status-check'+(checked?' checked':'')+'" style="cursor:pointer">'+
-      '<input type="checkbox"'+(checked?' checked':'')+' onchange="toggleStatus('+idx+',\''+field+'\')"> '+label+
+      '<input type="checkbox"'+(checked?' checked':'')+
+      ' data-key="'+qKey+'" data-field="'+field+'"'+
+      ' onchange="toggleStatus(decodeURIComponent(this.dataset.key),this.dataset.field)"> '+label+
       '</label>';
   }).join('')+'</div>';
-}function quoteRow(q,idx,locked,showUndo){
-  const mg=q.avgMargin||0;
-  const mgC=mg<30?'mg-red':mg<35?'mg-yellow':'mg-green';
-  const name=q.quoteName||(q.quoteNum?'#'+q.quoteNum:'Unnamed');
-  const splitLbl=q.commissionSplit==='standard'?'Standard':q.commissionSplit==='ho_75_25'?'H/O 75/25':q.commissionSplit==='ho_50_50'?'H/O 50/50':q.commissionSplit==='ho_25_75'?'H/O 25/75':'Standard';
-  let actionBtns='';
-  if(!locked){
-    if(q.workflowStatus==='needsApproval'){
-      actionBtns+='<button class="btn btn-sm" style="background:var(--orange);color:#fff;margin-bottom:3px;display:block" onclick="submitForApproval('+idx+')">Submit for Approval</button>';
-    }
-    if(showUndo){
-      actionBtns+='<button class="btn btn-outline btn-sm" onclick="undoReady('+idx+')" style="margin-right:4px" title="Move back to Active">&#8630; Undo</button>';
-    }
-    actionBtns+='<button class="btn btn-outline btn-sm" onclick="exportToBuilder('+idx+')" style="margin-right:4px">&#9998; Edit</button>';
-    actionBtns+='<button class="del-btn" onclick="deleteQuote('+idx+')" title="Delete">&#10005;</button>';
-  } else {
-    actionBtns='<button class="btn btn-outline btn-sm" onclick="exportToBuilder('+idx+')">&#128190; Export</button>';
-  }
-  let html='<tr>';
-  html+='<td>';
-  html+='<div style="font-weight:700;font-size:13px">'+name+(locked?'<span class="locked-badge"> LOCKED</span>':'')+'</div>';
-  if(q.quoteNum&&q.quoteName) html+='<div style="font-size:10px;color:var(--text3)">#'+q.quoteNum+'</div>';
-  if(q.ihd) html+='<div style="font-size:10px;color:var(--text3)">IHD: '+q.ihd+'</div>';
-  if(q.commissionReport) html+='<div style="font-size:10px;color:var(--text3)">Period: '+q.commissionReport+'</div>';
-  if(q.approvalStatus==='rejected'&&q.approvalNote) html+='<div class="rejection-note">&#9888; '+q.approvalNote+'</div>';
-  html+='</td>';
-  html+='<td class="r">'+fmt(q.totalNetCost)+'</td>';
-  html+='<td class="r">'+fmt(q.totalSell)+'</td>';
-  html+='<td class="r"><span class="mg-pill '+mgC+'">'+pct(mg)+'</span></td>';
-  html+='<td class="r" style="color:var(--brown);font-weight:700">'+fmt(q.totalRepComm)+'</td>';
-  html+='<td style="font-size:11px">'+splitLbl+'</td>';
-  html+='<td>'+approvalBadge(q)+(locked?'':statusChecksHtml(q,idx))+'</td>';
-  html+='<td style="white-space:nowrap">'+actionBtns+'</td>';
-  html+='</tr>';
-  return html;
 }
 // ── Render ────────────────────────────────────────────────────────────────
 function render(){
@@ -609,8 +580,10 @@ async function init(){
 }
 init();
 
-async function deleteQuote(idx){
+async function deleteQuote(qKey){
   if(!confirm('Permanently remove this quote?')) return;
+  const idx=quotes.findIndex(x=>(x._fbKey||x.quoteNum)===qKey);
+  if(idx<0) return;
   const q=quotes[idx];
   quotes.splice(idx,1);
   localStorage.setItem(STORAGE_KEY,JSON.stringify(quotes));
@@ -621,12 +594,13 @@ async function deleteQuote(idx){
 }
 
 
-function undoReady(idx){
-  if(!quotes[idx].statusChecks) return;
-  quotes[idx].statusChecks.readyForPayment=false;
-  fbSave(quotes[idx]);
+function undoReady(qKey){
+  const q=quotes.find(x=>(x._fbKey||x.quoteNum)===qKey);
+  if(!q||!q.statusChecks) return;
+  q.statusChecks.readyForPayment=false;
   localStorage.setItem(STORAGE_KEY,JSON.stringify(quotes));
-  render();
+  render(); // render immediately
+  fbSave(q);
 }
 
 </script>
