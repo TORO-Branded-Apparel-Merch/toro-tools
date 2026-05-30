@@ -162,7 +162,7 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--red);box
     <div class="card-title">Quote information</div>
     <div class="row3">
       <div class="field"><label>Rep name</label>
-        <select id="rep_name">
+        <select id="rep_name" required>
           <option value="">Select a rep</option>
           <option>Shannon</option>
           <option>Stephen</option>
@@ -173,16 +173,16 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--red);box
           <option value="House">House</option>
         </select>
       </div>
-      <div class="field"><label>Date</label><input type="text" id="quote_date"></div>
-      <div class="field"><label>Quote # <span style="font-size:11px;font-weight:400;color:var(--text3)">(to correspond with Printavo)</span></label><input type="text" id="quote_num"></div>
+      <div class="field"><label>Date</label><input type="text" id="quote_date" required></div>
+      <div class="field"><label>Quote # <span style="font-size:11px;font-weight:400;color:var(--text3)">(to correspond with Printavo)</span></label><input type="text" id="quote_num" required></div>
     </div>
     <div class="row3">
       <div class="field">
         <label>Quote name</label>
-        <input type="text" id="quote_name">
+        <input type="text" id="quote_name" required>
       </div>
       <div class="field"><label>Commission split</label>
-        <select id="comm_split">
+        <select id="comm_split" required>
           <option value="standard">Standard split</option>
           <option value="ho_75_25">Hand-off 75/25</option>
           <option value="ho_50_50">Hand-off 50/50</option>
@@ -198,7 +198,10 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--red);box
     </div>
     <div class="row2" style="margin-bottom:12px">
       <div class="field"><label>Expected in-hands date</label>
-        <input type="text" id="ship_date" oninput="updateCommReport()">
+        <input type="text" id="ship_date" required oninput="updateCommReport()">
+        <label style="display:flex;align-items:center;gap:6px;margin-top:6px;font-size:12px;font-weight:600;color:var(--text2);cursor:pointer">
+          <input type="checkbox" id="ihd_firm" style="width:13px;height:13px;accent-color:var(--red)"> Firm date
+        </label>
       </div>
       <div class="field"></div>
     </div>
@@ -225,7 +228,7 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--red);box
     </div>
   </div>
 
-<div class="actions"><div></div><div class="actions-right"><button class="btn btn-primary" onclick="goTo(2)">Next: Apparel &#8594;</button></div></div>
+<div class="actions"><div></div><div class="actions-right"><button class="btn btn-primary" onclick="if(validatePage(1))goTo(2)">Next: Apparel &#8594;</button></div></div>
 </div>
 
 <!-- PAGE 2: GARMENTS -->
@@ -234,7 +237,7 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--red);box
   <button class="btn-add" onclick="addGarment()">&#43; Add another apparel item</button>
   <div class="actions">
     <button class="btn btn-outline" onclick="goTo(1)">&#8592; Back</button>
-    <div class="actions-right"><button class="btn btn-primary" onclick="goTo(3)">Next: Hard goods &#8594;</button></div>
+    <div class="actions-right"><button class="btn btn-primary" onclick="if(validatePage(2))goTo(3)">Next: Hard goods &#8594;</button></div>
   </div>
 </div>
 
@@ -465,9 +468,11 @@ function addGarment(){
     </div>
     <div class="g-body" id="gbdy_${id}">
       <div class="sec">Apparel details</div>
+      <div style="font-size:12px;color:var(--text3);margin-bottom:10px">Fields marked <span style="color:var(--red)">*</span> are required. Leave optional fields blank to skip.</div>
       <div class="row4">
-        <div class="field"><label>Apparel type</label>
-          <select id="gtype_${id}" onchange="otherCheck(this);updateGLbl(${id})">
+        <div class="field"><label>Apparel type <span style="color:var(--red)">*</span></label>
+          <select id="gtype_${id}" required onchange="otherCheck(this);updateGLbl(${id})">
+            <option value="">Select type</option>
             <option>T-shirt</option><option>Polo</option><option>Button-down shirt</option>
             <option>Tank top</option><option>Hoodie</option><option>Crewneck sweatshirt</option>
             <option>Zip-up hoodie</option><option>Jacket / windbreaker</option>
@@ -475,17 +480,17 @@ function addGarment(){
           </select>
           <input type="text" id="other_gtype_${id}" style="display:none;margin-top:6px;width:100%;padding:7px 10px;border:1px solid var(--border2);border-radius:var(--radius-sm);font-size:13px">
         </div>
-        <div class="field"><label>Brand / style #</label><input type="text" id="gbrand_${id}" oninput="updateGLbl(${id})"></div>
-        <div class="field"><label>SKU / item #</label><input type="text" id="gsku_${id}"></div>
-        <div class="field"><label>Vendor / source</label><input type="text" id="gvendor_${id}"></div>
+        <div class="field"><label>Vendor / source <span style="color:var(--red)">*</span></label><input type="text" id="gvendor_${id}" required></div>
+        <div class="field"><label>Item name <span style="color:var(--red)">*</span></label><input type="text" id="gbrand_${id}" required oninput="updateGLbl(${id})" placeholder="e.g. Gildan Softstyle 64000 T-Shirt"></div>
+        <div class="field"><label>SKU <span style="color:var(--red)">*</span></label><input type="text" id="gsku_${id}" required></div>
       </div>
       <div class="row2">
-        <div class="field"><label>Design name</label><input type="text" id="gdesign_${id}" oninput="updateGLbl(${id})"></div>
+        <div class="field"><label>Design name <span style="color:var(--red)">*</span></label><input type="text" id="gdesign_${id}" required oninput="updateGLbl(${id})"></div>
         <div class="field"></div>
       </div>
       <div class="row3">
-        <div class="field"><label>Apparel color</label>
-          <select id="gcolor_${id}" onchange="updateWhiteBaseVisibility(${id})">
+        <div class="field"><label>Apparel color <span style="color:var(--red)">*</span></label>
+          <select id="gcolor_${id}" required onchange="updateWhiteBaseVisibility(${id})">
             <option value="white">White</option><option value="light">Light color</option>
             <option value="dark">Dark / non-white</option><option value="black">Black</option>
           </select>
@@ -500,21 +505,21 @@ function addGarment(){
         <div class="field"><label>Fit / gender</label>
           <select id="gfit_${id}"><option>Unisex</option><option>Men&#39;s</option><option>Women&#39;s</option><option>Youth</option><option>Toddler</option></select>
         </div>
-        <div class="field"><label>Base cost (XS-XL) per item ($)</label><input type="number" id="gcost_${id}" value="0" step="0.01" min="0" oninput="updateGLbl(${id});syncBaseCost(${id})"></div>
+        <div class="field"></div>
       </div>
 
-      <div class="sec">Sizes &amp; quantities</div>
-      <div style="font-size:12px;color:var(--text3);margin-bottom:10px">XS–XL is the base price. Each upcharge size gets its own net cost row. Group sizes together with a shared sell upcharge (e.g. 2X-4X all sell at +$4 over base).</div>
-      <div style="display:grid;grid-template-columns:90px 100px 110px 90px 110px 32px;gap:6px;align-items:center;margin-bottom:6px">
+      <div class="sec">Sizes &amp; quantities <span style="color:var(--red)">*</span></div>
+      <div style="font-size:12px;color:var(--text3);margin-bottom:10px">Enter net cost and quantity per size. Group sizes for a shared sell upcharge. Add rows for 3X+ as needed.</div>
+      <div style="display:grid;grid-template-columns:70px 100px 110px 90px 110px 32px;gap:6px;align-items:center;margin-bottom:6px">
         <div style="font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.05em">Size</div>
         <div style="font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.05em">Sell group</div>
-        <div style="font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.05em">Net cost ($)</div>
-        <div style="font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.05em">Qty</div>
+        <div style="font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.05em">Net cost ($) <span style="color:var(--red)">*</span></div>
+        <div style="font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.05em">Qty <span style="color:var(--red)">*</span></div>
         <div style="font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.05em">Sell upcharge ($)</div>
         <div></div>
       </div>
       <div id="szrows_${id}"></div>
-      <button class="btn-add" style="font-size:12px;padding:7px;margin-top:2px" onclick="addSzRow(${id})">&#43; Add size row</button>
+      <button class="btn-add" style="font-size:12px;padding:7px;margin-top:2px" onclick="addSzRow(${id})">&#43; Add 3X+ row</button>
       <div style="margin-top:8px;font-size:13px;color:var(--text2)">Total quantity: <strong id="gtotalqty_${id}">0</strong> pcs &nbsp;|&nbsp; Weighted avg cost: <strong id="gavgcost_${id}">$0.00</strong></div>
 
       <div class="sec" style="margin-top:16px">Imprints</div>
@@ -528,7 +533,37 @@ function addGarment(){
       </div>
     </div>`;
   c.appendChild(d);
-  addSzRow(id);addImp(id);
+  // Add standard size rows: XS, S, M, L, XL, 2X
+  if(!window.szCtrs) window.szCtrs={};
+  ['XS','S','M','L','XL','2X'].forEach(sz => {
+    window.szCtrs[id]=(window.szCtrs[id]||0)+1;
+    const rid=id+'_sz_'+window.szCtrs[id];
+    const c2=$c('szrows_'+id);
+    const row=document.createElement('div');
+    row.id='szrow_'+rid;
+    row.style.cssText='display:grid;grid-template-columns:70px 100px 110px 90px 110px 32px;gap:6px;align-items:center;margin-bottom:5px';
+    row.innerHTML=`
+      <div style="font-size:13px;font-weight:600;color:var(--text2);padding:6px 0">${sz}</div>
+      <select id="sz_grp_${rid}" onchange="recalcGarmentTotals(${id})" style="padding:5px 6px;font-size:12px">
+        <option value="A">Group A</option><option value="B">Group B</option>
+        <option value="C">Group C</option><option value="none">Individual</option>
+      </select>
+      <input type="number" id="sz_cost_${rid}" value="0" step="0.01" min="0"
+        oninput="recalcGarmentTotals(${id})" style="padding:6px 8px;font-size:13px">
+      <input type="number" id="sz_qty_${rid}" value="0" min="0"
+        oninput="recalcGarmentTotals(${id});updateGLbl(${id})" style="padding:6px 8px;font-size:13px">
+      <div style="display:flex;align-items:center;gap:4px">
+        <span style="font-size:12px;color:var(--text3)">+$</span>
+        <input type="number" id="sz_up_${rid}" value="0" step="0.01" min="0"
+          oninput="syncGroupUpcharge('${rid}',${id})"
+          style="width:64px;padding:5px 6px;font-size:13px;border:1px solid var(--border2);border-radius:4px">
+      </div>
+      <div></div>`;
+    c2.appendChild(row);
+    recalcGarmentTotals(id);
+  });
+  addImp(id);
+  updateGLbl(id);
 }
 
 function toggleG(id){
@@ -547,14 +582,10 @@ function addSzRow(gid){
   const d=document.createElement('div');
   d.id='szrow_'+rid;
   d.style.cssText='display:grid;grid-template-columns:90px 100px 110px 90px 110px 32px;gap:6px;align-items:center;margin-bottom:5px';
-  const sizeOpts=isFirst
-    ?'<option value="XS-XL" selected>XS-XL</option><option value="2X">2X</option><option value="3X">3X</option><option value="4X">4X</option><option value="5X">5X</option><option value="6X">6X</option><option value="Tall">Tall</option><option value="Big">Big</option>'
-    :'<option value="2X">2X</option><option value="3X">3X</option><option value="4X">4X</option><option value="5X">5X</option><option value="6X">6X</option><option value="Tall">Tall</option><option value="Big">Big</option>';
-  const baseCost=v('gcost_'+gid,5).toFixed(2);
+  const sizeOpts='<option value="3X">3X</option><option value="4X">4X</option><option value="5X">5X</option><option value="6X">6X</option><option value="Tall">Tall</option><option value="Big">Big</option><option value="Other">Other</option>';
+  const baseCost='0.00';
   // Sell group: base row has no group; upcharge rows default to group A
-  const groupSel=isFirst
-    ?'<div style="font-size:11px;color:var(--text3);text-align:center"> <br><span style=\'font-size:10px\'>base</span></div>'
-    :`<select id="sz_grp_${rid}" onchange="recalcGarmentTotals(${gid})" style="padding:5px 6px;font-size:12px">
+  const groupSel=`<select id="sz_grp_${rid}" onchange="recalcGarmentTotals(${gid})" style="padding:5px 6px;font-size:12px">
         <option value="A">Group A</option>
         <option value="B">Group B</option>
         <option value="C">Group C</option>
@@ -562,9 +593,7 @@ function addSzRow(gid){
       </select>`;
   // Sell upcharge cell: only shown for first row of each group; others show "same as group"
   // We render the input for all rows but hide via JS after; simpler: always show, groups share via group key
-  const upchargeCell=isFirst
-    ?'<div style="font-size:11px;color:var(--text3);text-align:center">base sell</div>'
-    :`<div style="display:flex;align-items:center;gap:4px">
+  const upchargeCell=`<div style="display:flex;align-items:center;gap:4px">
         <span style="font-size:12px;color:var(--text3)">+$</span>
         <input type="number" id="sz_up_${rid}" value="0" step="0.01" min="0"
           oninput="syncGroupUpcharge('${rid}',${gid})"
@@ -574,12 +603,11 @@ function addSzRow(gid){
     <select id="sz_size_${rid}" onchange="recalcGarmentTotals(${gid})" style="padding:6px 8px;font-size:13px">${sizeOpts}</select>
     ${groupSel}
     <input type="number" id="sz_cost_${rid}" value="${baseCost}" step="0.01" min="0"
-      oninput="recalcGarmentTotals(${gid})" style="padding:6px 8px;font-size:13px${isFirst?';background:#f0f6ff;border-color:#b0ccee':''}"
-      ${isFirst?'title="Synced from Base Cost field above"':''}>
+      oninput="recalcGarmentTotals(${gid})" style="padding:6px 8px;font-size:13px">
     <input type="number" id="sz_qty_${rid}" value="0" min="0"
       oninput="recalcGarmentTotals(${gid});updateGLbl(${gid})" style="padding:6px 8px;font-size:13px">
     ${upchargeCell}
-    ${isFirst?'<div></div>':`<button onclick="removeSzRow('${rid}',${gid})" style="width:28px;height:28px;border-radius:4px;border:1px solid #f5c6c6;background:#fff;color:#a00;cursor:pointer;font-size:14px;display:flex;align-items:center;justify-content:center;padding:0">&#215;</button>`}
+    <button onclick="removeSzRow('${rid}',${gid})" style="width:28px;height:28px;border-radius:4px;border:1px solid #f5c6c6;background:#fff;color:#a00;cursor:pointer;font-size:14px;display:flex;align-items:center;justify-content:center;padding:0">&#215;</button>
   `;
   c.appendChild(d);
   recalcGarmentTotals(gid);
@@ -627,17 +655,18 @@ function recalcGarmentTotals(gid){
 function getSzRows(gid){
   const rows=$c('szrows_'+gid)?.querySelectorAll('[id^="szrow_"]')||[];
   const result=[];
-  let rowIdx=0;
-  rows.forEach(row=>{
+  const STANDARD=['XS','S','M','L','XL','2X'];
+  rows.forEach((row,rowIdx)=>{
     const rid=row.id.replace('szrow_','');
-    const size=vs('sz_size_'+rid,'?');
+    // Get size: fixed label div or select
+    const sizeEl=document.getElementById('sz_size_'+rid);
+    const sizeDiv=row.querySelector('div[style*="font-weight:600"]');
+    const size=sizeEl?sizeEl.value:(sizeDiv?sizeDiv.textContent.trim():'?');
     const cost=v('sz_cost_'+rid,0);
     const qty=Math.round(v('sz_qty_'+rid,0));
-    const isBase=rowIdx===0;
-    const grp=isBase?'base':vs('sz_grp_'+rid,'none');
-    // upcharge: base row=0, grouped rows share upcharge value, individual=own value
-    const upcharge=isBase?0:v('sz_up_'+rid,0);
-    rowIdx++;
+    const isBase=STANDARD.includes(size)&&rowIdx<6; // standard sizes are base rows
+    const grp=vs('sz_grp_'+rid,'none');
+    const upcharge=v('sz_up_'+rid,0);
     if(qty>0) result.push({rid,size,cost,qty,isBase,grp,upcharge});
   });
   return result;
@@ -837,19 +866,25 @@ function addHG(){
   const d=document.createElement('div');
   d.className='hg-item';d.id='hg_'+id;
   d.innerHTML=`
-    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
       <div style="font-weight:700;font-size:14px">Hard good ${id}</div>
       <button class="btn btn-sm btn-danger no-print" onclick="removeHG(${id})">&#128465; Remove</button>
     </div>
+    <div style="font-size:12px;color:var(--text3);margin-bottom:10px">Fields marked <span style="color:var(--red)">*</span> are required. Leave optional fields blank to skip.</div>
     <div class="row3">
-      <div class="field"><label>Item description</label><input type="text" id="hg_desc_${id}"></div>
-      <div class="field"><label>SKU / item #</label><input type="text" id="hg_sku_${id}"></div>
-      <div class="field"><label>Vendor / supplier</label><input type="text" id="hg_vendor_${id}"></div>
+      <div class="field"><label>Vendor / source <span style="color:var(--red)">*</span></label><input type="text" id="hg_vendor_${id}" required></div>
+      <div class="field"><label>Item name <span style="color:var(--red)">*</span></label><input type="text" id="hg_desc_${id}" required placeholder="e.g. 16oz Stainless Steel Tumbler"></div>
+      <div class="field"><label>SKU <span style="color:var(--red)">*</span></label><input type="text" id="hg_sku_${id}" required></div>
     </div>
     <div class="row3">
-      <div class="field"><label>Design name</label><input type="text" id="hg_design_${id}"></div>
+      <div class="field"><label>Item color <span style="color:var(--red)">*</span></label><input type="text" id="hg_item_color_${id}" required placeholder="e.g. Navy, Silver"></div>
+      <div class="field"><label>Design name <span style="color:var(--red)">*</span></label><input type="text" id="hg_design_${id}" required></div>
       <div class="field"><label>Imprint color(s)</label><input type="text" id="hg_colors_${id}"></div>
-      <div class="field"><label>Quantity</label><input type="number" id="hg_qty_${id}" value="0" min="1"></div>
+    </div>
+    <div class="row3">
+      <div class="field"><label>Quantity <span style="color:var(--red)">*</span></label><input type="number" id="hg_qty_${id}" required value="0" min="1"></div>
+      <div class="field"><label>Net cost per item ($) <span style="color:var(--red)">*</span></label><input type="number" id="hg_cost_${id}" required value="0" step="0.01" min="0"></div>
+      <div class="field"><label>Promo code / vendor note</label><input type="text" id="hg_promo_${id}" placeholder="Optional"></div>
     </div>
     <div class="row3">
       <div class="field"><label>Decoration type</label>
@@ -867,8 +902,7 @@ function addHG(){
         <input type="text" id="other_hg_dec_${id}" style="width:100%;padding:8px 11px;border:1px solid var(--border2);border-radius:var(--radius-sm);font-size:14px">
       </div>
     </div>
-    <div class="row4">
-      <div class="field"><label>Net cost per item ($)</label><input type="number" id="hg_cost_${id}" value="0" step="0.01" min="0"></div>
+    <div class="row3">
       <div class="field"><label>Run charge per item ($)</label><input type="number" id="hg_dc_${id}" value="0" step="0.01" min="0"></div>
       <div class="field"><label>Setup / die charge ($)</label><input type="number" id="hg_sc_${id}" value="0" step="0.01" min="0"></div>
       <div class="field"><label>Rush / extra fees ($)</label><input type="number" id="hg_rush_${id}" value="0" step="0.01" min="0"></div>
@@ -1819,6 +1853,7 @@ function exportQuoteData(){
     totalHouseProfit: d.totalHouseProfit||0,
     totalAM: d.totalAM||0,
     needsApproval: d.needsApproval||false,
+    ihdFirm: document.getElementById('ihd_firm')?.checked||false,
     lines: (d.commLines||[]).map(l=>({
       name: l.name,
       net: l.net,
@@ -2073,6 +2108,7 @@ function serializeQuote() {
       id: hid,
       hg_desc: vs('hg_desc_'+hid), hg_design: vs('hg_design_'+hid),
       hg_sku: vs('hg_sku_'+hid), hg_vendor: vs('hg_vendor_'+hid),
+      hg_item_color: vs('hg_item_color_'+hid), hg_promo: vs('hg_promo_'+hid),
       hg_colors: vs('hg_colors_'+hid), hg_dec: vs('hg_dec_'+hid),
       hg_dec_other: vs('other_hg_dec_'+hid),
       hg_qty: v('hg_qty_'+hid), hg_cost: v('hg_cost_'+hid),
@@ -2101,6 +2137,7 @@ function serializeQuote() {
       quoteDate: vs('quote_date'), commSplit: vs('comm_split'),
       hasAM: document.getElementById('has_am')?.checked||false,
       shipDate: vs('ship_date'), orderNotes: vs('order_notes'),
+      ihdFirm: document.getElementById('ihd_firm')?.checked||false,
     },
     page4: {
       marginPct: v('margin_pct',40), rushPct: v('rush_pct',0),
@@ -2146,23 +2183,27 @@ async function deserializeQuote(data) {
     setC('gwhitebase_'+gid, g.gwhitebase);
     // Size rows - first row already exists, add more if needed
     const szRows = g.szRows||[];
+    const STANDARD_SZ=['XS','S','M','L','XL','2X'];
     if(szRows.length>0) {
-      // Set first row
-      const firstRow = szRows[0];
-      const rid0 = gid+'_sz_1';
-      setV('sz_size_'+rid0, firstRow.size); setV('sz_cost_'+rid0, firstRow.cost);
-      setV('sz_qty_'+rid0, firstRow.qty);
-      // Add additional rows
-      for(let si=1; si<szRows.length; si++) {
-        addSzRow(gid);
-        await new Promise(r=>setTimeout(r,10));
-        const sr = szRows[si];
-        const mc = window.szCtrs&&window.szCtrs[gid]||1;
-        const rid = gid+'_sz_'+mc;
-        setV('sz_size_'+rid, sr.size); setV('sz_cost_'+rid, sr.cost);
-        setV('sz_qty_'+rid, sr.qty); setV('sz_grp_'+rid, sr.grp);
-        setV('sz_up_'+rid, sr.up);
-      }
+      // Standard rows already exist (pre-populated by addGarment)
+      // Map saved rows back to existing row IDs by size name
+      const szRowEls = document.getElementById('szrows_'+gid)?.querySelectorAll('[id^="szrow_"]')||[];
+      szRows.forEach(sr => {
+        const stdIdx = STANDARD_SZ.indexOf(sr.size);
+        if(stdIdx>=0 && szRowEls[stdIdx]) {
+          const rid = szRowEls[stdIdx].id.replace('szrow_','');
+          setV('sz_cost_'+rid, sr.cost); setV('sz_qty_'+rid, sr.qty);
+          setV('sz_grp_'+rid, sr.grp); setV('sz_up_'+rid, sr.up);
+        } else {
+          // Non-standard size — add a new row
+          addSzRow(gid);
+          const mc = window.szCtrs&&window.szCtrs[gid]||1;
+          const rid = gid+'_sz_'+mc;
+          setV('sz_size_'+rid, sr.size); setV('sz_cost_'+rid, sr.cost);
+          setV('sz_qty_'+rid, sr.qty); setV('sz_grp_'+rid, sr.grp);
+          setV('sz_up_'+rid, sr.up);
+        }
+      });
     }
     // Imprints
     for(const imp of (g.imps||[])) {
@@ -2202,6 +2243,7 @@ async function deserializeQuote(data) {
     await new Promise(r=>setTimeout(r,20));
     setV('hg_desc_'+hid, h.hg_desc); setV('hg_design_'+hid, h.hg_design);
     setV('hg_sku_'+hid, h.hg_sku); setV('hg_vendor_'+hid, h.hg_vendor);
+    setV('hg_item_color_'+hid, h.hg_item_color); setV('hg_promo_'+hid, h.hg_promo);
     setV('hg_colors_'+hid, h.hg_colors); setV('hg_dec_'+hid, h.hg_dec);
     setV('other_hg_dec_'+hid, h.hg_dec_other);
     setV('hg_qty_'+hid, h.hg_qty); setV('hg_cost_'+hid, h.hg_cost);
@@ -2220,6 +2262,29 @@ async function deserializeQuote(data) {
 
   calcAll();
   goTo(1);
+}
+
+
+function validatePage(pageNum){
+  const required = document.querySelectorAll('#page'+pageNum+' [required]');
+  let allValid = true;
+  required.forEach(el => {
+    const val = el.value ? el.value.trim() : '';
+    if(!val || val === '' || (el.tagName==='SELECT' && val==='')) {
+      el.style.borderColor = 'var(--red)';
+      el.style.boxShadow = '0 0 0 2px rgba(196,30,30,.15)';
+      allValid = false;
+    } else {
+      el.style.borderColor = '';
+      el.style.boxShadow = '';
+    }
+  });
+  if(!allValid){
+    // Scroll to first invalid field
+    const first = document.querySelector('#page'+pageNum+' [required][style*="var(--red)"]');
+    if(first) first.scrollIntoView({behavior:'smooth', block:'center'});
+  }
+  return allValid;
 }
 
 </script>
