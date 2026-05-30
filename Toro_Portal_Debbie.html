@@ -62,12 +62,6 @@ tr:hover td{background:#fafafa}
 details summary{padding:10px 16px;cursor:pointer;font-size:12px;color:var(--text3);user-select:none;list-style:none}
 details summary::-webkit-details-marker{display:none}
 
-#toro-error-banner{display:none;position:fixed;bottom:16px;right:16px;max-width:360px;background:#1a1a2e;color:#fff;border-left:4px solid var(--red);border-radius:8px;padding:14px 16px;font-size:13px;z-index:99999;box-shadow:0 4px 20px rgba(0,0,0,.3);cursor:pointer}
-#toro-error-banner strong{display:block;margin-bottom:4px;font-size:14px}
-#toro-error-banner span{color:#ccc;font-size:12px}
-#toro-error-banner .close-err{position:absolute;top:8px;right:10px;background:none;border:none;color:#888;cursor:pointer;font-size:16px}
-
-
 .feedback-modal{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:10000;align-items:center;justify-content:center}
 .feedback-modal.open{display:flex}
 .feedback-box{background:#fff;border-radius:12px;padding:28px;max-width:420px;width:90%;box-shadow:0 20px 60px rgba(0,0,0,.3)}
@@ -269,16 +263,6 @@ function runReport(){
   document.getElementById('report-modal').style.display='none';
 }
 
-
-// Ensure every quote has a stable key before rendering
-function ensureQuoteKeys(){
-  quotes.forEach((q,i)=>{
-    if(!q._fbKey && !q.quoteNum){
-      q._localIdx = 'idx_'+i;
-    }
-  });
-}
-
 </script>
 </head>
 <body>
@@ -319,11 +303,11 @@ function ensureQuoteKeys(){
     <h1>TORO Commission Portal</h1>
     <span class="rep-badge">Debbie</span>
   </div>
-  <button onclick="openFeedback()" style="padding:5px 10px;background:none;border:1px solid #555;border-radius:6px;color:#aaa;font-size:11px;cursor:pointer;margin-right:8px" title="Send feedback to management">&#128172; Feedback</button><span id="status-text" style="color:#888;font-size:12px">Loading...</span><span style="color:#555;font-size:10px;margin-left:8px">v1780168771</span>
+  <button onclick="openFeedback()" style="padding:5px 10px;background:none;border:1px solid #555;border-radius:6px;color:#aaa;font-size:11px;cursor:pointer;margin-right:8px" title="Send feedback to management">&#128172; Feedback</button><span id="status-text" style="color:#888;font-size:12px">Loading...</span>
 </div>
 
 <div class="container">
-  <div class="drop-zone" id="drop-zone" onclick="if(event.target.tagName!=='INPUT')document.getElementById('file-input').click()">
+  <div class="drop-zone" id="drop-zone" onclick="document.getElementById('file-input').click()">
     <input type="file" id="file-input" multiple accept=".json" style="display:none" onclick="event.stopPropagation()">
     <div style="font-size:24px;margin-bottom:6px">&#128190;</div>
     <div style="font-size:14px;font-weight:700;color:var(--text2);margin-bottom:4px">Drop exported quote files here</div>
@@ -335,7 +319,7 @@ function ensureQuoteKeys(){
     <span style="font-size:13px;font-weight:600;color:var(--text2)">Ready to submit to Stephen?</span>
     <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
       <button class="btn btn-outline btn-sm" onclick="clearLocalData()" title="Clear local cache">&#8635; Reset</button>
-      <button class="btn btn-outline btn-sm" onclick="downloadRepReport()">&#128202; Report</button><button class="btn btn-primary" onclick="exportBundle()">&#128190; Export commission bundle</button>
+      <button class="btn btn-primary" onclick="exportBundle()">&#128190; Export commission bundle</button>
     </div>
   </div>
   <div id="main-content"><div class="section-block"><div class="empty">Loading...</div></div></div>
@@ -465,7 +449,7 @@ async function fbSave(q){
   q._fbKey=key;
   _saving=true;
   await fbSet(FB_PATH+'/'+key,q);
-  setTimeout(()=>{ _saving=false; },1000);
+  setTimeout(()=>{_saving=false;},1000);
 }
 async function fbDelete(q){
   const key=q.quoteNum?q.quoteNum.replace(/[.#$\/\[\]]/g,'_'):q._fbKey;
@@ -484,7 +468,7 @@ async function loadFromFirebase(){
       const idx=quotes.findIndex(x=>x.quoteNum&&x.quoteNum===q.quoteNum);
       if(idx>=0) quotes[idx]=q; else quotes.push(q);
     });
-    quotes=quotes.filter(q=>{ if(!q.quoteNum) return true; return fbQuotes.some(f=>f.quoteNum===q.quoteNum); });
+    quotes=quotes.filter(q=>{if(!q.quoteNum)return true;return fbQuotes.some(f=>f.quoteNum===q.quoteNum);});
   } else { quotes=[]; }
   localStorage.setItem(STORAGE_KEY,JSON.stringify(quotes));
   render();
@@ -586,37 +570,31 @@ function loadFiles(files){
 async function toggleStatus(qKey,field){
   const decoded=decodeURIComponent(qKey);
   let q=quotes.find(x=>(x._fbKey||x.quoteNum)===decoded);
-  if(!q) q=quotes.find(x=>x._fbKey===decoded||x.quoteNum===decoded);
   if(!q) q=quotes.find(x=>x._localIdx===decoded);
-  if(!q && decoded.startsWith('idx_')){const i=parseInt(decoded.replace('idx_',''));if(!isNaN(i)&&quotes[i])q=quotes[i];}
-  if(!q){ console.warn('toggleStatus: not found',qKey); return; }
-  if(q.workflowStatus==='submittedCommission'||q.workflowStatus==='archived') return;
-  if(!q.statusChecks) q.statusChecks={quoteApproved:false,orderCompleted:false,paidByClient:false,readyForPayment:false};
-  q.statusChecks[field]=!q.statusChecks[field];
+  if(!q&&decoded.startsWith('idx_')){const i=parseInt(decoded.replace('idx_',''));if(!isNaN(i)&&quotes[i])q=quotes[i];}
+  if(!q) return;
+  if(q.workflowStatus==='submittedCommission'||quotes[qIdx].workflowStatus==='archived') return;
+  if(!quotes[qIdx].statusChecks) quotes[qIdx].statusChecks={quoteApproved:false,orderCompleted:false,paidByClient:false,readyForPayment:false};
+  quotes[qIdx].statusChecks[field]=!quotes[qIdx].statusChecks[field];
+  await fbSave(quotes[qIdx]);
   localStorage.setItem(STORAGE_KEY,JSON.stringify(quotes));
   render();
-  await fbSave(q);
 }
 
 async function submitForApproval(qKey){
-  const decoded=decodeURIComponent(qKey);
-  let q=quotes.find(x=>(x._fbKey||x.quoteNum)===decoded);
-  if(!q) q=quotes.find(x=>x._fbKey===decoded||x.quoteNum===decoded);
-  if(!q) q=quotes.find(x=>x._localIdx===decoded);
-  if(!q && decoded.startsWith('idx_')){const i=parseInt(decoded.replace('idx_',''));if(!isNaN(i)&&quotes[i])q=quotes[i];}
-  if(!q){ console.warn('submitForApproval: not found',qKey); return; }
-  q.workflowStatus='waitingApproval';
-  q.approvalStatus='waiting';
+  quotes[qIdx].workflowStatus='waitingApproval';
+  quotes[qIdx].approvalStatus='waiting';
+  // Write to Firebase approvals path so dashboard picks it up
+  const key=quotes[qIdx]._fbKey||quotes[qIdx].quoteNum;
+  await fbSet('approvals/'+key,{
+    quoteNum:quotes[qIdx].quoteNum, quoteName:quotes[qIdx].quoteName,
+    rep:REP, status:'waiting', requestedAt:new Date().toISOString(),
+    sell:quotes[qIdx].totalSell, margin:quotes[qIdx].avgMargin,
+    commissionSplit:quotes[qIdx].commissionSplit
+  });
+  await fbSave(quotes[qIdx]);
   localStorage.setItem(STORAGE_KEY,JSON.stringify(quotes));
   render();
-  const key=q._fbKey||(q.quoteNum?q.quoteNum.replace(/[.#$\/\[\]]/g,'_'):('idx_'+Date.now()));
-  q._fbKey=key;
-  await fbSet('approvals/'+key,{
-    quoteNum:q.quoteNum||'', quoteName:q.quoteName||'',
-    rep:REP, status:'waiting', requestedAt:new Date().toISOString(),
-    sell:q.totalSell, margin:q.avgMargin, commissionSplit:q.commissionSplit
-  });
-  await fbSave(q);
 }
 
 async function submitForCommission(period){
@@ -641,12 +619,8 @@ async function submitForCommission(period){
 
 // ── Export quote back to builder ──────────────────────────────────────────
 function exportToBuilder(qKey){
-  const decoded=decodeURIComponent(qKey);
-  let q=quotes.find(x=>(x._fbKey||x.quoteNum)===decoded);
-  if(!q) q=quotes.find(x=>x._fbKey===decoded||x.quoteNum===decoded);
-  if(!q) q=quotes.find(x=>x._localIdx===decoded);
-  if(!q && decoded.startsWith('idx_')){const i=parseInt(decoded.replace('idx_',''));if(!isNaN(i)&&quotes[i])q=quotes[i];}
-  if(!q){ console.warn('exportToBuilder: not found',qKey); return; }
+  const q=quotes.find(x=>(x._fbKey||x.quoteNum)===qKey);
+  if(!q) return;
   const blob=new Blob([JSON.stringify(q,null,2)],{type:'application/json'});
   const a=document.createElement('a');
   const name='TORO_Edit_'+(q.quoteNum||'quote')+'_'+(q.quoteName||'').replace(/[^a-z0-9]/gi,'_')+'.json';
@@ -681,13 +655,21 @@ function approvalBadge(q){
 }
 
 function statusChecksHtml(q,idx){
+  const locked=q.locked||q.workflowStatus==='submittedCommission'||q.workflowStatus==='archived';
   const sc=q.statusChecks||{};
-  const qKey=encodeURIComponent(q._fbKey||q.quoteNum||('idx_'+idx));
-  const checks=[['quoteApproved','Quote Approved'],['orderCompleted','Order Completed'],['paidByClient','Paid by Client'],['readyForPayment','Ready for Payment']];
-  return '<div class="status-checks">'+checks.map(function([field,label]){
+  const qKey=encodeURIComponent(q._fbKey||q.quoteNum||q._localIdx||('idx_'+idx));
+  const checks=[
+    ['quoteApproved','Quote Approved'],
+    ['orderCompleted','Order Completed'],
+    ['paidByClient','Paid by Client'],
+    ['readyForPayment','Ready for Payment']
+  ];
+  return '<div class="status-checks">'+checks.map(([field,label])=>{
     const checked=sc[field]||false;
-    return '<label class="status-check'+(checked?' checked':'')+'" style="cursor:pointer">'+
-      '<input type="checkbox"'+(checked?' checked':'')+' data-key="'+qKey+'" data-field="'+field+'" onchange="toggleStatus(decodeURIComponent(this.dataset.key),this.dataset.field)"> '+label+
+    return '<label class="status-check '+(checked?'checked':'')+'" style="cursor:pointer">'+
+      '<input type="checkbox"'+(checked?' checked':'')+
+      ' data-key="'+qKey+'" data-field="'+field+
+      '" onchange="toggleStatus(decodeURIComponent(this.dataset.key),this.dataset.field)"'+(locked?' disabled':'')+'> '+label+
       '</label>';
   }).join('')+'</div>';
 }
@@ -697,7 +679,9 @@ function quoteRow(q,idx,locked,showUndo){
   const mgC=mg<30?'mg-red':mg<35?'mg-yellow':'mg-green';
   const name=q.quoteName||(q.quoteNum?'#'+q.quoteNum:'Unnamed');
   const splitLbl=q.commissionSplit==='standard'?'Standard':q.commissionSplit==='ho_75_25'?'H/O 75/25':q.commissionSplit==='ho_50_50'?'H/O 50/50':q.commissionSplit==='ho_25_75'?'H/O 25/75':'Standard';
-  const qKey=encodeURIComponent(q._fbKey||q.quoteNum||('idx_'+idx));
+  // Stamp _localIdx so lookups work for quotes without fbKey/quoteNum
+  if(!q._fbKey&&!q.quoteNum) q._localIdx='idx_'+idx;
+  const qKey=encodeURIComponent(q._fbKey||q.quoteNum||q._localIdx||('idx_'+idx));
   let actionBtns='';
   if(!locked){
     if(q.workflowStatus==='needsApproval'){
@@ -734,22 +718,15 @@ function quoteRow(q,idx,locked,showUndo){
 // ── Render ────────────────────────────────────────────────────────────────
 async function deleteQuote(qKey){
   if(!confirm('Permanently remove this quote?')) return;
-  const decoded = decodeURIComponent(qKey);
-  // Try all strategies including localIdx fallback
-  let q = quotes.find(x=>(x._fbKey||x.quoteNum)===decoded);
-  if(!q) q = quotes.find(x=>x._fbKey===decoded||x.quoteNum===decoded);
-  if(!q) q = quotes.find(x=>encodeURIComponent(x._fbKey||x.quoteNum||'')===qKey);
-  if(!q) q = quotes.find(x=>x._localIdx===decoded);
-  // Last resort: match by rendered index
-  if(!q && decoded.startsWith('idx_')){
-    const i = parseInt(decoded.replace('idx_',''));
-    if(!isNaN(i) && quotes[i]) q = quotes[i];
+  const decoded=decodeURIComponent(qKey);
+  let q=quotes.find(x=>(x._fbKey||x.quoteNum)===decoded);
+  if(!q) q=quotes.find(x=>x._fbKey===decoded||x.quoteNum===decoded);
+  if(!q) q=quotes.find(x=>x._localIdx===decoded);
+  if(!q&&decoded.startsWith('idx_')){
+    const i=parseInt(decoded.replace('idx_',''));
+    if(!isNaN(i)&&quotes[i]) q=quotes[i];
   }
-  if(!q){
-    console.warn('deleteQuote: not found for key',qKey,'quotes:',quotes.map((x,i)=>({fbKey:x._fbKey,quoteNum:x.quoteNum,idx:i})));
-    alert('Could not locate quote. Please try refreshing the page.');
-    return;
-  }
+  if(!q){ console.warn('deleteQuote: not found',qKey); alert('Could not locate quote. Please refresh and try again.'); return; }
   const idx=quotes.indexOf(q);
   if(idx>=0) quotes.splice(idx,1);
   localStorage.setItem(STORAGE_KEY,JSON.stringify(quotes));
@@ -762,9 +739,8 @@ async function deleteQuote(qKey){
 function undoReady(qKey){
   const decoded=decodeURIComponent(qKey);
   let q=quotes.find(x=>(x._fbKey||x.quoteNum)===decoded);
-  if(!q) q=quotes.find(x=>x._fbKey===decoded||x.quoteNum===decoded);
   if(!q) q=quotes.find(x=>x._localIdx===decoded);
-  if(!q && decoded.startsWith('idx_')){const i=parseInt(decoded.replace('idx_',''));if(!isNaN(i)&&quotes[i])q=quotes[i];}
+  if(!q&&decoded.startsWith('idx_')){const i=parseInt(decoded.replace('idx_',''));if(!isNaN(i)&&quotes[i])q=quotes[i];}
   if(!q||!q.statusChecks) return;
   q.statusChecks.readyForPayment=false;
   localStorage.setItem(STORAGE_KEY,JSON.stringify(quotes));
@@ -790,11 +766,9 @@ function render(){
     status.textContent='No quotes loaded';
     cards.innerHTML='';
     main.innerHTML='<div class="section-block"><div class="empty">Drop exported quotes above to get started</div></div>';
-    const _bar=document.getElementById('action-bar'); if(_bar) _bar.style.display='none';
     return;
   }
 
-  const _ab=document.getElementById('action-bar'); if(_ab) _ab.style.display='flex';
   status.textContent=quotes.length+' quote'+(quotes.length!==1?'s':'')+' loaded';
 
   // Categorize
@@ -899,25 +873,6 @@ async function init(){
   startListeners();
 }
 init();
-
-// Global error handler
-function showErrorBanner(msg){
-  const banner=document.getElementById('toro-error-banner');
-  const msgEl=document.getElementById('toro-error-msg');
-  if(!banner) return;
-  if(msgEl) msgEl.textContent=msg||'An unexpected error occurred. Please contact management if this continues.';
-  banner.style.display='block';
-  setTimeout(()=>{ banner.style.display='none'; }, 8000);
-}
-window.addEventListener('error', function(e){
-  console.error('Global error:', e.message, e.filename, e.lineno);
-  showErrorBanner('Error: '+e.message+' — Please contact management if this continues.');
-});
-window.addEventListener('unhandledrejection', function(e){
-  console.error('Unhandled promise rejection:', e.reason);
-  const msg = e.reason && e.reason.message ? e.reason.message : String(e.reason);
-  showErrorBanner('Error: '+msg+' — Please contact management if this continues.');
-});
 
 function openFeedback(){
   document.getElementById('feedback-modal').classList.add('open');
@@ -1114,24 +1069,7 @@ function runReport(){
   document.getElementById('report-modal').style.display='none';
 }
 
-
-// Ensure every quote has a stable key before rendering
-function ensureQuoteKeys(){
-  quotes.forEach((q,i)=>{
-    if(!q._fbKey && !q.quoteNum){
-      q._localIdx = 'idx_'+i;
-    }
-  });
-}
-
 </script>
-
-<div id="toro-error-banner" onclick="this.style.display='none'">
-  <button class="close-err" onclick="event.stopPropagation();this.parentElement.style.display='none'">&#10005;</button>
-  <strong>&#9888; Something went wrong</strong>
-  <span id="toro-error-msg">An unexpected error occurred. Please contact management if this continues.</span>
-</div>
-
 
 <!-- Feedback modal -->
 <div class="feedback-modal" id="feedback-modal">
