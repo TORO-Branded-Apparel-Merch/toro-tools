@@ -131,6 +131,13 @@ const FIREBASE_DB_URL = 'https://toro-commission-318b4-default-rtdb.firebaseio.c
 const DASH_PW = 'Toro#Mv3kG';
 const REPS = ['Shannon', 'Stephen', 'Julia', 'Lexi', 'Amy', 'Debbie'];
 
+let allQuotes = {};
+let feedbackData = {};   // { rep: [quotes] }
+let approvals = {};   // { rep: { key: approval } }
+let currentTab = 'approvals';
+const LOCK_KEY = 'toro_dash_lock';
+const ATTEMPTS_KEY = 'toro_dash_attempts';
+
 // Auto-login if valid session exists
 document.addEventListener('DOMContentLoaded', function(){
   const sessionExpiry = parseInt(localStorage.getItem('toro_session_dash')||'0');
@@ -141,11 +148,6 @@ document.addEventListener('DOMContentLoaded', function(){
   }
 });
 
-let allQuotes = {};   // { rep: [quotes] }
-let approvals = {};   // { rep: { key: approval } }
-let currentTab = 'approvals';
-const LOCK_KEY = 'toro_dash_lock';
-const ATTEMPTS_KEY = 'toro_dash_attempts';
 
 function bamAlert(msg, cb) {
   document.getElementById('bam-msg').innerHTML = msg;
@@ -702,7 +704,6 @@ function renderByRep() {
 }
 
 // ── Feedback tab ──────────────────────────────────────────────────────────────
-let feedbackData = {};
 async function loadFeedback() {
   try {
     const data = await fbGet('feedback');
