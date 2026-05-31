@@ -825,22 +825,18 @@ function addImp(gid){
           Share screens with another item
         </label>
         <div id="imp_share_wrap_${iid}" style="display:none;">
-          <div style="display:grid;grid-template-columns:1fr 160px;gap:10px;align-items:end;margin-bottom:6px;">
-            <div class="field" style="margin-bottom:0;">
-              <label style="font-size:11px;">Share with</label>
-              <select id="imp_share_with_${iid}" onchange="calcAllDebounced()" style="padding:7px 10px;font-size:13px;border:1px solid var(--border2);border-radius:var(--radius-sm);width:100%;">
-                <option value="">Select item...</option>
-              </select>
-            </div>
-            <div class="field" style="margin-bottom:0;">
-              <label style="font-size:11px;">Qty for this imprint <span style="font-weight:400;color:var(--text3)">(optional)</span></label>
-              <input type="number" id="imp_share_qty_${iid}" min="1" placeholder="All qty"
-                style="padding:7px 10px;font-size:13px;border:1px solid var(--border2);border-radius:var(--radius-sm);width:100%;"
-                oninput="calcAllDebounced()">
-            </div>
+          <div class="field" style="margin-bottom:8px;">
+            <label style="font-size:11px;">Share with</label>
+            <select id="imp_share_with_${iid}" onchange="onShareWithChange('${iid}','${gid}');calcAllDebounced()" style="padding:7px 10px;font-size:13px;border:1px solid var(--border2);border-radius:var(--radius-sm);width:100%;">
+              <option value="">Select item...</option>
+            </select>
           </div>
-          <div style="font-size:11px;color:var(--text3);">
-            Setup charged to this item only. Run charge applies per item to all shared garments.
+          <div id="imp_share_sizes_${iid}" style="display:none;margin-bottom:8px;">
+            <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--text3);margin-bottom:6px;">Which sizes share this screen?</div>
+            <div id="imp_share_size_rows_${iid}" style="display:grid;grid-template-columns:60px 80px 1fr;gap:6px;align-items:center;font-size:12px;"></div>
+          </div>
+          <div style="font-size:11px;color:var(--text3);margin-top:6px;">
+            ⚙ Setup charged to this item only. Run charge applies per item to all shared garments.
           </div>
         </div>
       </div>
@@ -1308,9 +1304,45 @@ function calcAll(){
       html+=`<div class="cl" style="flex-wrap:wrap;gap:6px">
         <span>${h.desc}${h.sku?' #'+h.sku:''}${h.vendor?' ('+h.vendor+')':''}   ${h.qty} pcs${h.dec&&h.dec!=='none'?' \u00b7 '+h.dec:''}</span>
         <div style="display:flex;gap:8px;align-items:center;font-size:11px;flex-wrap:wrap">
-          ${h.netItem>0?`Item: <input type="number" value="${perItemMargins[hItemKey].pct.toFixed(2)}" min="0" max="999.99" step="0.01" style="width:75px;padding:3px 5px;font-size:11px;border:1px solid var(--border2);border-radius:3px;text-align:center" onchange="setItemMarginPct('${hItemKey}',this.value)"> %`:''}
-          ${h.netSetup>0?`Setup: <input type="number" value="${perItemMargins[hSetupKey].pct.toFixed(2)}" min="0" max="999.99" step="0.01" style="width:75px;padding:3px 5px;font-size:11px;border:1px solid var(--border2);border-radius:3px;text-align:center" onchange="setItemMarginPct('${hSetupKey}',this.value)"> %`:''}
-          ${h.netRush>0?`Rush: <input type="number" value="${perItemMargins[hRushKey].pct.toFixed(2)}" min="0" max="999.99" step="0.01" style="width:75px;padding:3px 5px;font-size:11px;border:1px solid var(--border2);border-radius:3px;text-align:center" onchange="setItemMarginPct('${hRushKey}',this.value)"> %`:''}
+          ${h.netItem>0?`
+            <span style="color:var(--text3)">Item margin %:</span>
+            <input type="number" value="${perItemMargins[hItemKey].pct.toFixed(2)}" min="0" max="999.99" step="0.01"
+              data-mg-pct="${hItemKey}"
+              style="width:70px;padding:3px 5px;font-size:11px;border:1px solid var(--border2);border-radius:3px;text-align:center"
+              onchange="setItemMarginPct('${hItemKey}',this.value)">
+            <span style="color:var(--text3)">Sell $:</span>
+            <input type="number" step="0.01" min="0"
+              value="${(perItemMargins[hItemKey].pct<100&&h.netItem>0?(h.netItem/h.qty)/(1-perItemMargins[hItemKey].pct/100):0).toFixed(2)}"
+              data-mg-sell="${hItemKey}"
+              style="width:80px;padding:3px 5px;font-size:11px;font-weight:700;color:var(--green);border:1px solid var(--border2);border-radius:3px;text-align:right"
+              onchange="setItemMarginSell('${hItemKey}',this.value,${h.netItem/h.qty})">
+          `:''}
+          ${h.netSetup>0?`
+            <span style="color:var(--text3)">Setup margin %:</span>
+            <input type="number" value="${perItemMargins[hSetupKey].pct.toFixed(2)}" min="0" max="999.99" step="0.01"
+              data-mg-pct="${hSetupKey}"
+              style="width:70px;padding:3px 5px;font-size:11px;border:1px solid var(--border2);border-radius:3px;text-align:center"
+              onchange="setItemMarginPct('${hSetupKey}',this.value)">
+            <span style="color:var(--text3)">Sell $:</span>
+            <input type="number" step="0.01" min="0"
+              value="${(perItemMargins[hSetupKey].pct<100&&h.netSetup>0?h.netSetup/(1-perItemMargins[hSetupKey].pct/100):0).toFixed(2)}"
+              data-mg-sell="${hSetupKey}"
+              style="width:80px;padding:3px 5px;font-size:11px;font-weight:700;color:var(--green);border:1px solid var(--border2);border-radius:3px;text-align:right"
+              onchange="setItemMarginSell('${hSetupKey}',this.value,${h.netSetup})">
+          `:''}
+          ${h.netRush>0?`
+            <span style="color:var(--text3)">Rush margin %:</span>
+            <input type="number" value="${perItemMargins[hRushKey].pct.toFixed(2)}" min="0" max="999.99" step="0.01"
+              data-mg-pct="${hRushKey}"
+              style="width:70px;padding:3px 5px;font-size:11px;border:1px solid var(--border2);border-radius:3px;text-align:center"
+              onchange="setItemMarginPct('${hRushKey}',this.value)">
+            <span style="color:var(--text3)">Sell $:</span>
+            <input type="number" step="0.01" min="0"
+              value="${(perItemMargins[hRushKey].pct<100&&h.netRush>0?h.netRush/(1-perItemMargins[hRushKey].pct/100):0).toFixed(2)}"
+              data-mg-sell="${hRushKey}"
+              style="width:80px;padding:3px 5px;font-size:11px;font-weight:700;color:var(--green);border:1px solid var(--border2);border-radius:3px;text-align:right"
+              onchange="setItemMarginSell('${hRushKey}',this.value,${h.netRush})">
+          `:''}
         </div>
       </div>`;
       // Per-line toggles for HG item, setup, rush
@@ -1330,7 +1362,7 @@ function calcAll(){
       if(h.netSetup>0){
         html+=`<div style="display:grid;grid-template-columns:80px 1fr 80px 60px 90px;gap:6px;padding:5px 0;font-size:13px;border-bottom:1px solid #f8f8f8;align-items:center">
           <span style="font-weight:600">Setup</span><span></span>
-          <span style="text-align:right">${fmt(h.netSetup)}</span>
+          <span style="text-align:right" data-mg-net="${hSetupKey}" data-net="${h.netSetup}">${fmt(h.netSetup)}</span>
           <span style="text-align:right;color:var(--text3)">${Math.round(effMgSetup*100)}%</span>
           <span style="text-align:right;font-weight:700;color:var(--green)">${fmt(sellSetup)}</span>
         </div>`;
@@ -1338,7 +1370,7 @@ function calcAll(){
       if(h.netRush>0){
         html+=`<div style="display:grid;grid-template-columns:80px 1fr 80px 60px 90px;gap:6px;padding:5px 0;font-size:13px;border-bottom:1px solid #f8f8f8;align-items:center">
           <span style="font-weight:600">Rush</span><span></span>
-          <span style="text-align:right">${fmt(h.netRush)}</span>
+          <span style="text-align:right" data-mg-net="${hRushKey}" data-net="${h.netRush}">${fmt(h.netRush)}</span>
           <span style="text-align:right;color:var(--text3)">${Math.round(effMgRush*100)}%</span>
           <span style="text-align:right;font-weight:700;color:var(--green)">${fmt(sellRush)}</span>
         </div>`;
@@ -1893,7 +1925,17 @@ function serializeQuote(){
           vinyl_loc:vs('vinyl_loc_'+iid),vinyl_t:vs('vinyl_t_'+iid),vinyl_colors:vs('vinyl_colors_'+iid),
           imp_shared: document.getElementById('imp_share_chk_'+iid)?.checked||false,
           imp_share_with: vs('imp_share_with_'+iid)||'',
-          imp_share_qty: v('imp_share_qty_'+iid)||null});
+          imp_share_sizes: (()=>{
+            const sizes=[];
+            document.querySelectorAll('[id^="share_sz_'+iid+'_"][id$="_mode"]').forEach(sel=>{
+              const key=sel.id.replace('_mode','');
+              const rid=key.replace('share_sz_'+iid+'_','');
+              const mode=sel.value;
+              const qty=mode==='all'?null:mode==='some'?(parseInt(document.getElementById(key+'_qty')?.value)||null):0;
+              sizes.push({rid,mode,qty});
+            });
+            return sizes;
+          })()});
     });}
     data.imps=imps;
     const miscFees=[];
@@ -2512,7 +2554,12 @@ function toggleImpShare(iid, gid) {
   const wrap = document.getElementById('imp_share_wrap_'+iid);
   if(!wrap) return;
   wrap.style.display = chk.checked ? '' : 'none';
-  if(chk.checked) populateShareDropdown(iid, gid);
+  if(chk.checked) {
+    populateShareDropdown(iid, gid);
+    // If a target was already selected, show size rows immediately
+    const sel = document.getElementById('imp_share_with_'+iid);
+    if(sel && sel.value) onShareWithChange(iid, gid);
+  }
 }
 
 function populateShareDropdown(iid, gid) {
@@ -2521,7 +2568,7 @@ function populateShareDropdown(iid, gid) {
   const currentVal = sel.value;
   sel.innerHTML = '<option value="">Select item...</option>';
   garments.forEach(g => {
-    if(String(g.id) === String(gid)) return; // skip self
+    if(String(g.id) === String(gid)) return;
     const label = [document.getElementById('gdesign_'+g.id)?.value, document.getElementById('gtype_'+g.id)?.value].filter(Boolean).join(' - ') || ('Item '+g.id);
     const opt = document.createElement('option');
     opt.value = g.id;
@@ -2531,13 +2578,65 @@ function populateShareDropdown(iid, gid) {
   });
 }
 
+function onShareWithChange(iid, gid) {
+  // Called when user picks an item from the "Share with" dropdown
+  // Don't re-populate dropdown options (that wipes the selection)
+  // Just show/populate the size designation rows
+  const sel = document.getElementById('imp_share_with_'+iid);
+  const sizesDiv = document.getElementById('imp_share_sizes_'+iid);
+  if(!sizesDiv) return;
+  if(sel && sel.value) {
+    sizesDiv.style.display = '';
+    populateShareSizes(iid, gid);
+  } else {
+    sizesDiv.style.display = 'none';
+  }
+}
+
+function populateShareSizes(iid, gid) {
+  const container = document.getElementById('imp_share_size_rows_'+iid);
+  if(!container) return;
+  // Get size rows for this garment
+  const szRows = getSzRows(gid);
+  if(!szRows.length) { container.innerHTML = '<span style="color:var(--text3);font-size:12px;">No sizes entered yet.</span>'; return; }
+  // Show header
+  let html = '<div style="font-weight:700;color:var(--text3)">Size</div><div style="font-weight:700;color:var(--text3)">Qty entered</div><div style="font-weight:700;color:var(--text3)">Sharing</div>';
+  szRows.forEach(r => {
+    const key = 'share_sz_'+iid+'_'+r.rid;
+    html += `<div style="font-weight:600">${r.size}</div>
+      <div style="color:var(--text3)">${r.qty} pcs</div>
+      <div style="display:flex;align-items:center;gap:6px;">
+        <select id="${key}_mode" onchange="toggleShareSizeQty('${key}',${r.qty})"
+          style="padding:4px 8px;font-size:12px;border:1px solid var(--border2);border-radius:4px;">
+          <option value="all">All</option>
+          <option value="some">Some</option>
+          <option value="none">None</option>
+        </select>
+        <input type="number" id="${key}_qty" min="1" max="${r.qty}" value="${r.qty}"
+          style="display:none;width:60px;padding:4px 6px;font-size:12px;border:1px solid var(--border2);border-radius:4px;">
+      </div>`;
+  });
+  container.innerHTML = html;
+}
+
+function toggleShareSizeQty(key, maxQty) {
+  const mode = document.getElementById(key+'_mode')?.value;
+  const qtyEl = document.getElementById(key+'_qty');
+  if(qtyEl) qtyEl.style.display = mode==='some' ? '' : 'none';
+}
+
 // Refresh all share dropdowns when garments change
 function refreshAllShareDropdowns() {
+  const multipleGarments = garments.length > 1;
   document.querySelectorAll('[id^="imp_share_chk_"]').forEach(chk => {
+    // Find the wrapping label/section
+    const section = chk.closest('div[style*="border-top"]') || chk.parentElement?.parentElement;
+    if(section) section.style.display = multipleGarments ? '' : 'none';
     if(chk.checked) {
       const iid = chk.id.replace('imp_share_chk_','');
       const gid = iid.split('_')[0];
       populateShareDropdown(iid, gid);
+      populateShareSizes(iid, gid);
     }
   });
 }
