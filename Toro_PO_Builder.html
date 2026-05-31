@@ -178,12 +178,12 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
           <div class="field"><label>Ship to — Name / Company <span class="req">*</span></label><input type="text" id="ship-name" placeholder="Recipient name or company"></div>
           <div class="field"><label>Address line 1 <span class="req">*</span></label><input type="text" id="ship-addr1" placeholder="Street address"></div>
         </div>
+        <div class="field"><label>Address line 2</label><input type="text" id="ship-addr2" placeholder="Suite, floor, etc. (optional)"></div>
         <div class="row3">
           <div class="field"><label>City <span class="req">*</span></label><input type="text" id="ship-city" placeholder="City"></div>
           <div class="field"><label>State <span class="req">*</span></label><input type="text" id="ship-state" placeholder="TX" style="text-transform:uppercase;"></div>
           <div class="field"><label>ZIP <span class="req">*</span></label><input type="text" id="ship-zip" placeholder="00000"></div>
         </div>
-        <div class="field"><label>Address line 2</label><input type="text" id="ship-addr2" placeholder="Suite, floor, etc. (optional)"></div>
       </div>
 
       <!-- Decoration (hidden for blank) -->
@@ -199,7 +199,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
               <option>Pad printing</option><option>Digital print</option><option>Other</option>
             </select>
           </div>
-          <div class="field"><label>Location(s) <span class="req">*</span></label><input type="text" id="d-loc" placeholder="e.g. Left chest, full back"></div>
+          <div class="field"><label>Location(s) <span class="req">*</span></label><input type="text" id="d-loc" placeholder="e.g. Full front, left chest"></div>
           <div class="field"><label>Design / art name</label><input type="text" id="d-art" placeholder="Pre-fills from quote"></div>
         </div>
         <div class="row3">
@@ -291,10 +291,10 @@ function loadQuote(file) {
   r.onload = e => {
     try {
       const q = JSON.parse(e.target.result);
-      if(!q.quoteNum&&!q.quoteName&&!q.totalSell) { alert('Not a valid TORO quote file.'); return; }
+      if(!q.quoteNum&&!q.quoteName&&!q.totalSell) { bamAlert('Not a valid TORO quote file.'); return; }
       quoteData = q;
       initBuilder();
-    } catch(ex) { alert('Error reading file: '+ex.message); }
+    } catch(ex) { bamAlert('Error reading file: '+ex.message); }
   };
   r.readAsText(file);
 }
@@ -568,16 +568,16 @@ function clearAutoFills() {
 
 // ── Validation ─────────────────────────────────────────────────────────────
 function validate() {
-  if(!selectedItems.length) { alert('Please select at least one item.'); return false; }
+  if(!selectedItems.length) { bamAlert('Please select at least one item.'); return false; }
   const req = [['v-name','Vendor name'],['v-email','Vendor email'],['rep-name','Rep name'],['rep-email','Rep email']];
   if(currentType !== 'blank') req.push(['d-method','Decoration method'],['d-loc','Imprint location'],['d-colors','Imprint colors']);
   for(const [id,label] of req) {
     const el=document.getElementById(id);
-    if(!el||!el.value.trim()) { if(el){el.style.borderColor='var(--red)';el.focus();} alert('Please fill in: '+label); return false; }
+    if(!el||!el.value.trim()) { if(el){el.style.borderColor='var(--red)';el.focus();} bamAlert('Please fill in: <strong>'+label+'</strong> (and any other highlighted fields)'); return false; }
     el.style.borderColor='';
   }
   if(currentType !== 'blank') {
-    if(!document.querySelector('input[name="proof"]:checked')) { alert('Please select a proof requirement.'); return false; }
+    if(!document.querySelector('input[name="proof"]:checked')) { bamAlert('Please select a proof requirement.'); return false; }
   }
   return true;
 }
@@ -874,10 +874,12 @@ function updateQueueUI() {
 }
 
 function removePO(idx) {
-  if(!confirm('Remove '+poQueue[idx].poNum+' from queue?')) return;
-  poQueue.splice(idx,1);
-  updateQueueUI();
-  closeModal();
+  bamConfirm('Remove <strong>'+poQueue[idx].poNum+'</strong> from the queue?', function(ok) {
+    if(!ok) return;
+    poQueue.splice(idx,1);
+    updateQueueUI();
+    closeModal();
+  });
 }
 
 function openPO(idx) {
@@ -935,15 +937,26 @@ function openPrintTab(poNum, content) {
       <button onclick="window.print()">🖨️ Print / Save as PDF</button>
     </div>
     <div class="po-content">${content}</div>
-  </body></html>`);
+  
+<!-- BAM Modal -->
+<div id="bam-overlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:9999;align-items:center;justify-content:center;">
+  <div style="background:#fff;border-radius:12px;padding:28px 32px;max-width:420px;width:90%;box-shadow:0 8px 40px rgba(0,0,0,0.2);">
+    <div style="font-size:17px;font-weight:700;color:#C41E1E;margin-bottom:12px;">🐂 BAM the Bull says</div>
+    <div id="bam-msg" style="font-size:15px;color:#333;margin-bottom:22px;line-height:1.5;"></div>
+    <div id="bam-btns" style="display:flex;gap:10px;justify-content:flex-end;"></div>
+  </div>
+</div>
+</body></html>`);
   win.document.close();
 }
 
 function exportAll() {
-  if(!poQueue.length) { alert('No POs in queue.'); return; }
-  if(!confirm('This will open '+poQueue.length+' tab'+(poQueue.length>1?'s':'')+', one per PO. Use File → Print → Save as PDF in each tab to save.\n\nContinue?')) return;
-  poQueue.forEach((po,i) => {
-    setTimeout(()=>{ openPrintTab(po.poNum, po.html); }, i*400);
+  if(!poQueue.length) { bamAlert('No POs in queue.'); return; }
+  bamConfirm('This will open <strong>'+poQueue.length+' tab'+(poQueue.length>1?'s':'')+'</strong>, one per PO.<br><br>Use <strong>File → Print → Save as PDF</strong> in each tab to save.', function(ok) {
+    if(!ok) return;
+    poQueue.forEach((po,i) => {
+      setTimeout(()=>{ openPrintTab(po.poNum, po.html); }, i*400);
+    });
   });
 }
 
@@ -967,6 +980,44 @@ function toggleShipTo(val) {
     if(el) el.required = (val === 'alternate');
   });
 }
+
+function bamAlert(msg, cb) {
+  document.getElementById('bam-msg').innerHTML = msg;
+  const btns = document.getElementById('bam-btns');
+  btns.innerHTML = '';
+  const ok = document.createElement('button');
+  ok.textContent = 'OK';
+  ok.style.cssText = 'padding:8px 22px;background:#C41E1E;color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:14px;font-weight:600;';
+  ok.onclick = () => { document.getElementById('bam-overlay').style.display='none'; if(cb) cb(); };
+  btns.appendChild(ok);
+  document.getElementById('bam-overlay').style.display='flex';
+}
+
+function bamConfirm(msg, cb) {
+  document.getElementById('bam-msg').innerHTML = msg;
+  const btns = document.getElementById('bam-btns');
+  btns.innerHTML = '';
+  const cancel = document.createElement('button');
+  cancel.textContent = 'Cancel';
+  cancel.style.cssText = 'padding:8px 18px;background:#f0f0f0;color:#333;border:none;border-radius:6px;cursor:pointer;font-size:14px;';
+  cancel.onclick = () => { document.getElementById('bam-overlay').style.display='none'; if(cb) cb(false); };
+  const ok = document.createElement('button');
+  ok.textContent = 'Yes, continue';
+  ok.style.cssText = 'padding:8px 18px;background:#C41E1E;color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:14px;font-weight:600;';
+  ok.onclick = () => { document.getElementById('bam-overlay').style.display='none'; if(cb) cb(true); };
+  btns.appendChild(cancel);
+  btns.appendChild(ok);
+  document.getElementById('bam-overlay').style.display='flex';
+}
 </script>
+
+<!-- BAM Modal -->
+<div id="bam-overlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:9999;align-items:center;justify-content:center;">
+  <div style="background:#fff;border-radius:12px;padding:28px 32px;max-width:420px;width:90%;box-shadow:0 8px 40px rgba(0,0,0,0.2);">
+    <div style="font-size:17px;font-weight:700;color:#C41E1E;margin-bottom:12px;">🐂 BAM the Bull says</div>
+    <div id="bam-msg" style="font-size:15px;color:#333;margin-bottom:22px;line-height:1.5;"></div>
+    <div id="bam-btns" style="display:flex;gap:10px;justify-content:flex-end;"></div>
+  </div>
+</div>
 </body>
 </html>
