@@ -273,7 +273,8 @@ function buildItemsReference() {
       html += '<div style="padding:12px;border:1px solid var(--border);border-radius:6px;margin-bottom:8px;font-size:12px;">';
       html += '<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;">';
       html += '<div style="flex:1;">';
-      html += '<div style="font-weight:700;font-size:13px;margin-bottom:4px;">'+(g.gdesign||g.gtype||'Item '+(i+1))+'</div>';
+      const gTitle = [g.gdesign, g.gtype||g.gtype_other].filter(Boolean).join(' - ') || ('Item '+(i+1));
+      html += '<div style="font-weight:700;font-size:13px;margin-bottom:4px;">'+gTitle+'</div>';
       const meta = [
         g.gbrand,
         g.gsku ? 'SKU: '+g.gsku : '',
@@ -397,7 +398,8 @@ function buildItemList(type) {
     if(!garments.length) { list.innerHTML = '<p style="color:var(--text3);font-size:13px;">No apparel items found in this quote.</p>'; return; }
     garments.forEach((g, i) => {
       const totalQty = (g.szRows||[]).reduce((a,r)=>a+r.qty,0);
-      const div = makeItemCheck('g_'+i, (g.gdesign||g.gtype||'Garment '+i), [
+      const gLabel = [g.gdesign, g.gtype||g.gtype_other].filter(Boolean).join(' - ') || ('Garment '+(i+1));
+      const div = makeItemCheck('g_'+i, gLabel, [
         g.gvendor ? 'Vendor: '+g.gvendor : '',
         g.gbrand ? g.gbrand : '',
         g.gsku ? 'SKU: '+g.gsku : '',
@@ -434,18 +436,79 @@ function toggleItem(chk, type, idx) {
   if(chk.checked) {
     selectedItems.push({type, idx, key});
     chk.closest('.item-check').classList.add('selected');
-    // Auto-fill design name if decorated apparel
-    if(selectedType === 'decorated-apparel') {
-      const g = (quoteData.garments||[])[idx];
-      if(g && g.gdesign) document.getElementById('deco-art').value = g.gdesign;
-    }
-    if(selectedType === 'hard-goods') {
-      const h = (quoteData.hardGoods||[])[idx];
-      if(h && h.hg_design) document.getElementById('deco-art').value = h.hg_design;
-    }
   } else {
     selectedItems = selectedItems.filter(i=>i.key!==key);
     chk.closest('.item-check').classList.remove('selected');
+  }
+  // Re-populate fields from first selected item of this type
+  autoPopulateFromItems();
+}
+
+function setIfEmpty(id, val) {
+  const el = document.getElementById(id);
+  if(el && val) el.value = val;
+}
+
+function autoPopulateFromItems() {
+  const q = quoteData;
+  const garments = q.garments||[];
+  const hgs = q.hardGoods||[];
+  const appItems = selectedItems.filter(i=>i.type==='g');
+  const hgItems = selectedItems.filter(i=>i.type==='hg');
+  const methodMap = {screen:'Screen printing',embroidery:'Embroidery',dtf:'DTF',heat:'Heat press',vinyl:'Vinyl'};
+
+  if(selectedType === 'blank-apparel' || selectedType === 'decorated-apparel') {
+    if(!appItems.length) return;
+    const firstG = garments[appItems[0].idx];
+    if(!firstG) return;
+    setIfEmpty('vendor-name', firstG.gvendor);
+    if(selectedType === 'decorated-apparel') {
+      const imp = (firstG.imps||[])[0];
+      if(imp) {
+        const method = methodMap[imp.type]||imp.type||'';
+        const mEl = document.getElementById('deco-method');
+        if(mEl && method) mEl.value = method;
+        // Location — pick the right field based on type
+        const loc = imp.sp_loc||imp.emb_loc||imp.dtf_loc||imp.heat_loc||imp.vinyl_loc||'';
+        setIfEmpty('deco-location', loc);
+        // Art name
+        setIfEmpty('deco-art', firstG.gdesign||'');
+        // Colors — sp_ink for screen print, stitch count for embroidery, vinyl_t for vinyl
+        let colorStr = '';
+        if(imp.type==='screen') {
+          colorStr = [imp.sp_col ? imp.sp_col+' color(s)' : '', imp.sp_ink||''].filter(Boolean).join(' — ');
+        } else if(imp.type==='embroidery') {
+          colorStr = imp.emb_st ? imp.emb_st+' stitches' : '';
+        } else if(imp.type==='vinyl') {
+          colorStr = imp.vinyl_t||'';
+        } else if(imp.type==='heat') {
+          colorStr = imp.heat_t||'';
+        }
+        setIfEmpty('deco-colors', colorStr);
+        // PMS — from sp_ic (PMS color count) field
+        setIfEmpty('deco-pms', imp.sp_ic ? imp.sp_ic+' PMS color(s)' : '');
+      }
+    }
+  }
+
+  if(selectedType === 'hard-goods') {
+    if(!hgItems.length) return;
+    const firstH = hgs[hgItems[0].idx];
+    if(!firstH) return;
+    setIfEmpty('vendor-name', firstH.hg_vendor);
+    // HG decoration method — hg_dec matches QB values
+    const hgDecMap = {
+      'screen-print':'Screen printing','embroidery':'Embroidery','dtf':'DTF',
+      'laser':'Laser engraving','pad-print':'Pad printing','digital':'Digital print',
+      'Blank':'','none':'',''  :''
+    };
+    const hgMethod = hgDecMap[firstH.hg_dec]||firstH.hg_dec||'';
+    if(hgMethod) {
+      const mEl = document.getElementById('deco-method');
+      if(mEl) mEl.value = hgMethod;
+    }
+    setIfEmpty('deco-art', firstH.hg_design||'');
+    setIfEmpty('deco-colors', firstH.hg_colors||'');
   }
 }
 
@@ -521,12 +584,13 @@ function buildPOHTML(poNum) {
       const totalQty = rows.reduce((a,r)=>a+r.qty,0);
       const netCost = rows[0]?.cost||g.gcost||0;
       const totalNet = rows.reduce((a,r)=>a+r.qty*(r.cost||netCost),0);
+      const gItemTitle = [g.gdesign, g.gtype||g.gtype_other].filter(Boolean).join(' - ') || 'Apparel item';
 
       itemsHTML += `
         <div style="margin-bottom:20px;padding:16px;border:1px solid #e0e0e0;border-radius:6px;">
           <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px;">
             <div>
-              <div style="font-size:15px;font-weight:700;">${g.gdesign||g.gtype||'Apparel item'}</div>
+              <div style="font-size:15px;font-weight:700;">${gItemTitle}</div>
               <div style="font-size:12px;color:#666;margin-top:2px;">
                 ${[g.gbrand,g.gsku?'SKU: '+g.gsku:''].filter(Boolean).join(' · ')}
               </div>
