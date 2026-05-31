@@ -320,9 +320,9 @@ function fbListen(path, cb) {
   function connect() {
     if(!fbListenerActive) return;
     const es = new EventSource(url);
-    es.onmessage = e => { try { cb({data:JSON.parse(e.data)}); } catch(ex) {} };
-    es.addEventListener('put', e => { try { cb({data:JSON.parse(e.data)?.data}); } catch(ex) {} });
-    es.addEventListener('patch', e => { try { cb({data:JSON.parse(e.data)?.data}); } catch(ex) {} });
+    // Only use named events (put/patch), not onmessage to avoid double-firing
+    es.addEventListener('put', e => { try { const p=JSON.parse(e.data); cb({data:p?.data!==undefined?p.data:p}); } catch(ex) {} });
+    es.addEventListener('patch', e => { try { const p=JSON.parse(e.data); cb({data:p?.data!==undefined?p.data:p}); } catch(ex) {} });
     es.onerror = () => { es.close(); if(fbListenerActive) setTimeout(connect, retry = Math.min(retry*2,30000)); };
   }
   connect();
@@ -343,7 +343,10 @@ let _saving = false;
 async function loadFromFirebase() {
   setSyncing(true);
   let data = null, apData = null;
-  try { data = await fbGet(FB_PATH); } catch(e) { console.warn('quotes fetch failed:', e); }
+  try { 
+    data = await fbGet(FB_PATH);
+    console.log('Firebase quotes loaded:', data ? Object.keys(data).length + ' quotes' : 'null');
+  } catch(e) { console.error('quotes fetch failed:', e); }
   try { apData = await fbGet('approvals/'+REP_LOWER); } catch(e) { console.warn('approvals fetch failed:', e); }
   if(data) {
     const fbQuotes = Object.values(data).filter(q=>q&&(q.totalSell||q.quoteName||q.quoteNum));
