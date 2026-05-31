@@ -190,8 +190,13 @@ function bamPrompt(msg, defaultVal, cb) {
 async function fbSet(path, val) {
   const url = FIREBASE_DB_URL + '/' + path + '.json';
   const method = val === null ? 'DELETE' : 'PUT';
-  const r = await fetch(url, { method, headers:{'Content-Type':'application/json'}, body:val===null?undefined:JSON.stringify(val) });
-  if(!r.ok) throw new Error('HTTP ' + r.status);
+  try {
+    const r = await fetch(url, { method, headers:{'Content-Type':'application/json'}, body:val===null?undefined:JSON.stringify(val) });
+    return r.ok;
+  } catch(e) {
+    console.error('fbSet failed:', path, e.message);
+    return false;
+  }
 }
 async function fbGet(path) {
   const r = await fetch(FIREBASE_DB_URL + '/' + path + '.json');
@@ -528,6 +533,8 @@ async function approveQuote(repLower, encKey) {
   const key = decodeURIComponent(encKey);
   bamPrompt('Approval note (optional):', '', async note => {
     if(note === null) return;
+    // Small delay to let bamPrompt overlay fully close first
+    await new Promise(r=>setTimeout(r,100));
     try {
       const existing2 = (approvals[repLower]||{})[key]||{};
       const notes2 = existing2.notes||[];
@@ -539,19 +546,19 @@ async function approveQuote(repLower, encKey) {
         decidedAt: new Date().toISOString(),
         notes: notes2,
       };
-      await fbSet('approvals/'+repLower+'/'+key, updated);
+      const ok = await fbSet('approvals/'+repLower+'/'+key, updated);
+      if(!ok) throw new Error('Firebase write returned false');
       if(!approvals[repLower]) approvals[repLower]={};
       approvals[repLower][key] = updated;
-      render();
-      // Also update the quote workflowStatus
       const rep = REPS.find(r=>r.toLowerCase()===repLower);
       const q = (allQuotes[rep]||[]).find(x=>fbKey(x)===key);
       if(q) {
         q.workflowStatus = 'active';
         await fbSet('quotes/'+repLower+'/'+fbKey(q), q);
       }
+      render();
       bamAlert('Quote approved! The rep has been notified.');
-    } catch(e) { console.error('approveQuote error:',e); bamAlert('Error saving approval. Please try again.'); }
+    } catch(e) { console.error('approveQuote error:',e); setTimeout(()=>bamAlert('Error saving. Check your connection and try again.'),100); }
   });
 }
 
@@ -559,6 +566,7 @@ async function rejectQuote(repLower, encKey) {
   const key = decodeURIComponent(encKey);
   bamPrompt('Rejection reason (will be shown to the rep):', '', async note => {
     if(note === null) return;
+    await new Promise(r=>setTimeout(r,100));
     try {
       const existing = (approvals[repLower]||{})[key]||{};
       const notes = existing.notes||[];
@@ -570,18 +578,19 @@ async function rejectQuote(repLower, encKey) {
         decidedAt: new Date().toISOString(),
         notes: notes,
       };
-      await fbSet('approvals/'+repLower+'/'+key, updated);
+      const ok = await fbSet('approvals/'+repLower+'/'+key, updated);
+      if(!ok) throw new Error('Firebase write returned false');
       if(!approvals[repLower]) approvals[repLower]={};
       approvals[repLower][key] = updated;
-      render();
       const rep = REPS.find(r=>r.toLowerCase()===repLower);
       const q = (allQuotes[rep]||[]).find(x=>fbKey(x)===key);
       if(q) {
         q.workflowStatus = 'rejected';
         await fbSet('quotes/'+repLower+'/'+fbKey(q), q);
       }
+      render();
       bamAlert('Quote rejected. The rep will see your note.');
-    } catch(e) { console.error('rejectQuote error:',e); bamAlert('Error saving rejection. Please try again.'); }
+    } catch(e) { console.error('rejectQuote error:',e); setTimeout(()=>bamAlert('Error saving. Check your connection and try again.'),100); }
   });
 }
 
