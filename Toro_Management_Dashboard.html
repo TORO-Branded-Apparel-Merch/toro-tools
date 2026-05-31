@@ -283,20 +283,43 @@ function startListeners() {
   for(const rep of REPS) {
     const rl = rep.toLowerCase();
     fbListen('quotes/'+rl, data => {
-      if(data && data.data !== null && typeof data.data==='object') {
+      if(!data) return;
+      if(data.path && data.path !== '/' && data.data !== undefined) {
+        // Patch event - update single quote
+        const key = data.path.replace(/^\//, '').split('/')[0];
+        if(!allQuotes[rep]) allQuotes[rep] = [];
+        if(data.data === null) {
+          allQuotes[rep] = allQuotes[rep].filter(q=>q._fbKey!==key);
+        } else {
+          const idx = allQuotes[rep].findIndex(q=>q._fbKey===key);
+          const q = {...data.data, _fbKey:key};
+          if(idx>=0) allQuotes[rep][idx]=q; else allQuotes[rep].push(q);
+        }
+      } else if(data.data && typeof data.data==='object') {
         allQuotes[rep] = Object.entries(data.data)
           .filter(([k,v])=>v&&typeof v==='object')
-          .map(([k,v])=>{return {...v, _fbKey:k};} );
-      } else if(data && data.data===null) {
+          .map(([k,v])=>{return {...v, _fbKey:k};});
+      } else if(data.data===null) {
         allQuotes[rep]=[];
       }
       render();
     });
     fbListen('approvals/'+rl, data => {
-      if(data && data.data && typeof data.data==='object') {
+      if(!data) return;
+      if(data.path && data.path !== '/' && data.data) {
+        // Patch event - partial update, merge into existing
+        if(!approvals[rl]) approvals[rl] = {};
+        const key = data.path.replace(/^\//, '');
+        if(data.data === null) {
+          delete approvals[rl][key];
+        } else {
+          approvals[rl][key] = data.data;
+        }
+      } else if(data.data && typeof data.data === 'object') {
+        // Put event - full replace
         approvals[rl] = data.data;
-      } else {
-        approvals[rl]={};
+      } else if(data.data === null) {
+        approvals[rl] = {};
       }
       render();
     });
