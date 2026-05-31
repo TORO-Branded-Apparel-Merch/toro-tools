@@ -250,12 +250,24 @@ function bamConfirm(msg, cb) {
 
 // ── Password Gate ──────────────────────────────────────────────────────────
 function getStoredPw() { return localStorage.getItem(PW_KEY) || DEFAULT_PW; }
+
+// Auto-login if valid session exists
+(function checkSession(){
+  const sessionExpiry = parseInt(localStorage.getItem('toro_session_'+REP_LOWER)||'0');
+  if(Date.now() < sessionExpiry){
+    document.getElementById('gate').style.display='none';
+    document.getElementById('app').style.display='';
+    init();
+  }
+})();
+
 function submitPw() {
   const val = document.getElementById('pw-input').value;
   const lockUntil = parseInt(localStorage.getItem(LOCK_KEY)||'0');
   if(Date.now() < lockUntil) { document.getElementById('pw-error').textContent = 'Account locked after 5 failed attempts. Try again later.'; return; }
   if(val === getStoredPw()) {
     localStorage.setItem(ATTEMPTS_KEY,'0');
+    localStorage.setItem('toro_session_'+REP_LOWER, Date.now()+(4*60*60*1000));
     document.getElementById('gate').style.display='none';
     document.getElementById('app').style.display='';
     init();
@@ -320,9 +332,9 @@ function fbListen(path, cb) {
   function connect() {
     if(!fbListenerActive) return;
     const es = new EventSource(url);
-    // Only use named events (put/patch), not onmessage to avoid double-firing
-    es.addEventListener('put', e => { try { const p=JSON.parse(e.data); cb({data:p?.data!==undefined?p.data:p}); } catch(ex) {} });
-    es.addEventListener('patch', e => { try { const p=JSON.parse(e.data); cb({data:p?.data!==undefined?p.data:p}); } catch(ex) {} });
+    es.onmessage = e => { try { cb({data:JSON.parse(e.data)}); } catch(ex) {} };
+    es.addEventListener('put', e => { try { cb({data:JSON.parse(e.data)}); } catch(ex) {} });
+    es.addEventListener('patch', e => { try { cb({data:JSON.parse(e.data)}); } catch(ex) {} });
     es.onerror = () => { es.close(); if(fbListenerActive) setTimeout(connect, retry = Math.min(retry*2,30000)); };
   }
   connect();
@@ -342,31 +354,35 @@ let _saving = false;
 // ── Firebase load ──────────────────────────────────────────────────────────
 async function loadFromFirebase() {
   setSyncing(true);
-  let data = null, apData = null;
-  try { 
-    data = await fbGet(FB_PATH);
-    console.log('Firebase quotes loaded:', data ? Object.keys(data).length + ' quotes' : 'null');
-  } catch(e) { console.error('quotes fetch failed:', e); }
-  try { apData = await fbGet('approvals/'+REP_LOWER); } catch(e) { console.warn('approvals fetch failed:', e); }
-  if(data) {
-    const fbQuotes = Object.values(data).filter(q=>q&&(q.totalSell||q.quoteName||q.quoteNum));
-    // Firebase is source of truth — merge
-    fbQuotes.forEach(q=>{
-      if(!q._fbKey) q._fbKey = fbKey(q);
-      if(!q.workflowStatus) q.workflowStatus='active';
-      if(!q.status) q.status={};
-      const idx = quotes.findIndex(x=>fbKey(x)===fbKey(q));
-      if(idx>=0) quotes[idx]=q; else quotes.push(q);
-    });
-    quotes = quotes.filter(q=>{
-      if(!q.quoteNum&&!q._fbKey) return true;
-      return fbQuotes.some(f=>fbKey(f)===fbKey(q));
-    });
-  } else { quotes=[]; }
-  // Store as rep-scoped: approvals[REP_LOWER] = data
-  approvals = {};
-  approvals[REP_LOWER] = apData||{};
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(quotes));
+  try {
+    const data = await fbGet(FB_PATH);
+    console.log('Firebase data:', data);
+    if(data && typeof data === 'object') {
+      quotes = Object.values(data)
+        .filter(q => q && typeof q === 'object' && (q.totalSell||q.quoteName||q.quoteNum))
+        .map(q => {
+          if(!q._fbKey) q._fbKey = fbKey(q);
+          if(!q.workflowStatus) q.workflowStatus = 'active';
+          if(!q.status) q.status = {};
+          return q;
+        });
+    } else {
+      quotes = [];
+    }
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(quotes));
+    console.log('Quotes loaded:', quotes.length);
+  } catch(e) {
+    console.error('loadFromFirebase error:', e);
+  }
+  try {
+    const apData = await fbGet('approvals/'+REP_LOWER);
+    approvals = {};
+    approvals[REP_LOWER] = (apData && typeof apData === 'object') ? apData : {};
+  } catch(e) {
+    console.warn('approvals fetch failed:', e);
+    approvals = {};
+    approvals[REP_LOWER] = {};
+  }
   setSyncing(false);
   render();
 }
@@ -770,10 +786,25 @@ function startListeners() {
     if(_saving) return;
     loadFromFirebase();
   });
-  fbListen('approvals/'+REP_LOWER,event=>{
-    if(!event||!event.data) return;
+  fbListen('approvals/'+REP_LOWER, event=>{
+    if(!event) return;
     if(firstA){firstA=false;return;}
-    if(typeof event.data==='object') approvals[REP_LOWER]=event.data;
+    let apData = event.data;
+    if(apData && typeof apData === 'object' && apData.path !== undefined) {
+      if(apData.path === '/' || apData.path === '') {
+        if(apData.data && typeof apData.data === 'object') {
+          approvals[REP_LOWER] = apData.data;
+        }
+      } else {
+        fbGet('approvals/'+REP_LOWER).then(d=>{
+          approvals[REP_LOWER] = d||{};
+          render();
+        });
+        return;
+      }
+    } else if(apData && typeof apData === 'object') {
+      approvals[REP_LOWER] = apData;
+    }
     render();
   });
 }

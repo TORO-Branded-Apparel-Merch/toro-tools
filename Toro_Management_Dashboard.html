@@ -130,6 +130,17 @@ window.addEventListener('unhandledrejection', function(e) { console.error('Unhan
 const FIREBASE_DB_URL = 'https://toro-commission-318b4-default-rtdb.firebaseio.com';
 const DASH_PW = 'Toro#Mv3kG';
 const REPS = ['Shannon', 'Stephen', 'Julia', 'Lexi', 'Amy', 'Debbie'];
+
+// Auto-login if valid session exists
+(function checkSession(){
+  const sessionExpiry = parseInt(localStorage.getItem('toro_session_dash')||'0');
+  if(Date.now() < sessionExpiry){
+    document.getElementById('gate').style.display='none';
+    document.getElementById('app').style.display='';
+    init();
+  }
+})();
+
 let allQuotes = {};   // { rep: [quotes] }
 let approvals = {};   // { rep: { key: approval } }
 let currentTab = 'approvals';
@@ -244,6 +255,7 @@ function submitPw() {
   const attempts=parseInt(localStorage.getItem(ATTEMPTS_KEY)||'0');
   if(val===DASH_PW) {
     localStorage.removeItem(ATTEMPTS_KEY);
+    localStorage.setItem('toro_session_dash', Date.now()+(4*60*60*1000));
     document.getElementById('gate').style.display='none';
     document.getElementById('app').style.display='';
     init();
