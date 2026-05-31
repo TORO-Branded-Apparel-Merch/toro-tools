@@ -251,6 +251,10 @@ function bamConfirm(msg, cb) {
 // ── Password Gate ──────────────────────────────────────────────────────────
 function getStoredPw() { return localStorage.getItem(PW_KEY) || DEFAULT_PW; }
 
+let quotes = [];
+let approvals = {};
+let _saving = false;
+
 // Auto-login if valid session exists
 document.addEventListener('DOMContentLoaded', function(){
   const sessionExpiry = parseInt(localStorage.getItem('toro_session_'+REP_LOWER)||'0');
@@ -347,9 +351,6 @@ function setSyncing(v) {
 }
 
 // ── State ──────────────────────────────────────────────────────────────────
-let quotes = [];
-let approvals = {};
-let _saving = false;
 
 // ── Firebase load ──────────────────────────────────────────────────────────
 async function loadFromFirebase() {
