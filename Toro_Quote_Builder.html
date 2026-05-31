@@ -841,7 +841,7 @@ function addImp(gid){
       </div>
     </div>`;
   const types=['screen','embroidery','dtf','heat','vinyl'];
-  if(!d.querySelector('.hidden')){types.forEach(t=>{if(t!=='screen'){const f=d.querySelector('#if_'+t+'_'+iid);if(f)f.classList.add('hidden');}});}
+  types.forEach(t=>{if(t!=='screen'){const f=d.querySelector('#if_'+t+'_'+iid);if(f)f.classList.add('hidden');}});
   c.appendChild(d);
   $c('imp_'+iid).dataset.type='screen';
 }
@@ -1306,7 +1306,14 @@ function calcAll(){
     html+=`<div class="cl sell" style="font-size:15px;font-weight:700;padding:8px 0;border-top:1px solid var(--border);margin-top:4px"><span>Garment ${i+1} sell</span><span style="color:var(--green);font-size:16px">${fmt(_garSellDisplay)}</span></div>`;
   });
 
-html+=`<div class="cl sell" style="font-size:13px;margin-top:2px;border-top:1px solid var(--border);padding-top:8px"><span>Average order margin</span><span>${orderMgPct.toFixed(1)}%</span></div>`;
+const _rawOrder = tSell>0 ? ((1-totalNetCost/tSell)*100) : 0;
+  const orderMgPct = isFinite(_rawOrder) ? _rawOrder : 0;
+
+  html+=`<div style="border-top:2px solid var(--border);margin:10px 0"></div>`;
+  html+=`<div class="cl grand"><span>Total production cost</span><span>${fmt(grand)}</span></div>`;
+  html+=`<div class="cl sell" style="font-size:15px;font-weight:700"><span>Total sell price</span><span style="color:var(--green);font-size:17px">${fmt(tSell)}</span></div>`;
+  html+=`<div class="cl sell" style="font-weight:700"><span>Gross profit</span><span style="color:var(--green)">${fmt(tSell-grand)}</span></div>`;
+  html+=`<div class="cl sell" style="font-size:13px;margin-top:2px;border-top:1px solid var(--border);padding-top:8px"><span>Average order margin</span><span>${orderMgPct.toFixed(1)}%</span></div>`;
   $c('pricing_breakdown').innerHTML=html;
 
   // Margin warning
