@@ -149,7 +149,10 @@ function bamAlert(msg, cb) {
   const ok = document.createElement('button');
   ok.textContent = 'OK';
   ok.style.cssText = 'padding:8px 22px;background:#C41E1E;color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:14px;font-weight:600;';
-  ok.onclick = () => { document.getElementById('bam-overlay').style.display='none'; if(cb) cb(true); };
+  ok.onclick = async () => {
+    document.getElementById('bam-overlay').style.display='none';
+    if(cb) { try { await cb(true); } catch(e) { console.error('bamConfirm cb error:',e); } }
+  };
   btns.appendChild(ok);
   document.getElementById('bam-overlay').style.display='flex';
 }
@@ -164,7 +167,10 @@ function bamConfirm(msg, cb) {
   const ok = document.createElement('button');
   ok.textContent = 'Yes, continue';
   ok.style.cssText = 'padding:8px 18px;background:#C41E1E;color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:14px;font-weight:600;';
-  ok.onclick = () => { document.getElementById('bam-overlay').style.display='none'; if(cb) cb(true); };
+  ok.onclick = async () => {
+    document.getElementById('bam-overlay').style.display='none';
+    if(cb) { try { await cb(true); } catch(e) { console.error('bamConfirm cb error:',e); } }
+  };
   btns.appendChild(cancel);
   btns.appendChild(ok);
   document.getElementById('bam-overlay').style.display='flex';
@@ -180,7 +186,14 @@ function bamPrompt(msg, defaultVal, cb) {
   const ok = document.createElement('button');
   ok.textContent = 'Submit';
   ok.style.cssText = 'padding:8px 18px;background:#C41E1E;color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:14px;font-weight:600;';
-  ok.onclick = () => { const v=document.getElementById('bam-input').value; document.getElementById('bam-overlay').style.display='none'; if(cb) cb(v); };
+  ok.onclick = async () => {
+    const v=document.getElementById('bam-input').value;
+    document.getElementById('bam-overlay').style.display='none';
+    if(cb) {
+      try { await cb(v); }
+      catch(e) { console.error('bamPrompt cb error:',e); setTimeout(()=>bamAlert('Something went wrong: '+e.message),100); }
+    }
+  };
   btns.appendChild(cancel);
   btns.appendChild(ok);
   document.getElementById('bam-overlay').style.display='flex';
