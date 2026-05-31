@@ -6,7 +6,7 @@
 <title>TORO PO Builder</title>
 <style>
 :root{
-  --red:#C41E1E;--red-dark:#9e1818;--red-light:#fff0f0;
+  --red:#BC112A;--red-dark:#9e0f22;--red-light:#fff0f2;--red-gradient:linear-gradient(160deg,#BC112A 0%,#E9553A 100%);
   --green:#1a7f4b;--bg:#F5F5F7;--surface:#fff;
   --border:#E2E3E6;--border2:#ccc;
   --text:#1a1a1f;--text2:#444;--text3:#888;
@@ -14,7 +14,7 @@
 }
 *{box-sizing:border-box;margin:0;padding:0}
 body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;padding-bottom:180px;}
-.header{background:var(--red);color:#fff;padding:14px 24px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100;box-shadow:0 2px 8px rgba(0,0,0,.15);}
+.header{background:var(--red-gradient,var(--red));color:#fff;padding:14px 24px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100;box-shadow:0 2px 8px rgba(0,0,0,.15);}
 .header h1{font-size:18px;font-weight:700;}
 .container{max-width:900px;margin:0 auto;padding:24px 16px;}
 .card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:24px;margin-bottom:20px;}
@@ -93,7 +93,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 <body>
 
 <div class="header">
-  <h1>🐂 TORO PO Builder</h1>
+  <h1 style="display:flex;align-items:center;gap:12px;"><img src="data:image/png;base64,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" alt="TORO" style="height:44px;width:auto;display:block;"><span style="font-size:16px;font-weight:700;opacity:.9;">PO Builder</span></h1>
   <div style="font-size:12px;opacity:.8;" id="quote-label">No quote loaded</div>
 </div>
 
@@ -199,8 +199,8 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
               <option>Pad printing</option><option>Digital print</option><option>Other</option>
             </select>
           </div>
-          <div class="field"><label>Location(s) <span class="req">*</span></label><input type="text" id="d-loc" placeholder="e.g. Full front, left chest"></div>
-          <div class="field"><label>Design / art name</label><input type="text" id="d-art" placeholder="Pre-fills from quote"></div>
+          <div class="field"><label>Location(s) <span class="req">*</span></label><input type="text" id="d-loc" placeholder=""></div>
+          <div class="field"><label>Design / art name <span class="req">*</span></label><input type="text" id="d-art" required placeholder="Pre-fills from quote"></div>
         </div>
         <div class="row3">
           <div class="field"><label>Imprint colors <span class="req">*</span></label><input type="text" id="d-colors" placeholder="e.g. Red, White, PMS 286 C"></div>
@@ -570,7 +570,7 @@ function clearAutoFills() {
 function validate() {
   if(!selectedItems.length) { bamAlert('Please select at least one item.'); return false; }
   const req = [['v-name','Vendor name'],['v-email','Vendor email'],['rep-name','Rep name'],['rep-email','Rep email']];
-  if(currentType !== 'blank') req.push(['d-method','Decoration method'],['d-loc','Imprint location'],['d-colors','Imprint colors']);
+  if(currentType !== 'blank') req.push(['d-method','Decoration method'],['d-loc','Imprint location'],['d-art','Design / art name'],['d-colors','Imprint colors']);
   for(const [id,label] of req) {
     const el=document.getElementById(id);
     if(!el||!el.value.trim()) { if(el){el.style.borderColor='var(--red)';el.focus();} bamAlert('Please fill in: <strong>'+label+'</strong> (and any other highlighted fields)'); return false; }
@@ -785,10 +785,10 @@ function buildPOHTML(poNum, d) {
 
   return `<div class="po-body">
     <!-- Compact header: all key info in one tight band -->
-    <div style="display:grid;grid-template-columns:auto 1fr auto;gap:12px;align-items:start;margin-bottom:12px;padding-bottom:10px;border-bottom:3px solid #C41E1E;">
+    <div style="display:grid;grid-template-columns:auto 1fr auto;gap:12px;align-items:start;margin-bottom:12px;padding-bottom:10px;border-bottom:3px solid #BC112A;">
       <!-- TORO branding - compact -->
       <div style="min-width:130px;">
-        <div style="font-size:20px;font-weight:800;color:#C41E1E;line-height:1;">🐂 TORO</div>
+        <div style="font-size:20px;font-weight:800;color:#BC112A;line-height:1;">🐂 TORO</div>
         <div style="font-size:10px;color:#888;">Branded Apparel & Merch</div>
         <div style="font-size:10px;color:#888;">4704 Benbrook Hwy · Fort Worth TX 76116</div>
       </div>
@@ -818,7 +818,7 @@ function buildPOHTML(poNum, d) {
       <!-- Right: PO title + meta -->
       <div style="text-align:right;min-width:160px;">
         <div style="font-size:16px;font-weight:800;">PURCHASE ORDER</div>
-        <div style="font-size:14px;font-weight:800;color:#C41E1E;">${poNum}</div>
+        <div style="font-size:14px;font-weight:800;color:#BC112A;">${poNum}</div>
         <div style="font-size:10px;color:#888;">${typeLabels[d.type]||d.typeLabel}</div>
         <div style="font-size:10px;color:#888;margin-top:2px;">Date: <input class="po-field-edit" style="font-size:10px;width:100px;" value="${poDate}"></div>
       </div>
@@ -829,7 +829,7 @@ function buildPOHTML(poNum, d) {
       <div><div style="font-size:9px;font-weight:700;text-transform:uppercase;color:#888;margin-bottom:2px;">Quote #</div><input class="po-field-edit" style="font-weight:700;font-size:11px;" value="${d.quoteNum}"></div>
       <div><div style="font-size:9px;font-weight:700;text-transform:uppercase;color:#888;margin-bottom:2px;">Client</div><input class="po-field-edit" style="font-weight:700;font-size:11px;" value="${[d.clientName,d.clientCompany].filter(Boolean).join(' / ')}"></div>
       <div><div style="font-size:9px;font-weight:700;text-transform:uppercase;color:#888;margin-bottom:2px;">In-hands date</div><input class="po-field-edit" style="font-weight:700;font-size:11px;" value="${d.ihd}"></div>
-      <div><div style="font-size:9px;font-weight:700;text-transform:uppercase;color:#888;margin-bottom:2px;">IHD status</div><input class="po-field-edit" style="font-weight:700;font-size:11px;color:${d.ihdFirm?'#C41E1E':'#1a7f4b'};" value="${d.ihdFirm?'🔒 FIRM':'Not firm'}"></div>
+      <div><div style="font-size:9px;font-weight:700;text-transform:uppercase;color:#888;margin-bottom:2px;">IHD status</div><input class="po-field-edit" style="font-weight:700;font-size:11px;color:${d.ihdFirm?'#BC112A':'#1a7f4b'};" value="${d.ihdFirm?'🔒 FIRM':'Not firm'}"></div>
       <div><div style="font-size:9px;font-weight:700;text-transform:uppercase;color:#888;margin-bottom:2px;">Rep</div><input class="po-field-edit" style="font-weight:700;font-size:11px;" value="${d.repName}"></div>
     </div></div>
 
@@ -906,6 +906,10 @@ function printCurrentPO() {
 }
 
 function openPrintTab(poNum, content) {
+  // content may be JSON-encoded po object or raw HTML string
+  if(content && content.startsWith('%7B')) {
+    try { const p = JSON.parse(decodeURIComponent(content)); content = p.html; } catch(e) {}
+  }
   const win = window.open('','_blank');
   win.document.write(`<!DOCTYPE html><html><head><title>${poNum}</title>
     <style>
@@ -914,7 +918,7 @@ function openPrintTab(poNum, content) {
       .print-banner{background:#1a1a2e;color:#fff;padding:14px 20px;display:flex;align-items:center;justify-content:space-between;font-size:13px;}
       .print-banner strong{font-size:15px;}
       .print-banner .steps{opacity:.85;}
-      .print-banner button{padding:8px 18px;background:#C41E1E;color:#fff;border:none;border-radius:6px;cursor:pointer;font-weight:700;font-size:13px;}
+      .print-banner button{padding:8px 18px;background:#BC112A;color:#fff;border:none;border-radius:6px;cursor:pointer;font-weight:700;font-size:13px;}
       .po-content{padding:24px;max-width:860px;margin:0 auto;}
       input{border:none;border-bottom:1px solid #ddd;background:transparent;font-family:inherit;font-size:inherit;font-weight:inherit;color:inherit;padding:2px 0;width:100%;}
       textarea{border:none;background:transparent;font-family:inherit;font-size:inherit;width:100%;resize:none;}
@@ -941,7 +945,7 @@ function openPrintTab(poNum, content) {
 <!-- BAM Modal -->
 <div id="bam-overlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:9999;align-items:center;justify-content:center;">
   <div style="background:#fff;border-radius:12px;padding:28px 32px;max-width:420px;width:90%;box-shadow:0 8px 40px rgba(0,0,0,0.2);">
-    <div style="font-size:17px;font-weight:700;color:#C41E1E;margin-bottom:12px;">🐂 BAM the Bull says</div>
+    <div style="font-size:17px;font-weight:700;color:#BC112A;margin-bottom:12px;">🐂 BAM the Bull says</div>
     <div id="bam-msg" style="font-size:15px;color:#333;margin-bottom:22px;line-height:1.5;"></div>
     <div id="bam-btns" style="display:flex;gap:10px;justify-content:flex-end;"></div>
   </div>
@@ -952,12 +956,22 @@ function openPrintTab(poNum, content) {
 
 function exportAll() {
   if(!poQueue.length) { bamAlert('No POs in queue.'); return; }
-  bamConfirm('This will open <strong>'+poQueue.length+' tab'+(poQueue.length>1?'s':'')+'</strong>, one per PO.<br><br>Use <strong>File → Print → Save as PDF</strong> in each tab to save.', function(ok) {
-    if(!ok) return;
-    poQueue.forEach((po,i) => {
-      setTimeout(()=>{ openPrintTab(po.poNum, po.html); }, i*400);
-    });
-  });
+  // Open tabs immediately via links to avoid popup blocker
+  // Create a temporary container with links the user can click
+  const tabLinks = poQueue.map((p,i) => `<a href="#" onclick="event.preventDefault();openPrintTab('${p.poNum}',''+encodeURIComponent(JSON.stringify(p)))" 
+    style="display:block;padding:8px 12px;background:#f0f0f0;border-radius:6px;margin-bottom:6px;color:#1a1a1f;text-decoration:none;font-size:13px;font-weight:600;">
+    📄 Open ${p.poNum}
+  </a>`).join('');
+  document.getElementById('bam-msg').innerHTML = 
+    'Click each PO below to open it in a new tab, then use <strong>File → Print → Save as PDF</strong> to save.<br><br>' + tabLinks;
+  const btns = document.getElementById('bam-btns');
+  btns.innerHTML = '';
+  const done = document.createElement('button');
+  done.textContent = 'Done';
+  done.style.cssText = 'padding:8px 18px;background:#f0f0f0;color:#333;border:none;border-radius:6px;cursor:pointer;font-size:14px;font-weight:600;';
+  done.onclick = () => { document.getElementById('bam-overlay').style.display='none'; };
+  btns.appendChild(done);
+  document.getElementById('bam-overlay').style.display='flex';
 }
 
 function resetForm() {
@@ -987,7 +1001,7 @@ function bamAlert(msg, cb) {
   btns.innerHTML = '';
   const ok = document.createElement('button');
   ok.textContent = 'OK';
-  ok.style.cssText = 'padding:8px 22px;background:#C41E1E;color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:14px;font-weight:600;';
+  ok.style.cssText = 'padding:8px 22px;background:#BC112A;color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:14px;font-weight:600;';
   ok.onclick = () => { document.getElementById('bam-overlay').style.display='none'; if(cb) cb(); };
   btns.appendChild(ok);
   document.getElementById('bam-overlay').style.display='flex';
@@ -1003,7 +1017,7 @@ function bamConfirm(msg, cb) {
   cancel.onclick = () => { document.getElementById('bam-overlay').style.display='none'; if(cb) cb(false); };
   const ok = document.createElement('button');
   ok.textContent = 'Yes, continue';
-  ok.style.cssText = 'padding:8px 18px;background:#C41E1E;color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:14px;font-weight:600;';
+  ok.style.cssText = 'padding:8px 18px;background:#BC112A;color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:14px;font-weight:600;';
   ok.onclick = () => { document.getElementById('bam-overlay').style.display='none'; if(cb) cb(true); };
   btns.appendChild(cancel);
   btns.appendChild(ok);
@@ -1014,7 +1028,7 @@ function bamConfirm(msg, cb) {
 <!-- BAM Modal -->
 <div id="bam-overlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:9999;align-items:center;justify-content:center;">
   <div style="background:#fff;border-radius:12px;padding:28px 32px;max-width:420px;width:90%;box-shadow:0 8px 40px rgba(0,0,0,0.2);">
-    <div style="font-size:17px;font-weight:700;color:#C41E1E;margin-bottom:12px;">🐂 BAM the Bull says</div>
+    <div style="font-size:17px;font-weight:700;color:#BC112A;margin-bottom:12px;">🐂 BAM the Bull says</div>
     <div id="bam-msg" style="font-size:15px;color:#333;margin-bottom:22px;line-height:1.5;"></div>
     <div id="bam-btns" style="display:flex;gap:10px;justify-content:flex-end;"></div>
   </div>
