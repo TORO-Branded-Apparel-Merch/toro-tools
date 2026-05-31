@@ -132,14 +132,14 @@ const DASH_PW = 'Toro#Mv3kG';
 const REPS = ['Shannon', 'Stephen', 'Julia', 'Lexi', 'Amy', 'Debbie'];
 
 // Auto-login if valid session exists
-(function checkSession(){
+document.addEventListener('DOMContentLoaded', function(){
   const sessionExpiry = parseInt(localStorage.getItem('toro_session_dash')||'0');
   if(Date.now() < sessionExpiry){
     document.getElementById('gate').style.display='none';
     document.getElementById('app').style.display='';
     init();
   }
-})();
+});
 
 let allQuotes = {};   // { rep: [quotes] }
 let approvals = {};   // { rep: { key: approval } }
@@ -529,13 +529,20 @@ async function approveQuote(repLower, encKey) {
   bamPrompt('Approval note (optional):', '', async note => {
     if(note === null) return;
     try {
+      const existing2 = (approvals[repLower]||{})[key]||{};
+      const notes2 = existing2.notes||[];
+      if(note) notes2.push({author:'Management', text:note, time:new Date().toISOString()});
       const updated = {
-        ...((approvals[repLower]||{})[key]||{}),
+        ...existing2,
         status: 'approved',
         note: note||'',
         decidedAt: new Date().toISOString(),
+        notes: notes2,
       };
       await fbSet('approvals/'+repLower+'/'+key, updated);
+      if(!approvals[repLower]) approvals[repLower]={};
+      approvals[repLower][key] = updated;
+      render();
       // Also update the quote workflowStatus
       const rep = REPS.find(r=>r.toLowerCase()===repLower);
       const q = (allQuotes[rep]||[]).find(x=>fbKey(x)===key);
@@ -553,13 +560,20 @@ async function rejectQuote(repLower, encKey) {
   bamPrompt('Rejection reason (will be shown to the rep):', '', async note => {
     if(note === null) return;
     try {
+      const existing = (approvals[repLower]||{})[key]||{};
+      const notes = existing.notes||[];
+      if(note) notes.push({author:'Management', text:note, time:new Date().toISOString()});
       const updated = {
-        ...((approvals[repLower]||{})[key]||{}),
+        ...existing,
         status: 'rejected',
         note: note||'',
         decidedAt: new Date().toISOString(),
+        notes: notes,
       };
       await fbSet('approvals/'+repLower+'/'+key, updated);
+      if(!approvals[repLower]) approvals[repLower]={};
+      approvals[repLower][key] = updated;
+      render();
       const rep = REPS.find(r=>r.toLowerCase()===repLower);
       const q = (allQuotes[rep]||[]).find(x=>fbKey(x)===key);
       if(q) {
@@ -579,7 +593,11 @@ async function addNote(repLower, encKey) {
       const existing = (approvals[repLower]||{})[key] || {};
       const notes = existing.notes || [];
       notes.push({author:'Management', time:new Date().toISOString(), text});
+      existing.notes = notes;
       await fbSet('approvals/'+repLower+'/'+key+'/notes', notes);
+      if(!approvals[repLower]) approvals[repLower]={};
+      if(approvals[repLower][key]) approvals[repLower][key].notes = notes;
+      render();
     } catch(e) { console.error('addNote error:',e); bamAlert('Error saving note.'); }
   });
 }

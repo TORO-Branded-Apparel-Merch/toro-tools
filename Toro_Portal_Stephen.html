@@ -252,14 +252,14 @@ function bamConfirm(msg, cb) {
 function getStoredPw() { return localStorage.getItem(PW_KEY) || DEFAULT_PW; }
 
 // Auto-login if valid session exists
-(function checkSession(){
+document.addEventListener('DOMContentLoaded', function(){
   const sessionExpiry = parseInt(localStorage.getItem('toro_session_'+REP_LOWER)||'0');
   if(Date.now() < sessionExpiry){
     document.getElementById('gate').style.display='none';
     document.getElementById('app').style.display='';
     init();
   }
-})();
+});
 
 function submitPw() {
   const val = document.getElementById('pw-input').value;
