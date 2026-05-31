@@ -7,7 +7,7 @@
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
 :root{
-  --red:#C41E1E;--red-dark:#8B0000;--red-light:#fdf0f0;
+  --red:#BC112A;--red-dark:#9e0f22;--red-light:#fdf0f0;
   --text:#1a1a1a;--text2:#4a4a4a;--text3:#888;
   --bg:#f2f2f2;--surface:#fff;--border:#e2e2e2;--border2:#c8c8c8;
   --radius:10px;--radius-sm:6px;
@@ -138,8 +138,8 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--red);box
 #bam-modal-body{padding:16px 18px;font-size:14px;color:#222;line-height:1.5}
 #bam-modal-footer{padding:12px 18px;display:flex;gap:8px;justify-content:flex-end;border-top:1px solid #eee}
 #bam-modal-footer button{padding:8px 20px;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;border:none}
-#bam-btn-ok{background:#C41E1E;color:#fff}
-#bam-btn-ok:hover{background:#a01818}
+#bam-btn-ok{background:#BC112A;color:#fff}
+#bam-btn-ok:hover{background:#9e0f22}
 #bam-btn-cancel{background:#f0f0f0;color:#333}
 #bam-btn-cancel:hover{background:#e0e0e0}
 
@@ -235,7 +235,7 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--red);box
       <div id="reimport-dropzone"
         style="border:2px dashed var(--border2);border-radius:8px;padding:20px;text-align:center;cursor:pointer;background:#f8f9fa;transition:all .2s"
         onclick="document.getElementById('reimport-file-input').click()"
-        ondragover="event.preventDefault();this.style.borderColor='#C41E1E';this.style.background='#fff0f0'"
+        ondragover="event.preventDefault();this.style.borderColor='#BC112A';this.style.background='#fff0f2'"
         ondragleave="this.style.borderColor='var(--border2)';this.style.background='#f8f9fa'"
         ondrop="event.preventDefault();this.style.borderColor='var(--border2)';this.style.background='#f8f9fa';reimportQuote({files:event.dataTransfer.files})">
         <input type="file" id="reimport-file-input" accept=".json" style="display:none" onchange="reimportQuote(this)">
@@ -350,7 +350,7 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--red);box
   </div>
   <div class="actions">
     <button class="btn btn-outline" onclick="goTo(3)">&#8592; Back</button>
-    <div class="actions-right"><button class="btn btn-primary" onclick="goTo(5)">Next: Summary &#8594;ssion &#8594;</button></div>
+    <div class="actions-right"><button class="btn btn-primary" onclick="goTo(5)">Next: Summary &#8594;</button></div>
   </div>
 </div>
 
@@ -409,7 +409,6 @@ function goTo(n){
   if(n===5) buildSummary();
   window.scrollTo(0,0);
 }
-
 function addGarment(){
   gCount++;const id=gCount;garments.push({id});iCtrs[id]=0;
   const c=$c('garments_container');
@@ -540,6 +539,7 @@ function addGarment(){
   });
   addImp(id);
   updateGLbl(id);
+  refreshAllShareDropdowns();
 }
 
 function toggleG(id){
@@ -548,7 +548,7 @@ function toggleG(id){
   b.style.display=hidden?'':'none';
   ch.innerHTML=hidden?'&#8964;':'&#8963;';
 }
-function removeG(id){$c('g_'+id)?.remove();garments=garments.filter(g=>g.id!==id);}
+function removeG(id){$c('g_'+id)?.remove();garments=garments.filter(g=>g.id!==id);setTimeout(refreshAllShareDropdowns,50);}
 function addSzRow(gid){
   if(!window.szCtrs) window.szCtrs={};
   window.szCtrs[gid]=(window.szCtrs[gid]||0)+1;
@@ -686,7 +686,7 @@ function addImp(gid){
         <div class="row3">
           <div class="field"><label>Print location <span style="color:var(--red)">*</span></label>
             <select id="sp_loc_${iid}" required onchange="otherCheck(this);spLocChange('${iid}')" style="padding:8px 11px;font-size:14px"><option value="">Select location</option>
-              <option>Front</option><option>Back</option><option>Left chest</option>
+              <option>Full front</option><option>Back</option><option>Left chest</option>
               <option>Left sleeve</option><option>Right sleeve</option><option>Pocket</option><option>Other</option>
             </select>
           <input type="text" id="other_sp_loc_${iid}" style="display:none;margin-top:6px;width:100%;padding:7px 10px;border:1px solid var(--border2);border-radius:var(--radius-sm);font-size:13px">
@@ -770,7 +770,7 @@ function addImp(gid){
       <div id="if_dtf_${iid}" class="hidden">
         <div class="row3">
           <div class="field"><label>Location <span style="color:var(--red)">*</span></label>
-            <select id="dtf_loc_${iid}" required onchange="otherCheck(this)"><option value="">Select location</option><option>Front</option><option>Back</option><option>Sleeve</option><option>Full back</option><option>Other</option></select>
+            <select id="dtf_loc_${iid}" required onchange="otherCheck(this)"><option value="">Select location</option><option>Full front</option><option>Back</option><option>Sleeve</option><option>Full back</option><option>Other</option></select>
           <input type="text" id="other_dtf_loc_${iid}" style="display:none;margin-top:6px;width:100%;padding:7px 10px;border:1px solid var(--border2);border-radius:var(--radius-sm);font-size:13px">
           </div>
           <div class="field"><label>Print area (sq inches) <span style="color:var(--red)">*</span></label><input type="number" id="dtf_sq_${iid}" required min="1" placeholder=""></div>
@@ -784,7 +784,7 @@ function addImp(gid){
       <div id="if_heat_${iid}" class="hidden">
         <div class="row3">
           <div class="field"><label>Location</label>
-            <select id="heat_loc_${iid}" onchange="otherCheck(this)"><option>Front</option><option>Back</option><option>Sleeve</option><option>Other</option></select>
+            <select id="heat_loc_${iid}" onchange="otherCheck(this)"><option>Full front</option><option>Back</option><option>Sleeve</option><option>Other</option></select>
           <input type="text" id="other_heat_loc_${iid}" style="display:none;margin-top:6px;width:100%;padding:7px 10px;border:1px solid var(--border2);border-radius:var(--radius-sm);font-size:13px">
           </div>
           <div class="field"><label>Print colors <span style="color:var(--red)">*</span></label><input type="text" id="heat_colors_${iid}" required placeholder="e.g. Full color, Navy and Gold"></div>
@@ -800,7 +800,7 @@ function addImp(gid){
       <div id="if_vinyl_${iid}" class="hidden">
         <div class="row3">
           <div class="field"><label>Location</label>
-            <select id="vinyl_loc_${iid}" required onchange="otherCheck(this)"><option value="">Select location</option><option>Front</option><option>Back</option><option>Sleeve</option><option>Other</option></select>
+            <select id="vinyl_loc_${iid}" required onchange="otherCheck(this)"><option value="">Select location</option><option>Full front</option><option>Back</option><option>Sleeve</option><option>Other</option></select>
           <input type="text" id="other_vinyl_loc_${iid}" style="display:none;margin-top:6px;width:100%;padding:7px 10px;border:1px solid var(--border2);border-radius:var(--radius-sm);font-size:13px">
           </div>
           <div class="field"><label>Vinyl colors <span style="color:var(--red)">*</span></label><input type="text" id="vinyl_colors_${iid}" required placeholder="e.g. Red, White"></div>
@@ -816,6 +816,32 @@ function addImp(gid){
         <div style="margin-top:8px">
           <label style="font-size:12px;font-weight:600;color:var(--text2)">Misc imprint notes <span style="font-weight:400;color:var(--text3)">(optional)</span></label>
           <input type="text" id="vinyl_notes_${iid}" placeholder="e.g. cut type, color specs" style="width:100%;padding:7px 10px;border:1px solid var(--border2);border-radius:var(--radius-sm);font-size:13px;margin-top:4px">
+        </div>
+      </div>
+      <div style="border-top:1px solid var(--border);padding-top:10px;margin-top:10px;">
+        <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:12px;font-weight:700;color:var(--text2);margin-bottom:8px;">
+          <input type="checkbox" id="imp_share_chk_${iid}" style="width:14px;height:14px;accent-color:var(--red);"
+            onchange="toggleImpShare('${iid}','${gid}')">
+          Share screens with another item
+        </label>
+        <div id="imp_share_wrap_${iid}" style="display:none;">
+          <div style="display:grid;grid-template-columns:1fr 160px;gap:10px;align-items:end;margin-bottom:6px;">
+            <div class="field" style="margin-bottom:0;">
+              <label style="font-size:11px;">Share with</label>
+              <select id="imp_share_with_${iid}" onchange="calcAllDebounced()" style="padding:7px 10px;font-size:13px;border:1px solid var(--border2);border-radius:var(--radius-sm);width:100%;">
+                <option value="">Select item...</option>
+              </select>
+            </div>
+            <div class="field" style="margin-bottom:0;">
+              <label style="font-size:11px;">Qty for this imprint <span style="font-weight:400;color:var(--text3)">(optional)</span></label>
+              <input type="number" id="imp_share_qty_${iid}" min="1" placeholder="All qty"
+                style="padding:7px 10px;font-size:13px;border:1px solid var(--border2);border-radius:var(--radius-sm);width:100%;"
+                oninput="calcAllDebounced()">
+            </div>
+          </div>
+          <div style="font-size:11px;color:var(--text3);">
+            Setup charged to this item only. Run charge applies per item to all shared garments.
+          </div>
         </div>
       </div>
     </div>`;
@@ -897,9 +923,9 @@ async function setIT(iid,type){
 function getIC(iid,qty,isNW){
   const el=$c('imp_'+iid);if(!el)return{total:0,lines:[],label:'',loc:''};
   const type=el.dataset.type||'screen';
-  let total=0,lines=[],label='',loc='';
+  let total=0,lines=[],label='',loc='',total_run=0,total_setup=0;
   if(type==='screen'){
-    loc=vsOther('sp_loc_'+iid,'Front');
+    loc=vsOther('sp_loc_'+iid,'Full front');
     let col=Math.round(v('sp_col_'+iid,1));
     const effC=isNW?col+1:col;
     const ink=v('sp_ink_'+iid,0);
@@ -922,6 +948,8 @@ function getIC(iid,qty,isNW){
       if(pmsFilled>0){const pmsCharge=pmsFilled*10;lines.push({l:'PMS match ('+pmsFilled+' color'+(pmsFilled!==1?'s':'')+' × $10)',v:fmt(pmsCharge)});total+=pmsCharge;}
     }
     label='Screen print   '+loc+' ('+col+' color'+(col!==1?'s':'')+')';
+    total_run=base+(ink>0?ink*qty:0)+(ao>0?ao*qty:0);total_setup=sf+(ic>0?ic*10:0);
+    const _pC2=document.getElementById('sp_pms_rows_'+iid);if(_pC2)total_setup+=Array.from(_pC2.querySelectorAll('input')).filter(el=>el.value.trim()).length*10;
   } else if(type==='embroidery'){
     loc=vsOther('emb_loc_'+iid,'Left chest');
     const st=Math.round(v('emb_st_'+iid,7000)),tc=Math.round(v('emb_tc_'+iid,1));
@@ -933,23 +961,28 @@ function getIC(iid,qty,isNW){
     if(puff>0){const x=puff*qty;lines.push({l:'Puff surcharge',v:fmt(x)});total+=x;}
     if(os>0){const x=os*qty;lines.push({l:'Oversize surcharge',v:fmt(x)});total+=x;}
     label='Embroidery   '+loc+' ('+st.toLocaleString()+' stitches)';
+    total_run=run+(puff>0?puff*qty:0)+(os>0?os*qty:0);
+    total_setup=(dst==='no'?(st<=7000?32:32+Math.ceil((st-7000)/1000)*5):0)+(tc>1?(tc-1)*4:0);
   } else if(type==='dtf'){
-    loc=vsOther('dtf_loc_'+iid,'Front');
+    loc=vsOther('dtf_loc_'+iid,'Full front');
     const sq=v('dtf_sq_'+iid,50),x=sq*0.06*qty;
     lines.push({l:'DTF $0.06/sq in × '+sq+' × '+qty,v:fmt(x)});total=x;
     label='DTF   '+loc+' ('+sq+' sq in)';
+    total_run=x;total_setup=0;
   } else if(type==='heat'){
-    loc=vsOther('heat_loc_'+iid,'Front');
+    loc=vsOther('heat_loc_'+iid,'Full front');
     const r=v('heat_t_'+iid,1),x=r*qty;
     lines.push({l:'Heat press $'+r.toFixed(2)+'/item × '+qty,v:fmt(x)});total=x;
     label='Heat press   '+loc;
+    total_run=x;total_setup=0;
   } else if(type==='vinyl'){
-    loc=vsOther('vinyl_loc_'+iid,'Front');
+    loc=vsOther('vinyl_loc_'+iid,'Full front');
     const r=v('vinyl_t_'+iid,1),x=r*qty;
     lines.push({l:'Vinyl $'+r.toFixed(2)+'/item × '+qty,v:fmt(x)});total=x;
     label='Vinyl   '+loc;
+    total_run=x;total_setup=0;
   }
-  return{total,lines,label,loc,type};
+  return{total,lines,label,loc,type,run_per_item:(qty>0?total_run/qty:0),setup_total:total_setup};
 }
 
 function addHG(){
@@ -1159,30 +1192,50 @@ function calcAll(){
         :'Apparel '+(i+1)+': '+s.gtype+(s.gbrand?' \u2014 '+s.gbrand:'')}${s.gsku?' <span style="color:var(--text3);font-size:11px"> #'+s.gsku+'</span>':''}${s.gvendor?' <span style="color:var(--text3);font-size:11px">via '+s.gvendor+'</span>':''}</span>
       <div style="display:flex;align-items:center;gap:8px;font-size:12px">
         <label style="color:var(--text3)">Margin %</label>
-        <input type="number" value="${gMgPctVal.toFixed(1)}" min="1" max="99" step="0.5"
-          style="width:60px;padding:4px 6px;font-size:12px;font-weight:700;border:1px solid var(--border2);border-radius:4px;text-align:center"
+        <input type="number" value="${gMgPctVal.toFixed(2)}" min="0" max="999.99" step="0.01"
+          style="width:75px;padding:4px 6px;font-size:12px;font-weight:700;border:1px solid var(--border2);border-radius:4px;text-align:center"
           oninput="setItemMarginPct('${gMarginKey}',this.value)">
         <label style="color:var(--text3)">Sell/item $</label>
         <input type="number" step="0.01" min="0"
           value="${(gMgPctVal<100&&s.gTotal>0?s.gTotal/(s.szRows.reduce((a,r)=>a+r.qty,0)||1)/(1-gMgPctVal/100):0).toFixed(2)}"
-          style="width:80px;padding:4px 6px;font-size:12px;font-weight:700;color:var(--green);border:1px solid var(--border2);border-radius:4px;text-align:right"
+          style="width:90px;padding:4px 6px;font-size:12px;font-weight:700;color:var(--green);border:1px solid var(--border2);border-radius:4px;text-align:right"
           oninput="setItemMarginSell('${gMarginKey}',this.value,${s.gTotal/(s.szRows.reduce((a,r)=>a+r.qty,0)||1)})">
       </div>
     </div>`;
         // Column headers for size rows
-    html+=`<div style="display:grid;grid-template-columns:60px 1fr 80px 60px 90px;gap:6px;padding:4px 0 2px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--text3);border-bottom:1px solid var(--border)">
-      <span>Size</span><span></span><span style="text-align:right">Net/item</span><span style="text-align:right">Margin</span><span style="text-align:right">Sell/item</span>
+    html+=`<div style="display:grid;grid-template-columns:55px 50px 80px 90px 85px;gap:6px;padding:4px 0 2px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--text3);border-bottom:1px solid var(--border)">
+      <span>Size</span><span>Qty</span><span style="text-align:right">Net/item</span><span style="text-align:center">Margin %</span><span style="text-align:right">Sell/item</span>
     </div>`;
+    // Build per-size-group editable rows
+    const grpsSeen = {};
     s.szRows.forEach(r=>{
-      const baseSell=gMgEff<1?baseCostPI/(1-gMgEff):0;
-      const sellPx=r.isBase?baseSell:baseSell+r.upcharge;
-      const grpLabel=r.isBase?'':(r.grp==='none'?'individual':('group '+r.grp+(r.upcharge>0?' +$'+r.upcharge.toFixed(2)+' sell':'') ));
-      html+=`<div style="display:grid;grid-template-columns:60px 1fr 80px 60px 90px;gap:6px;padding:5px 0;font-size:13px;border-bottom:1px solid #f8f8f8;align-items:center">
+      const grpKey = 'g_'+s.gid+'_grp_'+(r.grp==='none'?'ind_'+r.rid:r.grp);
+      // Use group margin if group, else garment margin
+      const rowMgPct = getItemMargin(grpKey) || gMgPctVal;
+      const rowMgEff = rowMgPct/100;
+      const rowSell = rowMgEff<1 ? r.cost/(1-rowMgEff) : 0;
+
+      // Only show one editable row per group (the first)
+      const isFirstInGrp = r.grp==='none' || !grpsSeen[r.grp];
+      if(r.grp!=='none') grpsSeen[r.grp]=true;
+
+      html+=`<div style="display:grid;grid-template-columns:55px 50px 80px 90px 85px;gap:6px;padding:5px 0;font-size:12px;border-bottom:1px solid #f8f8f8;align-items:center">
         <span style="font-weight:600">${r.size}</span>
-        <span style="font-size:11px;color:var(--text3)">${r.qty} pcs${grpLabel?' · '+grpLabel:''}</span>
+        <span style="color:var(--text3);font-size:11px">${r.qty} pcs</span>
         <span style="text-align:right">$${r.cost.toFixed(2)}</span>
-        <span style="text-align:right;color:var(--text3)">${garMgPct}%</span>
-        <span style="text-align:right;font-weight:700;color:var(--green)">$${sellPx.toFixed(2)}</span>
+        ${isFirstInGrp ? `
+        <input type="number" value="${rowMgPct.toFixed(2)}" min="0" max="999.99" step="0.01"
+          style="width:85px;padding:3px 5px;font-size:11px;font-weight:700;border:1px solid var(--border2);border-radius:4px;text-align:center"
+          title="Margin % for ${r.grp==='none'?r.size:'Group '+r.grp}"
+          oninput="setItemMarginPct('${grpKey}',this.value);setItemMarginPct('g_${s.gid}',this.value)">
+        <input type="number" step="0.01" min="0" value="${rowSell.toFixed(2)}"
+          style="width:85px;padding:3px 5px;font-size:11px;font-weight:700;color:var(--green);border:1px solid var(--border2);border-radius:4px;text-align:right"
+          title="Sell price for ${r.grp==='none'?r.size:'Group '+r.grp}"
+          oninput="setItemMarginSell('${grpKey}',this.value,${r.cost});setItemMarginSell('g_${s.gid}',this.value,${r.cost})">
+        ` : `
+        <span style="text-align:center;color:var(--text3);font-size:11px">${rowMgPct.toFixed(1)}%</span>
+        <span style="text-align:right;color:var(--green);font-weight:700">$${rowSell.toFixed(2)}</span>
+        `}
       </div>`;
     });
 
@@ -1190,6 +1243,27 @@ function calcAll(){
     s.impLines.forEach((im,j)=>{
       html+=`<div class="cl" style="padding-left:10px;font-size:12px"><span>&#8627; Imprint ${j+1}: ${im.label}</span><span>${fmt(im.total)}</span></div>`;
     });
+    // Fully-loaded per-item cost breakdown
+    if(s.impLines.length>0){
+      const qty4=s.szRows.reduce((a,r)=>a+r.qty,0)||1;
+      const totalRun=s.impLines.reduce((a,im)=>a+(im.run_per_item||0),0);
+      const totalSetup=s.impLines.reduce((a,im)=>a+(im.setup_total||0),0);
+      const setupPI=totalSetup/qty4;
+      const miscPI=(()=>{const c=document.getElementById('misc_'+s.gid);if(!c)return 0;let t=0;c.querySelectorAll('[id^="miscrow_g"]').forEach(row=>{const parts=row.id.split('_');const mid=parts[parts.length-1];t+=parseFloat(document.getElementById('misc_net_g'+s.gid+'_'+mid)?.value)||0;});return t/qty4;})();
+      html+=`<div style="margin:8px 0 4px;padding:8px 10px;background:#f0f7ff;border-left:3px solid #4a90d9;border-radius:0 4px 4px 0;">
+        <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:#4a6080;margin-bottom:6px;">Fully loaded net cost per item</div>
+        <div style="display:grid;grid-template-columns:1fr 80px;gap:3px;font-size:12px;">
+          <span style="color:var(--text3)">Blank garment (avg net)</span><span style="text-align:right">${fmt(s.gc)}</span>
+          <span style="color:var(--text3)">Run charges (all locations)</span><span style="text-align:right">${fmt(totalRun)}</span>
+          <span style="color:var(--text3)">Setup ÷ ${qty4} pcs</span><span style="text-align:right">${fmt(setupPI)}</span>
+          ${miscPI>0?`<span style="color:var(--text3)">Misc fees ÷ ${qty4} pcs</span><span style="text-align:right">${fmt(miscPI)}</span>`:''}
+          <span style="font-weight:700;border-top:1px solid #c8d8e8;padding-top:3px;">Total loaded net/item</span>
+          <span style="font-weight:700;text-align:right;border-top:1px solid #c8d8e8;padding-top:3px;">${fmt(s.gc+totalRun+setupPI+miscPI)}</span>
+          <span style="color:var(--green);font-weight:700;">Fully loaded sell/item</span>
+          <span style="color:var(--green);font-weight:700;text-align:right;">${gMgEff<1?fmt((s.gc+totalRun+setupPI+miscPI)/(1-gMgEff)):'-'}</span>
+        </div>
+      </div>`;
+    }
     if(s.addons>0)html+=`<div class="cl"><span>Per-item add-ons</span><span>${fmt(s.addons)}</span></div>`;
     // Misc fees
     const gMisc=getGMiscFees(s.gid, gMgEff);
@@ -1235,9 +1309,9 @@ function calcAll(){
       html+=`<div class="cl" style="flex-wrap:wrap;gap:6px">
         <span>${h.desc}${h.sku?' #'+h.sku:''}${h.vendor?' ('+h.vendor+')':''}   ${h.qty} pcs${h.dec&&h.dec!=='none'?' \u00b7 '+h.dec:''}</span>
         <div style="display:flex;gap:8px;align-items:center;font-size:11px;flex-wrap:wrap">
-          ${h.netItem>0?`Item: <input type="number" value="${perItemMargins[hItemKey].pct.toFixed(1)}" min="1" max="99" step="0.5" style="width:52px;padding:3px 5px;font-size:11px;border:1px solid var(--border2);border-radius:3px;text-align:center" oninput="setItemMarginPct('${hItemKey}',this.value)"> %`:''}
-          ${h.netSetup>0?`Setup: <input type="number" value="${perItemMargins[hSetupKey].pct.toFixed(1)}" min="1" max="99" step="0.5" style="width:52px;padding:3px 5px;font-size:11px;border:1px solid var(--border2);border-radius:3px;text-align:center" oninput="setItemMarginPct('${hSetupKey}',this.value)"> %`:''}
-          ${h.netRush>0?`Rush: <input type="number" value="${perItemMargins[hRushKey].pct.toFixed(1)}" min="1" max="99" step="0.5" style="width:52px;padding:3px 5px;font-size:11px;border:1px solid var(--border2);border-radius:3px;text-align:center" oninput="setItemMarginPct('${hRushKey}',this.value)"> %`:''}
+          ${h.netItem>0?`Item: <input type="number" value="${perItemMargins[hItemKey].pct.toFixed(2)}" min="0" max="999.99" step="0.01" style="width:75px;padding:3px 5px;font-size:11px;border:1px solid var(--border2);border-radius:3px;text-align:center" oninput="setItemMarginPct('${hItemKey}',this.value)"> %`:''}
+          ${h.netSetup>0?`Setup: <input type="number" value="${perItemMargins[hSetupKey].pct.toFixed(2)}" min="0" max="999.99" step="0.01" style="width:75px;padding:3px 5px;font-size:11px;border:1px solid var(--border2);border-radius:3px;text-align:center" oninput="setItemMarginPct('${hSetupKey}',this.value)"> %`:''}
+          ${h.netRush>0?`Rush: <input type="number" value="${perItemMargins[hRushKey].pct.toFixed(2)}" min="0" max="999.99" step="0.01" style="width:75px;padding:3px 5px;font-size:11px;border:1px solid var(--border2);border-radius:3px;text-align:center" oninput="setItemMarginPct('${hRushKey}',this.value)"> %`:''}
         </div>
       </div>`;
       // Per-line toggles for HG item, setup, rush
@@ -1817,7 +1891,10 @@ function serializeQuote(){
           emb_ltm:v('emb_ltm_'+iid)||0,emb_big:v('emb_big_'+iid)||0,emb_copy_dst:v('emb_copy_dst_'+iid)||0,
           dtf_loc:vs('dtf_loc_'+iid),dtf_sq:v('dtf_sq_'+iid),dtf_colors:vs('dtf_colors_'+iid),
           heat_loc:vs('heat_loc_'+iid),heat_t:vs('heat_t_'+iid),heat_colors:vs('heat_colors_'+iid),
-          vinyl_loc:vs('vinyl_loc_'+iid),vinyl_t:vs('vinyl_t_'+iid),vinyl_colors:vs('vinyl_colors_'+iid)});
+          vinyl_loc:vs('vinyl_loc_'+iid),vinyl_t:vs('vinyl_t_'+iid),vinyl_colors:vs('vinyl_colors_'+iid),
+          imp_shared: document.getElementById('imp_share_chk_'+iid)?.checked||false,
+          imp_share_with: vs('imp_share_with_'+iid)||'',
+          imp_share_qty: v('imp_share_qty_'+iid)||null});
     });}
     data.imps=imps;
     const miscFees=[];
@@ -1955,7 +2032,7 @@ function reimportQuote(input){
     try{
       const q=JSON.parse(e.target.result);
       if(!q.totalSell&&!q.quoteNum){
-        if(statusEl){statusEl.style.background='#fff0f0';statusEl.style.color='var(--red)';statusEl.textContent='Invalid file.';}return;
+        if(statusEl){statusEl.style.background='#fff0f2';statusEl.style.color='var(--red)';statusEl.textContent='Invalid file.';}return;
       }
       if(q._fullQuote&&q.garments){
         if(statusEl)statusEl.textContent='Restoring quote...';
@@ -1969,7 +2046,7 @@ function reimportQuote(input){
         calcAllDebounced();
         if(statusEl){statusEl.style.background='#fff3cd';statusEl.style.color='#7a5500';statusEl.textContent='Page 1 loaded (older format).';}
       }
-    }catch(err){if(statusEl){statusEl.style.background='#fff0f0';statusEl.style.color='var(--red)';statusEl.textContent='Error: '+err.message;}}
+    }catch(err){if(statusEl){statusEl.style.background='#fff0f2';statusEl.style.color='var(--red)';statusEl.textContent='Error: '+err.message;}}
   };
   r.readAsText(file);
 }
@@ -2269,7 +2346,7 @@ function getHGMiscFees(hid,margin){
   return{net,sell,lines};
 }
 function spLocChange(iid){
-  const loc=vsOther('sp_loc_'+iid,'Front');
+  const loc=vsOther('sp_loc_'+iid,'Full front');
   const isSleeve=loc.toLowerCase().includes('sleeve')||loc.toLowerCase().includes('leg');
   const isPocket=loc.toLowerCase().includes('pocket');
   const wrap=document.getElementById('sp_ao_wrap_'+iid);if(!wrap)return;
@@ -2403,6 +2480,41 @@ async function duplicateGarment(gid){
   }
   updateGLbl(newGid);
   calcAll();
+}
+
+function toggleImpShare(iid, gid) {
+  const chk = document.getElementById('imp_share_chk_'+iid);
+  const wrap = document.getElementById('imp_share_wrap_'+iid);
+  if(!wrap) return;
+  wrap.style.display = chk.checked ? '' : 'none';
+  if(chk.checked) populateShareDropdown(iid, gid);
+}
+
+function populateShareDropdown(iid, gid) {
+  const sel = document.getElementById('imp_share_with_'+iid);
+  if(!sel) return;
+  const currentVal = sel.value;
+  sel.innerHTML = '<option value="">Select item...</option>';
+  garments.forEach(g => {
+    if(String(g.id) === String(gid)) return; // skip self
+    const label = [document.getElementById('gdesign_'+g.id)?.value, document.getElementById('gtype_'+g.id)?.value].filter(Boolean).join(' - ') || ('Item '+g.id);
+    const opt = document.createElement('option');
+    opt.value = g.id;
+    opt.textContent = label;
+    if(String(g.id) === String(currentVal)) opt.selected = true;
+    sel.appendChild(opt);
+  });
+}
+
+// Refresh all share dropdowns when garments change
+function refreshAllShareDropdowns() {
+  document.querySelectorAll('[id^="imp_share_chk_"]').forEach(chk => {
+    if(chk.checked) {
+      const iid = chk.id.replace('imp_share_chk_','');
+      const gid = iid.split('_')[0];
+      populateShareDropdown(iid, gid);
+    }
+  });
 }
 </script>
 
