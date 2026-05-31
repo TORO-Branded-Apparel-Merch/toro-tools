@@ -255,11 +255,12 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--red);box
 
 <!-- PAGE 2: GARMENTS -->
 <div class="page" id="page2">
+  <p style="font-size:13px;color:var(--text3);margin-bottom:14px">Add decorated or blank apparel items. Leave empty to skip to hard goods.</p>
   <div id="garments_container"></div>
-  <button class="btn-add" onclick="addGarment()">&#43; Add another apparel item</button>
+  <button class="btn-add" onclick="addGarment()">&#43; Add apparel item</button>
   <div class="actions">
     <button class="btn btn-outline" onclick="goTo(1)">&#8592; Back</button>
-    <div class="actions-right"><button class="btn btn-primary" onclick="if(validatePage(2))goTo(3)">Next: Hard goods &#8594;</button></div>
+    <div class="actions-right"><button class="btn btn-primary" onclick="if(!garments.length||validatePage(2))goTo(3)">Next: Hard goods &#8594;</button></div>
   </div>
 </div>
 
@@ -2190,7 +2191,7 @@ async function startNew(){
   const csEl=document.getElementById('comm_split');if(csEl)csEl.value='standard';
   ['has_am','approval_ack'].forEach(id=>{const e=document.getElementById(id);if(e)e.checked=false;});
   ['rush_pct','bagging','labeling','oop','art_hours'].forEach(id=>{const e=document.getElementById(id);if(e)e.value=0;});
-  goTo(1);addGarment();
+  goTo(1);
   const today=new Date();
   const qd=document.getElementById('quote_date');if(qd)qd.value=today.toISOString().slice(0,10);
   calcAll();
@@ -2305,7 +2306,6 @@ window.pricingMode={app:'margin',hg:'margin'};
 document.addEventListener('focusin',function(e){if(e.target.tagName==='INPUT'&&(e.target.type==='number'||e.target.type==='text'))e.target.select();});
 const _today=new Date();
 const _qd=document.getElementById('quote_date');if(_qd)_qd.value=_today.toISOString().slice(0,10);
-addGarment();
 
 // ── BAM the Bull custom alert/confirm ────────────────────────────────────
 let _bamResolve=null;
