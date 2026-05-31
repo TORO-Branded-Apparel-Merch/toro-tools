@@ -75,12 +75,12 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 .po-field-edit:hover{border-bottom-color:var(--red);}
 .po-field-edit:focus{outline:none;border-bottom:2px solid var(--red);background:#fffaf0;}
 .po-table{width:100%;border-collapse:collapse;font-size:12px;}
-.po-table th{background:#f5f5f7;padding:7px 10px;border:1px solid #ddd;text-align:left;font-weight:700;}
-.po-table td{padding:7px 10px;border:1px solid #ddd;}
+.po-table th{background:#f5f5f7;padding:5px 8px;border:1px solid #ddd;text-align:left;font-weight:700;font-size:11px;}
+.po-table td{padding:5px 8px;border:1px solid #ddd;font-size:12px;}
 .po-table td input{border:none;border-bottom:1px dashed #ddd;background:transparent;font-size:12px;padding:0;width:100%;font-family:inherit;}
 .po-table td input:focus{outline:none;border-bottom:2px solid var(--red);}
-.po-section-title{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--red);margin:16px 0 8px;padding-bottom:5px;border-bottom:2px solid #eee;}
-.po-body{padding:24px;}
+.po-section-title{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--red);margin:10px 0 6px;padding-bottom:4px;border-bottom:2px solid #eee;}
+.po-body{padding:16px;}
 .po-header-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px;}
 .po-info-box{padding:12px;background:#f8f8fa;border-radius:6px;}
 .po-info-label{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:#888;margin-bottom:6px;}
@@ -682,7 +682,7 @@ function buildPOHTML(poNum, d) {
       const rows = (g.szRows||[]).filter(r=>r.qty>0);
       const title = [g.gdesign,g.gtype||g.gtype_other].filter(Boolean).join(' - ')||'Apparel item';
       itemsHTML += `
-        <div style="margin-bottom:16px;padding:14px;border:2px solid #e8e8e8;border-radius:8px;">
+        <div style="margin-bottom:10px;padding:10px;border:1px solid #e8e8e8;border-radius:6px;">
           <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:12px;gap:12px;flex-wrap:wrap;">
             <div style="flex:1;min-width:200px;">
               <div style="font-size:16px;font-weight:800;margin-bottom:6px;"><input class="po-field-edit" style="font-size:16px;font-weight:800;" value="${title}"></div>
@@ -733,7 +733,7 @@ function buildPOHTML(poNum, d) {
       const setup = parseFloat(h.hg_sc)||0;
       const rush = parseFloat(h.hg_rush)||0;
       itemsHTML += `
-        <div style="margin-bottom:16px;padding:14px;border:2px solid #e8e8e8;border-radius:8px;">
+        <div style="margin-bottom:10px;padding:10px;border:1px solid #e8e8e8;border-radius:6px;">
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;font-size:12px;margin-bottom:12px;">
             <div><span style="color:#888;font-size:10px;font-weight:700;text-transform:uppercase;display:block;">Item name</span><input class="po-field-edit" style="font-size:15px;font-weight:800;" value="${h.hg_desc||''}"></div>
             <div><span style="color:#888;font-size:10px;font-weight:700;text-transform:uppercase;display:block;">SKU</span><input class="po-field-edit" value="${h.hg_sku||''}"></div>
@@ -758,7 +758,7 @@ function buildPOHTML(poNum, d) {
 
   const decoHTML = d.type !== 'blank' ? `
     <div class="po-section-title">Decoration specifications</div>
-    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;font-size:12px;padding:12px;background:#f8f8fa;border-radius:6px;margin-bottom:16px;">
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;font-size:11px;padding:8px 10px;background:#f8f8fa;border-radius:5px;margin-bottom:10px;">
       <div><span style="font-size:10px;font-weight:700;text-transform:uppercase;color:#888;display:block;margin-bottom:3px;">Method</span><input class="po-field-edit" style="font-size:13px;font-weight:700;" value="${d.decoMethod}"></div>
       <div><span style="font-size:10px;font-weight:700;text-transform:uppercase;color:#888;display:block;margin-bottom:3px;">Location(s)</span><input class="po-field-edit" style="font-size:13px;font-weight:700;" value="${d.decoLoc}"></div>
       <div><span style="font-size:10px;font-weight:700;text-transform:uppercase;color:#888;display:block;margin-bottom:3px;">Art / design name</span><input class="po-field-edit" style="font-size:13px;font-weight:700;" value="${d.decoArt}"></div>
@@ -784,49 +784,54 @@ function buildPOHTML(poNum, d) {
     </div>` : '';
 
   return `<div class="po-body">
-    <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:20px;padding-bottom:16px;border-bottom:3px solid var(--red);">
-      <div>
-        <div style="font-size:24px;font-weight:800;color:var(--red);">🐂 TORO</div>
-        <div style="font-size:12px;color:#666;margin-top:2px;">Branded Apparel & Merch</div>
-        <div style="font-size:11px;color:#888;margin-top:4px;">4704 Benbrook Hwy · Fort Worth, TX 76116</div>
+    <!-- Compact header: all key info in one tight band -->
+    <div style="display:grid;grid-template-columns:auto 1fr auto;gap:12px;align-items:start;margin-bottom:12px;padding-bottom:10px;border-bottom:3px solid #C41E1E;">
+      <!-- TORO branding - compact -->
+      <div style="min-width:130px;">
+        <div style="font-size:20px;font-weight:800;color:#C41E1E;line-height:1;">🐂 TORO</div>
+        <div style="font-size:10px;color:#888;">Branded Apparel & Merch</div>
+        <div style="font-size:10px;color:#888;">4704 Benbrook Hwy · Fort Worth TX 76116</div>
       </div>
-      <div style="text-align:right;">
-        <div style="font-size:20px;font-weight:800;">PURCHASE ORDER</div>
-        <div style="font-size:16px;font-weight:800;color:var(--red);">${poNum}</div>
-        <div style="font-size:12px;color:#888;">${typeLabels[d.type]||d.typeLabel}</div>
-        <div style="font-size:12px;color:#888;">Date: <input class="po-field-edit" style="font-size:12px;width:140px;" value="${poDate}"></div>
+      <!-- Center: vendor + ship-to side by side -->
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;font-size:11px;">
+        <div style="padding:6px 8px;background:#f8f8fa;border-radius:4px;">
+          <div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:#888;margin-bottom:3px;">Vendor</div>
+          <input class="po-field-edit" style="font-size:12px;font-weight:700;" value="${d.vendorName}">
+          <input class="po-field-edit" style="font-size:11px;color:#555;" value="${d.vendorEmail}">
+          ${d.vendorPhone?`<input class="po-field-edit" style="font-size:11px;color:#555;" value="${d.vendorPhone}">` :''}
+          ${d.vendorAcct?`<div style="font-size:10px;color:#888;">Acct: <input class="po-field-edit" style="font-size:10px;width:100px;" value="${d.vendorAcct}"></div>`:''}
+        </div>
+        <div style="padding:6px 8px;background:#f8f8fa;border-radius:4px;">
+          <div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:#888;margin-bottom:3px;">Ship to</div>
+          ${d.shipToType==='alternate' && d.shipAddr1 ? `
+            <input class="po-field-edit" style="font-size:12px;font-weight:700;" value="${d.shipName||''}">
+            <input class="po-field-edit" style="font-size:11px;" value="${d.shipAddr1||''}">
+            ${d.shipAddr2?`<input class="po-field-edit" style="font-size:11px;" value="${d.shipAddr2}">` : ''}
+            <input class="po-field-edit" style="font-size:11px;" value="${(d.shipCity||'')+', '+(d.shipState||'')+' '+(d.shipZip||'')}">
+          ` : `
+            <div style="font-size:12px;font-weight:700;">TORO Branded Apparel &amp; Merch</div>
+            <div style="font-size:11px;color:#555;">4704 Benbrook Hwy</div>
+            <div style="font-size:11px;color:#555;">Fort Worth, TX 76116</div>
+          `}
+        </div>
+      </div>
+      <!-- Right: PO title + meta -->
+      <div style="text-align:right;min-width:160px;">
+        <div style="font-size:16px;font-weight:800;">PURCHASE ORDER</div>
+        <div style="font-size:14px;font-weight:800;color:#C41E1E;">${poNum}</div>
+        <div style="font-size:10px;color:#888;">${typeLabels[d.type]||d.typeLabel}</div>
+        <div style="font-size:10px;color:#888;margin-top:2px;">Date: <input class="po-field-edit" style="font-size:10px;width:100px;" value="${poDate}"></div>
       </div>
     </div>
 
-    <div class="po-header-grid">
-      <div class="po-info-box">
-        <div class="po-info-label">Vendor</div>
-        <div style="font-size:13px;"><input class="po-field-edit" style="font-size:14px;font-weight:700;" value="${d.vendorName}"></div>
-        <div style="font-size:12px;margin-top:4px;"><input class="po-field-edit" placeholder="email" value="${d.vendorEmail}"></div>
-        ${d.vendorPhone?`<div style="font-size:12px;"><input class="po-field-edit" value="${d.vendorPhone}"></div>`:''}
-        ${d.vendorAcct?`<div style="font-size:11px;color:#888;margin-top:3px;">Acct #: <input class="po-field-edit" style="font-size:11px;width:120px;" value="${d.vendorAcct}"></div>`:''}
-      </div>
-      <div class="po-info-box">
-        <div class="po-info-label">Ship to</div>
-        ${d.shipToType==='alternate' && d.shipAddr1 ? `
-          <input class="po-field-edit" style="font-size:14px;font-weight:700;" value="${d.shipName||''}">
-          <input class="po-field-edit" style="font-size:12px;" value="${d.shipAddr1||''}">
-          ${d.shipAddr2?`<input class="po-field-edit" style="font-size:12px;" value="${d.shipAddr2}">` : ''}
-          <input class="po-field-edit" style="font-size:12px;" value="${(d.shipCity||'')+', '+(d.shipState||'')+' '+(d.shipZip||'')}">
-        ` : `
-          <div style="font-weight:700;font-size:13px;">TORO Branded Apparel &amp; Merch</div>
-          <div style="font-size:12px;margin-top:3px;">4704 Benbrook Hwy</div>
-          <div style="font-size:12px;">Fort Worth, TX 76116</div>
-        `}
-      </div>
-    </div>
-
-    <div class="po-meta-grid">
-      <div class="po-meta-item"><label>Quote #</label><input class="po-field-edit" style="font-weight:700;" value="${d.quoteNum}"></div>
-      <div class="po-meta-item"><label>Client</label><input class="po-field-edit" style="font-weight:700;" value="${[d.clientName,d.clientCompany].filter(Boolean).join(' / ')}"></div>
-      <div class="po-meta-item"><label>In-hands date</label><input class="po-field-edit" style="font-weight:700;" value="${d.ihd}"></div>
-      <div class="po-meta-item"><label>IHD status</label><input class="po-field-edit" style="font-weight:700;color:${d.ihdFirm?'var(--red)':'var(--green)'};" value="${d.ihdFirm?'🔒 FIRM':'Not firm'}"></div>
-    </div>
+    <!-- Quote/order meta bar - single compact row -->
+    <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:6px;margin-bottom:10px;padding:7px 10px;background:#fff8f0;border:1px solid #f0c060;border-radius:5px;font-size:11px;">
+      <div><div style="font-size:9px;font-weight:700;text-transform:uppercase;color:#888;margin-bottom:2px;">Quote #</div><input class="po-field-edit" style="font-weight:700;font-size:11px;" value="${d.quoteNum}"></div>
+      <div><div style="font-size:9px;font-weight:700;text-transform:uppercase;color:#888;margin-bottom:2px;">Client</div><input class="po-field-edit" style="font-weight:700;font-size:11px;" value="${[d.clientName,d.clientCompany].filter(Boolean).join(' / ')}"></div>
+      <div><div style="font-size:9px;font-weight:700;text-transform:uppercase;color:#888;margin-bottom:2px;">In-hands date</div><input class="po-field-edit" style="font-weight:700;font-size:11px;" value="${d.ihd}"></div>
+      <div><div style="font-size:9px;font-weight:700;text-transform:uppercase;color:#888;margin-bottom:2px;">IHD status</div><input class="po-field-edit" style="font-weight:700;font-size:11px;color:${d.ihdFirm?'#C41E1E':'#1a7f4b'};" value="${d.ihdFirm?'🔒 FIRM':'Not firm'}"></div>
+      <div><div style="font-size:9px;font-weight:700;text-transform:uppercase;color:#888;margin-bottom:2px;">Rep</div><input class="po-field-edit" style="font-weight:700;font-size:11px;" value="${d.repName}"></div>
+    </div></div>
 
     <div class="po-section-title">Order items</div>
     ${itemsHTML}
