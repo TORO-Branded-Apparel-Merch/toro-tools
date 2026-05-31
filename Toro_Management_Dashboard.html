@@ -211,15 +211,20 @@ function fbKey(q) {
   return raw.replace(/[.#$\/\[\]\s]/g, '_');
 }
 function quoteTotal(q, type) {
-  let t=0;
-  (q.garments||[]).forEach(g=>(g.sizes||[]).forEach(s=>{ if(s.qty>0) t+=s.qty*(type==='sell'?(s.sellPrice||0):(s.netCost||0)); }));
-  (q.hardGoods||[]).forEach(h=>{ if(h.qty>0) t+=h.qty*(type==='sell'?(h.sellPrice||0):(h.netCost||0)); });
-  return t;
+  // Use direct exported fields first
+  if(type==='sell') return parseFloat(q.totalSell)||parseFloat(q.sell)||0;
+  if(type==='net') return parseFloat(q.totalNetCost)||parseFloat(q.net)||0;
+  return 0;
 }
 function quoteComm(q) {
+  // Use direct exported commission field
+  if(q.totalRepComm!=null) return parseFloat(q.totalRepComm)||0;
+  // Fall back to calculation
   const sell=quoteTotal(q,'sell'), net=quoteTotal(q,'net');
-  const split=parseInt(q.split)||100;
-  return (sell-net)*(split/100)*0.5;
+  const gp=sell-net;
+  const split=q.commissionSplit||q.split||'standard';
+  const repPct=split==='ho_75_25'?0.25:split==='ho_50_50'?0.50:split==='ho_25_75'?0.75:0.50;
+  return gp*repPct;
 }
 function marginBadge(net, sell) {
   if(!sell) return '';
@@ -361,7 +366,9 @@ function renderSummary() {
     qs.forEach(q=>{ totalSell+=quoteTotal(q,'sell'); totalComm+=quoteComm(q); });
     const rl=rep.toLowerCase();
     const repApprovals=approvals[rl]||{};
-    pendingApprovals+=Object.values(repApprovals).filter(a=>a&&a.status==='pending').length;
+    const formalPending=Object.values(repApprovals).filter(a=>a&&a.status==='pending').length;
+    const flaggedPending=(allQuotes[rep]||[]).filter(q=>q.workflowStatus==='needsApproval').length;
+    pendingApprovals+=formalPending+flaggedPending;
   }
   document.getElementById('summary-grid').innerHTML = `
     <div class="summary-card"><div class="sc-val">${totalQuotes}</div><div class="sc-lbl">Total Quotes</div></div>
@@ -376,8 +383,14 @@ function renderApprovals() {
   for(const rep of REPS) {
     const rl = rep.toLowerCase();
     const repApprovals = approvals[rl]||{};
-    const pending = Object.entries(repApprovals).filter(([k,a])=>a&&a.status==='pending');
-    if(pending.length===0) continue;
+    const pendingApprovals = Object.entries(repApprovals).filter(([k,a])=>a&&a.status==='pending');
+    // Also show quotes flagged as needsApproval even if not formally submitted
+    const flaggedQuotes = (allQuotes[rep]||[]).filter(q=>
+      q.workflowStatus==='needsApproval'&&
+      !pendingApprovals.some(([k])=>k===fbKey(q))
+    );
+    const pending = pendingApprovals;
+    if(pending.length===0 && flaggedQuotes.length===0) continue;
     html += `<div class="rep-section">
       <div class="rep-header"><h3>${rep} <span class="badge">${pending.length} pending</span></h3></div>
       <div class="rep-body">`;
@@ -400,6 +413,22 @@ function renderApprovals() {
           <button class="btn btn-gray" style="font-size:11px;color:#aaa;" onclick="dismissApproval('${rl}','${encodeURIComponent(key)}')">✕ Dismiss</button>
         </div>
         ${a.notes && a.notes.length ? `<div class="notes-thread">${a.notes.map(n=>`<div class="note-item"><span class="note-author">${n.author}</span> <span class="note-time">${new Date(n.time).toLocaleString()}</span><br>${n.text}</div>`).join('')}</div>` : ''}
+      </div>`;
+    });
+    // Add flagged quotes (low margin, not yet formally submitted)
+    flaggedQuotes.forEach(q => {
+      const sell=quoteTotal(q,'sell'), net=quoteTotal(q,'net');
+      const margin=sell>0?((sell-net)/sell*100).toFixed(1):q.avgMargin||'—';
+      const qk=fbKey(q);
+      html += `<div class="approval-card" style="border-left:4px solid var(--orange);">
+        <div class="ac-header">
+          <div>
+            <div style="font-weight:700;font-size:14px;">${q.quoteName||q.quoteNum||'Untitled'} <span style="font-size:12px;font-weight:400;color:var(--text3);">#${q.quoteNum||'—'}</span></div>
+            <div class="ac-meta">${[q.clientName,q.clientCompany].filter(Boolean).join(' — ')||'—'} · Rep: ${rep} · Margin: ${margin}% · Sell: $${sell.toFixed(2)}</div>
+            <div class="ac-meta" style="color:var(--orange);">⚠️ Low margin flagged — rep has not yet submitted for approval</div>
+          </div>
+          ${marginBadge(net, sell)}
+        </div>
       </div>`;
     });
     html += '</div></div>';
