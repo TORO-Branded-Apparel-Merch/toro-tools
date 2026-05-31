@@ -468,13 +468,13 @@ function quoteCard(q, locked) {
   let actionBtns='';
   if(!locked){
     if(q.workflowStatus==='readyForSubmission'){
-      actionBtns+='<button class="btn btn-green btn-sm" data-key=""+encKey+"" onclick="submitForCommission(decodeURIComponent(this.dataset.key))">📤 Submit</button>';
-      actionBtns+='<button class="btn btn-gray btn-sm" data-key=""+encKey+"" onclick="undoReady(decodeURIComponent(this.dataset.key))">↩ Undo</button>';
+      actionBtns+='<button class="btn btn-green btn-sm" data-key="'+encKey+'" onclick="submitForCommission(decodeURIComponent(this.dataset.key))">📤 Submit</button>';
+      actionBtns+='<button class="btn btn-gray btn-sm" data-key="'+encKey+'" onclick="undoReady(decodeURIComponent(this.dataset.key))">↩ Undo</button>';
     } else if(q.workflowStatus==='needsApproval'||(q.needsApproval&&q.workflowStatus!=='waitingApproval'&&q.workflowStatus!=='active')){
-      actionBtns+='<button class="btn btn-outline btn-sm" data-key=""+encKey+"" onclick="submitForApproval(decodeURIComponent(this.dataset.key))">🔔 Approval</button>';
+      actionBtns+='<button class="btn btn-outline btn-sm" data-key="'+encKey+'" onclick="submitForApproval(decodeURIComponent(this.dataset.key))">🔔 Approval</button>';
     }
-    actionBtns+='<button class="btn btn-gray btn-sm" data-key=""+encKey+"" onclick="exportToBuilder(decodeURIComponent(this.dataset.key))">✏️ Edit</button>';
-    actionBtns+='<button class="del-btn" data-key=""+encKey+"" onclick="deleteQuote(decodeURIComponent(this.dataset.key))">🗑</button>';
+    actionBtns+='<button class="btn btn-gray btn-sm" data-key="'+encKey+'" onclick="exportToBuilder(decodeURIComponent(this.dataset.key))">✏️ Edit</button>';
+    actionBtns+='<button class="del-btn" data-key="'+encKey+'" onclick="deleteQuote(decodeURIComponent(this.dataset.key))">🗑</button>';
   }
 
   const clientLine = (q.clientName||q.clientCompany) ? '<div style="font-size:12px;font-weight:600;color:var(--text2);">'+(q.clientName||'')+(q.clientName&&q.clientCompany?' — ':'')+(q.clientCompany||'')+'</div>' : '';
