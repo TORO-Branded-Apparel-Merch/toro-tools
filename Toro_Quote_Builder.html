@@ -1306,7 +1306,65 @@ function calcAll(){
     html+=`<div class="cl sell" style="font-size:15px;font-weight:700;padding:8px 0;border-top:1px solid var(--border);margin-top:4px"><span>Garment ${i+1} sell</span><span style="color:var(--green);font-size:16px">${fmt(_garSellDisplay)}</span></div>`;
   });
 
-const _rawOrder = tSell>0 ? ((1-totalNetCost/tSell)*100) : 0;
+  // ── Hard goods pricing HTML ───────────────────────────────────────────
+  if(hgSecs.length>0){
+    hgSecs.forEach(h=>{
+      const hItemKey='hg_'+h.hid+'_item', hSetupKey='hg_'+h.hid+'_setup', hRushKey='hg_'+h.hid+'_rush';
+      if(!perItemMargins[hItemKey]) perItemMargins[hItemKey]={pct:40};
+      if(!perItemMargins[hSetupKey]) perItemMargins[hSetupKey]={pct:20};
+      if(!perItemMargins[hRushKey]) perItemMargins[hRushKey]={pct:20};
+      html+=`<div class="cs-head" style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-top:8px">
+        <span>${h.desc}${h.sku?' <span style="color:var(--text3);font-size:11px">#'+h.sku+'</span>':''}</span>
+        <div style="display:flex;gap:8px;align-items:center;font-size:11px;flex-wrap:wrap">
+          ${h.netItem>0?`<span style="color:var(--text3)">Item:</span>
+            <input type="number" value="${perItemMargins[hItemKey].pct.toFixed(2)}" min="0" max="999.99" step="0.01"
+              data-mg-pct="${hItemKey}" style="width:70px;padding:3px 5px;font-size:11px;font-weight:700;border:1px solid #ccc;border-radius:4px;text-align:center"
+              onchange="setItemMarginPct(${JSON.stringify(hItemKey)},this.value)"> %
+            <input type="number" step="0.01" min="0" data-mg-sell="${hItemKey}"
+              value="${(perItemMargins[hItemKey].pct<100&&h.netItem>0?(h.netItem/h.qty)/(1-perItemMargins[hItemKey].pct/100):0).toFixed(2)}"
+              style="width:80px;padding:3px 5px;font-size:11px;font-weight:700;color:var(--green);border:1px solid #ccc;border-radius:4px;text-align:right"
+              onchange="setItemMarginSell(${JSON.stringify(hItemKey)},this.value,${h.netItem/h.qty})"> $`:''}
+          ${h.netSetup>0?`<span style="color:var(--text3)">Setup:</span>
+            <input type="number" value="${perItemMargins[hSetupKey].pct.toFixed(2)}" min="0" max="999.99" step="0.01"
+              data-mg-pct="${hSetupKey}" style="width:70px;padding:3px 5px;font-size:11px;font-weight:700;border:1px solid #ccc;border-radius:4px;text-align:center"
+              onchange="setItemMarginPct(${JSON.stringify(hSetupKey)},this.value)"> %
+            <input type="number" step="0.01" min="0" data-mg-sell="${hSetupKey}"
+              value="${(perItemMargins[hSetupKey].pct<100&&h.netSetup>0?h.netSetup/(1-perItemMargins[hSetupKey].pct/100):0).toFixed(2)}"
+              style="width:80px;padding:3px 5px;font-size:11px;font-weight:700;color:var(--green);border:1px solid #ccc;border-radius:4px;text-align:right"
+              onchange="setItemMarginSell(${JSON.stringify(hSetupKey)},this.value,${h.netSetup})"> $`:''}
+          ${h.netRush>0?`<span style="color:var(--text3)">Rush:</span>
+            <input type="number" value="${perItemMargins[hRushKey].pct.toFixed(2)}" min="0" max="999.99" step="0.01"
+              data-mg-pct="${hRushKey}" style="width:70px;padding:3px 5px;font-size:11px;font-weight:700;border:1px solid #ccc;border-radius:4px;text-align:center"
+              onchange="setItemMarginPct(${JSON.stringify(hRushKey)},this.value)"> %
+            <input type="number" step="0.01" min="0" data-mg-sell="${hRushKey}"
+              value="${(perItemMargins[hRushKey].pct<100&&h.netRush>0?h.netRush/(1-perItemMargins[hRushKey].pct/100):0).toFixed(2)}"
+              style="width:80px;padding:3px 5px;font-size:11px;font-weight:700;color:var(--green);border:1px solid #ccc;border-radius:4px;text-align:right"
+              onchange="setItemMarginSell(${JSON.stringify(hRushKey)},this.value,${h.netRush})"> $`:''}
+        </div>
+      </div>`;
+      html+=`<div class="cl" style="font-size:12px;color:var(--text3)"><span>HG cost subtotal</span><span>${fmt(h.lt)}</span></div>`;
+      const hEffI=perItemMargins[hItemKey].pct/100;
+      const hEffS=perItemMargins[hSetupKey].pct/100;
+      const hSellI=hEffI<1?h.netItem/(1-hEffI):0;
+      const hSellS=hEffS<1?h.netSetup/(1-hEffS):0;
+      totalSellAmt+=(hSellI+hSellS);
+      html+=`<div class="cl sell" style="font-size:15px;font-weight:700;padding:8px 0;border-top:1px solid var(--border);margin-top:4px"><span>${h.desc} sell</span><span style="color:var(--green);font-size:16px">${fmt(hSellI+hSellS)}</span></div>`;
+    });
+  }
+
+  // ── Order totals ──────────────────────────────────────────────────────
+  if(art>0){
+    const artSellAmt=margin<1?art/(1-margin):0;
+    totalNetCost+=art; totalSellAmt+=artSellAmt;
+    html+=`<div class="cl"><span>Art (${v('art_hours',0)} hrs × $40)</span><span>net ${fmt(art)} → sell ${fmt(artSellAmt)}</span></div>`;
+  }
+  if(rush>0){
+    const rushSellAmt=margin<1?rushAmt/(1-margin):0;
+    totalNetCost+=rushAmt; totalSellAmt+=rushSellAmt;
+    html+=`<div class="cl"><span>Rush charge (${Math.round(rush*100)}%)</span><span>net ${fmt(rushAmt)} → sell ${fmt(rushSellAmt)}</span></div>`;
+  }
+
+  const _rawOrder = tSell>0 ? ((1-grand/tSell)*100) : 0;
   const orderMgPct = isFinite(_rawOrder) ? _rawOrder : 0;
 
   html+=`<div style="border-top:2px solid var(--border);margin:10px 0"></div>`;
