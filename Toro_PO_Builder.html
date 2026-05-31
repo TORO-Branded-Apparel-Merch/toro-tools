@@ -159,6 +159,33 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
         <div class="field"><label>PO date</label><input type="date" id="po-date"></div>
       </div>
 
+      <div style="border-top:1px solid var(--border);margin:16px 0;"></div>
+      <div style="font-size:13px;font-weight:700;color:var(--text2);margin-bottom:10px;">Ship to</div>
+      <div style="display:flex;gap:16px;margin-bottom:12px;">
+        <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:13px;">
+          <input type="radio" name="ship-to-type" value="toro" checked onchange="toggleShipTo(this.value)"
+            style="width:15px;height:15px;accent-color:var(--red);">
+          TORO — 4704 Benbrook Hwy, Fort Worth, TX 76116
+        </label>
+        <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:13px;">
+          <input type="radio" name="ship-to-type" value="alternate" onchange="toggleShipTo(this.value)"
+            style="width:15px;height:15px;accent-color:var(--red);">
+          Alternate address
+        </label>
+      </div>
+      <div id="ship-to-alt" style="display:none;">
+        <div class="row2">
+          <div class="field"><label>Ship to — Name / Company <span class="req">*</span></label><input type="text" id="ship-name" placeholder="Recipient name or company"></div>
+          <div class="field"><label>Address line 1 <span class="req">*</span></label><input type="text" id="ship-addr1" placeholder="Street address"></div>
+        </div>
+        <div class="row3">
+          <div class="field"><label>City <span class="req">*</span></label><input type="text" id="ship-city" placeholder="City"></div>
+          <div class="field"><label>State <span class="req">*</span></label><input type="text" id="ship-state" placeholder="TX" style="text-transform:uppercase;"></div>
+          <div class="field"><label>ZIP <span class="req">*</span></label><input type="text" id="ship-zip" placeholder="00000"></div>
+        </div>
+        <div class="field"><label>Address line 2</label><input type="text" id="ship-addr2" placeholder="Suite, floor, etc. (optional)"></div>
+      </div>
+
       <!-- Decoration (hidden for blank) -->
       <div id="deco-wrap" class="hidden">
         <div style="border-top:1px solid var(--border);margin:16px 0;"></div>
@@ -285,6 +312,71 @@ function initBuilder() {
   dz.style.display = 'none';
   document.getElementById('builder').classList.remove('hidden');
   buildItemsRef();
+  checkSharedImprints();
+}
+
+function checkSharedImprints() {
+  const q = quoteData;
+  const garments = q.garments||[];
+  if(garments.length < 2) return;
+
+  // Find groups of garments sharing imprints
+  const groups = [];
+  garments.forEach((g, gi) => {
+    (g.imps||[]).forEach(imp => {
+      if(!imp.imp_shared || !imp.imp_share_with) return;
+      const sharedGid = imp.imp_share_with;
+      const sharedG = garments.find(x=>String(x.id)===String(sharedGid));
+      if(!sharedG) return;
+      const gTitle = [g.gdesign, g.gtype].filter(Boolean).join(' - ')||('Item '+gi);
+      const sTitle = [sharedG.gdesign, sharedG.gtype].filter(Boolean).join(' - ')||('Item '+sharedGid);
+      const already = groups.find(grp => grp.indices.includes(gi));
+      if(already) {
+        const sIdx = garments.indexOf(sharedG);
+        if(!already.indices.includes(sIdx)) already.indices.push(sIdx);
+      } else {
+        const sIdx = garments.indexOf(sharedG);
+        groups.push({indices:[gi, sIdx], titles:[gTitle, sTitle]});
+      }
+    });
+  });
+
+  if(!groups.length) return;
+
+  // Show suggestion banner
+  const banner = document.createElement('div');
+  banner.style.cssText = 'background:#fff8e1;border:1px solid #ffd54f;border-radius:8px;padding:14px 16px;margin-bottom:16px;';
+  let html = '<div style="font-size:13px;font-weight:700;color:#b8860b;margin-bottom:8px;">🔗 Shared screens detected</div>';
+  groups.forEach(grp => {
+    const indices = grp.indices.map(i => 'g_'+i).join(',');
+    html += `<div style="font-size:13px;margin-bottom:8px;">
+      <strong>${grp.titles.join(' + ')}</strong> share screens — these should be on the same PO.
+      <button onclick="applySharedGroup([${grp.indices.join(',')}])" 
+        style="margin-left:10px;padding:4px 10px;background:var(--red);color:#fff;border:none;border-radius:4px;cursor:pointer;font-size:12px;font-weight:700;">
+        Select these items
+      </button>
+    </div>`;
+  });
+  html += '<div style="font-size:11px;color:#888;margin-top:4px;">You can override this by selecting items manually below.</div>';
+  banner.innerHTML = html;
+
+  const itemsRefCard = document.getElementById('items-ref').closest('.card');
+  itemsRefCard.after(banner);
+}
+
+function applySharedGroup(indices) {
+  // Select the PO type (decorated apparel) and pre-select the items
+  document.querySelector('.po-type-btn')?.click(); // click first type btn as default
+  selectType('decorated', '🖨️ Decorated Apparel / Accessories', document.querySelectorAll('.po-type-btn')[1]);
+  // Pre-check the items
+  setTimeout(() => {
+    indices.forEach(idx => {
+      const chk = document.getElementById('chk_g_'+idx);
+      if(chk && !chk.checked) {
+        chk.click();
+      }
+    });
+  }, 100);
 }
 
 // ── Items reference ────────────────────────────────────────────────────────
@@ -537,10 +629,34 @@ function captureFormData() {
       const allPms = (g?.imps||[]).flatMap(imp=>imp.sp_pms_colors||[]).filter(Boolean);
       return allPms.join(', ');
     })(),
+    sharedNote: (()=>{
+      const garments = quoteData.garments||[];
+      const appItems = selectedItems.filter(i=>i.type==='g');
+      if(appItems.length < 2) return '';
+      // Check if any selected items share imprints
+      const titles = appItems.map(item => {
+        const g = garments[item.idx];
+        return [g?.gdesign, g?.gtype].filter(Boolean).join(' - ')||('Item '+item.idx);
+      });
+      // Check for shared imprint flags
+      const hasShared = appItems.some(item => {
+        const g = garments[item.idx];
+        return (g?.imps||[]).some(imp => imp.imp_shared && imp.imp_share_with);
+      });
+      if(!hasShared) return '';
+      return 'Screens shared across: '+titles.join(' + ')+'. Setup charged to '+titles[0]+' only. Run charge applies per item.';
+    })(),
     proofReq: document.querySelector('input[name="proof"]:checked')?.value||'',
     proofNotes: document.getElementById('proof-notes').value,
     repName: document.getElementById('rep-name').value,
     repEmail: document.getElementById('rep-email').value,
+    shipToType: document.querySelector('input[name="ship-to-type"]:checked')?.value||'toro',
+    shipName: document.getElementById('ship-name')?.value||'',
+    shipAddr1: document.getElementById('ship-addr1')?.value||'',
+    shipAddr2: document.getElementById('ship-addr2')?.value||'',
+    shipCity: document.getElementById('ship-city')?.value||'',
+    shipState: document.getElementById('ship-state')?.value||'',
+    shipZip: document.getElementById('ship-zip')?.value||'',
     orderNotes: document.getElementById('order-notes').value,
     type: currentType, typeLabel: currentTypeLabel,
     items: selectedItems.map(item => {
@@ -651,6 +767,7 @@ function buildPOHTML(poNum, d) {
       ${d.specialtyInk?`<div><span style="font-size:10px;font-weight:700;text-transform:uppercase;color:#888;display:block;margin-bottom:3px;">Specialty ink</span><input class="po-field-edit" style="font-size:13px;font-weight:700;" value="${d.specialtyInk}"></div>`:''}
       ${d.pmsColors?`<div><span style="font-size:10px;font-weight:700;text-transform:uppercase;color:#888;display:block;margin-bottom:3px;">PMS colors</span><input class="po-field-edit" style="font-size:13px;font-weight:700;" value="${d.pmsColors}"></div>`:''}
       ${d.decoNotes?`<div><span style="font-size:10px;font-weight:700;text-transform:uppercase;color:#888;display:block;margin-bottom:3px;">Special instructions</span><input class="po-field-edit" style="font-size:13px;" value="${d.decoNotes}"></div>`:''}
+      ${d.sharedNote?`<div style="grid-column:span 3;margin-top:4px;padding:8px 10px;background:#fff8e1;border:1px solid #ffd54f;border-radius:4px;font-size:12px;color:#b8860b;">🔗 ${d.sharedNote}</div>`:''}
     </div>` : '';
 
   const proofHTML = d.type !== 'blank' && d.proofReq ? `
@@ -691,9 +808,16 @@ function buildPOHTML(poNum, d) {
       </div>
       <div class="po-info-box">
         <div class="po-info-label">Ship to</div>
-        <div style="font-weight:700;font-size:13px;">TORO Branded Apparel & Merch</div>
-        <div style="font-size:12px;margin-top:3px;">4704 Benbrook Hwy</div>
-        <div style="font-size:12px;">Fort Worth, TX 76116</div>
+        ${d.shipToType==='alternate' && d.shipAddr1 ? `
+          <input class="po-field-edit" style="font-size:14px;font-weight:700;" value="${d.shipName||''}">
+          <input class="po-field-edit" style="font-size:12px;" value="${d.shipAddr1||''}">
+          ${d.shipAddr2?`<input class="po-field-edit" style="font-size:12px;" value="${d.shipAddr2}">` : ''}
+          <input class="po-field-edit" style="font-size:12px;" value="${(d.shipCity||'')+', '+(d.shipState||'')+' '+(d.shipZip||'')}">
+        ` : `
+          <div style="font-weight:700;font-size:13px;">TORO Branded Apparel &amp; Merch</div>
+          <div style="font-size:12px;margin-top:3px;">4704 Benbrook Hwy</div>
+          <div style="font-size:12px;">Fort Worth, TX 76116</div>
+        `}
       </div>
     </div>
 
@@ -811,6 +935,17 @@ function resetForm() {
   document.getElementById('step2').classList.add('hidden');
   document.getElementById('step3').classList.add('hidden');
   clearAutoFills();
+}
+
+function toggleShipTo(val) {
+  const altDiv = document.getElementById('ship-to-alt');
+  if(!altDiv) return;
+  altDiv.style.display = val === 'alternate' ? '' : 'none';
+  // Toggle required on alternate fields
+  ['ship-name','ship-addr1','ship-city','ship-state','ship-zip'].forEach(id => {
+    const el = document.getElementById(id);
+    if(el) el.required = (val === 'alternate');
+  });
 }
 </script>
 </body>
