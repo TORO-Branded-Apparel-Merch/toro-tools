@@ -1,0 +1,673 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TORO PO Builder</title>
+<style>
+:root{
+  --red:#C41E1E;--red-dark:#9e1818;--red-light:#fff0f0;
+  --green:#1a7f4b;--bg:#F5F5F7;--surface:#fff;
+  --border:#E2E3E6;--border2:#ccc;
+  --text:#1a1a1f;--text2:#444;--text3:#888;
+  --radius:10px;--radius-sm:6px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;}
+.header{background:var(--red);color:#fff;padding:14px 24px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100;box-shadow:0 2px 8px rgba(0,0,0,.15);}
+.header h1{font-size:18px;font-weight:700;}
+.container{max-width:900px;margin:0 auto;padding:24px 16px;}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:24px;margin-bottom:20px;}
+.card-title{font-size:15px;font-weight:700;color:var(--red);text-transform:uppercase;letter-spacing:.06em;margin-bottom:16px;padding-bottom:10px;border-bottom:2px solid var(--border);}
+.drop-zone{border:2px dashed var(--border);border-radius:var(--radius);padding:40px;text-align:center;color:var(--text3);cursor:pointer;transition:all .15s;background:#fafafa;margin-bottom:20px;}
+.drop-zone:hover,.drop-zone.over{border-color:var(--red);color:var(--red);background:var(--red-light);}
+.drop-zone h2{font-size:18px;font-weight:700;margin-bottom:8px;}
+.drop-zone p{font-size:13px;}
+.field{margin-bottom:14px;}
+.field label{display:block;font-size:12px;font-weight:700;color:var(--text2);margin-bottom:5px;text-transform:uppercase;letter-spacing:.04em;}
+.field input,.field select,.field textarea{width:100%;padding:9px 12px;border:1px solid var(--border2);border-radius:var(--radius-sm);font-size:13px;font-family:inherit;color:var(--text);}
+.field input:focus,.field select:focus,.field textarea:focus{outline:none;border-color:var(--red);}
+.field textarea{resize:vertical;min-height:70px;}
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
+.row3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;}
+.po-type-btns{display:flex;gap:10px;margin-bottom:20px;flex-wrap:wrap;}
+.po-type-btn{padding:10px 18px;border-radius:var(--radius-sm);border:2px solid var(--border);background:#fff;font-size:13px;font-weight:700;cursor:pointer;color:var(--text2);transition:all .15s;}
+.po-type-btn:hover{border-color:var(--red);color:var(--red);}
+.po-type-btn.active{background:var(--red);color:#fff;border-color:var(--red);}
+.item-check{display:flex;align-items:flex-start;gap:10px;padding:12px;border:1px solid var(--border);border-radius:var(--radius-sm);margin-bottom:8px;cursor:pointer;transition:all .15s;}
+.item-check:hover{border-color:var(--red);background:var(--red-light);}
+.item-check.selected{border-color:var(--red);background:var(--red-light);}
+.item-check input[type=checkbox]{margin-top:2px;width:16px;height:16px;accent-color:var(--red);flex-shrink:0;}
+.item-check-info{flex:1;}
+.item-check-name{font-weight:700;font-size:13px;}
+.item-check-sub{font-size:11px;color:var(--text3);margin-top:2px;}
+.sz-table{width:100%;border-collapse:collapse;font-size:12px;margin-top:8px;}
+.sz-table th{background:#f5f5f7;padding:5px 8px;text-align:center;font-weight:700;border:1px solid var(--border);}
+.sz-table td{padding:5px 8px;text-align:center;border:1px solid var(--border);}
+.proof-options{display:flex;flex-direction:column;gap:8px;}
+.proof-option{display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;}
+.proof-option input{width:16px;height:16px;accent-color:var(--red);}
+.btn{padding:10px 20px;border-radius:var(--radius-sm);font-size:13px;font-weight:700;cursor:pointer;border:none;transition:all .15s;}
+.btn-red{background:var(--red);color:#fff;}
+.btn-red:hover{background:var(--red-dark);}
+.btn-outline{background:#fff;color:var(--red);border:2px solid var(--red);}
+.btn-outline:hover{background:var(--red-light);}
+.btn-gray{background:#f0f0f0;color:var(--text2);border:1px solid var(--border);}
+.actions{display:flex;gap:10px;justify-content:flex-end;margin-top:20px;}
+.req{color:var(--red);}
+.section-hidden{display:none;}
+.po-counter{font-size:12px;color:var(--text3);margin-left:8px;}
+
+/* Print / PDF styles */
+@media print{
+  .header,.drop-zone,.po-type-btns,.actions,.no-print{display:none!important;}
+  .container{max-width:100%;padding:0;}
+  .card{border:none;border-radius:0;padding:16px 0;margin-bottom:12px;page-break-inside:avoid;}
+  body{background:#fff;}
+  .po-preview{display:block!important;}
+}
+.po-preview{display:none;}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>🐂 TORO PO Builder</h1>
+  <div style="font-size:12px;opacity:.8;" id="quote-label">No quote loaded</div>
+</div>
+
+<div class="container">
+
+  <!-- Drop zone -->
+  <div class="drop-zone" id="drop-zone" onclick="document.getElementById('file-input').click()">
+    <h2>📂 Drop quote JSON here</h2>
+    <p>Or click to browse — export the quote JSON from the rep portal using the Edit button</p>
+    <input type="file" id="file-input" accept=".json" style="display:none" onclick="event.stopPropagation()">
+  </div>
+
+  <!-- PO Builder (hidden until quote loaded) -->
+  <div id="builder" class="section-hidden">
+
+    <!-- Quote info summary -->
+    <div class="card" id="quote-summary-card">
+      <div class="card-title">Quote details</div>
+      <div class="row3">
+        <div><div style="font-size:11px;color:var(--text3);font-weight:700;text-transform:uppercase;letter-spacing:.04em;">Quote #</div><div style="font-size:15px;font-weight:700;" id="disp-quote-num">—</div></div>
+        <div><div style="font-size:11px;color:var(--text3);font-weight:700;text-transform:uppercase;letter-spacing:.04em;">Quote name</div><div style="font-size:15px;font-weight:700;" id="disp-quote-name">—</div></div>
+        <div><div style="font-size:11px;color:var(--text3);font-weight:700;text-transform:uppercase;letter-spacing:.04em;">Client</div><div style="font-size:15px;font-weight:700;" id="disp-client">—</div></div>
+      </div>
+      <div class="row3" style="margin-top:12px;">
+        <div><div style="font-size:11px;color:var(--text3);font-weight:700;text-transform:uppercase;letter-spacing:.04em;">In-hands date</div><div style="font-size:14px;font-weight:700;" id="disp-ihd">—</div></div>
+        <div><div style="font-size:11px;color:var(--text3);font-weight:700;text-transform:uppercase;letter-spacing:.04em;">IHD status</div><div style="font-size:14px;font-weight:700;" id="disp-ihd-firm">—</div></div>
+        <div><div style="font-size:11px;color:var(--text3);font-weight:700;text-transform:uppercase;letter-spacing:.04em;">POs generated</div><div style="font-size:14px;font-weight:700;" id="disp-po-count">0</div></div>
+      </div>
+    </div>
+
+    <!-- PO Type selection -->
+    <div class="card">
+      <div class="card-title">Step 1 — Select PO type</div>
+      <div class="po-type-btns">
+        <button class="po-type-btn" onclick="selectType('blank-apparel')">🧥 Blank Apparel</button>
+        <button class="po-type-btn" onclick="selectType('decorated-apparel')">🖨️ Decorated Apparel / Accessories</button>
+        <button class="po-type-btn" onclick="selectType('hard-goods')">🎁 Hard Goods</button>
+      </div>
+    </div>
+
+    <!-- Item selection -->
+    <div class="card section-hidden" id="item-selection-card">
+      <div class="card-title">Step 2 — Select items for this PO</div>
+      <p style="font-size:12px;color:var(--text3);margin-bottom:12px;">Check all items going to the same vendor on this PO. Items from the same vendor can share a PO.</p>
+      <div id="item-list"></div>
+    </div>
+
+    <!-- Vendor & order details -->
+    <div class="card section-hidden" id="details-card">
+      <div class="card-title">Step 3 — Vendor & order details</div>
+      <div class="row3">
+        <div class="field"><label>Vendor name <span class="req">*</span></label><input type="text" id="vendor-name" placeholder="e.g. SanMar, S&S Activewear"></div>
+        <div class="field"><label>Vendor contact name <span class="req">*</span></label><input type="text" id="vendor-contact" placeholder="Contact person"></div>
+        <div class="field"><label>Vendor email <span class="req">*</span></label><input type="email" id="vendor-email" placeholder="vendor@example.com"></div>
+      </div>
+      <div class="row2">
+        <div class="field"><label>Vendor phone</label><input type="text" id="vendor-phone" placeholder="(000) 000-0000"></div>
+        <div class="field"><label>Vendor account #</label><input type="text" id="vendor-account" placeholder="Account number (if applicable)"></div>
+      </div>
+
+      <!-- Decoration section (hidden for blank apparel) -->
+      <div id="deco-section" class="section-hidden">
+        <div style="border-top:1px solid var(--border);margin:16px 0;"></div>
+        <div style="font-size:13px;font-weight:700;color:var(--text2);margin-bottom:12px;">Decoration details</div>
+        <div class="row3">
+          <div class="field"><label>Decoration method <span class="req">*</span></label>
+            <select id="deco-method">
+              <option value="">Select method</option>
+              <option>Screen printing</option>
+              <option>Embroidery</option>
+              <option>DTF</option>
+              <option>Heat press</option>
+              <option>Laser engraving</option>
+              <option>Pad printing</option>
+              <option>Digital print</option>
+              <option>Other</option>
+            </select>
+          </div>
+          <div class="field"><label>Imprint location(s) <span class="req">*</span></label><input type="text" id="deco-location" placeholder="e.g. Left chest, full back"></div>
+          <div class="field"><label>Art / design name</label><input type="text" id="deco-art" placeholder="Pre-filled from quote" readonly style="background:#f8f8fa;"></div>
+        </div>
+        <div class="row3">
+          <div class="field"><label>Color count / thread colors</label><input type="text" id="deco-colors" placeholder="e.g. 2 colors, 3 thread colors"></div>
+          <div class="field"><label>PMS colors (if applicable)</label><input type="text" id="deco-pms" placeholder="e.g. PMS 485 C, PMS 286 C"></div>
+          <div class="field"><label>Special deco instructions</label><input type="text" id="deco-notes" placeholder="Any special instructions"></div>
+        </div>
+      </div>
+
+      <!-- Proof section -->
+      <div style="border-top:1px solid var(--border);margin:16px 0;" id="proof-divider" class="section-hidden"></div>
+      <div id="proof-section" class="section-hidden">
+        <div style="font-size:13px;font-weight:700;color:var(--text2);margin-bottom:12px;">Proof requirement <span class="req">*</span></div>
+        <div class="proof-options">
+          <label class="proof-option"><input type="radio" name="proof" value="digital"> Digital proof</label>
+          <label class="proof-option"><input type="radio" name="proof" value="pre-production"> Pre-production sample</label>
+          <label class="proof-option"><input type="radio" name="proof" value="none"> No proof required — proceed to production</label>
+        </div>
+        <div class="field" style="margin-top:12px;">
+          <label>Proof instructions (optional)</label>
+          <textarea id="proof-notes" placeholder="e.g. Please send digital proof to the email below. Do not begin production until written approval is received."></textarea>
+        </div>
+      </div>
+
+      <!-- Rep contact -->
+      <div style="border-top:1px solid var(--border);margin:16px 0;"></div>
+      <div style="font-size:13px;font-weight:700;color:var(--text2);margin-bottom:12px;">Rep contact</div>
+      <div class="row2">
+        <div class="field"><label>Rep name <span class="req">*</span></label><input type="text" id="rep-name" placeholder="Your name"></div>
+        <div class="field"><label>Rep email <span class="req">*</span></label><input type="email" id="rep-email" placeholder="your@email.com"></div>
+      </div>
+
+      <!-- Order notes -->
+      <div style="border-top:1px solid var(--border);margin:16px 0;"></div>
+      <div class="field"><label>Additional notes / special instructions</label><textarea id="order-notes" placeholder="Rush instructions, packaging notes, shipping requirements, etc."></textarea></div>
+    </div>
+
+    <div class="actions no-print">
+      <button class="btn btn-gray" onclick="resetBuilder()">↩ Start over</button>
+      <button class="btn btn-outline" onclick="previewPO()">👁 Preview PO</button>
+      <button class="btn btn-red" onclick="generatePO()">📄 Generate PDF</button>
+    </div>
+
+  </div>
+
+  <!-- PO Preview (shown before print) -->
+  <div id="po-preview-area" class="section-hidden"></div>
+
+</div>
+
+<script>
+// ── State ──────────────────────────────────────────────────────────────────
+let quoteData = null;
+let selectedType = null;
+let selectedItems = [];
+let poCount = 0;
+
+// ── Drop zone setup ────────────────────────────────────────────────────────
+const dz = document.getElementById('drop-zone');
+const fi = document.getElementById('file-input');
+
+dz.addEventListener('dragover', e => { e.preventDefault(); dz.classList.add('over'); });
+dz.addEventListener('dragleave', () => dz.classList.remove('over'));
+dz.addEventListener('drop', e => {
+  e.preventDefault(); dz.classList.remove('over');
+  const f = e.dataTransfer.files[0];
+  if(f && f.name.endsWith('.json')) loadQuote(f);
+});
+fi.addEventListener('change', () => { if(fi.files[0]) loadQuote(fi.files[0]); fi.value=''; });
+
+function loadQuote(file) {
+  const r = new FileReader();
+  r.onload = e => {
+    try {
+      const q = JSON.parse(e.target.result);
+      if(!q.quoteNum && !q.quoteName) { alert('This does not appear to be a valid TORO quote file.'); return; }
+      quoteData = q;
+      poCount = parseInt(localStorage.getItem('toro_po_count_'+q.quoteNum)||'0');
+      initBuilder();
+    } catch(ex) { alert('Error reading file: '+ex.message); }
+  };
+  r.readAsText(file);
+}
+
+function initBuilder() {
+  const q = quoteData;
+  document.getElementById('quote-label').textContent = 'Quote #'+(q.quoteNum||'')+(q.quoteName?' — '+q.quoteName:'');
+  document.getElementById('disp-quote-num').textContent = q.quoteNum||'—';
+  document.getElementById('disp-quote-name').textContent = q.quoteName||'—';
+  document.getElementById('disp-client').textContent = [q.clientName, q.clientCompany].filter(Boolean).join(' — ')||'—';
+  document.getElementById('disp-ihd').textContent = q.ihd||'—';
+  document.getElementById('disp-ihd-firm').textContent = q.ihdFirm ? '🔒 FIRM' : 'Not firm';
+  document.getElementById('disp-po-count').textContent = poCount;
+  document.getElementById('drop-zone').style.display = 'none';
+  document.getElementById('builder').classList.remove('section-hidden');
+}
+
+// ── PO Type ────────────────────────────────────────────────────────────────
+function selectType(type) {
+  selectedType = type;
+  selectedItems = [];
+  document.querySelectorAll('.po-type-btn').forEach(b => b.classList.remove('active'));
+  event.currentTarget.classList.add('active');
+
+  // Show/hide sections
+  document.getElementById('item-selection-card').classList.remove('section-hidden');
+  document.getElementById('details-card').classList.remove('section-hidden');
+
+  // Decoration section
+  const decoSec = document.getElementById('deco-section');
+  const proofSec = document.getElementById('proof-section');
+  const proofDiv = document.getElementById('proof-divider');
+  if(type === 'blank-apparel') {
+    decoSec.classList.add('section-hidden');
+    proofSec.classList.add('section-hidden');
+    proofDiv.classList.add('section-hidden');
+  } else {
+    decoSec.classList.remove('section-hidden');
+    proofSec.classList.remove('section-hidden');
+    proofDiv.classList.remove('section-hidden');
+  }
+
+  buildItemList(type);
+}
+
+function buildItemList(type) {
+  const list = document.getElementById('item-list');
+  list.innerHTML = '';
+  const q = quoteData;
+  const garments = q.garments || [];
+  const hgs = q.hardGoods || [];
+
+  if(type === 'hard-goods') {
+    if(!hgs.length) { list.innerHTML = '<p style="color:var(--text3);font-size:13px;">No hard goods found in this quote.</p>'; return; }
+    hgs.forEach((h, i) => {
+      const div = makeItemCheck('hg_'+i, h.hg_desc||'Hard good', [
+        h.hg_vendor ? 'Vendor: '+h.hg_vendor : '',
+        h.hg_sku ? 'SKU: '+h.hg_sku : '',
+        h.hg_item_color ? 'Color: '+h.hg_item_color : '',
+        h.hg_qty ? 'Qty: '+h.hg_qty : '',
+      ].filter(Boolean).join(' · '), 'hg', i);
+      list.appendChild(div);
+    });
+  } else {
+    if(!garments.length) { list.innerHTML = '<p style="color:var(--text3);font-size:13px;">No apparel items found in this quote.</p>'; return; }
+    garments.forEach((g, i) => {
+      const totalQty = (g.szRows||[]).reduce((a,r)=>a+r.qty,0);
+      const div = makeItemCheck('g_'+i, (g.gdesign||g.gtype||'Garment '+i), [
+        g.gvendor ? 'Vendor: '+g.gvendor : '',
+        g.gbrand ? g.gbrand : '',
+        g.gsku ? 'SKU: '+g.gsku : '',
+        g.gcolor_name ? 'Color: '+g.gcolor_name : '',
+        totalQty ? 'Total qty: '+totalQty : '',
+      ].filter(Boolean).join(' · '), 'g', i);
+
+      // Add design name for decorated
+      if(type === 'decorated-apparel' && g.gdesign) {
+        document.getElementById('deco-art').value = g.gdesign;
+      }
+      list.appendChild(div);
+    });
+  }
+}
+
+function makeItemCheck(id, name, sub, itemType, idx) {
+  const div = document.createElement('div');
+  div.className = 'item-check';
+  div.dataset.type = itemType;
+  div.dataset.idx = idx;
+  div.innerHTML = `
+    <input type="checkbox" id="chk_${id}" onchange="toggleItem(this,'${itemType}',${idx})">
+    <div class="item-check-info">
+      <div class="item-check-name">${name}</div>
+      <div class="item-check-sub">${sub}</div>
+    </div>`;
+  div.onclick = e => { if(e.target.tagName!=='INPUT') div.querySelector('input').click(); };
+  return div;
+}
+
+function toggleItem(chk, type, idx) {
+  const key = type+'_'+idx;
+  if(chk.checked) {
+    selectedItems.push({type, idx, key});
+    chk.closest('.item-check').classList.add('selected');
+    // Auto-fill design name if decorated apparel
+    if(selectedType === 'decorated-apparel') {
+      const g = (quoteData.garments||[])[idx];
+      if(g && g.gdesign) document.getElementById('deco-art').value = g.gdesign;
+    }
+    if(selectedType === 'hard-goods') {
+      const h = (quoteData.hardGoods||[])[idx];
+      if(h && h.hg_design) document.getElementById('deco-art').value = h.hg_design;
+    }
+  } else {
+    selectedItems = selectedItems.filter(i=>i.key!==key);
+    chk.closest('.item-check').classList.remove('selected');
+  }
+}
+
+// ── Validation ─────────────────────────────────────────────────────────────
+function validatePO() {
+  const required = [
+    ['vendor-name','Vendor name'],
+    ['vendor-contact','Vendor contact'],
+    ['vendor-email','Vendor email'],
+    ['rep-name','Rep name'],
+    ['rep-email','Rep email'],
+  ];
+  if(selectedType !== 'blank-apparel') {
+    required.push(['deco-method','Decoration method']);
+    required.push(['deco-location','Imprint location']);
+  }
+  for(const [id, label] of required) {
+    const el = document.getElementById(id);
+    if(!el.value.trim()) {
+      el.style.borderColor = 'var(--red)';
+      el.focus();
+      alert('Please fill in: ' + label);
+      return false;
+    }
+    el.style.borderColor = '';
+  }
+  if(!selectedItems.length) { alert('Please select at least one item for this PO.'); return false; }
+  if(selectedType !== 'blank-apparel') {
+    const proof = document.querySelector('input[name="proof"]:checked');
+    if(!proof) { alert('Please select a proof requirement.'); return false; }
+  }
+  return true;
+}
+
+// ── PO Generation ──────────────────────────────────────────────────────────
+function fmt(n){return'$'+(parseFloat(n)||0).toFixed(2);}
+
+function buildPOHTML(poNum) {
+  const q = quoteData;
+  const type = selectedType;
+  const vendorName = document.getElementById('vendor-name').value.trim();
+  const vendorContact = document.getElementById('vendor-contact').value.trim();
+  const vendorEmail = document.getElementById('vendor-email').value.trim();
+  const vendorPhone = document.getElementById('vendor-phone').value.trim();
+  const vendorAccount = document.getElementById('vendor-account').value.trim();
+  const repName = document.getElementById('rep-name').value.trim();
+  const repEmail = document.getElementById('rep-email').value.trim();
+  const orderNotes = document.getElementById('order-notes').value.trim();
+  const proofVal = document.querySelector('input[name="proof"]:checked')?.value||'';
+  const proofNotes = document.getElementById('proof-notes').value.trim();
+  const decoMethod = document.getElementById('deco-method')?.value||'';
+  const decoLocation = document.getElementById('deco-location')?.value.trim()||'';
+  const decoArt = document.getElementById('deco-art')?.value.trim()||'';
+  const decoColors = document.getElementById('deco-colors')?.value.trim()||'';
+  const decoPMS = document.getElementById('deco-pms')?.value.trim()||'';
+  const decoNotes = document.getElementById('deco-notes')?.value.trim()||'';
+
+  const proofLabels = {'digital':'Digital proof','pre-production':'Pre-production sample','none':'No proof required — proceed to production'};
+  const typeLabels = {'blank-apparel':'Blank Apparel','decorated-apparel':'Decorated Apparel / Accessories','hard-goods':'Hard Goods'};
+
+  const today = new Date().toLocaleDateString('en-US',{month:'long',day:'numeric',year:'numeric'});
+
+  // Build items HTML
+  let itemsHTML = '';
+  const garments = q.garments||[];
+  const hgs = q.hardGoods||[];
+
+  selectedItems.forEach(item => {
+    if(item.type === 'g') {
+      const g = garments[item.idx];
+      if(!g) return;
+      const rows = (g.szRows||[]).filter(r=>r.qty>0);
+      const totalQty = rows.reduce((a,r)=>a+r.qty,0);
+      const netCost = rows[0]?.cost||g.gcost||0;
+      const totalNet = rows.reduce((a,r)=>a+r.qty*(r.cost||netCost),0);
+
+      itemsHTML += `
+        <div style="margin-bottom:20px;padding:16px;border:1px solid #e0e0e0;border-radius:6px;">
+          <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px;">
+            <div>
+              <div style="font-size:15px;font-weight:700;">${g.gdesign||g.gtype||'Apparel item'}</div>
+              <div style="font-size:12px;color:#666;margin-top:2px;">
+                ${[g.gbrand,g.gsku?'SKU: '+g.gsku:''].filter(Boolean).join(' · ')}
+              </div>
+              <div style="font-size:12px;color:#666;">
+                ${[g.gvendor?'Vendor: '+g.gvendor:'',g.gcolor_name?'Color: '+g.gcolor_name:'',g.gfit&&g.gfit!=='N/A'?g.gfit:''].filter(Boolean).join(' · ')}
+              </div>
+            </div>
+            <div style="text-align:right;font-size:13px;">
+              <div>Total qty: <strong>${totalQty}</strong></div>
+              <div>Net cost: <strong>${fmt(totalNet)}</strong></div>
+            </div>
+          </div>
+          ${rows.length ? `
+          <table style="width:100%;border-collapse:collapse;font-size:12px;">
+            <thead><tr style="background:#f5f5f7;">
+              <th style="padding:5px 10px;border:1px solid #ddd;text-align:left;">Size</th>
+              <th style="padding:5px 10px;border:1px solid #ddd;text-align:center;">Qty</th>
+              <th style="padding:5px 10px;border:1px solid #ddd;text-align:right;">Net/item</th>
+              <th style="padding:5px 10px;border:1px solid #ddd;text-align:right;">Line total</th>
+            </tr></thead>
+            <tbody>
+              ${rows.map(r=>`<tr>
+                <td style="padding:5px 10px;border:1px solid #ddd;">${r.size}</td>
+                <td style="padding:5px 10px;border:1px solid #ddd;text-align:center;">${r.qty}</td>
+                <td style="padding:5px 10px;border:1px solid #ddd;text-align:right;">${fmt(r.cost)}</td>
+                <td style="padding:5px 10px;border:1px solid #ddd;text-align:right;">${fmt(r.qty*(r.cost||0))}</td>
+              </tr>`).join('')}
+              <tr style="font-weight:700;background:#f9f9f9;">
+                <td style="padding:5px 10px;border:1px solid #ddd;">Total</td>
+                <td style="padding:5px 10px;border:1px solid #ddd;text-align:center;">${totalQty}</td>
+                <td style="padding:5px 10px;border:1px solid #ddd;"></td>
+                <td style="padding:5px 10px;border:1px solid #ddd;text-align:right;">${fmt(totalNet)}</td>
+              </tr>
+            </tbody>
+          </table>` : ''}
+        </div>`;
+
+    } else if(item.type === 'hg') {
+      const h = hgs[item.idx];
+      if(!h) return;
+      const qty = parseInt(h.hg_qty)||0;
+      const cost = parseFloat(h.hg_cost)||0;
+      const run = parseFloat(h.hg_dc)||0;
+      const setup = parseFloat(h.hg_sc)||0;
+      const rush = parseFloat(h.hg_rush)||0;
+
+      itemsHTML += `
+        <div style="margin-bottom:20px;padding:16px;border:1px solid #e0e0e0;border-radius:6px;">
+          <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px;">
+            <div>
+              <div style="font-size:15px;font-weight:700;">${h.hg_desc||'Hard good'}</div>
+              <div style="font-size:12px;color:#666;margin-top:2px;">
+                ${[h.hg_vendor?'Vendor: '+h.hg_vendor:'',h.hg_sku?'SKU: '+h.hg_sku:'',h.hg_item_color?'Color: '+h.hg_item_color:''].filter(Boolean).join(' · ')}
+              </div>
+              ${h.hg_promo?`<div style="font-size:12px;color:#666;">Promo code: ${h.hg_promo}</div>`:''}
+            </div>
+          </div>
+          <table style="width:100%;border-collapse:collapse;font-size:12px;">
+            <thead><tr style="background:#f5f5f7;">
+              <th style="padding:5px 10px;border:1px solid #ddd;text-align:left;">Description</th>
+              <th style="padding:5px 10px;border:1px solid #ddd;text-align:center;">Qty</th>
+              <th style="padding:5px 10px;border:1px solid #ddd;text-align:right;">Unit cost</th>
+              <th style="padding:5px 10px;border:1px solid #ddd;text-align:right;">Total</th>
+            </tr></thead>
+            <tbody>
+              <tr><td style="padding:5px 10px;border:1px solid #ddd;">Item</td><td style="padding:5px 10px;border:1px solid #ddd;text-align:center;">${qty}</td><td style="padding:5px 10px;border:1px solid #ddd;text-align:right;">${fmt(cost)}</td><td style="padding:5px 10px;border:1px solid #ddd;text-align:right;">${fmt(qty*cost)}</td></tr>
+              ${run>0?`<tr><td style="padding:5px 10px;border:1px solid #ddd;">Run charge</td><td style="padding:5px 10px;border:1px solid #ddd;text-align:center;">${qty}</td><td style="padding:5px 10px;border:1px solid #ddd;text-align:right;">${fmt(run)}</td><td style="padding:5px 10px;border:1px solid #ddd;text-align:right;">${fmt(qty*run)}</td></tr>`:''}
+              ${setup>0?`<tr><td style="padding:5px 10px;border:1px solid #ddd;">Setup / die charge</td><td style="padding:5px 10px;border:1px solid #ddd;text-align:center;">1</td><td style="padding:5px 10px;border:1px solid #ddd;text-align:right;">${fmt(setup)}</td><td style="padding:5px 10px;border:1px solid #ddd;text-align:right;">${fmt(setup)}</td></tr>`:''}
+              ${rush>0?`<tr><td style="padding:5px 10px;border:1px solid #ddd;">Rush / extra fees</td><td style="padding:5px 10px;border:1px solid #ddd;text-align:center;">1</td><td style="padding:5px 10px;border:1px solid #ddd;text-align:right;">${fmt(rush)}</td><td style="padding:5px 10px;border:1px solid #ddd;text-align:right;">${fmt(rush)}</td></tr>`:''}
+              <tr style="font-weight:700;background:#f9f9f9;"><td style="padding:5px 10px;border:1px solid #ddd;" colspan="3">Total</td><td style="padding:5px 10px;border:1px solid #ddd;text-align:right;">${fmt(qty*cost+(qty*run)+setup+rush)}</td></tr>
+            </tbody>
+          </table>
+        </div>`;
+    }
+  });
+
+  // Decoration block
+  const decoHTML = type !== 'blank-apparel' ? `
+    <div style="margin-bottom:20px;">
+      <div style="font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:#C41E1E;margin-bottom:10px;padding-bottom:6px;border-bottom:2px solid #eee;">Decoration specifications</div>
+      <table style="width:100%;font-size:13px;border-collapse:collapse;">
+        ${decoMethod?`<tr><td style="padding:5px 0;color:#666;width:160px;">Method</td><td style="padding:5px 0;font-weight:600;">${decoMethod}</td></tr>`:''}
+        ${decoLocation?`<tr><td style="padding:5px 0;color:#666;">Location(s)</td><td style="padding:5px 0;font-weight:600;">${decoLocation}</td></tr>`:''}
+        ${decoArt?`<tr><td style="padding:5px 0;color:#666;">Design / art file</td><td style="padding:5px 0;font-weight:600;">${decoArt}</td></tr>`:''}
+        ${decoColors?`<tr><td style="padding:5px 0;color:#666;">Colors / threads</td><td style="padding:5px 0;font-weight:600;">${decoColors}</td></tr>`:''}
+        ${decoPMS?`<tr><td style="padding:5px 0;color:#666;">PMS colors</td><td style="padding:5px 0;font-weight:600;">${decoPMS}</td></tr>`:''}
+        ${decoNotes?`<tr><td style="padding:5px 0;color:#666;">Special instructions</td><td style="padding:5px 0;font-weight:600;">${decoNotes}</td></tr>`:''}
+      </table>
+    </div>` : '';
+
+  // Proof block
+  const proofHTML = type !== 'blank-apparel' && proofVal ? `
+    <div style="margin-bottom:20px;padding:12px;background:#fffaf0;border:1px solid #f0c060;border-radius:6px;">
+      <div style="font-size:13px;font-weight:700;margin-bottom:6px;">Proof requirement</div>
+      <div style="font-size:13px;font-weight:600;">${proofLabels[proofVal]||proofVal}</div>
+      ${proofNotes?`<div style="font-size:12px;color:#555;margin-top:6px;">${proofNotes}</div>`:''}
+    </div>` : '';
+
+  return `
+    <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;max-width:800px;margin:0 auto;padding:32px;color:#1a1a1f;">
+
+      <!-- Header -->
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:28px;padding-bottom:20px;border-bottom:3px solid #C41E1E;">
+        <div>
+          <div style="font-size:26px;font-weight:800;color:#C41E1E;">🐂 TORO</div>
+          <div style="font-size:13px;color:#666;margin-top:2px;">Branded Apparel & Merch</div>
+          <div style="font-size:12px;color:#888;margin-top:6px;">4704 Benbrook Hwy · Fort Worth, TX 76116</div>
+        </div>
+        <div style="text-align:right;">
+          <div style="font-size:22px;font-weight:800;">PURCHASE ORDER</div>
+          <div style="font-size:16px;font-weight:700;color:#C41E1E;margin-top:4px;">${poNum}</div>
+          <div style="font-size:12px;color:#888;margin-top:4px;">${typeLabels[type]||type}</div>
+          <div style="font-size:12px;color:#888;">Date: ${today}</div>
+        </div>
+      </div>
+
+      <!-- To / From -->
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:24px;margin-bottom:24px;">
+        <div style="padding:14px;background:#f8f8fa;border-radius:6px;">
+          <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:#888;margin-bottom:8px;">Vendor</div>
+          <div style="font-weight:700;font-size:14px;">${vendorName}</div>
+          ${vendorContact?`<div style="font-size:13px;margin-top:2px;">${vendorContact}</div>`:''}
+          ${vendorEmail?`<div style="font-size:13px;color:#555;">${vendorEmail}</div>`:''}
+          ${vendorPhone?`<div style="font-size:13px;color:#555;">${vendorPhone}</div>`:''}
+          ${vendorAccount?`<div style="font-size:12px;color:#888;margin-top:4px;">Acct #: ${vendorAccount}</div>`:''}
+        </div>
+        <div style="padding:14px;background:#f8f8fa;border-radius:6px;">
+          <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:#888;margin-bottom:8px;">Ship to</div>
+          <div style="font-weight:700;font-size:14px;">TORO Branded Apparel & Merch</div>
+          <div style="font-size:13px;margin-top:2px;">4704 Benbrook Hwy</div>
+          <div style="font-size:13px;">Fort Worth, TX 76116</div>
+        </div>
+      </div>
+
+      <!-- Quote / order info -->
+      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:24px;padding:14px;background:#fff8f0;border:1px solid #f0c060;border-radius:6px;">
+        <div>
+          <div style="font-size:10px;font-weight:700;text-transform:uppercase;color:#888;margin-bottom:3px;">Quote #</div>
+          <div style="font-size:14px;font-weight:700;">${q.quoteNum||'—'}</div>
+        </div>
+        <div>
+          <div style="font-size:10px;font-weight:700;text-transform:uppercase;color:#888;margin-bottom:3px;">Client</div>
+          <div style="font-size:13px;font-weight:600;">${[q.clientName,q.clientCompany].filter(Boolean).join(' / ')||'—'}</div>
+        </div>
+        <div>
+          <div style="font-size:10px;font-weight:700;text-transform:uppercase;color:#888;margin-bottom:3px;">In-hands date</div>
+          <div style="font-size:14px;font-weight:700;">${q.ihd||'—'}</div>
+        </div>
+        <div>
+          <div style="font-size:10px;font-weight:700;text-transform:uppercase;color:#888;margin-bottom:3px;">IHD status</div>
+          <div style="font-size:14px;font-weight:700;color:${q.ihdFirm?'#C41E1E':'#1a7f4b'};">${q.ihdFirm?'🔒 FIRM':'Not firm'}</div>
+        </div>
+      </div>
+
+      <!-- Items -->
+      <div style="margin-bottom:20px;">
+        <div style="font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:#C41E1E;margin-bottom:12px;padding-bottom:6px;border-bottom:2px solid #eee;">Order items</div>
+        ${itemsHTML}
+      </div>
+
+      <!-- Decoration -->
+      ${decoHTML}
+
+      <!-- Proof -->
+      ${proofHTML}
+
+      <!-- Notes -->
+      ${orderNotes?`
+      <div style="margin-bottom:20px;padding:12px;background:#f8f8fa;border-radius:6px;">
+        <div style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:#888;margin-bottom:6px;">Special instructions / notes</div>
+        <div style="font-size:13px;">${orderNotes}</div>
+      </div>`:''}
+
+      <!-- Footer -->
+      <div style="border-top:2px solid #eee;padding-top:16px;margin-top:24px;font-size:12px;color:#666;display:flex;justify-content:space-between;align-items:flex-end;">
+        <div>Please direct all questions regarding this order to<br><strong>${repName}</strong> at <strong>${repEmail}</strong></div>
+        <div style="text-align:right;font-size:11px;color:#aaa;">Generated ${today}</div>
+      </div>
+
+    </div>`;
+}
+
+function previewPO() {
+  if(!validatePO()) return;
+  poCount++;
+  const poNum = 'PO-'+(quoteData.quoteNum||'XXXX')+'-'+poCount;
+  localStorage.setItem('toro_po_count_'+(quoteData.quoteNum||''), poCount);
+  document.getElementById('disp-po-count').textContent = poCount;
+
+  const html = buildPOHTML(poNum);
+  const preview = document.getElementById('po-preview-area');
+  preview.classList.remove('section-hidden');
+  preview.innerHTML = `
+    <div class="card">
+      <div class="card-title">Preview — ${poNum}</div>
+      <div style="border:1px solid var(--border);border-radius:6px;padding:16px;background:#fff;">
+        ${html}
+      </div>
+      <div class="actions no-print" style="margin-top:16px;">
+        <button class="btn btn-gray" onclick="document.getElementById('po-preview-area').classList.add('section-hidden')">✕ Close preview</button>
+        <button class="btn btn-red" onclick="printPO('${poNum}')">🖨️ Print / Save as PDF</button>
+      </div>
+    </div>`;
+  preview.scrollIntoView({behavior:'smooth'});
+}
+
+function generatePO() {
+  if(!validatePO()) return;
+  previewPO();
+}
+
+function printPO(poNum) {
+  const poArea = document.getElementById('po-preview-area');
+  const content = poArea.querySelector('.card > div:not(.card-title):not(.actions)').innerHTML;
+  const win = window.open('','_blank');
+  win.document.write(`<!DOCTYPE html><html><head><title>${poNum}</title>
+    <style>
+      *{box-sizing:border-box;margin:0;padding:0;}
+      body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;color:#1a1a1f;}
+      @media print{@page{margin:20mm;}}
+    </style>
+  </head><body>${content}</body></html>`);
+  win.document.close();
+  setTimeout(()=>{win.print();},500);
+}
+
+function resetBuilder() {
+  if(!confirm('Start over? This will clear all current PO data.')) return;
+  selectedType = null;
+  selectedItems = [];
+  document.querySelectorAll('.po-type-btn').forEach(b=>b.classList.remove('active'));
+  document.getElementById('item-selection-card').classList.add('section-hidden');
+  document.getElementById('details-card').classList.add('section-hidden');
+  document.getElementById('po-preview-area').classList.add('section-hidden');
+  document.querySelectorAll('#details-card input, #details-card textarea, #details-card select').forEach(el=>{
+    if(el.type==='radio'||el.type==='checkbox') el.checked=false;
+    else el.value='';
+  });
+}
+</script>
+</body>
+</html>
