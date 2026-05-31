@@ -342,10 +342,9 @@ let _saving = false;
 // ── Firebase load ──────────────────────────────────────────────────────────
 async function loadFromFirebase() {
   setSyncing(true);
-  const [data, apData] = await Promise.all([
-    fbGet(FB_PATH),
-    fbGet('approvals')
-  ]);
+  let data = null, apData = null;
+  try { data = await fbGet(FB_PATH); } catch(e) { console.warn('quotes fetch failed:', e); }
+  try { apData = await fbGet('approvals/'+REP_LOWER); } catch(e) { console.warn('approvals fetch failed:', e); }
   if(data) {
     const fbQuotes = Object.values(data).filter(q=>q&&(q.totalSell||q.quoteName||q.quoteNum));
     // Firebase is source of truth — merge
@@ -361,7 +360,9 @@ async function loadFromFirebase() {
       return fbQuotes.some(f=>fbKey(f)===fbKey(q));
     });
   } else { quotes=[]; }
-  approvals = apData||{};
+  // Store as rep-scoped: approvals[REP_LOWER] = data
+  approvals = {};
+  approvals[REP_LOWER] = apData||{};
   localStorage.setItem(STORAGE_KEY, JSON.stringify(quotes));
   setSyncing(false);
   render();
