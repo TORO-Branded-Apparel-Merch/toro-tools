@@ -194,7 +194,15 @@ async function fbGet(path) {
 }
 function fbListen(path, cb) {
   const es = new EventSource(FIREBASE_DB_URL + '/' + path + '.json');
-  es.addEventListener('put', e => { try { cb(JSON.parse(e.data)); } catch(err) { console.error('fbListen parse error', err); } });
+  const handler = e => {
+    try {
+      const parsed = JSON.parse(e.data);
+      // For patch events, merge into the existing data structure
+      cb(parsed);
+    } catch(err) { console.error('fbListen parse error', err); }
+  };
+  es.addEventListener('put', handler);
+  es.addEventListener('patch', handler);
   es.onerror = err => console.error('fbListen error', path, err);
   return es;
 }
