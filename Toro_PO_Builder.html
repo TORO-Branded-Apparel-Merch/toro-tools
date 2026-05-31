@@ -13,16 +13,14 @@
   --radius:10px;--radius-sm:6px;
 }
 *{box-sizing:border-box;margin:0;padding:0}
-body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;padding-bottom:180px;}
 .header{background:var(--red);color:#fff;padding:14px 24px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100;box-shadow:0 2px 8px rgba(0,0,0,.15);}
 .header h1{font-size:18px;font-weight:700;}
 .container{max-width:900px;margin:0 auto;padding:24px 16px;}
 .card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:24px;margin-bottom:20px;}
-.card-title{font-size:15px;font-weight:700;color:var(--red);text-transform:uppercase;letter-spacing:.06em;margin-bottom:16px;padding-bottom:10px;border-bottom:2px solid var(--border);}
+.card-title{font-size:14px;font-weight:700;color:var(--red);text-transform:uppercase;letter-spacing:.06em;margin-bottom:16px;padding-bottom:10px;border-bottom:2px solid var(--border);}
 .drop-zone{border:2px dashed var(--border);border-radius:var(--radius);padding:40px;text-align:center;color:var(--text3);cursor:pointer;transition:all .15s;background:#fafafa;margin-bottom:20px;}
 .drop-zone:hover,.drop-zone.over{border-color:var(--red);color:var(--red);background:var(--red-light);}
-.drop-zone h2{font-size:18px;font-weight:700;margin-bottom:8px;}
-.drop-zone p{font-size:13px;}
 .field{margin-bottom:14px;}
 .field label{display:block;font-size:12px;font-weight:700;color:var(--text2);margin-bottom:5px;text-transform:uppercase;letter-spacing:.04em;}
 .field input,.field select,.field textarea{width:100%;padding:9px 12px;border:1px solid var(--border2);border-radius:var(--radius-sm);font-size:13px;font-family:inherit;color:var(--text);}
@@ -30,20 +28,17 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 .field textarea{resize:vertical;min-height:70px;}
 .row2{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
 .row3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;}
+.row4{display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:14px;}
 .po-type-btns{display:flex;gap:10px;margin-bottom:20px;flex-wrap:wrap;}
 .po-type-btn{padding:10px 18px;border-radius:var(--radius-sm);border:2px solid var(--border);background:#fff;font-size:13px;font-weight:700;cursor:pointer;color:var(--text2);transition:all .15s;}
 .po-type-btn:hover{border-color:var(--red);color:var(--red);}
 .po-type-btn.active{background:var(--red);color:#fff;border-color:var(--red);}
 .item-check{display:flex;align-items:flex-start;gap:10px;padding:12px;border:1px solid var(--border);border-radius:var(--radius-sm);margin-bottom:8px;cursor:pointer;transition:all .15s;}
-.item-check:hover{border-color:var(--red);background:var(--red-light);}
+.item-check:hover{border-color:var(--red);}
 .item-check.selected{border-color:var(--red);background:var(--red-light);}
 .item-check input[type=checkbox]{margin-top:2px;width:16px;height:16px;accent-color:var(--red);flex-shrink:0;}
-.item-check-info{flex:1;}
 .item-check-name{font-weight:700;font-size:13px;}
 .item-check-sub{font-size:11px;color:var(--text3);margin-top:2px;}
-.sz-table{width:100%;border-collapse:collapse;font-size:12px;margin-top:8px;}
-.sz-table th{background:#f5f5f7;padding:5px 8px;text-align:center;font-weight:700;border:1px solid var(--border);}
-.sz-table td{padding:5px 8px;text-align:center;border:1px solid var(--border);}
 .proof-options{display:flex;flex-direction:column;gap:8px;}
 .proof-option{display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;}
 .proof-option input{width:16px;height:16px;accent-color:var(--red);}
@@ -53,20 +48,46 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 .btn-outline{background:#fff;color:var(--red);border:2px solid var(--red);}
 .btn-outline:hover{background:var(--red-light);}
 .btn-gray{background:#f0f0f0;color:var(--text2);border:1px solid var(--border);}
-.actions{display:flex;gap:10px;justify-content:flex-end;margin-top:20px;}
+.btn-gray:hover{background:#e5e5e5;}
+.btn-sm{padding:6px 12px;font-size:12px;}
+.btn-green{background:var(--green);color:#fff;}
 .req{color:var(--red);}
-.section-hidden{display:none;}
-.po-counter{font-size:12px;color:var(--text3);margin-left:8px;}
+.hidden{display:none;}
+.sz-pill{display:inline-block;background:#f0f0f0;border-radius:4px;padding:2px 8px;font-size:11px;font-weight:600;margin:2px;}
+.imp-badge{font-size:11px;color:var(--text2);background:#f8f8fa;padding:3px 8px;border-radius:4px;margin-bottom:3px;display:inline-block;}
 
-/* Print / PDF styles */
-@media print{
-  .header,.drop-zone,.po-type-btns,.actions,.no-print{display:none!important;}
-  .container{max-width:100%;padding:0;}
-  .card{border:none;border-radius:0;padding:16px 0;margin-bottom:12px;page-break-inside:avoid;}
-  body{background:#fff;}
-  .po-preview{display:block!important;}
-}
-.po-preview{display:none;}
+/* PO Queue (bottom bar) */
+.po-queue{position:fixed;bottom:0;left:0;right:0;background:#fff;border-top:2px solid var(--border);z-index:200;box-shadow:0 -4px 20px rgba(0,0,0,.1);}
+.po-queue-header{display:flex;align-items:center;justify-content:space-between;padding:8px 16px;background:#f8f8fa;border-bottom:1px solid var(--border);}
+.po-queue-header h3{font-size:13px;font-weight:700;color:var(--text2);}
+.po-tabs{display:flex;gap:0;overflow-x:auto;padding:0 16px;}
+.po-tab{padding:8px 16px;font-size:12px;font-weight:700;cursor:pointer;border:1px solid var(--border);border-bottom:none;border-radius:6px 6px 0 0;background:#f0f0f0;color:var(--text3);white-space:nowrap;transition:all .15s;margin-right:4px;margin-top:6px;}
+.po-tab:hover{background:#e5e5e5;}
+.po-tab.active{background:#fff;color:var(--red);border-color:var(--red);border-bottom:2px solid #fff;}
+.po-tab .tab-del{margin-left:8px;color:#bbb;font-size:11px;}
+.po-tab .tab-del:hover{color:var(--red);}
+.po-queue-empty{padding:16px;text-align:center;color:var(--text3);font-size:13px;}
+
+/* Editable PO preview */
+.po-preview-wrap{background:#fff;border:1px solid var(--border);border-radius:var(--radius);padding:0;overflow:hidden;}
+.po-preview-toolbar{background:#f8f8fa;border-bottom:1px solid var(--border);padding:10px 16px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;}
+.po-field-edit{border:none;border-bottom:1px dashed #ccc;background:transparent;font-family:inherit;padding:2px 4px;width:100%;transition:all .15s;}
+.po-field-edit:hover{border-bottom-color:var(--red);}
+.po-field-edit:focus{outline:none;border-bottom:2px solid var(--red);background:#fffaf0;}
+.po-table{width:100%;border-collapse:collapse;font-size:12px;}
+.po-table th{background:#f5f5f7;padding:7px 10px;border:1px solid #ddd;text-align:left;font-weight:700;}
+.po-table td{padding:7px 10px;border:1px solid #ddd;}
+.po-table td input{border:none;border-bottom:1px dashed #ddd;background:transparent;font-size:12px;padding:0;width:100%;font-family:inherit;}
+.po-table td input:focus{outline:none;border-bottom:2px solid var(--red);}
+.po-section-title{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--red);margin:16px 0 8px;padding-bottom:5px;border-bottom:2px solid #eee;}
+.po-body{padding:24px;}
+.po-header-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px;}
+.po-info-box{padding:12px;background:#f8f8fa;border-radius:6px;}
+.po-info-label{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:#888;margin-bottom:6px;}
+.po-meta-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;padding:12px;background:#fff8f0;border:1px solid #f0c060;border-radius:6px;margin-bottom:16px;}
+.po-meta-item label{display:block;font-size:10px;font-weight:700;text-transform:uppercase;color:#888;margin-bottom:3px;}
+.proof-box{padding:12px;background:#fffaf0;border:1px solid #f0c060;border-radius:6px;margin-bottom:16px;}
+.po-footer{border-top:2px solid #eee;padding-top:12px;margin-top:20px;font-size:12px;color:#666;}
 </style>
 </head>
 <body>
@@ -80,162 +101,171 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 
   <!-- Drop zone -->
   <div class="drop-zone" id="drop-zone" onclick="document.getElementById('file-input').click()">
-    <h2>📂 Drop quote JSON here</h2>
-    <p>Or click to browse — export the quote JSON from the rep portal using the Edit button</p>
+    <div style="font-size:32px;margin-bottom:8px;">📂</div>
+    <div style="font-size:16px;font-weight:700;margin-bottom:6px;">Drop quote JSON here</div>
+    <div style="font-size:13px;">Or click to browse — export the JSON from the rep portal using the Edit button</div>
     <input type="file" id="file-input" accept=".json" style="display:none" onclick="event.stopPropagation()">
   </div>
 
-  <!-- PO Builder (hidden until quote loaded) -->
-  <div id="builder" class="section-hidden">
+  <!-- Builder (hidden until quote loaded) -->
+  <div id="builder" class="hidden">
 
-    <!-- Quote info summary -->
-    <div class="card" id="quote-summary-card">
-      <div class="card-title">Quote details</div>
-      <div class="row3">
-        <div><div style="font-size:11px;color:var(--text3);font-weight:700;text-transform:uppercase;letter-spacing:.04em;">Quote #</div><div style="font-size:15px;font-weight:700;" id="disp-quote-num">—</div></div>
-        <div><div style="font-size:11px;color:var(--text3);font-weight:700;text-transform:uppercase;letter-spacing:.04em;">Quote name</div><div style="font-size:15px;font-weight:700;" id="disp-quote-name">—</div></div>
-        <div><div style="font-size:11px;color:var(--text3);font-weight:700;text-transform:uppercase;letter-spacing:.04em;">Client</div><div style="font-size:15px;font-weight:700;" id="disp-client">—</div></div>
-      </div>
-      <div class="row3" style="margin-top:12px;">
-        <div><div style="font-size:11px;color:var(--text3);font-weight:700;text-transform:uppercase;letter-spacing:.04em;">In-hands date</div><div style="font-size:14px;font-weight:700;" id="disp-ihd">—</div></div>
-        <div><div style="font-size:11px;color:var(--text3);font-weight:700;text-transform:uppercase;letter-spacing:.04em;">IHD status</div><div style="font-size:14px;font-weight:700;" id="disp-ihd-firm">—</div></div>
-        <div><div style="font-size:11px;color:var(--text3);font-weight:700;text-transform:uppercase;letter-spacing:.04em;">POs generated</div><div style="font-size:14px;font-weight:700;" id="disp-po-count">0</div></div>
-      </div>
-    </div>
-
-    <!-- Quote items reference -->
-    <div class="card" id="quote-items-card">
-      <div class="card-title">Quote items reference</div>
-      <div id="quote-items-ref"></div>
-    </div>
-
-    <!-- PO Type selection -->
+    <!-- Quote summary -->
     <div class="card">
-      <div class="card-title">Step 1 — Select PO type</div>
-      <div class="po-type-btns">
-        <button class="po-type-btn" onclick="selectType('blank-apparel')">🧥 Blank Apparel</button>
-        <button class="po-type-btn" onclick="selectType('decorated-apparel')">🖨️ Decorated Apparel / Accessories</button>
-        <button class="po-type-btn" onclick="selectType('hard-goods')">🎁 Hard Goods</button>
+      <div class="card-title">Quote summary</div>
+      <div class="row4">
+        <div><div style="font-size:10px;color:var(--text3);font-weight:700;text-transform:uppercase;letter-spacing:.04em;margin-bottom:3px;">Quote #</div><div style="font-size:15px;font-weight:700;" id="disp-qnum">—</div></div>
+        <div><div style="font-size:10px;color:var(--text3);font-weight:700;text-transform:uppercase;letter-spacing:.04em;margin-bottom:3px;">Quote name</div><div style="font-size:14px;font-weight:700;" id="disp-qname">—</div></div>
+        <div><div style="font-size:10px;color:var(--text3);font-weight:700;text-transform:uppercase;letter-spacing:.04em;margin-bottom:3px;">Client</div><div style="font-size:14px;font-weight:700;" id="disp-client">—</div></div>
+        <div><div style="font-size:10px;color:var(--text3);font-weight:700;text-transform:uppercase;letter-spacing:.04em;margin-bottom:3px;">In-hands date</div><div style="font-size:14px;font-weight:700;" id="disp-ihd">—</div><div style="font-size:11px;margin-top:2px;" id="disp-firm">—</div></div>
       </div>
     </div>
 
-    <!-- Item selection -->
-    <div class="card section-hidden" id="item-selection-card">
-      <div class="card-title">Step 2 — Select items for this PO</div>
-      <p style="font-size:12px;color:var(--text3);margin-bottom:12px;">Check all items going to the same vendor on this PO. Items from the same vendor can share a PO.</p>
+    <!-- Items reference -->
+    <div class="card">
+      <div class="card-title">Quote items reference</div>
+      <div id="items-ref"></div>
+    </div>
+
+    <!-- Step 1: PO Type -->
+    <div class="card">
+      <div class="card-title">Step 1 — PO type</div>
+      <div class="po-type-btns">
+        <button class="po-type-btn" onclick="selectType('blank','🧥 Blank Apparel',this)">🧥 Blank Apparel</button>
+        <button class="po-type-btn" onclick="selectType('decorated','🖨️ Decorated Apparel / Accessories',this)">🖨️ Decorated Apparel / Accessories</button>
+        <button class="po-type-btn" onclick="selectType('hg','🎁 Hard Goods',this)">🎁 Hard Goods</button>
+      </div>
+    </div>
+
+    <!-- Step 2: Items -->
+    <div class="card hidden" id="step2">
+      <div class="card-title">Step 2 — Select items</div>
+      <p style="font-size:12px;color:var(--text3);margin-bottom:12px;">Items going to the same vendor can share a PO.</p>
       <div id="item-list"></div>
     </div>
 
-    <!-- Vendor & order details -->
-    <div class="card section-hidden" id="details-card">
-      <div class="card-title">Step 3 — Vendor & order details</div>
+    <!-- Step 3: Details -->
+    <div class="card hidden" id="step3">
+      <div class="card-title">Step 3 — Vendor &amp; order details</div>
+
+      <!-- Vendor -->
       <div class="row3">
-        <div class="field"><label>Vendor name <span class="req">*</span></label><input type="text" id="vendor-name" placeholder="e.g. SanMar, S&S Activewear"></div>
-        <div class="field"><label>Vendor contact name <span class="req">*</span></label><input type="text" id="vendor-contact" placeholder="Contact person"></div>
-        <div class="field"><label>Vendor email <span class="req">*</span></label><input type="email" id="vendor-email" placeholder="vendor@example.com"></div>
+        <div class="field"><label>Vendor name <span class="req">*</span></label><input type="text" id="v-name" placeholder="e.g. SanMar, Goldstar"></div>
+        <div class="field"><label>Vendor email <span class="req">*</span></label><input type="email" id="v-email" placeholder="vendor@example.com"></div>
+        <div class="field"><label>Vendor phone</label><input type="text" id="v-phone" placeholder="(000) 000-0000"></div>
       </div>
       <div class="row2">
-        <div class="field"><label>Vendor phone</label><input type="text" id="vendor-phone" placeholder="(000) 000-0000"></div>
-        <div class="field"><label>Vendor account #</label><input type="text" id="vendor-account" placeholder="Account number (if applicable)"></div>
+        <div class="field"><label>Account #</label><input type="text" id="v-acct" placeholder="Vendor account number"></div>
+        <div class="field"><label>PO date</label><input type="date" id="po-date"></div>
       </div>
 
-      <!-- Decoration section (hidden for blank apparel) -->
-      <div id="deco-section" class="section-hidden">
+      <!-- Decoration (hidden for blank) -->
+      <div id="deco-wrap" class="hidden">
         <div style="border-top:1px solid var(--border);margin:16px 0;"></div>
-        <div style="font-size:13px;font-weight:700;color:var(--text2);margin-bottom:12px;">Decoration details</div>
+        <div style="font-size:13px;font-weight:700;color:var(--text2);margin-bottom:12px;">Decoration</div>
         <div class="row3">
-          <div class="field"><label>Decoration method <span class="req">*</span></label>
-            <select id="deco-method">
+          <div class="field"><label>Method <span class="req">*</span></label>
+            <select id="d-method">
               <option value="">Select method</option>
-              <option>Screen printing</option>
-              <option>Embroidery</option>
-              <option>DTF</option>
-              <option>Heat press</option>
-              <option>Laser engraving</option>
-              <option>Pad printing</option>
-              <option>Digital print</option>
-              <option>Other</option>
+              <option>Screen printing</option><option>Embroidery</option><option>DTF</option>
+              <option>Heat press</option><option>Laser engraving</option>
+              <option>Pad printing</option><option>Digital print</option><option>Other</option>
             </select>
           </div>
-          <div class="field"><label>Imprint location(s) <span class="req">*</span></label><input type="text" id="deco-location" placeholder="e.g. Left chest, full back"></div>
-          <div class="field"><label>Art / design name</label><input type="text" id="deco-art" placeholder="Pre-filled from quote" readonly style="background:#f8f8fa;"></div>
+          <div class="field"><label>Location(s) <span class="req">*</span></label><input type="text" id="d-loc" placeholder="e.g. Left chest, full back"></div>
+          <div class="field"><label>Design / art name</label><input type="text" id="d-art" placeholder="Pre-fills from quote"></div>
         </div>
         <div class="row3">
-          <div class="field"><label>Color count / thread colors</label><input type="text" id="deco-colors" placeholder="e.g. 2 colors, 3 thread colors"></div>
-          <div class="field"><label>PMS colors (if applicable)</label><input type="text" id="deco-pms" placeholder="e.g. PMS 485 C, PMS 286 C"></div>
-          <div class="field"><label>Special deco instructions</label><input type="text" id="deco-notes" placeholder="Any special instructions"></div>
+          <div class="field"><label>Imprint colors <span class="req">*</span></label><input type="text" id="d-colors" placeholder="e.g. Red, White, PMS 286 C"></div>
+          <div class="field"><label>Color count</label><input type="text" id="d-count" placeholder="e.g. 2 colors, 7,500 stitches"></div>
+          <div class="field"><label>Special deco instructions</label><input type="text" id="d-notes" placeholder="Any special notes"></div>
         </div>
       </div>
 
-      <!-- Proof section -->
-      <div style="border-top:1px solid var(--border);margin:16px 0;" id="proof-divider" class="section-hidden"></div>
-      <div id="proof-section" class="section-hidden">
-        <div style="font-size:13px;font-weight:700;color:var(--text2);margin-bottom:12px;">Proof requirement <span class="req">*</span></div>
+      <!-- Proof (hidden for blank) -->
+      <div id="proof-wrap" class="hidden">
+        <div style="border-top:1px solid var(--border);margin:16px 0;"></div>
+        <div style="font-size:13px;font-weight:700;color:var(--text2);margin-bottom:10px;">Proof requirement <span class="req">*</span></div>
         <div class="proof-options">
-          <label class="proof-option"><input type="radio" name="proof" value="digital"> Digital proof</label>
-          <label class="proof-option"><input type="radio" name="proof" value="pre-production"> Pre-production sample</label>
-          <label class="proof-option"><input type="radio" name="proof" value="none"> No proof required — proceed to production</label>
+          <label class="proof-option"><input type="radio" name="proof" value="Digital proof"> Digital proof</label>
+          <label class="proof-option"><input type="radio" name="proof" value="Pre-production sample"> Pre-production sample</label>
+          <label class="proof-option"><input type="radio" name="proof" value="No proof required — proceed to production"> No proof required — proceed to production</label>
         </div>
         <div class="field" style="margin-top:12px;">
           <label>Proof instructions (optional)</label>
-          <textarea id="proof-notes" placeholder="e.g. Please send digital proof to the email below. Do not begin production until written approval is received."></textarea>
+          <textarea id="proof-notes" placeholder="e.g. Please send proof to rep email. Do not begin production until written approval received."></textarea>
         </div>
       </div>
 
-      <!-- Rep contact -->
+      <!-- Rep -->
       <div style="border-top:1px solid var(--border);margin:16px 0;"></div>
-      <div style="font-size:13px;font-weight:700;color:var(--text2);margin-bottom:12px;">Rep contact</div>
       <div class="row2">
         <div class="field"><label>Rep name <span class="req">*</span></label><input type="text" id="rep-name" placeholder="Your name"></div>
         <div class="field"><label>Rep email <span class="req">*</span></label><input type="email" id="rep-email" placeholder="your@email.com"></div>
       </div>
 
-      <!-- Order notes -->
-      <div style="border-top:1px solid var(--border);margin:16px 0;"></div>
-      <div class="field"><label>Additional notes / special instructions</label><textarea id="order-notes" placeholder="Rush instructions, packaging notes, shipping requirements, etc."></textarea></div>
-    </div>
+      <div class="field"><label>Additional notes / special instructions</label><textarea id="order-notes" placeholder="Rush instructions, packaging notes, etc."></textarea></div>
 
-    <div class="actions no-print">
-      <button class="btn btn-gray" onclick="resetBuilder()">↩ Start over</button>
-      <button class="btn btn-outline" onclick="previewPO()">👁 Preview PO</button>
-      <button class="btn btn-red" onclick="generatePO()">📄 Generate PDF</button>
+      <div style="display:flex;justify-content:flex-end;gap:10px;margin-top:8px;">
+        <button class="btn btn-gray" onclick="resetForm()">↩ Reset form</button>
+        <button class="btn btn-green" onclick="addToQueue()">+ Add to PO queue</button>
+      </div>
     </div>
 
   </div>
 
-  <!-- PO Preview (shown before print) -->
-  <div id="po-preview-area" class="section-hidden"></div>
+</div>
 
+<!-- PO Queue bar -->
+<div class="po-queue" id="po-queue">
+  <div class="po-queue-header">
+    <h3>📋 PO Queue <span id="queue-count" style="color:var(--text3);font-weight:400;"></span></h3>
+    <div style="display:flex;gap:8px;">
+      <button class="btn btn-sm btn-outline" onclick="exportAll()" id="export-all-btn" style="display:none;">📄 Export all as PDF</button>
+    </div>
+  </div>
+  <div id="po-tabs" class="po-tabs"></div>
+  <div id="queue-empty" class="po-queue-empty">No POs in queue yet — fill out the form above and click "Add to PO queue"</div>
+</div>
+
+<!-- PO Preview modal (full screen overlay) -->
+<div id="po-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:500;overflow-y:auto;">
+  <div style="max-width:900px;margin:24px auto;padding:16px;">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
+      <div style="color:#fff;font-weight:700;font-size:16px;" id="modal-title">PO Preview</div>
+      <div style="display:flex;gap:8px;">
+        <button class="btn btn-sm" style="background:#fff;color:var(--red);" onclick="printCurrentPO()">🖨️ Print / Save PDF</button>
+        <button class="btn btn-sm btn-gray" onclick="closeModal()">✕ Close</button>
+      </div>
+    </div>
+    <div id="po-modal-content" class="po-preview-wrap"></div>
+  </div>
 </div>
 
 <script>
 // ── State ──────────────────────────────────────────────────────────────────
 let quoteData = null;
-let selectedType = null;
+let currentType = null;
+let currentTypeLabel = '';
 let selectedItems = [];
-let poCount = 0;
+let poQueue = []; // [{id, typeLabel, html, data}]
+let currentModalPO = null;
 
-// ── Drop zone setup ────────────────────────────────────────────────────────
+// ── Drop zone ──────────────────────────────────────────────────────────────
 const dz = document.getElementById('drop-zone');
 const fi = document.getElementById('file-input');
-
-dz.addEventListener('dragover', e => { e.preventDefault(); dz.classList.add('over'); });
-dz.addEventListener('dragleave', () => dz.classList.remove('over'));
-dz.addEventListener('drop', e => {
-  e.preventDefault(); dz.classList.remove('over');
-  const f = e.dataTransfer.files[0];
-  if(f && f.name.endsWith('.json')) loadQuote(f);
-});
-fi.addEventListener('change', () => { if(fi.files[0]) loadQuote(fi.files[0]); fi.value=''; });
+dz.addEventListener('dragover', e=>{e.preventDefault();dz.classList.add('over');});
+dz.addEventListener('dragleave', ()=>dz.classList.remove('over'));
+dz.addEventListener('drop', e=>{e.preventDefault();dz.classList.remove('over');const f=e.dataTransfer.files[0];if(f&&f.name.endsWith('.json'))loadQuote(f);});
+fi.addEventListener('change', ()=>{if(fi.files[0])loadQuote(fi.files[0]);fi.value='';});
 
 function loadQuote(file) {
   const r = new FileReader();
   r.onload = e => {
     try {
       const q = JSON.parse(e.target.result);
-      if(!q.quoteNum && !q.quoteName) { alert('This does not appear to be a valid TORO quote file.'); return; }
+      if(!q.quoteNum&&!q.quoteName&&!q.totalSell) { alert('Not a valid TORO quote file.'); return; }
       quoteData = q;
-      poCount = parseInt(localStorage.getItem('toro_po_count_'+q.quoteNum)||'0');
       initBuilder();
     } catch(ex) { alert('Error reading file: '+ex.message); }
   };
@@ -245,590 +275,542 @@ function loadQuote(file) {
 function initBuilder() {
   const q = quoteData;
   document.getElementById('quote-label').textContent = 'Quote #'+(q.quoteNum||'')+(q.quoteName?' — '+q.quoteName:'');
-  document.getElementById('disp-quote-num').textContent = q.quoteNum||'—';
-  document.getElementById('disp-quote-name').textContent = q.quoteName||'—';
-  document.getElementById('disp-client').textContent = [q.clientName, q.clientCompany].filter(Boolean).join(' — ')||'—';
+  document.getElementById('disp-qnum').textContent = q.quoteNum||'—';
+  document.getElementById('disp-qname').textContent = q.quoteName||'—';
+  document.getElementById('disp-client').textContent = [q.clientName,q.clientCompany].filter(Boolean).join(' — ')||'—';
   document.getElementById('disp-ihd').textContent = q.ihd||'—';
-  document.getElementById('disp-ihd-firm').textContent = q.ihdFirm ? '🔒 FIRM' : 'Not firm';
-  document.getElementById('disp-po-count').textContent = poCount;
-  document.getElementById('drop-zone').style.display = 'none';
-  document.getElementById('builder').classList.remove('section-hidden');
-  buildItemsReference();
+  document.getElementById('disp-firm').innerHTML = q.ihdFirm ? '<span style="color:var(--red);font-weight:700;">🔒 FIRM</span>' : '<span style="color:var(--green);">Not firm</span>';
+  // Set today as default PO date
+  document.getElementById('po-date').value = new Date().toISOString().split('T')[0];
+  dz.style.display = 'none';
+  document.getElementById('builder').classList.remove('hidden');
+  buildItemsRef();
 }
 
-function buildItemsReference() {
+// ── Items reference ────────────────────────────────────────────────────────
+function buildItemsRef() {
   const q = quoteData;
   const garments = q.garments||[];
   const hgs = q.hardGoods||[];
   let html = '';
 
   if(garments.length) {
-    html += '<div style="margin-bottom:16px;">';
-    html += '<div style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--text3);margin-bottom:8px;">Apparel / Accessories</div>';
-    garments.forEach((g, i) => {
+    html += '<div style="margin-bottom:16px;"><div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--text3);margin-bottom:8px;">Apparel / Accessories</div>';
+    garments.forEach((g,i) => {
       const rows = (g.szRows||[]).filter(r=>r.qty>0);
-      const totalQty = rows.reduce((a,r)=>a+r.qty, 0);
-      const netCost = rows[0]?.cost||g.gcost||0;
+      const totalQty = rows.reduce((a,r)=>a+r.qty,0);
+      const title = [g.gdesign, g.gtype||g.gtype_other].filter(Boolean).join(' - ')||('Item '+(i+1));
       const imps = g.imps||[];
-      html += '<div style="padding:12px;border:1px solid var(--border);border-radius:6px;margin-bottom:8px;font-size:12px;">';
-      html += '<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;">';
+      html += '<div style="padding:12px;border:1px solid var(--border);border-radius:6px;margin-bottom:8px;">';
+      html += '<div style="display:flex;justify-content:space-between;gap:12px;">';
       html += '<div style="flex:1;">';
-      const gTitle = [g.gdesign, g.gtype||g.gtype_other].filter(Boolean).join(' - ') || ('Item '+(i+1));
-      html += '<div style="font-weight:700;font-size:13px;margin-bottom:4px;">'+gTitle+'</div>';
-      const meta = [
-        g.gbrand,
-        g.gsku ? 'SKU: '+g.gsku : '',
-        g.gvendor ? 'Vendor: '+g.gvendor : '',
-        g.gcolor_name ? 'Color: '+g.gcolor_name : '',
-        g.gfit && g.gfit !== 'N/A' ? g.gfit : '',
-      ].filter(Boolean);
-      if(meta.length) html += '<div style="color:var(--text3);margin-bottom:6px;">'+meta.join(' · ')+'</div>';
-      // Size run
+      html += '<div style="font-weight:700;font-size:14px;margin-bottom:4px;">'+title+'</div>';
+      const meta = [g.gbrand,g.gsku?'SKU: '+g.gsku:'',g.gvendor?'Vendor: '+g.gvendor:'',g.gcolor_name?'Color: '+g.gcolor_name:''].filter(Boolean);
+      if(meta.length) html += '<div style="font-size:11px;color:var(--text3);margin-bottom:6px;">'+meta.join(' · ')+'</div>';
       if(rows.length) {
-        html += '<div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:6px;">';
-        rows.forEach(r => {
-          html += '<span style="background:#f0f0f0;border-radius:4px;padding:2px 8px;font-size:11px;font-weight:600;">'+r.size+': '+r.qty+'</span>';
-        });
+        html += '<div style="margin-bottom:6px;">';
+        rows.forEach(r=>{ html += '<span class="sz-pill">'+r.size+': '+r.qty+'</span>'; });
         html += '</div>';
       }
-      // Imprints
       imps.forEach(imp => {
         const method = imp.type||'';
         const loc = imp.sp_loc||imp.emb_loc||imp.dtf_loc||imp.heat_loc||imp.vinyl_loc||'';
-        const colors = imp.sp_col ? imp.sp_col+' color(s)' : imp.emb_st ? imp.emb_st+' stitches' : '';
-        if(method||loc) {
-          html += '<div style="font-size:11px;color:var(--text2);background:#f8f8fa;padding:4px 8px;border-radius:4px;margin-bottom:3px;">🖨️ ';
-          html += [method, loc, colors].filter(Boolean).join(' · ');
-          html += '</div>';
+        const colors = imp.sp_ink_names||imp.emb_thread_names||imp.dtf_colors||imp.heat_colors||imp.vinyl_colors||'';
+        const count = imp.sp_col ? imp.sp_col+' color(s)' : imp.emb_st ? imp.emb_st+' stitches' : '';
+        // Specialty ink — pass to notes if present
+        if(imp.sp_ink && imp.sp_ink !== '0' && imp.sp_ink !== 0) {
+          const inkLabels = {'0.55':'Metallic/glitter/neon','1.05':'Reflective/glow-in-dark'};
+          const inkLabel = inkLabels[String(imp.sp_ink)]||'Specialty ink';
+          const notesEl = document.getElementById('d-notes');
+          if(notesEl && !notesEl.value) notesEl.value = inkLabel;
         }
+        if(method||loc) html += '<div class="imp-badge">'+[method,loc,colors,count].filter(Boolean).join(' · ')+'</div>';
       });
       html += '</div>';
-      html += '<div style="text-align:right;white-space:nowrap;">';
-      html += '<div style="font-size:13px;font-weight:700;">Qty: '+totalQty+'</div>';
-      html += '<div style="font-size:11px;color:var(--text3);">Net: $'+parseFloat(netCost).toFixed(2)+'/ea</div>';
-      html += '</div>';
-      html += '</div>';
-      html += '</div>';
+      html += '<div style="text-align:right;white-space:nowrap;font-size:12px;">';
+      html += '<div style="font-weight:700;">Qty: '+totalQty+'</div>';
+      if(rows[0]?.cost) html += '<div style="color:var(--text3);">Net: $'+parseFloat(rows[0].cost).toFixed(2)+'/ea</div>';
+      html += '</div></div></div>';
     });
     html += '</div>';
   }
 
   if(hgs.length) {
-    html += '<div>';
-    html += '<div style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--text3);margin-bottom:8px;">Hard Goods</div>';
-    hgs.forEach((h, i) => {
+    html += '<div><div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--text3);margin-bottom:8px;">Hard Goods</div>';
+    hgs.forEach((h,i) => {
       const qty = parseInt(h.hg_qty)||0;
-      const cost = parseFloat(h.hg_cost)||0;
-      html += '<div style="padding:12px;border:1px solid var(--border);border-radius:6px;margin-bottom:8px;font-size:12px;">';
-      html += '<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;">';
+      html += '<div style="padding:12px;border:1px solid var(--border);border-radius:6px;margin-bottom:8px;">';
+      html += '<div style="display:flex;justify-content:space-between;gap:12px;">';
       html += '<div style="flex:1;">';
-      html += '<div style="font-weight:700;font-size:13px;margin-bottom:4px;">'+(h.hg_desc||'Hard good '+(i+1))+'</div>';
-      const meta = [
-        h.hg_vendor ? 'Vendor: '+h.hg_vendor : '',
-        h.hg_sku ? 'SKU: '+h.hg_sku : '',
-        h.hg_item_color ? 'Color: '+h.hg_item_color : '',
-        h.hg_dec && h.hg_dec !== 'none' ? 'Deco: '+h.hg_dec : '',
-        h.hg_design ? 'Design: '+h.hg_design : '',
-        h.hg_colors ? h.hg_colors+' color(s)' : '',
-        h.hg_promo ? 'Promo: '+h.hg_promo : '',
-      ].filter(Boolean);
-      if(meta.length) html += '<div style="color:var(--text3);">'+meta.join(' · ')+'</div>';
+      html += '<div style="font-weight:700;font-size:14px;margin-bottom:4px;">'+(h.hg_desc||'Hard good '+(i+1))+'</div>';
+      const meta = [h.hg_vendor?'Vendor: '+h.hg_vendor:'',h.hg_sku?'SKU: '+h.hg_sku:'',h.hg_item_color?'Color: '+h.hg_item_color:'',h.hg_dec&&h.hg_dec!=='Blank'?'Deco: '+h.hg_dec:'',h.hg_colors?'Colors: '+h.hg_colors:'',h.hg_promo?'Promo: '+h.hg_promo:''].filter(Boolean);
+      if(meta.length) html += '<div style="font-size:11px;color:var(--text3);">'+meta.join(' · ')+'</div>';
       html += '</div>';
-      html += '<div style="text-align:right;white-space:nowrap;">';
-      html += '<div style="font-size:13px;font-weight:700;">Qty: '+qty+'</div>';
-      html += '<div style="font-size:11px;color:var(--text3);">Net: $'+cost.toFixed(2)+'/ea</div>';
-      html += '</div>';
-      html += '</div>';
-      html += '</div>';
+      html += '<div style="text-align:right;white-space:nowrap;font-size:12px;">';
+      html += '<div style="font-weight:700;">Qty: '+qty+'</div>';
+      if(h.hg_cost) html += '<div style="color:var(--text3);">Net: $'+parseFloat(h.hg_cost).toFixed(2)+'/ea</div>';
+      if(h.hg_sc) html += '<div style="color:var(--text3);">Setup: $'+parseFloat(h.hg_sc).toFixed(2)+'</div>';
+      html += '</div></div></div>';
     });
     html += '</div>';
   }
 
   if(!html) html = '<p style="color:var(--text3);font-size:13px;">No items found in quote.</p>';
-  document.getElementById('quote-items-ref').innerHTML = html;
+  document.getElementById('items-ref').innerHTML = html;
 }
 
-// ── PO Type ────────────────────────────────────────────────────────────────
-function selectType(type) {
-  selectedType = type;
+// ── Type selection ─────────────────────────────────────────────────────────
+function selectType(type, label, btn) {
+  currentType = type;
+  currentTypeLabel = label;
   selectedItems = [];
-  document.querySelectorAll('.po-type-btn').forEach(b => b.classList.remove('active'));
-  event.currentTarget.classList.add('active');
-
-  // Show/hide sections
-  document.getElementById('item-selection-card').classList.remove('section-hidden');
-  document.getElementById('details-card').classList.remove('section-hidden');
-
-  // Decoration section
-  const decoSec = document.getElementById('deco-section');
-  const proofSec = document.getElementById('proof-section');
-  const proofDiv = document.getElementById('proof-divider');
-  if(type === 'blank-apparel') {
-    decoSec.classList.add('section-hidden');
-    proofSec.classList.add('section-hidden');
-    proofDiv.classList.add('section-hidden');
-  } else {
-    decoSec.classList.remove('section-hidden');
-    proofSec.classList.remove('section-hidden');
-    proofDiv.classList.remove('section-hidden');
-  }
-
+  document.querySelectorAll('.po-type-btn').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  document.getElementById('step2').classList.remove('hidden');
+  document.getElementById('step3').classList.remove('hidden');
+  document.getElementById('deco-wrap').classList.toggle('hidden', type==='blank');
+  document.getElementById('proof-wrap').classList.toggle('hidden', type==='blank');
   buildItemList(type);
+  clearAutoFills();
 }
 
 function buildItemList(type) {
   const list = document.getElementById('item-list');
   list.innerHTML = '';
   const q = quoteData;
-  const garments = q.garments || [];
-  const hgs = q.hardGoods || [];
+  const garments = q.garments||[];
+  const hgs = q.hardGoods||[];
 
-  if(type === 'hard-goods') {
-    if(!hgs.length) { list.innerHTML = '<p style="color:var(--text3);font-size:13px;">No hard goods found in this quote.</p>'; return; }
-    hgs.forEach((h, i) => {
-      const div = makeItemCheck('hg_'+i, h.hg_desc||'Hard good', [
-        h.hg_vendor ? 'Vendor: '+h.hg_vendor : '',
-        h.hg_sku ? 'SKU: '+h.hg_sku : '',
-        h.hg_item_color ? 'Color: '+h.hg_item_color : '',
-        h.hg_qty ? 'Qty: '+h.hg_qty : '',
-      ].filter(Boolean).join(' · '), 'hg', i);
-      list.appendChild(div);
+  if(type === 'hg') {
+    if(!hgs.length) { list.innerHTML = '<p style="color:var(--text3);font-size:13px;">No hard goods in this quote.</p>'; return; }
+    hgs.forEach((h,i) => {
+      const qty = parseInt(h.hg_qty)||0;
+      list.appendChild(makeCheck('hg_'+i, (h.hg_desc||'Hard good'), [h.hg_vendor?'Vendor: '+h.hg_vendor:'',h.hg_sku?'SKU: '+h.hg_sku:'',h.hg_item_color?'Color: '+h.hg_item_color:'','Qty: '+qty].filter(Boolean).join(' · '), 'hg', i));
     });
   } else {
-    if(!garments.length) { list.innerHTML = '<p style="color:var(--text3);font-size:13px;">No apparel items found in this quote.</p>'; return; }
-    garments.forEach((g, i) => {
-      const totalQty = (g.szRows||[]).reduce((a,r)=>a+r.qty,0);
-      const gLabel = [g.gdesign, g.gtype||g.gtype_other].filter(Boolean).join(' - ') || ('Garment '+(i+1));
-      const div = makeItemCheck('g_'+i, gLabel, [
-        g.gvendor ? 'Vendor: '+g.gvendor : '',
-        g.gbrand ? g.gbrand : '',
-        g.gsku ? 'SKU: '+g.gsku : '',
-        g.gcolor_name ? 'Color: '+g.gcolor_name : '',
-        totalQty ? 'Total qty: '+totalQty : '',
-      ].filter(Boolean).join(' · '), 'g', i);
-
-      // Add design name for decorated
-      if(type === 'decorated-apparel' && g.gdesign) {
-        document.getElementById('deco-art').value = g.gdesign;
-      }
-      list.appendChild(div);
+    if(!garments.length) { list.innerHTML = '<p style="color:var(--text3);font-size:13px;">No apparel items in this quote.</p>'; return; }
+    garments.forEach((g,i) => {
+      const totalQty = (g.szRows||[]).filter(r=>r.qty>0).reduce((a,r)=>a+r.qty,0);
+      const title = [g.gdesign,g.gtype||g.gtype_other].filter(Boolean).join(' - ')||('Garment '+(i+1));
+      list.appendChild(makeCheck('g_'+i, title, [g.gvendor?'Vendor: '+g.gvendor:'',g.gcolor_name?'Color: '+g.gcolor_name:'','Total qty: '+totalQty].filter(Boolean).join(' · '), 'g', i));
     });
   }
 }
 
-function makeItemCheck(id, name, sub, itemType, idx) {
+function makeCheck(id, name, sub, type, idx) {
   const div = document.createElement('div');
   div.className = 'item-check';
-  div.dataset.type = itemType;
-  div.dataset.idx = idx;
-  div.innerHTML = `
-    <input type="checkbox" id="chk_${id}" onchange="toggleItem(this,'${itemType}',${idx})">
-    <div class="item-check-info">
-      <div class="item-check-name">${name}</div>
-      <div class="item-check-sub">${sub}</div>
-    </div>`;
+  div.innerHTML = '<input type="checkbox" id="chk_'+id+'" onchange="toggleItem(this,\''+type+'\','+idx+')">'
+    +'<div><div class="item-check-name">'+name+'</div><div class="item-check-sub">'+sub+'</div></div>';
   div.onclick = e => { if(e.target.tagName!=='INPUT') div.querySelector('input').click(); };
   return div;
 }
 
 function toggleItem(chk, type, idx) {
   const key = type+'_'+idx;
-  if(chk.checked) {
-    selectedItems.push({type, idx, key});
-    chk.closest('.item-check').classList.add('selected');
-  } else {
-    selectedItems = selectedItems.filter(i=>i.key!==key);
-    chk.closest('.item-check').classList.remove('selected');
-  }
-  // Re-populate fields from first selected item of this type
-  autoPopulateFromItems();
+  if(chk.checked) { selectedItems.push({type,idx,key}); chk.closest('.item-check').classList.add('selected'); }
+  else { selectedItems = selectedItems.filter(i=>i.key!==key); chk.closest('.item-check').classList.remove('selected'); }
+  autoFill();
 }
 
-function setIfEmpty(id, val) {
-  const el = document.getElementById(id);
-  if(el && val) el.value = val;
-}
+function setVal(id, val) { const el=document.getElementById(id); if(el&&val&&!el.value) el.value=val; }
+function setForce(id, val) { const el=document.getElementById(id); if(el&&val) el.value=val; }
 
-function autoPopulateFromItems() {
+function autoFill() {
   const q = quoteData;
-  const garments = q.garments||[];
-  const hgs = q.hardGoods||[];
-  const appItems = selectedItems.filter(i=>i.type==='g');
-  const hgItems = selectedItems.filter(i=>i.type==='hg');
-  const methodMap = {screen:'Screen printing',embroidery:'Embroidery',dtf:'DTF',heat:'Heat press',vinyl:'Vinyl'};
+  if(!selectedItems.length) return;
+  const first = selectedItems[0];
 
-  if(selectedType === 'blank-apparel' || selectedType === 'decorated-apparel') {
-    if(!appItems.length) return;
-    const firstG = garments[appItems[0].idx];
-    if(!firstG) return;
-    setIfEmpty('vendor-name', firstG.gvendor);
-    if(selectedType === 'decorated-apparel') {
-      const imp = (firstG.imps||[])[0];
+  if(currentType === 'blank' || currentType === 'decorated') {
+    const g = (q.garments||[])[first.idx];
+    if(!g) return;
+    setVal('v-name', g.gvendor);
+    if(currentType === 'decorated') {
+      const imp = (g.imps||[])[0];
       if(imp) {
-        const method = methodMap[imp.type]||imp.type||'';
-        const mEl = document.getElementById('deco-method');
-        if(mEl && method) mEl.value = method;
-        // Location — pick the right field based on type
-        const loc = imp.sp_loc||imp.emb_loc||imp.dtf_loc||imp.heat_loc||imp.vinyl_loc||'';
-        setIfEmpty('deco-location', loc);
-        // Art name
-        setIfEmpty('deco-art', firstG.gdesign||'');
-        // Colors — sp_ink for screen print, stitch count for embroidery, vinyl_t for vinyl
-        let colorStr = '';
-        if(imp.type==='screen') {
-          colorStr = [imp.sp_col ? imp.sp_col+' color(s)' : '', imp.sp_ink||''].filter(Boolean).join(' — ');
-        } else if(imp.type==='embroidery') {
-          colorStr = imp.emb_st ? imp.emb_st+' stitches' : '';
-        } else if(imp.type==='vinyl') {
-          colorStr = imp.vinyl_t||'';
-        } else if(imp.type==='heat') {
-          colorStr = imp.heat_t||'';
+        const methodMap = {screen:'Screen printing',embroidery:'Embroidery',dtf:'DTF',heat:'Heat press',vinyl:'Vinyl'};
+        const m = document.getElementById('d-method');
+        if(m && !m.value && methodMap[imp.type]) m.value = methodMap[imp.type];
+        setVal('d-loc', imp.sp_loc||imp.emb_loc||imp.dtf_loc||imp.heat_loc||imp.vinyl_loc||'');
+        setVal('d-art', g.gdesign||'');
+        const colors = imp.sp_ink_names||imp.emb_thread_names||imp.dtf_colors||imp.heat_colors||imp.vinyl_colors||'';
+        setVal('d-colors', colors);
+        const pmsStr = (imp.sp_pms_colors||[]).join(', ');
+        if(pmsStr) setVal('d-colors', colors ? colors+', '+pmsStr : pmsStr);
+        const count = imp.sp_col ? imp.sp_col+' color(s)' : imp.emb_st ? imp.emb_st+' stitches' : '';
+        // Specialty ink — pass to notes if present
+        if(imp.sp_ink && imp.sp_ink !== '0' && imp.sp_ink !== 0) {
+          const inkLabels = {'0.55':'Metallic/glitter/neon','1.05':'Reflective/glow-in-dark'};
+          const inkLabel = inkLabels[String(imp.sp_ink)]||'Specialty ink';
+          const notesEl = document.getElementById('d-notes');
+          if(notesEl && !notesEl.value) notesEl.value = inkLabel;
         }
-        setIfEmpty('deco-colors', colorStr);
-        // PMS — from sp_ic (PMS color count) field
-        setIfEmpty('deco-pms', imp.sp_ic ? imp.sp_ic+' PMS color(s)' : '');
+        setVal('d-count', count);
+        // Thread colors for embroidery
+        if(imp.type==='embroidery' && imp.emb_thread_names) {
+          setVal('d-colors', imp.emb_thread_names);
+        }
       }
     }
   }
 
-  if(selectedType === 'hard-goods') {
-    if(!hgItems.length) return;
-    const firstH = hgs[hgItems[0].idx];
-    if(!firstH) return;
-    setIfEmpty('vendor-name', firstH.hg_vendor);
-    // HG decoration method — hg_dec matches QB values
-    const hgDecMap = {
-      'screen-print':'Screen printing','embroidery':'Embroidery','dtf':'DTF',
-      'laser':'Laser engraving','pad-print':'Pad printing','digital':'Digital print',
-      'Blank':'','none':'',''  :''
-    };
-    const hgMethod = hgDecMap[firstH.hg_dec]||firstH.hg_dec||'';
-    if(hgMethod) {
-      const mEl = document.getElementById('deco-method');
-      if(mEl) mEl.value = hgMethod;
-    }
-    setIfEmpty('deco-art', firstH.hg_design||'');
-    setIfEmpty('deco-colors', firstH.hg_colors||'');
+  if(currentType === 'hg') {
+    const h = (q.hardGoods||[])[first.idx];
+    if(!h) return;
+    setVal('v-name', h.hg_vendor);
+    const hgDecMap = {'screen-print':'Screen printing','embroidery':'Embroidery','dtf':'DTF','laser':'Laser engraving','pad-print':'Pad printing','digital':'Digital print'};
+    const m = document.getElementById('d-method');
+    if(m && !m.value && hgDecMap[h.hg_dec]) m.value = hgDecMap[h.hg_dec];
+    setVal('d-art', h.hg_design||h.hg_desc||'');
+    setVal('d-colors', h.hg_colors||'');
   }
 }
 
+function clearAutoFills() {
+  ['v-name','v-email','v-phone','v-acct','d-method','d-loc','d-art','d-colors','d-count','d-notes','rep-name','rep-email','order-notes','proof-notes'].forEach(id=>{
+    const el=document.getElementById(id); if(el&&el.tagName!=='SELECT') el.value=''; else if(el) el.value='';
+  });
+  document.querySelectorAll('input[name="proof"]').forEach(r=>r.checked=false);
+  document.getElementById('po-date').value = new Date().toISOString().split('T')[0];
+}
+
 // ── Validation ─────────────────────────────────────────────────────────────
-function validatePO() {
-  const required = [
-    ['vendor-name','Vendor name'],
-    ['vendor-contact','Vendor contact'],
-    ['vendor-email','Vendor email'],
-    ['rep-name','Rep name'],
-    ['rep-email','Rep email'],
-  ];
-  if(selectedType !== 'blank-apparel') {
-    required.push(['deco-method','Decoration method']);
-    required.push(['deco-location','Imprint location']);
+function validate() {
+  if(!selectedItems.length) { alert('Please select at least one item.'); return false; }
+  const req = [['v-name','Vendor name'],['v-email','Vendor email'],['rep-name','Rep name'],['rep-email','Rep email']];
+  if(currentType !== 'blank') req.push(['d-method','Decoration method'],['d-loc','Imprint location'],['d-colors','Imprint colors']);
+  for(const [id,label] of req) {
+    const el=document.getElementById(id);
+    if(!el||!el.value.trim()) { if(el){el.style.borderColor='var(--red)';el.focus();} alert('Please fill in: '+label); return false; }
+    el.style.borderColor='';
   }
-  for(const [id, label] of required) {
-    const el = document.getElementById(id);
-    if(!el.value.trim()) {
-      el.style.borderColor = 'var(--red)';
-      el.focus();
-      alert('Please fill in: ' + label);
-      return false;
-    }
-    el.style.borderColor = '';
-  }
-  if(!selectedItems.length) { alert('Please select at least one item for this PO.'); return false; }
-  if(selectedType !== 'blank-apparel') {
-    const proof = document.querySelector('input[name="proof"]:checked');
-    if(!proof) { alert('Please select a proof requirement.'); return false; }
+  if(currentType !== 'blank') {
+    if(!document.querySelector('input[name="proof"]:checked')) { alert('Please select a proof requirement.'); return false; }
   }
   return true;
 }
 
-// ── PO Generation ──────────────────────────────────────────────────────────
+// ── Add to queue ───────────────────────────────────────────────────────────
+function addToQueue() {
+  if(!validate()) return;
+  const q = quoteData;
+  const poNum = 'PO-'+(q.quoteNum||'XXXX')+'-'+(poQueue.length+1);
+  const data = captureFormData();
+  const html = buildPOHTML(poNum, data);
+  const po = {id:poNum, typeLabel:currentTypeLabel, html, data, poNum};
+  poQueue.push(po);
+  updateQueueUI();
+  openPO(poQueue.length-1);
+  resetForm();
+  document.querySelector('#po-queue').scrollIntoView({behavior:'smooth'});
+}
+
+function captureFormData() {
+  const q = quoteData;
+  return {
+    quoteNum: q.quoteNum||'', quoteName: q.quoteName||'',
+    clientName: q.clientName||'', clientCompany: q.clientCompany||'',
+    ihd: q.ihd||'', ihdFirm: q.ihdFirm||false,
+    vendorName: document.getElementById('v-name').value,
+    vendorEmail: document.getElementById('v-email').value,
+    vendorPhone: document.getElementById('v-phone').value,
+    vendorAcct: document.getElementById('v-acct').value,
+    poDate: document.getElementById('po-date').value,
+    decoMethod: document.getElementById('d-method').value,
+    decoLoc: document.getElementById('d-loc').value,
+    decoArt: document.getElementById('d-art').value,
+    decoColors: document.getElementById('d-colors').value,
+    decoCount: document.getElementById('d-count').value,
+    decoNotes: document.getElementById('d-notes').value,
+    specialtyInk: (()=>{
+      const items = selectedItems.filter(i=>i.type==='g');
+      if(!items.length) return '';
+      const g = (quoteData.garments||[])[items[0].idx];
+      const imp = (g?.imps||[])[0];
+      if(!imp?.sp_ink || imp.sp_ink==='0') return '';
+      return {'0.55':'Metallic/glitter/fluorescent/neon ink (+$0.55/item)','1.05':'Reflective/glow-in-dark ink (+$1.05/item)'}[String(imp.sp_ink)]||'Specialty ink';
+    })(),
+    pmsColors: (()=>{
+      const items = selectedItems.filter(i=>i.type==='g');
+      if(!items.length) return '';
+      const g = (quoteData.garments||[])[items[0].idx];
+      const allPms = (g?.imps||[]).flatMap(imp=>imp.sp_pms_colors||[]).filter(Boolean);
+      return allPms.join(', ');
+    })(),
+    proofReq: document.querySelector('input[name="proof"]:checked')?.value||'',
+    proofNotes: document.getElementById('proof-notes').value,
+    repName: document.getElementById('rep-name').value,
+    repEmail: document.getElementById('rep-email').value,
+    orderNotes: document.getElementById('order-notes').value,
+    type: currentType, typeLabel: currentTypeLabel,
+    items: selectedItems.map(item => {
+      if(item.type==='g') return {type:'g', data:(q.garments||[])[item.idx]};
+      if(item.type==='hg') return {type:'hg', data:(q.hardGoods||[])[item.idx]};
+    }).filter(Boolean)
+  };
+}
+
+// ── Build PO HTML (editable) ───────────────────────────────────────────────
 function fmt(n){return'$'+(parseFloat(n)||0).toFixed(2);}
 
-function buildPOHTML(poNum) {
-  const q = quoteData;
-  const type = selectedType;
-  const vendorName = document.getElementById('vendor-name').value.trim();
-  const vendorContact = document.getElementById('vendor-contact').value.trim();
-  const vendorEmail = document.getElementById('vendor-email').value.trim();
-  const vendorPhone = document.getElementById('vendor-phone').value.trim();
-  const vendorAccount = document.getElementById('vendor-account').value.trim();
-  const repName = document.getElementById('rep-name').value.trim();
-  const repEmail = document.getElementById('rep-email').value.trim();
-  const orderNotes = document.getElementById('order-notes').value.trim();
-  const proofVal = document.querySelector('input[name="proof"]:checked')?.value||'';
-  const proofNotes = document.getElementById('proof-notes').value.trim();
-  const decoMethod = document.getElementById('deco-method')?.value||'';
-  const decoLocation = document.getElementById('deco-location')?.value.trim()||'';
-  const decoArt = document.getElementById('deco-art')?.value.trim()||'';
-  const decoColors = document.getElementById('deco-colors')?.value.trim()||'';
-  const decoPMS = document.getElementById('deco-pms')?.value.trim()||'';
-  const decoNotes = document.getElementById('deco-notes')?.value.trim()||'';
+function buildPOHTML(poNum, d) {
+  const poDate = d.poDate ? new Date(d.poDate+'T12:00:00').toLocaleDateString('en-US',{month:'long',day:'numeric',year:'numeric'}) : new Date().toLocaleDateString('en-US',{month:'long',day:'numeric',year:'numeric'});
+  const typeLabels = {blank:'Blank Apparel',decorated:'Decorated Apparel / Accessories',hg:'Hard Goods'};
 
-  const proofLabels = {'digital':'Digital proof','pre-production':'Pre-production sample','none':'No proof required — proceed to production'};
-  const typeLabels = {'blank-apparel':'Blank Apparel','decorated-apparel':'Decorated Apparel / Accessories','hard-goods':'Hard Goods'};
-
-  const today = new Date().toLocaleDateString('en-US',{month:'long',day:'numeric',year:'numeric'});
-
-  // Build items HTML
+  // Build editable items
   let itemsHTML = '';
-  const garments = q.garments||[];
-  const hgs = q.hardGoods||[];
-
-  selectedItems.forEach(item => {
-    if(item.type === 'g') {
-      const g = garments[item.idx];
+  (d.items||[]).forEach(item => {
+    if(item.type==='g') {
+      const g = item.data;
       if(!g) return;
       const rows = (g.szRows||[]).filter(r=>r.qty>0);
-      const totalQty = rows.reduce((a,r)=>a+r.qty,0);
-      const netCost = rows[0]?.cost||g.gcost||0;
-      const totalNet = rows.reduce((a,r)=>a+r.qty*(r.cost||netCost),0);
-      const gItemTitle = [g.gdesign, g.gtype||g.gtype_other].filter(Boolean).join(' - ') || 'Apparel item';
-
+      const title = [g.gdesign,g.gtype||g.gtype_other].filter(Boolean).join(' - ')||'Apparel item';
       itemsHTML += `
-        <div style="margin-bottom:20px;padding:16px;border:1px solid #e0e0e0;border-radius:6px;">
-          <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px;">
-            <div>
-              <div style="font-size:15px;font-weight:700;">${gItemTitle}</div>
-              <div style="font-size:12px;color:#666;margin-top:2px;">
-                ${[g.gbrand,g.gsku?'SKU: '+g.gsku:''].filter(Boolean).join(' · ')}
+        <div style="margin-bottom:16px;padding:14px;border:2px solid #e8e8e8;border-radius:8px;">
+          <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:12px;gap:12px;flex-wrap:wrap;">
+            <div style="flex:1;min-width:200px;">
+              <div style="font-size:16px;font-weight:800;margin-bottom:6px;"><input class="po-field-edit" style="font-size:16px;font-weight:800;" value="${title}"></div>
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;font-size:12px;">
+                <div><span style="color:#888;font-size:10px;font-weight:700;text-transform:uppercase;display:block;">Brand</span><input class="po-field-edit" value="${g.gbrand||''}"></div>
+                <div><span style="color:#888;font-size:10px;font-weight:700;text-transform:uppercase;display:block;">SKU</span><input class="po-field-edit" value="${g.gsku||''}"></div>
+                <div><span style="color:#888;font-size:10px;font-weight:700;text-transform:uppercase;display:block;">Vendor</span><input class="po-field-edit" value="${g.gvendor||''}"></div>
+                <div><span style="color:#888;font-size:10px;font-weight:700;text-transform:uppercase;display:block;">Color</span><input class="po-field-edit" value="${g.gcolor_name||''}"></div>
               </div>
-              <div style="font-size:12px;color:#666;">
-                ${[g.gvendor?'Vendor: '+g.gvendor:'',g.gcolor_name?'Color: '+g.gcolor_name:'',g.gfit&&g.gfit!=='N/A'?g.gfit:''].filter(Boolean).join(' · ')}
-              </div>
-            </div>
-            <div style="text-align:right;font-size:13px;">
-              <div>Total qty: <strong>${totalQty}</strong></div>
-              <div>Net cost: <strong>${fmt(totalNet)}</strong></div>
             </div>
           </div>
           ${rows.length ? `
-          <table style="width:100%;border-collapse:collapse;font-size:12px;">
-            <thead><tr style="background:#f5f5f7;">
-              <th style="padding:5px 10px;border:1px solid #ddd;text-align:left;">Size</th>
-              <th style="padding:5px 10px;border:1px solid #ddd;text-align:center;">Qty</th>
-              <th style="padding:5px 10px;border:1px solid #ddd;text-align:right;">Net/item</th>
-              <th style="padding:5px 10px;border:1px solid #ddd;text-align:right;">Line total</th>
+          <table class="po-table" style="margin-top:8px;">
+            <thead><tr>
+              <th>Size</th><th>Qty</th><th>Net cost/ea</th><th>Line total</th>
             </tr></thead>
             <tbody>
               ${rows.map(r=>`<tr>
-                <td style="padding:5px 10px;border:1px solid #ddd;">${r.size}</td>
-                <td style="padding:5px 10px;border:1px solid #ddd;text-align:center;">${r.qty}</td>
-                <td style="padding:5px 10px;border:1px solid #ddd;text-align:right;">${fmt(r.cost)}</td>
-                <td style="padding:5px 10px;border:1px solid #ddd;text-align:right;">${fmt(r.qty*(r.cost||0))}</td>
+                <td style="font-weight:700;"><input class="po-field-edit" value="${r.size}" style="font-weight:700;width:60px;"></td>
+                <td><input class="po-field-edit" value="${r.qty}" style="width:60px;text-align:center;"></td>
+                <td><input class="po-field-edit" value="${fmt(r.cost)}" style="width:80px;"></td>
+                <td style="font-weight:600;">${fmt(r.qty*(r.cost||0))}</td>
               </tr>`).join('')}
-              <tr style="font-weight:700;background:#f9f9f9;">
-                <td style="padding:5px 10px;border:1px solid #ddd;">Total</td>
-                <td style="padding:5px 10px;border:1px solid #ddd;text-align:center;">${totalQty}</td>
-                <td style="padding:5px 10px;border:1px solid #ddd;"></td>
-                <td style="padding:5px 10px;border:1px solid #ddd;text-align:right;">${fmt(totalNet)}</td>
+              ${(g.g_misc_fees||[]).map(f=>`<tr>
+                <td colspan="2">${f.desc||'Misc fee'}</td>
+                <td></td>
+                <td><input class="po-field-edit" value="${fmt(f.net)}" style="width:80px;"></td>
+              </tr>`).join('')}
+              ${(g.g_misc_fees||[]).map(f=>`<tr>
+                <td colspan="2">${f.desc||'Misc fee'}</td>
+                <td></td>
+                <td><input class="po-field-edit" value="${fmt(f.net)}" style="width:80px;"></td>
+              </tr>`).join('')}
+              <tr style="background:#f5f5f7;font-weight:700;">
+                <td colspan="2">Total</td>
+                <td></td>
+                <td>${fmt(rows.reduce((a,r)=>a+r.qty*(r.cost||0),0)+(g.g_misc_fees||[]).reduce((a,f)=>a+(f.net||0),0))}</td>
               </tr>
             </tbody>
           </table>` : ''}
         </div>`;
-
-    } else if(item.type === 'hg') {
-      const h = hgs[item.idx];
+    } else if(item.type==='hg') {
+      const h = item.data;
       if(!h) return;
       const qty = parseInt(h.hg_qty)||0;
       const cost = parseFloat(h.hg_cost)||0;
       const run = parseFloat(h.hg_dc)||0;
       const setup = parseFloat(h.hg_sc)||0;
       const rush = parseFloat(h.hg_rush)||0;
-
       itemsHTML += `
-        <div style="margin-bottom:20px;padding:16px;border:1px solid #e0e0e0;border-radius:6px;">
-          <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px;">
-            <div>
-              <div style="font-size:15px;font-weight:700;">${h.hg_desc||'Hard good'}</div>
-              <div style="font-size:12px;color:#666;margin-top:2px;">
-                ${[h.hg_vendor?'Vendor: '+h.hg_vendor:'',h.hg_sku?'SKU: '+h.hg_sku:'',h.hg_item_color?'Color: '+h.hg_item_color:''].filter(Boolean).join(' · ')}
-              </div>
-              ${h.hg_promo?`<div style="font-size:12px;color:#666;">Promo code: ${h.hg_promo}</div>`:''}
-            </div>
+        <div style="margin-bottom:16px;padding:14px;border:2px solid #e8e8e8;border-radius:8px;">
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;font-size:12px;margin-bottom:12px;">
+            <div><span style="color:#888;font-size:10px;font-weight:700;text-transform:uppercase;display:block;">Item name</span><input class="po-field-edit" style="font-size:15px;font-weight:800;" value="${h.hg_desc||''}"></div>
+            <div><span style="color:#888;font-size:10px;font-weight:700;text-transform:uppercase;display:block;">SKU</span><input class="po-field-edit" value="${h.hg_sku||''}"></div>
+            <div><span style="color:#888;font-size:10px;font-weight:700;text-transform:uppercase;display:block;">Vendor</span><input class="po-field-edit" value="${h.hg_vendor||''}"></div>
+            <div><span style="color:#888;font-size:10px;font-weight:700;text-transform:uppercase;display:block;">Color</span><input class="po-field-edit" value="${h.hg_item_color||''}"></div>
+            ${h.hg_promo?`<div><span style="color:#888;font-size:10px;font-weight:700;text-transform:uppercase;display:block;">Promo code</span><input class="po-field-edit" value="${h.hg_promo}"></div>`:''}
           </div>
-          <table style="width:100%;border-collapse:collapse;font-size:12px;">
-            <thead><tr style="background:#f5f5f7;">
-              <th style="padding:5px 10px;border:1px solid #ddd;text-align:left;">Description</th>
-              <th style="padding:5px 10px;border:1px solid #ddd;text-align:center;">Qty</th>
-              <th style="padding:5px 10px;border:1px solid #ddd;text-align:right;">Unit cost</th>
-              <th style="padding:5px 10px;border:1px solid #ddd;text-align:right;">Total</th>
-            </tr></thead>
+          <table class="po-table">
+            <thead><tr><th>Description</th><th>Qty</th><th>Unit cost</th><th>Total</th></tr></thead>
             <tbody>
-              <tr><td style="padding:5px 10px;border:1px solid #ddd;">Item</td><td style="padding:5px 10px;border:1px solid #ddd;text-align:center;">${qty}</td><td style="padding:5px 10px;border:1px solid #ddd;text-align:right;">${fmt(cost)}</td><td style="padding:5px 10px;border:1px solid #ddd;text-align:right;">${fmt(qty*cost)}</td></tr>
-              ${run>0?`<tr><td style="padding:5px 10px;border:1px solid #ddd;">Run charge</td><td style="padding:5px 10px;border:1px solid #ddd;text-align:center;">${qty}</td><td style="padding:5px 10px;border:1px solid #ddd;text-align:right;">${fmt(run)}</td><td style="padding:5px 10px;border:1px solid #ddd;text-align:right;">${fmt(qty*run)}</td></tr>`:''}
-              ${setup>0?`<tr><td style="padding:5px 10px;border:1px solid #ddd;">Setup / die charge</td><td style="padding:5px 10px;border:1px solid #ddd;text-align:center;">1</td><td style="padding:5px 10px;border:1px solid #ddd;text-align:right;">${fmt(setup)}</td><td style="padding:5px 10px;border:1px solid #ddd;text-align:right;">${fmt(setup)}</td></tr>`:''}
-              ${rush>0?`<tr><td style="padding:5px 10px;border:1px solid #ddd;">Rush / extra fees</td><td style="padding:5px 10px;border:1px solid #ddd;text-align:center;">1</td><td style="padding:5px 10px;border:1px solid #ddd;text-align:right;">${fmt(rush)}</td><td style="padding:5px 10px;border:1px solid #ddd;text-align:right;">${fmt(rush)}</td></tr>`:''}
-              <tr style="font-weight:700;background:#f9f9f9;"><td style="padding:5px 10px;border:1px solid #ddd;" colspan="3">Total</td><td style="padding:5px 10px;border:1px solid #ddd;text-align:right;">${fmt(qty*cost+(qty*run)+setup+rush)}</td></tr>
+              <tr><td>Item</td><td><input class="po-field-edit" value="${qty}" style="width:60px;text-align:center;"></td><td><input class="po-field-edit" value="${fmt(cost)}" style="width:80px;"></td><td>${fmt(qty*cost)}</td></tr>
+              ${run>0?`<tr><td>Run charge</td><td><input class="po-field-edit" value="${qty}" style="width:60px;text-align:center;"></td><td><input class="po-field-edit" value="${fmt(run)}" style="width:80px;"></td><td>${fmt(qty*run)}</td></tr>`:''}
+              ${setup>0?`<tr><td>Setup / die charge</td><td>1</td><td><input class="po-field-edit" value="${fmt(setup)}" style="width:80px;"></td><td>${fmt(setup)}</td></tr>`:''}
+              ${rush>0?`<tr><td>Rush / extra fees</td><td>1</td><td><input class="po-field-edit" value="${fmt(rush)}" style="width:80px;"></td><td>${fmt(rush)}</td></tr>`:''}
+              ${(h.hg_misc_fees||[]).map(f=>`<tr><td>${f.desc||'Misc fee'}</td><td>1</td><td><input class="po-field-edit" value="${fmt(f.net)}" style="width:80px;"></td><td>${fmt(f.net)}</td></tr>`).join('')}
+              <tr style="background:#f5f5f7;font-weight:700;"><td colspan="3">Total</td><td>${fmt(qty*cost+(run?qty*run:0)+setup+rush+(h.hg_misc_fees||[]).reduce((a,f)=>a+(f.net||0),0))}</td></tr>
             </tbody>
           </table>
         </div>`;
     }
   });
 
-  // Decoration block
-  const decoHTML = type !== 'blank-apparel' ? `
-    <div style="margin-bottom:20px;">
-      <div style="font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:#C41E1E;margin-bottom:10px;padding-bottom:6px;border-bottom:2px solid #eee;">Decoration specifications</div>
-      <table style="width:100%;font-size:13px;border-collapse:collapse;">
-        ${decoMethod?`<tr><td style="padding:5px 0;color:#666;width:160px;">Method</td><td style="padding:5px 0;font-weight:600;">${decoMethod}</td></tr>`:''}
-        ${decoLocation?`<tr><td style="padding:5px 0;color:#666;">Location(s)</td><td style="padding:5px 0;font-weight:600;">${decoLocation}</td></tr>`:''}
-        ${decoArt?`<tr><td style="padding:5px 0;color:#666;">Design / art file</td><td style="padding:5px 0;font-weight:600;">${decoArt}</td></tr>`:''}
-        ${decoColors?`<tr><td style="padding:5px 0;color:#666;">Colors / threads</td><td style="padding:5px 0;font-weight:600;">${decoColors}</td></tr>`:''}
-        ${decoPMS?`<tr><td style="padding:5px 0;color:#666;">PMS colors</td><td style="padding:5px 0;font-weight:600;">${decoPMS}</td></tr>`:''}
-        ${decoNotes?`<tr><td style="padding:5px 0;color:#666;">Special instructions</td><td style="padding:5px 0;font-weight:600;">${decoNotes}</td></tr>`:''}
-      </table>
+  const decoHTML = d.type !== 'blank' ? `
+    <div class="po-section-title">Decoration specifications</div>
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;font-size:12px;padding:12px;background:#f8f8fa;border-radius:6px;margin-bottom:16px;">
+      <div><span style="font-size:10px;font-weight:700;text-transform:uppercase;color:#888;display:block;margin-bottom:3px;">Method</span><input class="po-field-edit" style="font-size:13px;font-weight:700;" value="${d.decoMethod}"></div>
+      <div><span style="font-size:10px;font-weight:700;text-transform:uppercase;color:#888;display:block;margin-bottom:3px;">Location(s)</span><input class="po-field-edit" style="font-size:13px;font-weight:700;" value="${d.decoLoc}"></div>
+      <div><span style="font-size:10px;font-weight:700;text-transform:uppercase;color:#888;display:block;margin-bottom:3px;">Art / design name</span><input class="po-field-edit" style="font-size:13px;font-weight:700;" value="${d.decoArt}"></div>
+      <div style="grid-column:span 3;"><span style="font-size:10px;font-weight:700;text-transform:uppercase;color:#888;display:block;margin-bottom:3px;">Imprint colors <span style="color:var(--red)">★</span></span><input class="po-field-edit" style="font-size:14px;font-weight:800;color:var(--red);" value="${d.decoColors}"></div>
+      ${d.decoCount?`<div><span style="font-size:10px;font-weight:700;text-transform:uppercase;color:#888;display:block;margin-bottom:3px;">Color count</span><input class="po-field-edit" style="font-size:13px;font-weight:700;" value="${d.decoCount}"></div>`:''}
+      ${d.specialtyInk?`<div><span style="font-size:10px;font-weight:700;text-transform:uppercase;color:#888;display:block;margin-bottom:3px;">Specialty ink</span><input class="po-field-edit" style="font-size:13px;font-weight:700;" value="${d.specialtyInk}"></div>`:''}
+      ${d.pmsColors?`<div><span style="font-size:10px;font-weight:700;text-transform:uppercase;color:#888;display:block;margin-bottom:3px;">PMS colors</span><input class="po-field-edit" style="font-size:13px;font-weight:700;" value="${d.pmsColors}"></div>`:''}
+      ${d.decoNotes?`<div><span style="font-size:10px;font-weight:700;text-transform:uppercase;color:#888;display:block;margin-bottom:3px;">Special instructions</span><input class="po-field-edit" style="font-size:13px;" value="${d.decoNotes}"></div>`:''}
     </div>` : '';
 
-  // Proof block
-  const proofHTML = type !== 'blank-apparel' && proofVal ? `
-    <div style="margin-bottom:20px;padding:12px;background:#fffaf0;border:1px solid #f0c060;border-radius:6px;">
-      <div style="font-size:13px;font-weight:700;margin-bottom:6px;">Proof requirement</div>
-      <div style="font-size:13px;font-weight:600;">${proofLabels[proofVal]||proofVal}</div>
-      ${proofNotes?`<div style="font-size:12px;color:#555;margin-top:6px;">${proofNotes}</div>`:''}
+  const proofHTML = d.type !== 'blank' && d.proofReq ? `
+    <div style="padding:12px;background:#fffaf0;border:1px solid #f0c060;border-radius:6px;margin-bottom:16px;">
+      <div style="font-size:12px;font-weight:700;margin-bottom:6px;">Proof requirement</div>
+      <input class="po-field-edit" style="font-size:13px;font-weight:700;" value="${d.proofReq}">
+      ${d.proofNotes?`<div style="margin-top:6px;"><input class="po-field-edit" style="font-size:12px;" value="${d.proofNotes}"></div>`:''}
     </div>` : '';
 
-  return `
-    <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;max-width:800px;margin:0 auto;padding:32px;color:#1a1a1f;">
+  const notesHTML = d.orderNotes ? `
+    <div style="margin-bottom:16px;padding:12px;background:#f8f8fa;border-radius:6px;">
+      <div style="font-size:11px;font-weight:700;text-transform:uppercase;color:#888;margin-bottom:6px;">Notes / special instructions</div>
+      <textarea class="po-field-edit" style="width:100%;resize:vertical;border:none;border-bottom:1px dashed #ccc;font-family:inherit;font-size:13px;background:transparent;">${d.orderNotes}</textarea>
+    </div>` : '';
 
-      <!-- Header -->
-      <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:28px;padding-bottom:20px;border-bottom:3px solid #C41E1E;">
-        <div>
-          <div style="font-size:26px;font-weight:800;color:#C41E1E;">🐂 TORO</div>
-          <div style="font-size:13px;color:#666;margin-top:2px;">Branded Apparel & Merch</div>
-          <div style="font-size:12px;color:#888;margin-top:6px;">4704 Benbrook Hwy · Fort Worth, TX 76116</div>
-        </div>
-        <div style="text-align:right;">
-          <div style="font-size:22px;font-weight:800;">PURCHASE ORDER</div>
-          <div style="font-size:16px;font-weight:700;color:#C41E1E;margin-top:4px;">${poNum}</div>
-          <div style="font-size:12px;color:#888;margin-top:4px;">${typeLabels[type]||type}</div>
-          <div style="font-size:12px;color:#888;">Date: ${today}</div>
-        </div>
+  return `<div class="po-body">
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:20px;padding-bottom:16px;border-bottom:3px solid var(--red);">
+      <div>
+        <div style="font-size:24px;font-weight:800;color:var(--red);">🐂 TORO</div>
+        <div style="font-size:12px;color:#666;margin-top:2px;">Branded Apparel & Merch</div>
+        <div style="font-size:11px;color:#888;margin-top:4px;">4704 Benbrook Hwy · Fort Worth, TX 76116</div>
       </div>
-
-      <!-- To / From -->
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:24px;margin-bottom:24px;">
-        <div style="padding:14px;background:#f8f8fa;border-radius:6px;">
-          <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:#888;margin-bottom:8px;">Vendor</div>
-          <div style="font-weight:700;font-size:14px;">${vendorName}</div>
-          ${vendorContact?`<div style="font-size:13px;margin-top:2px;">${vendorContact}</div>`:''}
-          ${vendorEmail?`<div style="font-size:13px;color:#555;">${vendorEmail}</div>`:''}
-          ${vendorPhone?`<div style="font-size:13px;color:#555;">${vendorPhone}</div>`:''}
-          ${vendorAccount?`<div style="font-size:12px;color:#888;margin-top:4px;">Acct #: ${vendorAccount}</div>`:''}
-        </div>
-        <div style="padding:14px;background:#f8f8fa;border-radius:6px;">
-          <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:#888;margin-bottom:8px;">Ship to</div>
-          <div style="font-weight:700;font-size:14px;">TORO Branded Apparel & Merch</div>
-          <div style="font-size:13px;margin-top:2px;">4704 Benbrook Hwy</div>
-          <div style="font-size:13px;">Fort Worth, TX 76116</div>
-        </div>
+      <div style="text-align:right;">
+        <div style="font-size:20px;font-weight:800;">PURCHASE ORDER</div>
+        <div style="font-size:16px;font-weight:800;color:var(--red);">${poNum}</div>
+        <div style="font-size:12px;color:#888;">${typeLabels[d.type]||d.typeLabel}</div>
+        <div style="font-size:12px;color:#888;">Date: <input class="po-field-edit" style="font-size:12px;width:140px;" value="${poDate}"></div>
       </div>
+    </div>
 
-      <!-- Quote / order info -->
-      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:24px;padding:14px;background:#fff8f0;border:1px solid #f0c060;border-radius:6px;">
-        <div>
-          <div style="font-size:10px;font-weight:700;text-transform:uppercase;color:#888;margin-bottom:3px;">Quote #</div>
-          <div style="font-size:14px;font-weight:700;">${q.quoteNum||'—'}</div>
-        </div>
-        <div>
-          <div style="font-size:10px;font-weight:700;text-transform:uppercase;color:#888;margin-bottom:3px;">Client</div>
-          <div style="font-size:13px;font-weight:600;">${[q.clientName,q.clientCompany].filter(Boolean).join(' / ')||'—'}</div>
-        </div>
-        <div>
-          <div style="font-size:10px;font-weight:700;text-transform:uppercase;color:#888;margin-bottom:3px;">In-hands date</div>
-          <div style="font-size:14px;font-weight:700;">${q.ihd||'—'}</div>
-        </div>
-        <div>
-          <div style="font-size:10px;font-weight:700;text-transform:uppercase;color:#888;margin-bottom:3px;">IHD status</div>
-          <div style="font-size:14px;font-weight:700;color:${q.ihdFirm?'#C41E1E':'#1a7f4b'};">${q.ihdFirm?'🔒 FIRM':'Not firm'}</div>
-        </div>
+    <div class="po-header-grid">
+      <div class="po-info-box">
+        <div class="po-info-label">Vendor</div>
+        <div style="font-size:13px;"><input class="po-field-edit" style="font-size:14px;font-weight:700;" value="${d.vendorName}"></div>
+        <div style="font-size:12px;margin-top:4px;"><input class="po-field-edit" placeholder="email" value="${d.vendorEmail}"></div>
+        ${d.vendorPhone?`<div style="font-size:12px;"><input class="po-field-edit" value="${d.vendorPhone}"></div>`:''}
+        ${d.vendorAcct?`<div style="font-size:11px;color:#888;margin-top:3px;">Acct #: <input class="po-field-edit" style="font-size:11px;width:120px;" value="${d.vendorAcct}"></div>`:''}
       </div>
-
-      <!-- Items -->
-      <div style="margin-bottom:20px;">
-        <div style="font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:#C41E1E;margin-bottom:12px;padding-bottom:6px;border-bottom:2px solid #eee;">Order items</div>
-        ${itemsHTML}
+      <div class="po-info-box">
+        <div class="po-info-label">Ship to</div>
+        <div style="font-weight:700;font-size:13px;">TORO Branded Apparel & Merch</div>
+        <div style="font-size:12px;margin-top:3px;">4704 Benbrook Hwy</div>
+        <div style="font-size:12px;">Fort Worth, TX 76116</div>
       </div>
+    </div>
 
-      <!-- Decoration -->
-      ${decoHTML}
+    <div class="po-meta-grid">
+      <div class="po-meta-item"><label>Quote #</label><input class="po-field-edit" style="font-weight:700;" value="${d.quoteNum}"></div>
+      <div class="po-meta-item"><label>Client</label><input class="po-field-edit" style="font-weight:700;" value="${[d.clientName,d.clientCompany].filter(Boolean).join(' / ')}"></div>
+      <div class="po-meta-item"><label>In-hands date</label><input class="po-field-edit" style="font-weight:700;" value="${d.ihd}"></div>
+      <div class="po-meta-item"><label>IHD status</label><input class="po-field-edit" style="font-weight:700;color:${d.ihdFirm?'var(--red)':'var(--green)'};" value="${d.ihdFirm?'🔒 FIRM':'Not firm'}"></div>
+    </div>
 
-      <!-- Proof -->
-      ${proofHTML}
+    <div class="po-section-title">Order items</div>
+    ${itemsHTML}
+    ${decoHTML}
+    ${proofHTML}
+    ${notesHTML}
 
-      <!-- Notes -->
-      ${orderNotes?`
-      <div style="margin-bottom:20px;padding:12px;background:#f8f8fa;border-radius:6px;">
-        <div style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:#888;margin-bottom:6px;">Special instructions / notes</div>
-        <div style="font-size:13px;">${orderNotes}</div>
-      </div>`:''}
-
-      <!-- Footer -->
-      <div style="border-top:2px solid #eee;padding-top:16px;margin-top:24px;font-size:12px;color:#666;display:flex;justify-content:space-between;align-items:flex-end;">
-        <div>Please direct all questions regarding this order to<br><strong>${repName}</strong> at <strong>${repEmail}</strong></div>
-        <div style="text-align:right;font-size:11px;color:#aaa;">Generated ${today}</div>
+    <div class="po-footer">
+      <div style="display:flex;justify-content:space-between;align-items:flex-end;flex-wrap:wrap;gap:8px;">
+        <div>Please direct all questions regarding this order to<br>
+          <strong><input class="po-field-edit" style="font-weight:700;display:inline;width:200px;" value="${d.repName}"></strong> at 
+          <strong><input class="po-field-edit" style="font-weight:700;display:inline;width:220px;" value="${d.repEmail}"></strong>
+        </div>
+        <div style="font-size:11px;color:#aaa;">Generated ${new Date().toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'})}</div>
       </div>
-
-    </div>`;
+    </div>
+  </div>`;
 }
 
-function previewPO() {
-  if(!validatePO()) return;
-  poCount++;
-  const poNum = 'PO-'+(quoteData.quoteNum||'XXXX')+'-'+poCount;
-  localStorage.setItem('toro_po_count_'+(quoteData.quoteNum||''), poCount);
-  document.getElementById('disp-po-count').textContent = poCount;
+// ── Queue UI ───────────────────────────────────────────────────────────────
+function updateQueueUI() {
+  const tabs = document.getElementById('po-tabs');
+  const empty = document.getElementById('queue-empty');
+  const countEl = document.getElementById('queue-count');
+  const exportBtn = document.getElementById('export-all-btn');
 
-  const html = buildPOHTML(poNum);
-  const preview = document.getElementById('po-preview-area');
-  preview.classList.remove('section-hidden');
-  preview.innerHTML = `
-    <div class="card">
-      <div class="card-title">Preview — ${poNum}</div>
-      <div style="border:1px solid var(--border);border-radius:6px;padding:16px;background:#fff;">
-        ${html}
-      </div>
-      <div class="actions no-print" style="margin-top:16px;">
-        <button class="btn btn-gray" onclick="document.getElementById('po-preview-area').classList.add('section-hidden')">✕ Close preview</button>
-        <button class="btn btn-red" onclick="printPO('${poNum}')">🖨️ Print / Save as PDF</button>
-      </div>
-    </div>`;
-  preview.scrollIntoView({behavior:'smooth'});
+  countEl.textContent = poQueue.length ? '('+poQueue.length+' PO'+(poQueue.length>1?'s':'')+')' : '';
+  exportBtn.style.display = poQueue.length ? '' : 'none';
+  empty.style.display = poQueue.length ? 'none' : '';
+
+  tabs.innerHTML = '';
+  poQueue.forEach((po,i) => {
+    const tab = document.createElement('div');
+    tab.className = 'po-tab';
+    tab.id = 'tab-'+i;
+    tab.innerHTML = po.poNum+'<span class="tab-del" onclick="event.stopPropagation();removePO('+i+')" title="Remove">✕</span>';
+    tab.onclick = () => openPO(i);
+    tabs.appendChild(tab);
+  });
 }
 
-function generatePO() {
-  if(!validatePO()) return;
-  previewPO();
+function removePO(idx) {
+  if(!confirm('Remove '+poQueue[idx].poNum+' from queue?')) return;
+  poQueue.splice(idx,1);
+  updateQueueUI();
+  closeModal();
 }
 
-function printPO(poNum) {
-  const poArea = document.getElementById('po-preview-area');
-  const content = poArea.querySelector('.card > div:not(.card-title):not(.actions)').innerHTML;
+function openPO(idx) {
+  const po = poQueue[idx];
+  if(!po) return;
+  currentModalPO = idx;
+  document.getElementById('modal-title').textContent = po.poNum+' — '+po.typeLabel;
+  document.getElementById('po-modal-content').innerHTML = po.html;
+  document.getElementById('po-modal').style.display = '';
+  document.querySelectorAll('.po-tab').forEach((t,i)=>t.classList.toggle('active',i===idx));
+}
+
+function closeModal() {
+  document.getElementById('po-modal').style.display = 'none';
+  currentModalPO = null;
+  document.querySelectorAll('.po-tab').forEach(t=>t.classList.remove('active'));
+}
+
+function printCurrentPO() {
+  if(currentModalPO===null) return;
+  const content = document.getElementById('po-modal-content').innerHTML;
+  const poNum = poQueue[currentModalPO].poNum;
   const win = window.open('','_blank');
   win.document.write(`<!DOCTYPE html><html><head><title>${poNum}</title>
     <style>
       *{box-sizing:border-box;margin:0;padding:0;}
-      body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;color:#1a1a1f;}
-      @media print{@page{margin:20mm;}}
+      body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;color:#1a1a1f;padding:20px;}
+      input{border:none;border-bottom:1px solid #eee;background:transparent;font-family:inherit;font-size:inherit;font-weight:inherit;color:inherit;padding:0;width:100%;}
+      textarea{border:none;background:transparent;font-family:inherit;font-size:inherit;width:100%;resize:none;}
+      table{width:100%;border-collapse:collapse;}
+      th,td{padding:6px 10px;border:1px solid #ddd;}
+      th{background:#f5f5f7;}
+      .po-field-edit{border:none;border-bottom:1px solid #eee;}
+      @media print{@page{margin:15mm;}}
     </style>
   </head><body>${content}</body></html>`);
   win.document.close();
-  setTimeout(()=>{win.print();},500);
+  setTimeout(()=>win.print(),500);
 }
 
-function resetBuilder() {
-  if(!confirm('Start over? This will clear all current PO data.')) return;
-  selectedType = null;
-  selectedItems = [];
-  document.querySelectorAll('.po-type-btn').forEach(b=>b.classList.remove('active'));
-  document.getElementById('item-selection-card').classList.add('section-hidden');
-  document.getElementById('details-card').classList.add('section-hidden');
-  document.getElementById('po-preview-area').classList.add('section-hidden');
-  document.querySelectorAll('#details-card input, #details-card textarea, #details-card select').forEach(el=>{
-    if(el.type==='radio'||el.type==='checkbox') el.checked=false;
-    else el.value='';
+function exportAll() {
+  if(!poQueue.length) { alert('No POs in queue.'); return; }
+  poQueue.forEach((po,i) => {
+    setTimeout(()=>{
+      const win = window.open('','_blank');
+      win.document.write(`<!DOCTYPE html><html><head><title>${po.poNum}</title>
+        <style>*{box-sizing:border-box;margin:0;padding:0;}body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;color:#1a1a1f;padding:20px;}input{border:none;border-bottom:1px solid #eee;background:transparent;font-family:inherit;font-size:inherit;font-weight:inherit;color:inherit;padding:0;width:100%;}textarea{border:none;background:transparent;font-family:inherit;font-size:inherit;width:100%;resize:none;}table{width:100%;border-collapse:collapse;}th,td{padding:6px 10px;border:1px solid #ddd;}th{background:#f5f5f7;}@media print{@page{margin:15mm;}}</style>
+      </head><body>${po.html}</body></html>`);
+      win.document.close();
+      setTimeout(()=>win.print(),600);
+    }, i*800);
   });
+}
+
+function resetForm() {
+  selectedItems = [];
+  currentType = null;
+  document.querySelectorAll('.po-type-btn').forEach(b=>b.classList.remove('active'));
+  document.querySelectorAll('.item-check').forEach(c=>{c.classList.remove('selected');c.querySelector('input').checked=false;});
+  document.getElementById('step2').classList.add('hidden');
+  document.getElementById('step3').classList.add('hidden');
+  clearAutoFills();
 }
 </script>
 </body>
