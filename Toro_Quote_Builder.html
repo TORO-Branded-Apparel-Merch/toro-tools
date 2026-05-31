@@ -163,8 +163,7 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--red);box
     <button class="step-btn" onclick="goTo(2)" id="sb2"><div class="step-num">2</div>Apparel</button>
     <button class="step-btn" onclick="goTo(3)" id="sb3"><div class="step-num">3</div>Hard goods</button>
     <button class="step-btn" onclick="goTo(4)" id="sb4"><div class="step-num">4</div>Pricing</button>
-    <button class="step-btn" onclick="goTo(5)" id="sb5"><div class="step-num">5</div>Commission</button>
-    <button class="step-btn" onclick="goTo(6)" id="sb6"><div class="step-num">6</div>Summary</button>
+    <button class="step-btn" onclick="goTo(5)" id="sb5"><div class="step-num">5</div>Summary</button>
   </div>
 </div>
 
@@ -313,6 +312,26 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--red);box
           <select id="oop" onchange="calcAll()"><option value="0">No</option><option value="0.30">Yes,   $0.30/item</option></select>
         </div>
       </div>
+      <div class="row3" style="margin-top:8px;">
+        <div class="field"><label>Pre-production sample</label>
+          <select id="pre_prod" onchange="calcAll()">
+            <option value="0">No</option>
+            <option value="60">Yes   +$60.00 flat</option>
+          </select>
+        </div>
+        <div class="field"><label>Simulated process</label>
+          <select id="sim_process" onchange="calcAll()">
+            <option value="0">No</option>
+            <option value="40">Yes   +$40.00 flat</option>
+          </select>
+        </div>
+        <div class="field"><label>Inbound flat shipping</label>
+          <select id="inbound_ship" onchange="calcAll()">
+            <option value="0">No</option>
+            <option value="24">Yes   +$24.00/location</option>
+          </select>
+        </div>
+      </div>
     </div>
     <!-- Hidden fields kept for backward compat with calcAll -->
     <input type="hidden" id="margin_pct" value="40">
@@ -330,62 +349,16 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--red);box
   </div>
   <div class="actions">
     <button class="btn btn-outline" onclick="goTo(3)">&#8592; Back</button>
-    <div class="actions-right"><button class="btn btn-primary" onclick="goTo(5)">Next: Commission &#8594;</button></div>
+    <div class="actions-right"><button class="btn btn-primary" onclick="goTo(5)">Next: Summary &#8594;ssion &#8594;</button></div>
   </div>
 </div>
 
 <!-- PAGE 5: COMMISSION -->
 <div class="page" id="page5">
-  <div class="card" style="border-color:#f0c080;background:linear-gradient(135deg,#fffaf4,#fff)">
-    <div class="card-title" style="color:var(--brown)">Commission breakdown
-      <span style="font-size:12px;font-weight:400;color:#888">50/50 house / rep split on lines ≥ 30% margin</span>
-    </div>
-    <div id="comm_table"></div>
-    <div id="comm_totals" style="margin-top:12px"></div>
-  </div>
-  <div class="card" id="approval_card" style="display:none;border-color:#E24B4A;background:#fff8f8">
-    <div style="display:flex;align-items:flex-start;gap:12px">
-      <div style="flex:1">
-        <div style="font-size:14px;font-weight:700;color:#A32D2D;margin-bottom:6px">&#9888; Manager approval required</div>
-        <div style="font-size:13px;color:#A32D2D;margin-bottom:12px">One or more line items are below 30% margin. This order requires manager approval before submission.</div>
-        <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;font-weight:600;color:var(--text2)">
-          <input type="checkbox" id="approval_ack" style="width:16px;height:16px;accent-color:#C41E1E;cursor:pointer" onchange="calcCommission()">
-          I acknowledge this order requires manager approval and will obtain it before sending to client.
-        </label>
-      </div>
-    </div>
-  </div>
-  <div class="card">
-    <div class="sec" style="margin-top:0">Submission details</div>
-    <div class="row3" style="align-items:start">
-      <div class="field"><label>Expected in-hands date</label>
-        <div style="padding:8px 11px;background:var(--bg);border:1px solid var(--border);border-radius:var(--radius-sm);font-size:14px;min-height:38px;display:flex;align-items:center" id="comm_ihd_display">
-          <span style="color:var(--text3);font-size:13px">Set on page 1</span>
-        </div>
-      </div>
-      <div class="field">
-        <label>Commission report date <span style="font-size:11px;font-weight:400;color:var(--text3)">(tentative)</span></label>
-        <div id="comm_report_date" style="padding:8px 11px;background:var(--bg);border:1px solid var(--border);border-radius:var(--radius-sm);font-size:14px;font-weight:700;color:var(--red);min-height:38px;display:flex;align-items:center">
-          <span style="color:var(--text3);font-weight:400;font-size:13px">Enter in-hands date on page 1</span>
-        </div>
-      </div>
-      <div class="field"><label>Commission notes</label>
-        <input type="text" id="comm_notes">
-      </div>
-    </div>
-  </div>
-  <div class="actions">
-    <button class="btn btn-outline" onclick="goTo(4)">&#8592; Back</button>
-    <div class="actions-right"><button class="btn btn-primary" id="comm_next_btn" onclick="goTo(6)">View summary &#8594;</button></div>
-  </div>
-</div>
-
-<!-- PAGE 6: SUMMARY -->
-<div class="page" id="page6">
   <div class="metrics" id="metric_cards"></div>
   <div id="summary_output"></div>
   <div class="actions no-print">
-    <button class="btn btn-outline" onclick="goTo(5)">&#8592; Back</button>
+    <button class="btn btn-outline" onclick="goTo(4)">&#8592; Back</button>
     <div class="actions-right">
       <button class="btn btn-ghost" onclick="autoNameAndPrint()">&#128438; Print / save PDF</button>
       <button class="btn btn-ghost no-print" onclick="exportQuoteData()" style="margin-left:6px">&#128190; Export for reporting</button>
@@ -425,15 +398,14 @@ function fmt(n){return'$'+(+n).toLocaleString('en-US',{minimumFractionDigits:2,m
 let garments=[],hardGoods=[],gCount=0,hCount=0,iCtrs={},lastCalc={};
 
 function goTo(n){
-  for(let i=1;i<=6;i++){
-    $c('page'+i).classList.toggle('active',i===n);
+  for(let i=1;i<=5;i++){
+    const pg=$c('page'+i);
+    if(pg) pg.classList.toggle('active',i===n);
     const sb=$c('sb'+i);
-    sb.classList.remove('active','done');
-    if(i<n)sb.classList.add('done');else if(i===n)sb.classList.add('active');
+    if(sb){sb.classList.remove('active','done');if(i<n)sb.classList.add('done');else if(i===n)sb.classList.add('active');}
   }
-  if(n===4)calcAll();
-  if(n===5){calcCommission();updateCommReport();}
-  if(n===6)buildSummary();
+  if(n===4) calcAll();
+  if(n===5) buildSummary();
   window.scrollTo(0,0);
 }
 
@@ -475,6 +447,7 @@ function addGarment(){
       <div class="row3">
         <div class="field"><label>Apparel color <span style="color:var(--red)">*</span></label>
           <select id="gcolor_${id}" onchange="updateWhiteBaseVisibility(${id})">
+            <option value="na">N/A</option>
             <option value="white">White</option><option value="light">Light color</option>
             <option value="dark">Dark / non-white</option><option value="black">Black</option>
           </select>
@@ -489,6 +462,13 @@ function addGarment(){
             <input type="checkbox" id="gno_screens_${id}" style="width:13px;height:13px;cursor:pointer;accent-color:var(--red)" onchange="calcAllDebounced()">
             No screens needed for this item
           </label>
+        </div>
+        <div class="field"><label>Garment upcharge</label>
+          <select id="g_upcharge_${id}" onchange="calcAllDebounced()">
+            <option value="0">None</option>
+            <option value="0.25">Sweatshirt / hoodie   +$0.25/item</option>
+            <option value="0.80">Bag   +$0.80/item</option>
+          </select>
         </div>
         <div class="field"><label>Color name <span style="color:var(--red)">*</span></label>
           <input type="text" id="gcolor_name_${id}" required placeholder="e.g. Forest Green, Athletic Heather">
@@ -703,21 +683,23 @@ function addImp(gid){
       </div>
       <div id="if_screen_${iid}">
         <div class="row3">
-          <div class="field"><label>Print location</label>
+          <div class="field"><label>Print location <span style="color:var(--red)">*</span></label>
             <select id="sp_loc_${iid}" required onchange="otherCheck(this);spLocChange('${iid}')" style="padding:8px 11px;font-size:14px"><option value="">Select location</option>
               <option>Front</option><option>Back</option><option>Left chest</option>
               <option>Left sleeve</option><option>Right sleeve</option><option>Pocket</option><option>Other</option>
             </select>
           <input type="text" id="other_sp_loc_${iid}" style="display:none;margin-top:6px;width:100%;padding:7px 10px;border:1px solid var(--border2);border-radius:var(--radius-sm);font-size:13px">
           </div>
-          <div class="field"><label>Colors at this location <span style="color:var(--red)">*</span></label><input type="number" id="sp_col_${iid}" required min="1" max="12" placeholder=""></div>
-          <div class="field"><label>Specialty ink</label>
-            <select id="sp_ink_${iid}">
-              <option value="0">None standard ink</option>
-              <option value="0.55">Metallic, glitter, or neon   +$0.55/item</option>
+          <div class="field"><label>Color count <span style="color:var(--red)">*</span></label><input type="number" id="sp_col_${iid}" required min="1" max="12" placeholder=""></div>
+                    <div class="field"><label>Specialty ink</label>
+            <select id="sp_ink_${iid}" onchange="calcAll()">
+              <option value="0">None — standard ink</option>
+              <option value="0.55">Metallic, glitter, fluorescent or neon   +$0.55/item</option>
               <option value="1.05">Reflective or glow-in-dark   +$1.05/item</option>
             </select>
           </div>
+<div class="field"><label>Ink color names <span style="color:var(--red)">*</span></label><input type="text" id="sp_ink_names_${iid}" required placeholder="e.g. Red, White, Black"></div>
+          
         </div>
         <div class="row3">
           <div class="field"><label>Screen setup type</label>
@@ -736,11 +718,12 @@ function addImp(gid){
           <div class="field"><label>Ink changes (mid-run splits)</label>
             <input type="number" id="sp_ic_${iid}" value="0" min="0">
           </div>
-        </div>
-        <div style="margin-top:10px;padding:10px;background:#f8f9fa;border:1px solid var(--border);border-radius:6px">
-          <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--text3);margin-bottom:8px">Ink colors <span style="font-weight:400;color:var(--text3)">(standard ink — reference only, no charge)</span></div>
-          <div id="sp_ink_color_rows_${iid}"></div>
-          <button type="button" class="btn-add" style="font-size:11px;padding:5px 8px;margin-top:4px" onclick="addInkColor('${iid}')">&#43; Add ink color</button>
+          <div class="field"><label>Mesh (per item)</label>
+            <select id="sp_mesh_${iid}" onchange="calcAll()">
+              <option value="0">No</option>
+              <option value="0.55">Yes   +$0.55/item</option>
+            </select>
+          </div>
         </div>
         <div style="margin-top:8px;padding:10px;background:#fff8f0;border:1px solid #f0d0a0;border-radius:6px">
           <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--text3);margin-bottom:8px">PMS color matching <span style="font-weight:400;color:var(--text3)">— $10.00 per PMS color (optional)</span></div>
@@ -760,7 +743,7 @@ function addImp(gid){
           <input type="text" id="other_emb_loc_${iid}" style="display:none;margin-top:6px;width:100%;padding:7px 10px;border:1px solid var(--border2);border-radius:var(--radius-sm);font-size:13px">
           </div>
           <div class="field"><label>Stitch count <span style="color:var(--red)">*</span></label><input type="number" id="emb_st_${iid}" required step="500" min="500" placeholder="e.g. 7000"><div style="font-size:10px;color:var(--text3);margin-top:3px">Above 7,000 stitches requires an increased run charge — contact management</div></div>
-          <div class="field"></div>
+          <div class="field"><label>Thread colors <span style="color:var(--red)">*</span></label><input type="text" id="emb_thread_names_${iid}" required placeholder="e.g. Navy 3363, White 1001"></div>
         </div>
         <div class="row3">
           <div class="field"><label>DST / digitization file on hand?</label>
@@ -784,12 +767,13 @@ function addImp(gid){
         </div>
       </div>
       <div id="if_dtf_${iid}" class="hidden">
-        <div class="row2">
-          <div class="field"><label>Location</label>
+        <div class="row3">
+          <div class="field"><label>Location <span style="color:var(--red)">*</span></label>
             <select id="dtf_loc_${iid}" required onchange="otherCheck(this)"><option value="">Select location</option><option>Front</option><option>Back</option><option>Sleeve</option><option>Full back</option><option>Other</option></select>
           <input type="text" id="other_dtf_loc_${iid}" style="display:none;margin-top:6px;width:100%;padding:7px 10px;border:1px solid var(--border2);border-radius:var(--radius-sm);font-size:13px">
           </div>
           <div class="field"><label>Print area (sq inches) <span style="color:var(--red)">*</span></label><input type="number" id="dtf_sq_${iid}" required min="1" placeholder=""></div>
+          <div class="field"><label>Print colors <span style="color:var(--red)">*</span></label><input type="text" id="dtf_colors_${iid}" required placeholder="e.g. Full color, Red and White"></div>
         </div>
         <div style="margin-top:8px">
           <label style="font-size:12px;font-weight:600;color:var(--text2)">Misc imprint notes <span style="font-weight:400;color:var(--text3)">(optional)</span></label>
@@ -797,11 +781,12 @@ function addImp(gid){
         </div>
       </div>
       <div id="if_heat_${iid}" class="hidden">
-        <div class="row2">
+        <div class="row3">
           <div class="field"><label>Location</label>
             <select id="heat_loc_${iid}" onchange="otherCheck(this)"><option>Front</option><option>Back</option><option>Sleeve</option><option>Other</option></select>
           <input type="text" id="other_heat_loc_${iid}" style="display:none;margin-top:6px;width:100%;padding:7px 10px;border:1px solid var(--border2);border-radius:var(--radius-sm);font-size:13px">
           </div>
+          <div class="field"><label>Print colors <span style="color:var(--red)">*</span></label><input type="text" id="heat_colors_${iid}" required placeholder="e.g. Full color, Navy and Gold"></div>
           <div class="field"><label>Press type</label>
             <select id="heat_t_${iid}" required><option value="">Select type</option><option value="1.00">Flat garment press, no weeding   $1.00/item</option><option value="1.50">Hat / headwear press, no weeding   $1.50/item</option></select>
           </div>
@@ -812,11 +797,12 @@ function addImp(gid){
         </div>
       </div>
       <div id="if_vinyl_${iid}" class="hidden">
-        <div class="row2">
+        <div class="row3">
           <div class="field"><label>Location</label>
             <select id="vinyl_loc_${iid}" required onchange="otherCheck(this)"><option value="">Select location</option><option>Front</option><option>Back</option><option>Sleeve</option><option>Other</option></select>
           <input type="text" id="other_vinyl_loc_${iid}" style="display:none;margin-top:6px;width:100%;padding:7px 10px;border:1px solid var(--border2);border-radius:var(--radius-sm);font-size:13px">
           </div>
+          <div class="field"><label>Vinyl colors <span style="color:var(--red)">*</span></label><input type="text" id="vinyl_colors_${iid}" required placeholder="e.g. Red, White"></div>
           <div class="field"><label>Type</label>
             <select id="vinyl_t_${iid}"><option value="1.00">Pre-cut transfer, no weeding   $1.00/item</option><option value="3.75">Cut vinyl with weeding   $3.75/item</option></select>
           </div>
@@ -985,7 +971,7 @@ function addHG(){
       <div class="field"><label>Item color <span style="color:var(--red)">*</span></label><input type="text" id="hg_item_color_${id}" required placeholder="e.g. Navy, Silver"></div>
       <div class="field"><label>Decoration type</label>
         <select id="hg_dec_${id}" onchange="otherCheck(this)">
-          <option value="none">No, decoration</option>
+          <option value="Blank">Blank</option>
           <option value="laser">Laser engraving</option>
           <option value="pad">Pad printing</option>
           <option value="digital">Digital print</option>
@@ -1000,7 +986,7 @@ function addHG(){
     </div>
     <div class="row3">
       <div class="field"><label>Design name <span style="color:var(--red)">*</span></label><input type="text" id="hg_design_${id}" required></div>
-      <div class="field"><label>Imprint color(s)</label><input type="text" id="hg_colors_${id}"></div>
+      <div class="field"><label>Imprint color(s) <span style="color:var(--red)">*</span></label><input type="text" id="hg_colors_${id}" required></div>
       <div class="field"><label>Quantity <span style="color:var(--red)">*</span></label><input type="number" id="hg_qty_${id}" required value="0" min="1"></div>
     </div>
     <div class="row3">
@@ -1782,7 +1768,20 @@ function serializeQuote(){
       gfit:vs('gfit_'+gid),gcost:v('gcost_'+gid),gavgcost:v('gavgcost_'+gid),
       gwhitebase:document.getElementById('gwhitebase_'+gid)?.checked||false,
       gno_screens:document.getElementById('gno_screens_'+gid)?.checked||false,
-      g_margin_pct:getItemMargin('g_'+gid)};
+      g_upcharge:v('g_upcharge_'+gid)||0,
+      g_margin_pct:getItemMargin('g_'+gid),
+      g_misc_fees:(()=>{
+        const fees=[];
+        const c=document.getElementById('misc_'+gid);
+        if(c){c.querySelectorAll('[id^="miscrow_g"]').forEach(row=>{
+          const parts=row.id.split('_');const mid=parts[parts.length-1];
+          const desc=document.getElementById('misc_desc_g'+gid+'_'+mid)?.value||'';
+          const net=parseFloat(document.getElementById('misc_net_g'+gid+'_'+mid)?.value)||0;
+          const sell=parseFloat(document.getElementById('misc_sell_g'+gid+'_'+mid)?.value)||0;
+          if(desc||net) fees.push({desc,net,sell});
+        });}
+        return fees;
+      })()};
     const szContainer=document.getElementById('szrows_'+gid);
     const szRows=[];
     if(szContainer){szContainer.querySelectorAll('[id^="szrow_"]').forEach(row=>{
@@ -1798,15 +1797,26 @@ function serializeQuote(){
     if(impsContainer){impsContainer.querySelectorAll('[id^="imp_"]').forEach(impEl=>{
       const iid=impEl.id.replace('imp_','');
       const type=impEl.dataset.type||'screen';
-      imps.push({iid,type,sp_loc:vs('sp_loc_'+iid),sp_col:v('sp_col_'+iid),
-        sp_ink:vs('sp_ink_'+iid),sp_ic:v('sp_ic_'+iid),sp_setup:v('sp_setup_'+iid),
-        emb_loc:vs('emb_loc_'+iid),emb_st:v('emb_st_'+iid),
-        emb_dst:document.getElementById('emb_dst_'+iid)?.checked||false,
-        emb_puff:document.getElementById('emb_puff_'+iid)?.checked||false,
-        emb_os:document.getElementById('emb_os_'+iid)?.checked||false,
-        dtf_loc:vs('dtf_loc_'+iid),dtf_sq:v('dtf_sq_'+iid),
-        heat_loc:vs('heat_loc_'+iid),heat_t:vs('heat_t_'+iid),
-        vinyl_loc:vs('vinyl_loc_'+iid),vinyl_t:vs('vinyl_t_'+iid)});
+      // Collect PMS colors from dynamic rows
+        const pmsRows=document.querySelectorAll('[id^="sp_pms_'+iid+'_"]');
+        const pmsColors=Array.from(pmsRows).map(el=>el.value).filter(Boolean);
+        // Collect thread colors from dynamic rows  
+        const threadRows=document.querySelectorAll('#emb_thread_rows_'+iid+' input[type=text]');
+        const threadColors=Array.from(threadRows).map(el=>el.value).filter(Boolean);
+        imps.push({iid,type,
+          sp_mesh:v('sp_mesh_'+iid)||0,
+          sp_loc:vs('sp_loc_'+iid),sp_col:v('sp_col_'+iid),
+          sp_ink:vs('sp_ink_'+iid),sp_ink_names:vs('sp_ink_names_'+iid),
+          sp_ic:v('sp_ic_'+iid),sp_pms_colors:pmsColors,sp_setup:v('sp_setup_'+iid),
+          emb_loc:vs('emb_loc_'+iid),emb_st:v('emb_st_'+iid),
+          emb_thread_names:vs('emb_thread_names_'+iid),emb_thread_colors:threadColors,
+          emb_dst:document.getElementById('emb_dst_'+iid)?.checked||false,
+          emb_puff:document.getElementById('emb_puff_'+iid)?.checked||false,
+          emb_os:document.getElementById('emb_os_'+iid)?.checked||false,
+          emb_ltm:v('emb_ltm_'+iid)||0,emb_big:v('emb_big_'+iid)||0,emb_copy_dst:v('emb_copy_dst_'+iid)||0,
+          dtf_loc:vs('dtf_loc_'+iid),dtf_sq:v('dtf_sq_'+iid),dtf_colors:vs('dtf_colors_'+iid),
+          heat_loc:vs('heat_loc_'+iid),heat_t:vs('heat_t_'+iid),heat_colors:vs('heat_colors_'+iid),
+          vinyl_loc:vs('vinyl_loc_'+iid),vinyl_t:vs('vinyl_t_'+iid),vinyl_colors:vs('vinyl_colors_'+iid)});
     });}
     data.imps=imps;
     const miscFees=[];
@@ -1825,7 +1835,19 @@ function serializeQuote(){
     hg_sc:v('hg_sc_'+hid),hg_dc:v('hg_dc_'+hid),hg_rush:v('hg_rush_'+hid),
     hg_item_margin:getItemMargin('hg_'+hid+'_item'),
     hg_setup_margin:getItemMargin('hg_'+hid+'_setup'),
-    hg_rush_margin:getItemMargin('hg_'+hid+'_rush')};});
+    hg_rush_margin:getItemMargin('hg_'+hid+'_rush'),
+    hg_misc_fees:(()=>{
+      const fees=[];
+      const c=document.getElementById('hgmisc_'+hid);
+      if(c){c.querySelectorAll('[id^="hgmiscrow_"]').forEach(row=>{
+        const mid=row.id.split('_').pop();
+        const desc=document.getElementById('hgmisc_desc_'+hid+'_'+mid)?.value||'';
+        const net=parseFloat(document.getElementById('hgmisc_net_'+hid+'_'+mid)?.value)||0;
+        const sell=parseFloat(document.getElementById('hgmisc_sell_'+hid+'_'+mid)?.value)||0;
+        if(desc||net) fees.push({desc,net,sell});
+      });}
+      return fees;
+    })()};});
   return{page1:{rep:vs('rep_name'),quoteNum:vs('quote_num'),quoteName:vs('quote_name'),
     clientName:vs('client_name'),clientCompany:vs('client_company'),
     quoteDate:vs('quote_date'),commSplit:vs('comm_split'),
@@ -1833,7 +1855,7 @@ function serializeQuote(){
     shipDate:vs('ship_date'),orderNotes:vs('order_notes'),
     ihdFirm:document.getElementById('ihd_firm')?.checked||false,
     perItemMargins:JSON.parse(JSON.stringify(perItemMargins))},
-    page4:{rushPct:v('rush_pct',0),artHours:v('art_hours',0),bagging:v('bagging',0),labeling:v('labeling',0),oop:v('oop',0)},
+    page4:{rushPct:v('rush_pct',0),artHours:v('art_hours',0),bagging:v('bagging',0),labeling:v('labeling',0),oop:v('oop',0),preProd:v('pre_prod',0),simProcess:v('sim_process',0),inboundShip:v('inbound_ship',0)},
     garments:gs,hardGoods:hgs,_fullQuote:true};
 }
 
@@ -2077,11 +2099,14 @@ function showApplyBtn(rid,gid,grp){
     btn=document.createElement('button');
     btn.id='apply_grp_'+rid;
     btn.type='button';
-    btn.style.cssText='font-size:10px;padding:3px 7px;background:var(--red);color:#fff;border:none;border-radius:4px;cursor:pointer;margin-left:4px;white-space:nowrap;flex-shrink:0';
+    btn.style.cssText='font-size:10px;padding:3px 7px;background:var(--red);color:#fff;border:none;border-radius:4px;cursor:pointer;white-space:nowrap;position:absolute;right:0;top:50%;transform:translateY(-50%);z-index:10;';
     btn.textContent='Apply to group';
     btn.onclick=()=>applyToGroup(rid,gid,grp);
-    costEl.parentElement.style.display='flex';
-    costEl.parentElement.style.alignItems='center';
+    // Wrap cost field in relative container
+    if(costEl.parentElement.style.position !== 'relative'){
+      costEl.parentElement.style.position='relative';
+      costEl.parentElement.style.paddingRight='100px';
+    }
     costEl.parentElement.appendChild(btn);
   }
 }
