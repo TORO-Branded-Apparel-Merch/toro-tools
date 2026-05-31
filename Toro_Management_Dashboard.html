@@ -93,6 +93,7 @@ window.addEventListener('unhandledrejection', function(e) { console.error('Unhan
   </div>
 </div>
 
+
 <div id="gate">
   <div class="gate-box">
     <h2>🐂 TORO</h2>
@@ -138,15 +139,7 @@ let currentTab = 'approvals';
 const LOCK_KEY = 'toro_dash_lock';
 const ATTEMPTS_KEY = 'toro_dash_attempts';
 
-// Auto-login if valid session exists
-document.addEventListener('DOMContentLoaded', function(){
-  const sessionExpiry = parseInt(localStorage.getItem('toro_session_dash')||'0');
-  if(Date.now() < sessionExpiry){
-    document.getElementById('gate').style.display='none';
-    document.getElementById('app').style.display='';
-    init();
-  }
-});
+// Session check runs at bottom of script
 
 
 function bamAlert(msg, cb) {
@@ -426,7 +419,7 @@ function renderApprovals() {
           <button class="btn btn-gray" onclick="addNote('${rl}','${encodeURIComponent(key)}')">💬 Add Note</button>
           <button class="btn btn-gray" style="font-size:11px;color:#aaa;" onclick="dismissApproval('${rl}','${encodeURIComponent(key)}')">✕ Dismiss</button>
         </div>
-        ${a.notes && a.notes.length ? `<div class="notes-thread">${a.notes.map(n=>`<div class="note-item"><span class="note-author">${n.author}</span> <span class="note-time">${new Date(n.time).toLocaleString()}</span><br>${n.text}</div>`).join('')}</div>` : ''}
+        ${a.notes && a.notes.length ? `<div class="notes-thread" style="margin-top:10px;">${a.notes.map(n=>`<div class="note-item" style="margin-bottom:8px;padding:8px;background:#f8f8fa;border-radius:6px;"><div style="display:flex;justify-content:space-between;margin-bottom:4px;"><span class="note-author" style="font-weight:700;color:var(--red);">${n.author}</span><span class="note-time" style="font-size:11px;color:var(--text3);">${new Date(n.time).toLocaleString('en-US',{month:'short',day:'numeric',hour:'numeric',minute:'2-digit'})}</span></div><div style="font-size:13px;">${n.text}</div></div>`).join('')}</div>` : (a.note ? `<div style="margin-top:8px;font-size:13px;color:var(--text2);font-style:italic;">"${a.note}"</div>` : '')}
       </div>`;
     });
     // Add flagged quotes (low margin, not yet formally submitted)
@@ -434,14 +427,19 @@ function renderApprovals() {
       const sell=quoteTotal(q,'sell'), net=quoteTotal(q,'net');
       const margin=sell>0?((sell-net)/sell*100).toFixed(1):q.avgMargin||'—';
       const qk=fbKey(q);
+      const qk2=fbKey(q);
       html += `<div class="approval-card" style="border-left:4px solid var(--orange);">
         <div class="ac-header">
           <div>
             <div style="font-weight:700;font-size:14px;">${q.quoteName||q.quoteNum||'Untitled'} <span style="font-size:12px;font-weight:400;color:var(--text3);">#${q.quoteNum||'—'}</span></div>
             <div class="ac-meta">${[q.clientName,q.clientCompany].filter(Boolean).join(' — ')||'—'} · Rep: ${rep} · Margin: ${margin}% · Sell: $${sell.toFixed(2)}</div>
-            <div class="ac-meta" style="color:var(--orange);">⚠️ Low margin flagged — rep has not yet submitted for approval</div>
+            <div class="ac-meta" style="color:var(--orange);">⚠️ Low margin — not yet submitted for approval</div>
           </div>
           ${marginBadge(net, sell)}
+        </div>
+        <div class="ac-actions" style="margin-top:10px;">
+          <button class="btn btn-green" onclick="preApproveQuote('${rl}','${encodeURIComponent(qk2)}')">✅ Pre-Approve</button>
+          <button class="btn btn-outline" onclick="preRejectQuote('${rl}','${encodeURIComponent(qk2)}')">❌ Reject</button>
         </div>
       </div>`;
     });
@@ -814,6 +812,73 @@ function runDashReport() {
   document.getElementById('dash-report-modal').style.display='none';
 }
 
+
+// Auto-login if valid 4-hour session exists
+(function(){
+  try {
+    const sessionExpiry = parseInt(localStorage.getItem('toro_session_dash')||'0');
+    if(Date.now() < sessionExpiry){
+      document.getElementById('gate').style.display='none';
+      document.getElementById('app').style.display='';
+      init();
+    }
+  } catch(e) { console.warn('Session check failed:', e); }
+})();
+
+// ── Pre-approve/reject flagged quotes (not yet formally submitted) ──────────
+async function preApproveQuote(repLower, encKey) {
+  const key = decodeURIComponent(encKey);
+  bamPrompt('Pre-approval note (optional):', '', async note => {
+    if(note === null) return;
+    try {
+      const rep = REPS.find(r=>r.toLowerCase()===repLower);
+      const q = (allQuotes[rep]||[]).find(x=>fbKey(x)===key);
+      if(!q) { bamAlert('Quote not found.'); return; }
+      // Write approval record
+      const approval = {
+        rep: rep, quoteNum: q.quoteNum, quoteName: q.quoteName,
+        status: 'approved', note: note||'', decidedAt: new Date().toISOString(),
+        sellTotal: q.totalSell||0, netTotal: q.totalNetCost||0,
+        margin: q.avgMargin||0, clientName: q.clientName||'', clientCompany: q.clientCompany||'',
+        notes: note ? [{author:'Management', text:note, time:new Date().toISOString()}] : []
+      };
+      await fbSet('approvals/'+repLower+'/'+key, approval);
+      if(!approvals[repLower]) approvals[repLower]={};
+      approvals[repLower][key] = approval;
+      // Update quote status
+      q.workflowStatus = 'active';
+      await fbSet('quotes/'+repLower+'/'+fbKey(q), q);
+      render();
+      bamAlert('Quote pre-approved! The rep has been notified.');
+    } catch(e) { console.error('preApproveQuote error:',e); bamAlert('Error saving. Please try again.'); }
+  });
+}
+
+async function preRejectQuote(repLower, encKey) {
+  const key = decodeURIComponent(encKey);
+  bamPrompt('Rejection reason (will be shown to the rep):', '', async note => {
+    if(note === null) return;
+    try {
+      const rep = REPS.find(r=>r.toLowerCase()===repLower);
+      const q = (allQuotes[rep]||[]).find(x=>fbKey(x)===key);
+      if(!q) { bamAlert('Quote not found.'); return; }
+      const approval = {
+        rep: rep, quoteNum: q.quoteNum, quoteName: q.quoteName,
+        status: 'rejected', note: note||'', decidedAt: new Date().toISOString(),
+        sellTotal: q.totalSell||0, netTotal: q.totalNetCost||0,
+        margin: q.avgMargin||0, clientName: q.clientName||'', clientCompany: q.clientCompany||'',
+        notes: note ? [{author:'Management', text:note, time:new Date().toISOString()}] : []
+      };
+      await fbSet('approvals/'+repLower+'/'+key, approval);
+      if(!approvals[repLower]) approvals[repLower]={};
+      approvals[repLower][key] = approval;
+      q.workflowStatus = 'rejected';
+      await fbSet('quotes/'+repLower+'/'+fbKey(q), q);
+      render();
+      bamAlert('Quote rejected. The rep will see your note.');
+    } catch(e) { console.error('preRejectQuote error:',e); bamAlert('Error saving. Please try again.'); }
+  });
+}
 </script>
 </body>
 </html>
