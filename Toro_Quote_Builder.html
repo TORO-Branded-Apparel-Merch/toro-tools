@@ -818,7 +818,7 @@ function addImp(gid){
           <input type="text" id="vinyl_notes_${iid}" placeholder="e.g. cut type, color specs" style="width:100%;padding:7px 10px;border:1px solid var(--border2);border-radius:var(--radius-sm);font-size:13px;margin-top:4px">
         </div>
       </div>
-      <div style="border-top:1px solid var(--border);padding-top:10px;margin-top:10px;">
+      <div id="imp_share_section_${iid}" style="border-top:1px solid var(--border);padding-top:10px;margin-top:10px;display:none;">
         <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:12px;font-weight:700;color:var(--text2);margin-bottom:8px;">
           <input type="checkbox" id="imp_share_chk_${iid}" style="width:14px;height:14px;accent-color:var(--red);"
             onchange="toggleImpShare('${iid}','${gid}')">
@@ -2628,15 +2628,25 @@ function toggleShareSizeQty(key, maxQty) {
 // Refresh all share dropdowns when garments change
 function refreshAllShareDropdowns() {
   const multipleGarments = garments.length > 1;
+  document.querySelectorAll('[id^="imp_share_section_"]').forEach(section => {
+    section.style.display = multipleGarments ? '' : 'none';
+    // If hiding and checkbox was checked, uncheck it
+    if(!multipleGarments) {
+      const iid = section.id.replace('imp_share_section_','');
+      const chk = document.getElementById('imp_share_chk_'+iid);
+      if(chk && chk.checked) {
+        chk.checked = false;
+        const wrap = document.getElementById('imp_share_wrap_'+iid);
+        if(wrap) wrap.style.display = 'none';
+      }
+    }
+  });
+  // Refresh dropdowns for checked items
   document.querySelectorAll('[id^="imp_share_chk_"]').forEach(chk => {
-    // Find the wrapping label/section
-    const section = chk.closest('div[style*="border-top"]') || chk.parentElement?.parentElement;
-    if(section) section.style.display = multipleGarments ? '' : 'none';
     if(chk.checked) {
       const iid = chk.id.replace('imp_share_chk_','');
       const gid = iid.split('_')[0];
       populateShareDropdown(iid, gid);
-      populateShareSizes(iid, gid);
     }
   });
 }
