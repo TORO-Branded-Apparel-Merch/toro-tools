@@ -577,24 +577,23 @@ function addXSRow(gid){
   row.id='szrow_'+rid;
   row.style.cssText='display:grid;grid-template-columns:70px 100px 110px 90px 110px 32px;gap:6px;align-items:center;margin-bottom:5px';
   row.innerHTML=`
-    <div style="font-size:13px;font-weight:600;color:var(--text2);padding:6px 0">XS</div>
-    <select id="sz_grp_${rid}" onchange="onSzGrpChange('${rid}',${gid})" style="padding:5px 6px;font-size:12px">
-      <option value="A">Group A</option><option value="B">Group B</option>
-      <option value="C">Group C</option><option value="D">Group D</option>
-      <option value="none">Individual</option>
-    </select>
-    <input type="number" id="sz_cost_${rid}" value="0" step="0.01" min="0"
-      oninput="onSzCostChange('${rid}',${gid})" style="padding:6px 8px;font-size:13px">
-    <input type="number" id="sz_qty_${rid}" value="0" min="0"
-      oninput="recalcGarmentTotals(${gid});updateGLbl(${gid})" style="padding:6px 8px;font-size:13px">
-    <div style="display:flex;align-items:center;gap:4px">
-      <span style="font-size:12px;color:var(--text3)">+$</span>
-      <input type="number" id="sz_up_${rid}" value="0" step="0.01" min="0"
-        oninput="syncGroupUpcharge('${rid}',${gid})"
-        style="width:64px;padding:5px 6px;font-size:13px;border:1px solid var(--border2);border-radius:4px">
-    </div>
-    <button onclick="removeSzRow('${rid}',${gid})" style="width:28px;height:28px;border-radius:4px;border:1px solid #f5c6c6;background:#fff;color:#a00;cursor:pointer;font-size:14px;display:flex;align-items:center;justify-content:center;padding:0">&#215;</button>`;
-  // Prepend before existing rows so XS appears first
+      <div style="font-size:13px;font-weight:600;color:var(--text2);padding:6px 0">XS</div>
+      <select id="sz_grp_${rid}" onchange="onSzGrpChange('${rid}',${gid})" style="padding:5px 6px;font-size:12px">
+        <option value="A">Group A</option><option value="B">Group B</option>
+        <option value="C">Group C</option><option value="D">Group D</option>
+        <option value="none">Individual</option>
+      </select>
+      <input type="number" id="sz_cost_${rid}" value="0" step="0.01" min="0"
+        oninput="onSzCostChange('${rid}',${gid})" style="padding:6px 8px;font-size:13px">
+      <input type="number" id="sz_qty_${rid}" value="0" min="0"
+        oninput="recalcGarmentTotals(${gid});updateGLbl(${gid})" style="padding:6px 8px;font-size:13px">
+      <div style="display:flex;align-items:center;gap:4px">
+        <span style="font-size:12px;color:var(--text3)">+$</span>
+        <input type="number" id="sz_up_${rid}" value="0" step="0.01" min="0"
+          oninput="syncGroupUpcharge('${rid}',${gid})"
+          style="width:64px;padding:5px 6px;font-size:13px;border:1px solid var(--border2);border-radius:4px">
+      </div>
+      <button onclick="removeSzRow('${rid}',${gid})" style="width:28px;height:28px;border-radius:4px;border:1px solid #f5c6c6;background:#fff;color:#a00;cursor:pointer;font-size:14px;display:flex;align-items:center;justify-content:center;padding:0">&#215;</button>`;
   c2.insertBefore(row, c2.firstChild);
   recalcGarmentTotals(gid);
 }
@@ -626,7 +625,7 @@ function addSzRow(gid){
           style="width:64px;padding:5px 6px;font-size:13px;border:1px solid var(--border2);border-radius:4px">
       </div>`;
   d.innerHTML=`
-    <select id="sz_size_${rid}" onchange="recalcGarmentTotals(${gid})" style="padding:6px 8px;font-size:13px">${sizeOpts}</select>
+    <select id="sz_size_${rid}" onchange="recalcGarmentTotals(${gid})" style="padding:4px 4px;font-size:12px;width:100%">${sizeOpts}</select>
     ${groupSel}
     <input type="number" id="sz_cost_${rid}" value="${baseCost}" step="0.01" min="0"
       oninput="recalcGarmentTotals(${gid})" style="padding:6px 8px;font-size:13px">
@@ -1459,7 +1458,7 @@ function calcAll(){
       // Item line
       html += '<div class="cs-loaded-row">'
         +'<span style="font-weight:600;font-size:12px;">'+h.desc+' ('+h.qty+' pcs)</span>'
-        +'<span style="color:var(--text2);font-size:12px;">$'+hNetPI.toFixed(2)+'/item</span>'
+        +'<span style="color:var(--text2);font-size:12px;">$'+hCostPI.toFixed(2)+'/item</span>'
         +'<input type="number" value="'+hItemMgPct.toFixed(2)+'" min="0" max="999.99" step="0.01"'
         +' data-mg-pct="'+hItemKey+'" data-loaded-net="'+h.netItem.toFixed(4)+'"'
         +' style="width:80px;padding:4px 6px;font-size:12px;font-weight:700;border:1px solid var(--border2);border-radius:4px;text-align:center"'
