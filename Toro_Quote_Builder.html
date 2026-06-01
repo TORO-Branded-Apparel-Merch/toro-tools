@@ -2857,9 +2857,22 @@ function checkShareAllMode(iid) {
 }
 
 function toggleShareSizeQty(key, maxQty) {
-  const mode = document.getElementById(key+'_mode')?.value;
+  const sel = document.getElementById(key+'_mode');
   const qtyEl = document.getElementById(key+'_qty');
-  if(qtyEl) qtyEl.style.display = mode==='some' ? '' : 'none';
+  if(!sel || !qtyEl) return;
+  if(sel.value === 'some') {
+    qtyEl.style.display = '';
+    qtyEl.value = Math.floor(maxQty/2)||1;
+  } else {
+    qtyEl.style.display = 'none';
+    qtyEl.value = maxQty;
+  }
+  // Extract iid from key format: share_sz_{gid}_{szN}_{rid} → iid = gid_impN
+  // key = share_sz_{iid}_{rid} where iid = gid_impnum e.g. "1_1"
+  const parts = key.replace('share_sz_','').split('_');
+  const iid = parts[0]+'_'+parts[1];
+  checkShareAllMode(iid);
+  calcAllDebounced();
 }
 
 // Refresh all share dropdowns when garments change
