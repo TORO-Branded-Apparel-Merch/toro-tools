@@ -566,7 +566,15 @@ function toggleG(id){
   b.style.display=hidden?'':'none';
   ch.innerHTML=hidden?'&#8964;':'&#8963;';
 }
-function removeG(id){$c('g_'+id)?.remove();garments=garments.filter(g=>g.id!==id);setTimeout(refreshAllShareDropdowns,50);}
+function removeG(id){
+  // Restore any garments that were sharing to this one
+  document.querySelectorAll('[id^="imp_share_with_"]').forEach(sel=>{
+    if(sel.value===String(id)) setGarmentScreensShared(id, false);
+  });
+  $c('g_'+id)?.remove();
+  garments=garments.filter(g=>g.id!==id);
+  setTimeout(refreshAllShareDropdowns,50);
+}
 function addXSRow(gid){
   if(!window.szCtrs) window.szCtrs={};
   window.szCtrs[gid]=(window.szCtrs[gid]||0)+1;
@@ -1416,6 +1424,7 @@ function calcAll(){
   // ── Hard goods pricing HTML ───────────────────────────────────────────
   if(hgSecs.length>0){
     hgSecs.forEach(h=>{
+      try {
       const hItemKey='hg_'+h.hid+'_item', hDCKey='hg_'+h.hid+'_dc',
             hSetupKey='hg_'+h.hid+'_setup', hRushKey='hg_'+h.hid+'_rush';
       if(!perItemMargins[hItemKey]) perItemMargins[hItemKey]={pct:40};
@@ -1495,6 +1504,7 @@ function calcAll(){
         +'<span>Margin: <strong>'+hMgDisplay.toFixed(1)+'%</strong></span>'
         +'</div>';
       html += '</div>'; // cs-item
+      } catch(e) { console.error('[calcAll] HG card error:', e.message, h); }
     });
   }
 
@@ -1518,7 +1528,7 @@ function calcAll(){
   html+=`<div class="cl sell" style="font-size:15px;font-weight:700"><span>Total sell price</span><span style="color:var(--green);font-size:17px">${fmt(tSell)}</span></div>`;
   html+=`<div class="cl sell" style="font-weight:700"><span>Gross profit</span><span style="color:var(--green)">${fmt(tSell-grand)}</span></div>`;
   html+=`<div class="cl sell" style="font-size:13px;margin-top:2px;border-top:1px solid var(--border);padding-top:8px"><span>Average order margin</span><span>${orderMgPct.toFixed(1)}%</span></div>`;
-  $c('pricing_breakdown').innerHTML=html;
+  try{ $c('pricing_breakdown').innerHTML=html; }catch(e){ console.error('[QB] pricing render error:',e.message,e.stack?.split('\n')[1]); }
 
   // Margin warning
   // Compute effective average margin across all items for warning
@@ -2735,6 +2745,9 @@ function toggleImpShare(iid, gid) {
     // Restore setup type field
     const setupWrap = document.getElementById('sp_setup_wrap_'+iid);
     if(setupWrap) setupWrap.style.display = '';
+    // Restore screen options on target garment
+    const sel = document.getElementById('imp_share_with_'+iid);
+    if(sel && sel.value) setGarmentScreensShared(sel.value, false);
   }
 }
 
@@ -2754,6 +2767,34 @@ function populateShareDropdown(iid, gid) {
   });
 }
 
+function setGarmentScreensShared(targetGid, isShared) {
+  // Grey out screen checkboxes on the garment receiving shared screens
+  const wbWrap = document.getElementById('gwhitebase_wrap_'+targetGid);
+  const noScLabel = document.querySelector('label[for="gno_screens_'+targetGid+'"], #gno_screens_'+targetGid)?.closest('label');
+  const wbCb = document.getElementById('gwhitebase_'+targetGid);
+  const noScCb = document.getElementById('gno_screens_'+targetGid);
+  const sharedNote = document.getElementById('gshared_screen_note_'+targetGid);
+
+  if(isShared) {
+    // Grey out and add note
+    if(wbWrap) { wbWrap.style.opacity='0.4'; wbWrap.style.pointerEvents='none'; }
+    if(noScCb) { noScCb.disabled=true; noScCb.closest('label').style.opacity='0.4'; noScCb.closest('label').style.pointerEvents='none'; }
+    if(!sharedNote) {
+      const note = document.createElement('div');
+      note.id = 'gshared_screen_note_'+targetGid;
+      note.style.cssText = 'font-size:11px;color:var(--text3);margin-top:5px;font-style:italic;padding:4px 8px;background:#f5f5f5;border-radius:4px;border:1px solid var(--border)';
+      note.textContent = 'Screen setup & run charges applied via shared imprint from another garment.';
+      const noScEl = noScCb?.closest('label');
+      if(noScEl) noScEl.insertAdjacentElement('afterend', note);
+    }
+  } else {
+    // Restore
+    if(wbWrap) { wbWrap.style.opacity=''; wbWrap.style.pointerEvents=''; }
+    if(noScCb) { noScCb.disabled=false; noScCb.closest('label').style.opacity=''; noScCb.closest('label').style.pointerEvents=''; }
+    if(sharedNote) sharedNote.remove();
+  }
+}
+
 function onShareWithChange(iid, gid) {
   // Called when user picks an item from the "Share with" dropdown
   // Don't re-populate dropdown options (that wipes the selection)
@@ -2761,11 +2802,20 @@ function onShareWithChange(iid, gid) {
   const sel = document.getElementById('imp_share_with_'+iid);
   const sizesDiv = document.getElementById('imp_share_sizes_'+iid);
   if(!sizesDiv) return;
+  // Grey out screen options on previously selected target
+  const prevTarget = sel?.dataset.prevTarget;
+  if(prevTarget && prevTarget !== (sel?.value||'')) {
+    setGarmentScreensShared(prevTarget, false);
+  }
   if(sel && sel.value) {
     sizesDiv.style.display = '';
     populateShareSizes(iid, gid);
+    sel.dataset.prevTarget = sel.value;
+    // Grey only if all sizes already set to "all" (e.g. on load restore)
+    checkShareAllMode(iid);
   } else {
     sizesDiv.style.display = 'none';
+    sel.dataset.prevTarget = '';
   }
 }
 
@@ -2793,6 +2843,17 @@ function populateShareSizes(iid, gid) {
       </div>`;
   });
   container.innerHTML = html;
+}
+
+function checkShareAllMode(iid) {
+  // Check if every size row for this imprint is set to "all"
+  const sel = document.getElementById('imp_share_with_'+iid);
+  if(!sel || !sel.value) return;
+  const targetGid = sel.value;
+  const modes = Array.from(document.querySelectorAll('[id^="share_sz_'+iid+'_"][id$="_mode"]'));
+  if(!modes.length) return;
+  const allAreAll = modes.every(m => m.value === 'all');
+  setGarmentScreensShared(targetGid, allAreAll);
 }
 
 function toggleShareSizeQty(key, maxQty) {
