@@ -1379,7 +1379,7 @@ function calcAll(){
       // Cost breakdown
       html += '<div class="cs-section-label">Hard goods cost</div>';
       html += '<div class="cs-row"><span class="cs-row-label">Item cost ('+h.qty+' pcs)</span><span class="cs-row-val">$'+hNetPI.toFixed(2)+'/item</span></div>';
-      if(hSetupPI>0) html += '<div class="cs-row"><span class="cs-row-label">Setup charge</span><span class="cs-row-val">$'+hSetupPI.toFixed(2)+'/item</span></div>';
+      if(h.netSetup>0) html += '<div class="cs-row"><span class="cs-row-label">Setup / die charge (flat)</span><span class="cs-row-val">$'+h.netSetup.toFixed(2)+' total</span></div>';
       if(h.dec && h.dec!=='none' && h.dec!=='Blank')
         html += '<div class="cs-row"><span class="cs-row-label">Decoration</span><span class="cs-row-val">'+h.dec+'</span></div>';
 
@@ -1391,15 +1391,15 @@ function calcAll(){
       // Item line
       html += '<div class="cs-loaded-row">'
         +'<span style="font-weight:600;font-size:12px;">'+h.desc+' ('+h.qty+' pcs)</span>'
-        +'<span style="color:var(--text2);font-size:12px;">$'+h.netItem.toFixed(2)+'</span>'
+        +'<span style="color:var(--text2);font-size:12px;">$'+hNetPI.toFixed(2)+'/item</span>'
         +'<input type="number" value="'+hItemMgPct.toFixed(2)+'" min="0" max="999.99" step="0.01"'
         +' data-mg-pct="'+hItemKey+'" data-loaded-net="'+h.netItem.toFixed(4)+'"'
         +' style="width:80px;padding:4px 6px;font-size:12px;font-weight:700;border:1px solid var(--border2);border-radius:4px;text-align:center"'
         +' onchange=\'setItemMarginPct(\"'+hItemKey+'\",this.value)\'>'
-        +'<input type="number" step="0.01" min="0" value="'+hItemSell.toFixed(2)+'"'
+        +'<input type="number" step="0.01" min="0" value="'+(h.qty>0?(hItemSell/h.qty).toFixed(2):'0.00')+'"'
         +' data-mg-sell="'+hItemKey+'"'
         +' style="width:85px;padding:4px 6px;font-size:12px;font-weight:700;color:var(--green);border:1px solid var(--border2);border-radius:4px;text-align:right"'
-        +' onchange=\'setItemMarginSell(\"'+hItemKey+'\",this.value,'+h.netItem.toFixed(4)+')\'>'
+        +' onchange=\'setItemMarginSell(\"'+hItemKey+'\",this.value*'+h.qty+','+h.netItem.toFixed(4)+')\'>'
         +'</div>';
 
       // Setup line (if applicable)
@@ -1445,8 +1445,6 @@ function calcAll(){
 
   const _rawOrder = tSell>0 ? ((1-grand/tSell)*100) : 0;
   const orderMgPct = isFinite(_rawOrder) ? _rawOrder : 0;
-
-  console.log('[calcAll] sections:', sections.length, 'hgSecs:', hgSecs.length, 'html length:', html.length);
 
   html+=`<div style="border-top:2px solid var(--border);margin:10px 0"></div>`;
   html+=`<div class="cl grand"><span>Total production cost</span><span>${fmt(grand)}</span></div>`;
