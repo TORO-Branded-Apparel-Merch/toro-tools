@@ -511,10 +511,10 @@ function addGarment(){
 
       <div class="sec" style="margin-top:16px">Imprints</div>
       <div id="imps_${id}"></div>
-      <div style="display:flex;align-items:center;gap:10px;margin-top:8px">
+      <div style="display:flex;align-items:center;gap:12px;margin-top:8px;flex-wrap:wrap">
         <button class="btn-add" style="font-size:12px;padding:7px" onclick="addImp(${id})">&#43; Add imprint</button>
-        <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:12px;font-weight:600;color:var(--text2);margin:0">
-          <input type="checkbox" id="gblank_${id}" style="width:13px;height:13px;cursor:pointer;accent-color:var(--red)" onchange="calcAllDebounced()">
+        <label style="display:flex;align-items:center;gap:7px;cursor:pointer;margin:0;padding:6px 10px;background:#f9f9f9;border:1px solid var(--border);border-radius:6px;font-size:12px;font-weight:600;color:var(--text2)">
+          <input type="checkbox" id="gblank_${id}" style="width:14px;height:14px;cursor:pointer;accent-color:var(--red)" onchange="calcAllDebounced()">
           This item ships blank (no decoration)
         </label>
       </div>
@@ -689,7 +689,7 @@ function addImp(gid){
   d.innerHTML=`
     <div class="imp-head">
       <div class="imp-head-left"><div class="imp-dot"></div>Imprint ${n}<span class="type-tag" id="itag_${iid}">Screen printing</span></div>
-      ${n>1?`<button class="btn btn-sm btn-danger no-print" onclick="removeImp('${iid}')">&#128465;</button>`:''}
+      <button class="btn btn-sm btn-danger no-print" onclick="removeImp('${iid}')">&#128465; Remove</button>
     </div>
     <div class="imp-body">
       <label style="margin-bottom:6px;display:block">Imprint type</label>
