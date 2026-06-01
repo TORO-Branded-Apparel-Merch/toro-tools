@@ -1259,7 +1259,7 @@ function calcAll(){
       const _gk2 = 'g_'+s.gid+'_grp_'+(r.grp==='none'?'ind_'+r.rid:r.grp);
       if(_grpNetSeen[_gk2]) return;
       _grpNetSeen[_gk2] = true;
-      const _gl = r.grp==='none' ? r.size : 'Group '+r.grp+' ('+r.size+(r.upcharge>0?' +$'+r.upcharge.toFixed(2)+' sell upcharge':'')+'  )';
+      const _gl = r.grp==='none' ? r.size : 'Group '+r.grp+' ('+r.size+(r.upcharge>0?' · $'+r.upcharge.toFixed(2)+' sell upcharge':'')+')';
       html += '<div class="cs-row"><span class="cs-row-label">'+_gl+'</span><span class="cs-row-val">$'+r.cost.toFixed(2)+'/item</span></div>';
     });
 
@@ -1306,14 +1306,12 @@ function calcAll(){
           if(!perItemMargins[grpKey]) perItemMargins[grpKey]={pct:40};
         } else {
           if(r.upcharge > 0){
-            if(!perItemMargins[grpKey]){
-              rowSell = _baseSellFC + r.upcharge;
-              rowMgPct = loadedNet > 0 ? Math.round((1-loadedNet/rowSell)*10000)/100 : 40;
-              perItemMargins[grpKey] = {pct:rowMgPct};
-            } else {
-              rowMgPct = perItemMargins[grpKey].pct;
-              rowSell = loadedNet > 0 ? loadedNet/(1-rowMgPct/100) : 0;
-            }
+            // Always cascade: upcharge group sell = base sell + upcharge
+            // This ensures the sell gap stays consistent with what rep set on base
+            rowSell = _baseSellFC + r.upcharge;
+            rowMgPct = loadedNet > 0 ? Math.round((1-loadedNet/rowSell)*10000)/100 : 40;
+            // Store back so margin field shows the correct back-calculated value
+            perItemMargins[grpKey] = {pct:rowMgPct};
           } else {
             rowMgPct = perItemMargins[grpKey]?.pct ?? 40;
             rowSell = loadedNet > 0 ? loadedNet/(1-rowMgPct/100) : 0;
