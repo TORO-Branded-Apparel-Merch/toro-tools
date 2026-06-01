@@ -334,8 +334,6 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--red);box
     </div>
   </div>
 
-  </div>
-
   <div class="actions">
     <button class="btn btn-outline" onclick="goTo(1)">&#8592; Back</button>
     <div class="actions-right"><button class="btn btn-primary" onclick="if(!garments.length||validatePage(2))goTo(3)">Next: Hard goods &#8594;</button></div>
@@ -447,7 +445,7 @@ function addGarment(){
     <div class="g-head" onclick="toggleG(${id})">
       <div class="g-head-left"><div class="g-num">${id}</div><span id="glbl_${id}">Apparel item ${id}</span></div>
       <div style="display:flex;align-items:center;gap:8px">
-        ${id>1?`<button class="btn btn-sm btn-danger no-print" onclick="event.stopPropagation();removeG(${id})">&#128465; Remove</button>`:''}
+        <button class="btn btn-sm btn-danger no-print" onclick="event.stopPropagation();removeG(${id})">&#128465; Remove</button>
         <span style="color:#bbb;font-size:16px" id="gchev_${id}">&#8964;</span>
       </div>
     </div>
@@ -1133,6 +1131,7 @@ function calcAll(){
     const wbCheckbox=$c('gwhitebase_'+gid);
     const isNW=isDark&&(wbCheckbox?wbCheckbox.checked:true);
     totalQty+=qty;
+    const _noScreens = $c('gno_screens_'+gid)?.checked||false;
     let impLines=[],impTotal=0;
     // Compute how many pcs this garment RECEIVES from other garments' shared imprints
     let _receivedShareQty=0;
@@ -1153,17 +1152,20 @@ function calcAll(){
     // Effective qty for this garment's own imprints = pcs not covered by shared screens
     _receivedShareByGid[gid] = _receivedShareQty;
     const _ownImpQty = Math.max(1, qty - _receivedShareQty);
-    $c('imps_'+gid)?.querySelectorAll('.imp-card').forEach(imp=>{
-      const iid=imp.id.replace('imp_','');
-      // Use _ownImpQty so rate reflects only pcs that need independent decoration
-      const r=getIC(iid,_recvQtyForSetup>0?_ownImpQty:qty,isNW);
-      impTotal+=r.total;impLines.push(r);
-    });
+    if(!_noScreens){
+      $c('imps_'+gid)?.querySelectorAll('.imp-card').forEach(imp=>{
+        const iid=imp.id.replace('imp_','');
+        // Use _ownImpQty so rate reflects only pcs that need independent decoration
+        const _recvQtyGIC = _receivedShareByGid[gid]||0;
+        const r=getIC(iid,_recvQtyGIC>0?_ownImpQty:qty,isNW);
+        impTotal+=r.total;impLines.push(r);
+      });
+    }
     const garLine=weightedGC;
     const gTotal=garLine+impTotal; // bag/lab/oop charged at order level, not per-garment
     sections.push({type:'g',gid,qty,gc,gtype:vsOther('gtype_'+gid),gbrand:vs('gbrand_'+gid),gsku:vs('gsku_'+gid),gdesign:vs('gdesign_'+gid),
       gvendor:vs('gvendor_'+gid),gfit:vs('gfit_'+gid),szRows,
-      garLine,impLines,impTotal,addons,gTotal,margin});
+      garLine,impLines,impTotal,gTotal,margin});
   });
 
   let hgSecs=[],hgTotal=0;
@@ -1262,7 +1264,7 @@ function calcAll(){
            +(effD<1?h.netDC/(1-effD):0)
            +(effS<1?h.netSetup/(1-effS):0);
   });
-  const _rushMgT=(perItemMargins['fee_rush']?.pct??40)/100; const rushSell=_rushMgT<1&&rushAmt>0?rushAmt/(1-_rushMgT):0; applied
+  const _rushMgT=(perItemMargins['fee_rush']?.pct??40)/100; const rushSell=_rushMgT<1&&rushAmt>0?rushAmt/(1-_rushMgT):0;
   const tSell=garSell+hgSell+artSell+rushSell;
   const spi=totalQty>0?garSell/totalQty:0;
   const gp=tSell-grand;
@@ -1353,8 +1355,8 @@ function calcAll(){
       const c=document.getElementById('misc_'+s.gid);
       if(!c) return;
       const _totalQtyM = s.szRows.reduce((a,r)=>a+r.qty,0)||1;
-      c.querySelectorAll('[id^="miscrow_g"]').forEach(row=>{
-        const parts=row.id.split('_');const mid=parts[parts.length-1];
+      c.querySelectorAll('[id^="miscrow_g'+s.gid+'_"]').forEach(row=>{
+        const mid=row.id.replace('miscrow_g'+s.gid+'_','');
         const net=parseFloat(document.getElementById('misc_net_g'+s.gid+'_'+mid)?.value)||0;
         const desc=document.getElementById('misc_desc_g'+s.gid+'_'+mid)?.value||'Misc fee';
         if(net) _miscLines2.push({desc, netPI: net/_totalQtyM, netTotal: net});
