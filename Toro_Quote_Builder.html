@@ -830,7 +830,7 @@ function addImp(gid){
           <input type="text" id="vinyl_notes_${iid}" placeholder="e.g. cut type, color specs" style="width:100%;padding:7px 10px;border:1px solid var(--border2);border-radius:var(--radius-sm);font-size:13px;margin-top:4px">
         </div>
       </div>
-      <div id="imp_share_section_${iid}" style="border-top:1px solid var(--border);padding-top:10px;margin-top:10px;display:none;">
+      <div id="imp_share_section_${iid}" style="display:none;border-top:1px solid var(--border);padding-top:10px;margin-top:10px;display:none;">
         <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:12px;font-weight:700;color:var(--text2);margin-bottom:8px;">
           <input type="checkbox" id="imp_share_chk_${iid}" style="width:14px;height:14px;accent-color:var(--red);"
             onchange="toggleImpShare('${iid}','${gid}')">
@@ -1707,9 +1707,10 @@ function buildSummary(){
         const grpKey = 'g_'+s.gid+'_grp_'+(r.grp==='none'?'ind_'+r.rid:r.grp);
         const grpMgPct = getItemMargin(grpKey);
         const grpMgEff = grpMgPct/100;
-        const decoPI = s.impLines.reduce((a,im)=>a+(im.run_per_item||0),0)
-                     + s.impLines.reduce((a,im)=>a+(im.setup_total||0),0)
-                       / Math.max(1, s.szRows.reduce((a2,r2)=>a2+r2.qty,0));
+        const _totalRun = s.impLines.reduce((a,im)=>a+(im.run_per_item||0),0);
+        const _totalSetup = s.impLines.reduce((a,im)=>a+(im.setup_total||0),0);
+        const _totalQty = Math.max(1, s.szRows.reduce((a2,r2)=>a2+r2.qty,0));
+        const decoPI = _totalRun + _totalSetup / _totalQty;
         const loadedNet = r.cost + decoPI;
         const sellPx = grpMgEff<1 ? loadedNet/(1-grpMgEff) : 0;
         gRows+=`<div style="display:grid;grid-template-columns:60px 50px 80px 80px;gap:4px;padding:4px 0;border-top:1px solid #f0f0f0">`;
@@ -1918,7 +1919,7 @@ function serializeQuote(){
     data.szRows=szRows;
     const impsContainer=document.getElementById('imps_'+gid);
     const imps=[];
-    if(impsContainer){impsContainer.querySelectorAll('[id^="imp_"]').forEach(impEl=>{
+    if(impsContainer){impsContainer.querySelectorAll(':scope > .imp-card').forEach(impEl=>{
       const iid=impEl.id.replace('imp_','');
       const type=impEl.dataset.type||'screen';
       // Collect PMS colors from dynamic rows
@@ -2600,9 +2601,15 @@ function toggleImpShare(iid, gid) {
   wrap.style.display = chk.checked ? '' : 'none';
   if(chk.checked) {
     populateShareDropdown(iid, gid);
-    // If a target was already selected, show size rows immediately
     const sel = document.getElementById('imp_share_with_'+iid);
     if(sel && sel.value) onShareWithChange(iid, gid);
+    // Hide screen setup type — setup charged to owning garment
+    const setupWrap = document.getElementById('sp_setup_wrap_'+iid);
+    if(setupWrap) setupWrap.style.display = 'none';
+  } else {
+    // Restore setup type field
+    const setupWrap = document.getElementById('sp_setup_wrap_'+iid);
+    if(setupWrap) setupWrap.style.display = '';
   }
 }
 
