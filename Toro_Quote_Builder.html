@@ -567,6 +567,38 @@ function toggleG(id){
   ch.innerHTML=hidden?'&#8964;':'&#8963;';
 }
 function removeG(id){$c('g_'+id)?.remove();garments=garments.filter(g=>g.id!==id);setTimeout(refreshAllShareDropdowns,50);}
+function addXSRow(gid){
+  if(!window.szCtrs) window.szCtrs={};
+  window.szCtrs[gid]=(window.szCtrs[gid]||0)+1;
+  const rid=gid+'_sz_'+window.szCtrs[gid];
+  const c2=$c('szrows_'+gid);
+  if(!c2) return;
+  const row=document.createElement('div');
+  row.id='szrow_'+rid;
+  row.style.cssText='display:grid;grid-template-columns:70px 100px 110px 90px 110px 32px;gap:6px;align-items:center;margin-bottom:5px';
+  row.innerHTML=`
+    <div style="font-size:13px;font-weight:600;color:var(--text2);padding:6px 0">XS</div>
+    <select id="sz_grp_${rid}" onchange="onSzGrpChange('${rid}',${gid})" style="padding:5px 6px;font-size:12px">
+      <option value="A">Group A</option><option value="B">Group B</option>
+      <option value="C">Group C</option><option value="D">Group D</option>
+      <option value="none">Individual</option>
+    </select>
+    <input type="number" id="sz_cost_${rid}" value="0" step="0.01" min="0"
+      oninput="onSzCostChange('${rid}',${gid})" style="padding:6px 8px;font-size:13px">
+    <input type="number" id="sz_qty_${rid}" value="0" min="0"
+      oninput="recalcGarmentTotals(${gid});updateGLbl(${gid})" style="padding:6px 8px;font-size:13px">
+    <div style="display:flex;align-items:center;gap:4px">
+      <span style="font-size:12px;color:var(--text3)">+$</span>
+      <input type="number" id="sz_up_${rid}" value="0" step="0.01" min="0"
+        oninput="syncGroupUpcharge('${rid}',${gid})"
+        style="width:64px;padding:5px 6px;font-size:13px;border:1px solid var(--border2);border-radius:4px">
+    </div>
+    <button onclick="removeSzRow('${rid}',${gid})" style="width:28px;height:28px;border-radius:4px;border:1px solid #f5c6c6;background:#fff;color:#a00;cursor:pointer;font-size:14px;display:flex;align-items:center;justify-content:center;padding:0">&#215;</button>`;
+  // Prepend before existing rows so XS appears first
+  c2.insertBefore(row, c2.firstChild);
+  recalcGarmentTotals(gid);
+}
+
 function addSzRow(gid){
   if(!window.szCtrs) window.szCtrs={};
   window.szCtrs[gid]=(window.szCtrs[gid]||0)+1;
@@ -575,7 +607,7 @@ function addSzRow(gid){
   const c=$c('szrows_'+gid);
   const d=document.createElement('div');
   d.id='szrow_'+rid;
-  d.style.cssText='display:grid;grid-template-columns:90px 100px 110px 90px 110px 32px;gap:6px;align-items:center;margin-bottom:5px';
+  d.style.cssText='display:grid;grid-template-columns:70px 100px 110px 90px 110px 32px;gap:6px;align-items:center;margin-bottom:5px';
   const sizeOpts='<option value="3X">3X</option><option value="4X">4X</option><option value="5X">5X</option><option value="6X">6X</option><option value="Tall">Tall</option><option value="Big">Big</option><option value="Other">Other</option>';
   const baseCost='0.00';
   // Sell group: base row has no group; upcharge rows default to group A
@@ -1118,14 +1150,16 @@ function calcAll(){
     const mgSetup=(mgSetupRaw&&mgSetupRaw!==''&&isFinite(_mgS))?_mgS:null;
     const mgRush=(mgRushRaw&&mgRushRaw!==''&&isFinite(_mgR))?_mgR:null;
     // Net cost totals
-    const netItem=qty*(cost+dc);
+    const netCost=qty*cost;       // item cost only
+    const netDC=qty*dc;           // run charge total
+    const netItem=netCost+netDC;  // combined for legacy compat
     const netSetup=sc;
     const netRush=rush;
     const lt=netItem+netSetup+netRush;
     if(lt===0&&cost===0)return; // skip empty HG cards
     hgTotal+=lt;
     hgSecs.push({hid,qty,cost,dc,sc,rush,desc,sku,vendor,design,colors,dec,lt,
-      netItem,netSetup,netRush,mgItem,mgSetup,mgRush});
+      netCost,netDC,netItem,netSetup,netRush,mgItem,mgSetup,mgRush});
   });
 
   const garProd=sections.filter(s=>s.type==='g').reduce((a,s)=>a+s.gTotal,0);
@@ -1176,9 +1210,11 @@ function calcAll(){
   let hgSell=0;
   hgSecs.forEach(h=>{
     const effI=getItemMargin('hg_'+h.hid+'_item')/100;
+    const effD=getItemMargin('hg_'+h.hid+'_dc')/100;
     const effS=getItemMargin('hg_'+h.hid+'_setup')/100;
-    // Item sell + flat setup sell (separate margins)
-    hgSell+=(effI<1?h.netItem/(1-effI):0)+(effS<1?h.netSetup/(1-effS):0);
+    hgSell+=(effI<1?h.netCost/(1-effI):0)
+           +(effD<1?h.netDC/(1-effD):0)
+           +(effS<1?h.netSetup/(1-effS):0);
   });
   const rushSell=0; // rush is order-level, no per-item margin applied
   const tSell=garSell+hgSell+artSell+rushSell;
@@ -1381,21 +1417,25 @@ function calcAll(){
   // ── Hard goods pricing HTML ───────────────────────────────────────────
   if(hgSecs.length>0){
     hgSecs.forEach(h=>{
-      const hItemKey='hg_'+h.hid+'_item', hSetupKey='hg_'+h.hid+'_setup', hRushKey='hg_'+h.hid+'_rush';
+      const hItemKey='hg_'+h.hid+'_item', hDCKey='hg_'+h.hid+'_dc',
+            hSetupKey='hg_'+h.hid+'_setup', hRushKey='hg_'+h.hid+'_rush';
       if(!perItemMargins[hItemKey]) perItemMargins[hItemKey]={pct:40};
-      if(!perItemMargins[hSetupKey]) perItemMargins[hSetupKey]={pct:20};
+      if(!perItemMargins[hDCKey]) perItemMargins[hDCKey]={pct:40};
+      if(!perItemMargins[hSetupKey]) perItemMargins[hSetupKey]={pct:40};
       if(!perItemMargins[hRushKey]) perItemMargins[hRushKey]={pct:20};
 
-      const hNetPI = h.qty>0 ? h.netItem/h.qty : 0;
-      const hSetupPI = h.qty>0 ? h.netSetup/h.qty : 0; // for display only
-      _lastLoadedNet[hItemKey] = hNetPI;
+      const hCostPI = h.cost;                    // item cost per piece
+      const hDCPI = h.dc;                        // run charge per piece
+      _lastLoadedNet[hItemKey] = hCostPI;
+      _lastLoadedNet[hDCKey] = hDCPI;
 
       const hItemMgPct = perItemMargins[hItemKey].pct;
+      const hDCMgPct = perItemMargins[hDCKey].pct;
       const hSetupMgPct = perItemMargins[hSetupKey].pct;
-      const hItemSell = hItemMgPct<100 && h.netItem>0 ? h.netItem/(1-hItemMgPct/100) : 0;
+      const hItemSell = hItemMgPct<100 && h.netCost>0 ? h.netCost/(1-hItemMgPct/100) : 0;
+      const hDCSell = hDCMgPct<100 && h.netDC>0 ? h.netDC/(1-hDCMgPct/100) : 0;
       const hSetupSell = hSetupMgPct<100 && h.netSetup>0 ? h.netSetup/(1-hSetupMgPct/100) : 0;
-      const hSellTotal = hItemSell + hSetupSell;
-      const hSellPI = h.qty>0 ? hItemSell/h.qty : 0;
+      const hSellTotal = hItemSell + hDCSell + hSetupSell;
       totalSellAmt += hSellTotal;
 
       const hTitle = h.desc+(h.sku?' ('+h.sku+')':'')+(h.vendor?' via '+h.vendor:'');
@@ -1405,8 +1445,8 @@ function calcAll(){
 
       // Cost breakdown
       html += '<div class="cs-section-label">Hard goods cost</div>';
-      html += '<div class="cs-row"><span class="cs-row-label">Item cost ('+h.qty+' pcs)</span><span class="cs-row-val">$'+(h.cost).toFixed(2)+'/item</span></div>';
-      if(h.dc>0) html += '<div class="cs-row"><span class="cs-row-label">Run charge</span><span class="cs-row-val">$'+h.dc.toFixed(2)+'/item</span></div>';
+      html += '<div class="cs-row"><span class="cs-row-label">Item cost ('+h.qty+' pcs)</span><span class="cs-row-val">$'+h.cost.toFixed(2)+'/item</span></div>';
+      if(h.dc>0) html += '<div class="cs-row"><span class="cs-row-label">Run / deco charge</span><span class="cs-row-val">$'+h.dc.toFixed(2)+'/item</span></div>';
       if(h.netSetup>0) html += '<div class="cs-row"><span class="cs-row-label">Setup / die charge</span><span class="cs-row-val">$'+h.netSetup.toFixed(2)+' flat</span></div>';
       if(h.dec && h.dec!=='none' && h.dec!=='Blank')
         html += '<div class="cs-row"><span class="cs-row-label">Decoration</span><span class="cs-row-val">'+h.dec+'</span></div>';
@@ -1448,7 +1488,7 @@ function calcAll(){
       html += '</div>'; // cs-loaded-header-wrap
 
       // Totals
-      const hMgDisplay = hSellTotal>0 ? Math.round((1-(h.netItem+h.netSetup)/hSellTotal)*1000)/10 : 0;
+      const hMgDisplay = hSellTotal>0 ? Math.round((1-h.lt/hSellTotal)*1000)/10 : 0;
       html += '<div class="cs-totals-row">'
         +'<span style="font-weight:700;color:var(--text2)">Totals</span>'
         +'<span>Net: <strong>$'+h.lt.toFixed(2)+'</strong></span>'
@@ -1600,12 +1640,14 @@ function calcCommission(){
     const cHgGlobS=v('hg_setup_pct',20)/100;
     const cHgGlobR=v('hg_rush_pct',20)/100;
     const effI=getItemMargin('hg_'+h.hid+'_item')/100;
+    const effD=getItemMargin('hg_'+h.hid+'_dc')/100;
     const effS=getItemMargin('hg_'+h.hid+'_setup')/100;
     const effR=getItemMargin('hg_'+h.hid+'_rush')/100;
-    const sellI=effI<1?h.netItem/(1-effI):0;
+    const sellI=effI<1?h.netCost/(1-effI):0;
+    const sellD=effD<1?h.netDC/(1-effD):0;
     const sellS=effS<1?h.netSetup/(1-effS):0;
     const sellR=effR<1?h.netRush/(1-effR):0;
-    const totalSell=sellI+sellS+sellR;
+    const totalSell=sellI+sellD+sellS+sellR;
     const gp=totalSell-h.lt;
     const mgPct=totalSell>0?((totalSell-h.lt)/totalSell)*100:0;
     const qualifies=mgPct>=30;
@@ -1818,12 +1860,14 @@ function buildSummary(){
   let hRows='';
   (d.hgSecs||[]).forEach(h=>{
     const effI=getItemMargin('hg_'+h.hid+'_item')/100;
+    const effD=getItemMargin('hg_'+h.hid+'_dc')/100;
     const effS=getItemMargin('hg_'+h.hid+'_setup')/100;
     const effR=getItemMargin('hg_'+h.hid+'_rush')/100;
-    const sellI=effI<1?h.netItem/(1-effI):0;
+    const sellI=effI<1?h.netCost/(1-effI):0;
+    const sellD=effD<1?h.netDC/(1-effD):0;
     const sellS=effS<1?h.netSetup/(1-effS):0;
     const sellR=effR<1?h.netRush/(1-effR):0;
-    const totalSell=sellI+sellS+sellR;
+    const totalSell=sellI+sellD+sellS+sellR;
     const avgMg=totalSell>0?Math.round((1-h.lt/totalSell)*1000)/10:0;
     const mgColor=avgMg<30?'#E24B4A':avgMg<35?'#B8860B':'#1a7f4b';
     const itemColor=document.getElementById('hg_item_color_'+h.hid)?.value||'';
@@ -2041,6 +2085,7 @@ function serializeQuote(){
     hg_qty:v('hg_qty_'+hid),hg_cost:v('hg_cost_'+hid),
     hg_sc:v('hg_sc_'+hid),hg_dc:v('hg_dc_'+hid),hg_rush:v('hg_rush_'+hid),
     hg_item_margin:getItemMargin('hg_'+hid+'_item'),
+    hg_dc_margin:getItemMargin('hg_'+hid+'_dc'),
     hg_setup_margin:getItemMargin('hg_'+hid+'_setup'),
     hg_rush_margin:getItemMargin('hg_'+hid+'_rush'),
     hg_misc_fees:(()=>{
@@ -2144,6 +2189,7 @@ async function deserializeQuote(data){
     setV('hg_qty_'+hid,h.hg_qty);setV('hg_cost_'+hid,h.hg_cost);
     setV('hg_sc_'+hid,h.hg_sc);setV('hg_dc_'+hid,h.hg_dc);setV('hg_rush_'+hid,h.hg_rush);
     if(h.hg_item_margin)perItemMargins['hg_'+hid+'_item']={pct:h.hg_item_margin};
+    if(h.hg_dc_margin)perItemMargins['hg_'+hid+'_dc']={pct:h.hg_dc_margin};
     if(h.hg_setup_margin)perItemMargins['hg_'+hid+'_setup']={pct:h.hg_setup_margin};
     if(h.hg_rush_margin)perItemMargins['hg_'+hid+'_rush']={pct:h.hg_rush_margin};
   }
