@@ -1205,6 +1205,37 @@ function calcAll(){
 
     const gMarginKey='g_'+s.gid;
     const gMgPctVal=getItemMargin(gMarginKey);
+    // ── Compute deco costs per item for this garment ─────────────────
+    let sharedQty2 = 0;
+    document.querySelectorAll('[id^="imp_share_chk_"]').forEach(chk => {
+      if(!chk.checked) return;
+      const _iid2 = chk.id.replace('imp_share_chk_','');
+      if(_iid2.split('_')[0] !== String(s.gid)) return;
+      document.querySelectorAll('[id^="share_sz_'+_iid2+'_"][id$="_mode"]').forEach(sel => {
+        const _k2 = sel.id.replace('_mode','');
+        const _m2 = sel.value;
+        if(_m2==='none') return;
+        const _mxQ = parseInt(document.getElementById(_k2+'_qty')?.max)||0;
+        const _smQ = parseInt(document.getElementById(_k2+'_qty')?.value)||0;
+        sharedQty2 += _m2==='all' ? _mxQ : _m2==='some' ? _smQ : 0;
+      });
+    });
+    const totalScreenQty2 = (s.szRows.reduce((a,r)=>a+r.qty,0)||1) + sharedQty2;
+    const totalRun2 = s.impLines.reduce((a,im)=>a+(im.run_per_item||0),0);
+    const totalSetup2 = s.impLines.reduce((a,im)=>a+(im.setup_total||0),0);
+    const setupPI2 = totalScreenQty2>0 ? totalSetup2/totalScreenQty2 : 0;
+    const miscPI2 = (()=>{
+      const c=document.getElementById('misc_'+s.gid);
+      if(!c) return 0;
+      let t=0;
+      c.querySelectorAll('[id^="miscrow_g"]').forEach(row=>{
+        const parts=row.id.split('_');const mid=parts[parts.length-1];
+        t+=parseFloat(document.getElementById('misc_net_g'+s.gid+'_'+mid)?.value)||0;
+      });
+      return t/(s.szRows.reduce((a,r)=>a+r.qty,0)||1);
+    })();
+    const decoPI2 = totalRun2 + setupPI2;
+
     // ── Build clean nested pricing card for this garment ───────────────
     const _gTitle = (s.gdesign?s.gdesign+' — ':'')+s.gtype+(s.gbrand?' ('+s.gbrand+(s.gsku?' #'+s.gsku:'')+(s.gvendor?' via '+s.gvendor:'')+')'  :'');
     html += '<div class="cs-item">';
