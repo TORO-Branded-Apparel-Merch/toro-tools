@@ -1320,11 +1320,11 @@ function calcAll(){
           +'<input type="number" value="'+rowMgPct.toFixed(2)+'" min="0" max="999.99" step="0.01"'
           +' data-mg-pct="'+grpKey+'" data-loaded-net="'+loadedNet.toFixed(4)+'"'
           +' style="width:80px;padding:4px 6px;font-size:12px;font-weight:700;border:1px solid var(--border2);border-radius:4px;text-align:center"'
-          +' onchange="setItemMarginPct('+_pk+',this.value)">'
+          +' onchange=\'setItemMarginPct(\"'+grpKey+'\",this.value)\'>'
           +'<input type="number" step="0.01" min="0" value="'+rowSell.toFixed(2)+'"'
           +' data-mg-sell="'+grpKey+'"'
           +' style="width:85px;padding:4px 6px;font-size:12px;font-weight:700;color:var(--green);border:1px solid var(--border2);border-radius:4px;text-align:right"'
-          +' onchange="setGroupSell('+_pk+',this.value,'+r.cost+','+_gidStr+')">'
+          +' onchange=\'setGroupSell(\"'+grpKey+'\",this.value,'+r.cost+',\"'+s.gid+'\")\'>'
           +'</div>';
       });
       html += '</div>'; // cs-loaded-header-wrap
@@ -1349,42 +1349,56 @@ function calcAll(){
       if(!perItemMargins[hItemKey]) perItemMargins[hItemKey]={pct:40};
       if(!perItemMargins[hSetupKey]) perItemMargins[hSetupKey]={pct:20};
       if(!perItemMargins[hRushKey]) perItemMargins[hRushKey]={pct:20};
-      html+=`<div class="cs-head" style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-top:8px">
-        <span>${h.desc}${h.sku?' <span style="color:var(--text3);font-size:11px">#'+h.sku+'</span>':''}</span>
-        <div style="display:flex;gap:8px;align-items:center;font-size:11px;flex-wrap:wrap">
-          ${h.netItem>0?`<span style="color:var(--text3)">Item:</span>
-            <input type="number" value="${perItemMargins[hItemKey].pct.toFixed(2)}" min="0" max="999.99" step="0.01"
-              data-mg-pct="${hItemKey}" style="width:70px;padding:3px 5px;font-size:11px;font-weight:700;border:1px solid #ccc;border-radius:4px;text-align:center"
-              onchange="setItemMarginPct(${JSON.stringify(hItemKey)},this.value)"> %
-            <input type="number" step="0.01" min="0" data-mg-sell="${hItemKey}"
-              value="${(perItemMargins[hItemKey].pct<100&&h.netItem>0?(h.netItem/h.qty)/(1-perItemMargins[hItemKey].pct/100):0).toFixed(2)}"
-              style="width:80px;padding:3px 5px;font-size:11px;font-weight:700;color:var(--green);border:1px solid #ccc;border-radius:4px;text-align:right"
-              onchange="setItemMarginSell(${JSON.stringify(hItemKey)},this.value,${h.netItem/h.qty})"> $`:''}
-          ${h.netSetup>0?`<span style="color:var(--text3)">Setup:</span>
-            <input type="number" value="${perItemMargins[hSetupKey].pct.toFixed(2)}" min="0" max="999.99" step="0.01"
-              data-mg-pct="${hSetupKey}" style="width:70px;padding:3px 5px;font-size:11px;font-weight:700;border:1px solid #ccc;border-radius:4px;text-align:center"
-              onchange="setItemMarginPct(${JSON.stringify(hSetupKey)},this.value)"> %
-            <input type="number" step="0.01" min="0" data-mg-sell="${hSetupKey}"
-              value="${(perItemMargins[hSetupKey].pct<100&&h.netSetup>0?h.netSetup/(1-perItemMargins[hSetupKey].pct/100):0).toFixed(2)}"
-              style="width:80px;padding:3px 5px;font-size:11px;font-weight:700;color:var(--green);border:1px solid #ccc;border-radius:4px;text-align:right"
-              onchange="setItemMarginSell(${JSON.stringify(hSetupKey)},this.value,${h.netSetup})"> $`:''}
-          ${h.netRush>0?`<span style="color:var(--text3)">Rush:</span>
-            <input type="number" value="${perItemMargins[hRushKey].pct.toFixed(2)}" min="0" max="999.99" step="0.01"
-              data-mg-pct="${hRushKey}" style="width:70px;padding:3px 5px;font-size:11px;font-weight:700;border:1px solid #ccc;border-radius:4px;text-align:center"
-              onchange="setItemMarginPct(${JSON.stringify(hRushKey)},this.value)"> %
-            <input type="number" step="0.01" min="0" data-mg-sell="${hRushKey}"
-              value="${(perItemMargins[hRushKey].pct<100&&h.netRush>0?h.netRush/(1-perItemMargins[hRushKey].pct/100):0).toFixed(2)}"
-              style="width:80px;padding:3px 5px;font-size:11px;font-weight:700;color:var(--green);border:1px solid #ccc;border-radius:4px;text-align:right"
-              onchange="setItemMarginSell(${JSON.stringify(hRushKey)},this.value,${h.netRush})"> $`:''}
-        </div>
-      </div>`;
-      html+=`<div class="cl" style="font-size:12px;color:var(--text3)"><span>HG cost subtotal</span><span>${fmt(h.lt)}</span></div>`;
-      const hEffI=perItemMargins[hItemKey].pct/100;
-      const hEffS=perItemMargins[hSetupKey].pct/100;
-      const hSellI=hEffI<1?h.netItem/(1-hEffI):0;
-      const hSellS=hEffS<1?h.netSetup/(1-hEffS):0;
-      totalSellAmt+=(hSellI+hSellS);
-      html+=`<div class="cl sell" style="font-size:15px;font-weight:700;padding:8px 0;border-top:1px solid var(--border);margin-top:4px"><span>${h.desc} sell</span><span style="color:var(--green);font-size:16px">${fmt(hSellI+hSellS)}</span></div>`;
+
+      const hNetPI = h.qty>0 ? h.netItem/h.qty : 0;
+      const hSetupPI = h.qty>0 ? h.netSetup/h.qty : 0;
+      const hLoadedPI = hNetPI + hSetupPI;
+      _lastLoadedNet[hItemKey] = hLoadedPI;
+
+      const hMgPct = perItemMargins[hItemKey].pct;
+      const hSellPI = hMgPct<100 && hLoadedPI>0 ? hLoadedPI/(1-hMgPct/100) : 0;
+      const hSellTotal = hSellPI * h.qty;
+      totalSellAmt += hSellTotal;
+
+      const hTitle = h.desc+(h.sku?' ('+h.sku+')':'')+(h.vendor?' via '+h.vendor:'');
+
+      html += '<div class="cs-item">';
+      html += '<div class="cs-item-title">'+hTitle+'</div>';
+
+      // Cost breakdown
+      html += '<div class="cs-section-label">Hard goods cost</div>';
+      html += '<div class="cs-row"><span class="cs-row-label">Item cost ('+h.qty+' pcs)</span><span class="cs-row-val">$'+hNetPI.toFixed(2)+'/item</span></div>';
+      if(hSetupPI>0) html += '<div class="cs-row"><span class="cs-row-label">Setup charge</span><span class="cs-row-val">$'+hSetupPI.toFixed(2)+'/item</span></div>';
+      if(h.dec && h.dec!=='none' && h.dec!=='Blank')
+        html += '<div class="cs-row"><span class="cs-row-label">Decoration</span><span class="cs-row-val">'+h.dec+'</span></div>';
+
+      // Fully loaded & sell
+      html += '<div class="cs-loaded-header-wrap">';
+      html += '<div class="cs-section-label cs-section-loaded">Fully loaded net &amp; sell</div>';
+      html += '<div class="cs-loaded-header"><span>Item</span><span>Net/item</span><span>Margin %</span><span>Sell/item</span></div>';
+      html += '<div class="cs-loaded-row">'
+        +'<span style="font-weight:600;font-size:12px;">'+h.desc+'</span>'
+        +'<span style="color:var(--text2);font-size:12px;">$'+hLoadedPI.toFixed(2)+'</span>'
+        +'<input type="number" value="'+hMgPct.toFixed(2)+'" min="0" max="999.99" step="0.01"'
+        +' data-mg-pct="'+hItemKey+'" data-loaded-net="'+hLoadedPI.toFixed(4)+'"'
+        +' style="width:80px;padding:4px 6px;font-size:12px;font-weight:700;border:1px solid var(--border2);border-radius:4px;text-align:center"'
+        +' onchange=\'setItemMarginPct(\"'+hItemKey+'\",this.value)\'>'
+        +'<input type="number" step="0.01" min="0" value="'+hSellPI.toFixed(2)+'"'
+        +' data-mg-sell="'+hItemKey+'"'
+        +' style="width:85px;padding:4px 6px;font-size:12px;font-weight:700;color:var(--green);border:1px solid var(--border2);border-radius:4px;text-align:right"'
+        +' onchange=\'setItemMarginSell(\"'+hItemKey+'\",this.value,'+hLoadedPI.toFixed(4)+')\'>'
+        +'</div>';
+      html += '</div>'; // cs-loaded-header-wrap
+
+      // Totals
+      const hMgDisplay = hSellTotal>0 ? Math.round((1-h.lt/hSellTotal)*1000)/10 : 0;
+      html += '<div class="cs-totals-row">'
+        +'<span style="font-weight:700;color:var(--text2)">Totals</span>'
+        +'<span>Net: <strong>$'+h.lt.toFixed(2)+'</strong></span>'
+        +'<span>Sell: <strong style="color:var(--green)">$'+hSellTotal.toFixed(2)+'</strong></span>'
+        +'<span>Margin: <strong>'+hMgDisplay.toFixed(1)+'%</strong></span>'
+        +'</div>';
+      html += '</div>'; // cs-item
     });
   }
 
@@ -2005,6 +2019,8 @@ async function deserializeQuote(data){
     setV('gcolor_'+gid,g.gcolor);setV('gcolor_name_'+gid,g.gcolor_name);setV('gfit_'+gid,g.gfit);
     setC('gwhitebase_'+gid,g.gwhitebase);setC('gno_screens_'+gid,g.gno_screens);
     if(g.g_margin_pct)perItemMargins['g_'+gid]={pct:g.g_margin_pct};
+    // Restore per-group margins if saved
+    if(data.perItemMargins){Object.assign(perItemMargins,data.perItemMargins);}
     const szRowEls=document.getElementById('szrows_'+gid)?.querySelectorAll('[id^="szrow_"]')||[];
     const szRowsData=g.szRows||[];
     const hasOldRange=szRowsData.some(sr=>sr.size==='XS-XL'||sr.size==='xs-xl');
