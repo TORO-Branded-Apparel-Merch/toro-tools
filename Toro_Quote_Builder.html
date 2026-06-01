@@ -154,6 +154,8 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--red);box
 .cs-loaded-header{display:grid;grid-template-columns:80px 80px 90px 95px;gap:8px;padding:4px 14px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--text3);border-bottom:1px solid var(--border);}
 .cs-loaded-row{display:grid;grid-template-columns:80px 80px 90px 95px;gap:8px;padding:6px 14px;align-items:center;border-bottom:1px solid #f8f8f8;}
 .cs-totals-row{display:grid;grid-template-columns:60px 1fr 1fr 1fr;gap:8px;padding:8px 14px;background:var(--bg);border-top:1px solid var(--border);font-size:12px;}
+
+.cs-loaded-header-wrap{background:#fafbff;border-top:2px solid var(--red);margin-top:4px;}
 </style>
 </head>
 <body>
@@ -1204,51 +1206,40 @@ function calcAll(){
     const gMarginKey='g_'+s.gid;
     const gMgPctVal=getItemMargin(gMarginKey);
     // ── Build clean nested pricing card for this garment ───────────────
-    // Header
     const _gTitle = (s.gdesign?s.gdesign+' — ':'')+s.gtype+(s.gbrand?' ('+s.gbrand+(s.gsku?' #'+s.gsku:'')+(s.gvendor?' via '+s.gvendor:'')+')'  :'');
     html += '<div class="cs-item">';
     html += '<div class="cs-item-title">'+_gTitle+'</div>';
 
-    // ── Blank garment costs (read-only, grouped) ─────────────────────
+    // 1. Blank garment costs (read-only reference)
     html += '<div class="cs-section-label">Blank garment</div>';
     const _grpNetSeen = {};
     s.szRows.forEach(r => {
-      const grpKey = 'g_'+s.gid+'_grp_'+(r.grp==='none'?'ind_'+r.rid:r.grp);
-      if(_grpNetSeen[grpKey]) return;
-      _grpNetSeen[grpKey] = true;
-      const grpLabel = r.grp==='none' ? r.size : 'Group '+r.grp+' ('+r.size+(r.upcharge>0?' +$'+r.upcharge.toFixed(2)+' sell':'  ')+'  ...)';
-      html += '<div class="cs-row">'
-        +'<span class="cs-row-label">'+grpLabel+'</span>'
-        +'<span class="cs-row-val">$'+r.cost.toFixed(2)+'/item</span>'
-        +'</div>';
+      const _gk2 = 'g_'+s.gid+'_grp_'+(r.grp==='none'?'ind_'+r.rid:r.grp);
+      if(_grpNetSeen[_gk2]) return;
+      _grpNetSeen[_gk2] = true;
+      const _gl = r.grp==='none' ? r.size : 'Group '+r.grp+' ('+r.size+(r.upcharge>0?' +$'+r.upcharge.toFixed(2)+' sell upcharge':'')+'  )';
+      html += '<div class="cs-row"><span class="cs-row-label">'+_gl+'</span><span class="cs-row-val">$'+r.cost.toFixed(2)+'/item</span></div>';
     });
 
-    // ── Decoration costs (read-only) ──────────────────────────────────
+    // 2. Decoration costs (read-only reference)
     if(s.impLines.length>0){
       s.impLines.forEach(im => {
         html += '<div class="cs-section-label">'+im.label+'</div>';
-        html += '<div class="cs-row"><span class="cs-row-label">Run charge</span>'
-          +'<span class="cs-row-val">$'+((im.run_per_item||0)).toFixed(2)+'/item</span></div>';
-        if((im.setup_total||0)>0){
-          html += '<div class="cs-row"><span class="cs-row-label">Setup ÷ '+totalScreenQty2+' pcs'+(sharedQty2>0?' (incl. '+sharedQty2+' shared)':'')+'</span>'
-            +'<span class="cs-row-val">$'+(im.setup_total/totalScreenQty2).toFixed(2)+'/item</span></div>';
-        }
+        if((im.run_per_item||0)>0)
+          html += '<div class="cs-row"><span class="cs-row-label">Run charge</span><span class="cs-row-val">$'+im.run_per_item.toFixed(2)+'/item</span></div>';
+        if((im.setup_total||0)>0)
+          html += '<div class="cs-row"><span class="cs-row-label">Setup ÷ '+totalScreenQty2+' pcs'+(sharedQty2>0?' (incl. '+sharedQty2+' shared)':'')+'</span><span class="cs-row-val">$'+(im.setup_total/totalScreenQty2).toFixed(2)+'/item</span></div>';
       });
-      if(miscPI2>0){
-        html += '<div class="cs-row"><span class="cs-row-label">Misc fees</span>'
-          +'<span class="cs-row-val">$'+miscPI2.toFixed(2)+'/item</span></div>';
-      }
-    }
+      if(miscPI2>0)
+        html += '<div class="cs-row"><span class="cs-row-label">Misc fees</span><span class="cs-row-val">$'+miscPI2.toFixed(2)+'/item</span></div>';
 
-    // ── Fully loaded net & sell (editable) ───────────────────────────
-    if(s.impLines.length>0){
+      // 3. Fully loaded net & sell — EDITABLE
+      html += '<div class="cs-loaded-header-wrap">';
       html += '<div class="cs-section-label cs-section-loaded">Fully loaded net &amp; sell</div>';
-      html += '<div class="cs-loaded-header">'
-        +'<span>Group</span><span>Net/item</span><span style="text-align:center">Margin %</span><span style="text-align:right">Sell/item</span>'
-        +'</div>';
+      html += '<div class="cs-loaded-header"><span>Group</span><span>Net/item</span><span>Margin %</span><span>Sell/item</span></div>';
 
       const _grpLoadedSeen = {};
-      let _baseSellForCascade = null;
+      let _baseSellFC = null;
 
       s.szRows.forEach(r => {
         const grpKey = 'g_'+s.gid+'_grp_'+(r.grp==='none'?'ind_'+r.rid:r.grp);
@@ -1259,20 +1250,25 @@ function calcAll(){
         _lastLoadedNet[grpKey] = loadedNet;
 
         let rowMgPct, rowSell;
-        if(_baseSellForCascade === null){
+        if(_baseSellFC === null){
           rowMgPct = perItemMargins[grpKey]?.pct ?? 40;
           rowSell = loadedNet > 0 ? loadedNet/(1-rowMgPct/100) : 0;
-          _baseSellForCascade = rowSell;
-          if(perItemMargins[grpKey]===undefined) perItemMargins[grpKey]={pct:40};
+          _baseSellFC = rowSell;
+          if(!perItemMargins[grpKey]) perItemMargins[grpKey]={pct:40};
         } else {
           if(r.upcharge > 0){
-            rowSell = _baseSellForCascade + r.upcharge;
-            rowMgPct = loadedNet > 0 ? Math.round((1-loadedNet/rowSell)*10000)/100 : 40;
-            if(perItemMargins[grpKey]===undefined) perItemMargins[grpKey]={pct:rowMgPct};
-            else { rowMgPct = perItemMargins[grpKey].pct; rowSell = loadedNet>0?loadedNet/(1-rowMgPct/100):0; }
+            if(!perItemMargins[grpKey]){
+              rowSell = _baseSellFC + r.upcharge;
+              rowMgPct = loadedNet > 0 ? Math.round((1-loadedNet/rowSell)*10000)/100 : 40;
+              perItemMargins[grpKey] = {pct:rowMgPct};
+            } else {
+              rowMgPct = perItemMargins[grpKey].pct;
+              rowSell = loadedNet > 0 ? loadedNet/(1-rowMgPct/100) : 0;
+            }
           } else {
             rowMgPct = perItemMargins[grpKey]?.pct ?? 40;
             rowSell = loadedNet > 0 ? loadedNet/(1-rowMgPct/100) : 0;
+            if(!perItemMargins[grpKey]) perItemMargins[grpKey]={pct:rowMgPct};
           }
         }
 
@@ -1293,12 +1289,13 @@ function calcAll(){
           +' onchange="setGroupSell('+_pk+',this.value,'+r.cost+','+_gidStr+')">'
           +'</div>';
       });
+      html += '</div>'; // cs-loaded-header-wrap
     }
 
-    // ── Garment totals ────────────────────────────────────────────────
+    // 4. Garment totals line
     const _garMgDisplay = garSellAmt>0 ? Math.round((1-s.gTotal/garSellAmt)*1000)/10 : 0;
     html += '<div class="cs-totals-row">'
-      +'<span>Totals</span>'
+      +'<span style="font-weight:700;color:var(--text2)">Totals</span>'
       +'<span>Net: <strong>$'+s.gTotal.toFixed(2)+'</strong></span>'
       +'<span>Sell: <strong style="color:var(--green)">$'+garSellAmt.toFixed(2)+'</strong></span>'
       +'<span>Margin: <strong>'+_garMgDisplay.toFixed(1)+'%</strong></span>'
