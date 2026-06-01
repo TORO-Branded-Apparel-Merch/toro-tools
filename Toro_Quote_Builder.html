@@ -1318,11 +1318,11 @@ function calcAll(){
           +'<span style="font-weight:600;font-size:12px;">'+grpLabel+'</span>'
           +'<span style="color:var(--text2);font-size:12px;">$'+loadedNet.toFixed(2)+'</span>'
           +'<input type="number" value="'+rowMgPct.toFixed(2)+'" min="0" max="999.99" step="0.01"'
-          +' data-mg-pct='+_pk
+          +' data-mg-pct="'+grpKey+'" data-loaded-net="'+loadedNet.toFixed(4)+'"'
           +' style="width:80px;padding:4px 6px;font-size:12px;font-weight:700;border:1px solid var(--border2);border-radius:4px;text-align:center"'
           +' onchange="setItemMarginPct('+_pk+',this.value)">'
           +'<input type="number" step="0.01" min="0" value="'+rowSell.toFixed(2)+'"'
-          +' data-mg-sell='+_pk
+          +' data-mg-sell="'+grpKey+'"'
           +' style="width:85px;padding:4px 6px;font-size:12px;font-weight:700;color:var(--green);border:1px solid var(--border2);border-radius:4px;text-align:right"'
           +' onchange="setGroupSell('+_pk+',this.value,'+r.cost+','+_gidStr+')">'
           +'</div>';
@@ -2267,7 +2267,11 @@ function setItemMarginPct(key,pct){
   if(isNaN(p)||pct===''||pct===null) return;
   perItemMargins[key].pct = p;
   // Calculate new sell from loaded net and updated margin
-  const loadedNet = _lastLoadedNet[key] || 0;
+  let loadedNet = _lastLoadedNet[key] || 0;
+  if(!loadedNet){
+    const _pEl = document.querySelector('[data-mg-pct="'+key+'"]');
+    if(_pEl) loadedNet = parseFloat(_pEl.dataset.loadedNet)||0;
+  }
   const newSell = (loadedNet > 0 && p < 100) ? loadedNet/(1-p/100) : 0;
   // Update own sell field
   const sellEl = document.querySelector('[data-mg-sell="'+key+'"]');
@@ -2679,7 +2683,12 @@ function setGroupSell(grpKey, sell, netCost, gid) {
   const s = parseFloat(sell);
   if(isNaN(s) || s <= 0) return;
   // Store margin based on fully-loaded net (passed from pricing row)
-  const loadedNet = _lastLoadedNet[grpKey] || netCost;
+  let loadedNet = _lastLoadedNet[grpKey] || 0;
+  if(!loadedNet){
+    const _gEl = document.querySelector('[data-mg-pct="'+grpKey+'"');
+    if(_gEl) loadedNet = parseFloat(_gEl.dataset.loadedNet)||0;
+  }
+  if(!loadedNet) loadedNet = netCost;
   const newPct = loadedNet > 0 ? Math.round((1-(loadedNet/s))*10000)/100 : 40;
   perItemMargins[grpKey] = {pct: newPct};
   const pctEl = document.querySelector('[data-mg-pct="'+grpKey+'"]');
