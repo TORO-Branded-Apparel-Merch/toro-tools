@@ -229,7 +229,7 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--red);box
       </div>
     </div>
     <div class="row2" style="margin-bottom:12px">
-      <div class="field"><label>Expected in-hands date</label>
+      <div class="field"><label>Expected in-hands date <span style="color:var(--red)">*</span></label>
         <input type="date" id="ship_date" required oninput="updateCommReport()">
         <label style="display:flex;align-items:center;gap:6px;margin-top:6px;font-size:12px;font-weight:600;color:var(--text2);cursor:pointer">
           <input type="checkbox" id="ihd_firm" style="width:13px;height:13px;accent-color:var(--red)"> Firm date
@@ -1148,12 +1148,10 @@ function calcAll(){
   // HG sell (per-line margins or order margin)
   let hgSell=0;
   hgSecs.forEach(h=>{
-    const hNetPI=h.qty>0?h.netItem/h.qty:0;
-    const hSetupPI=h.qty>0?h.netSetup/h.qty:0;
-    const hLoadedPI=hNetPI+hSetupPI;
     const effI=getItemMargin('hg_'+h.hid+'_item')/100;
-    // Sell from loaded net at item margin
-    hgSell+=effI<1?(hLoadedPI/(1-effI))*h.qty:0;
+    const effS=getItemMargin('hg_'+h.hid+'_setup')/100;
+    // Item sell + flat setup sell (separate margins)
+    hgSell+=(effI<1?h.netItem/(1-effI):0)+(effS<1?h.netSetup/(1-effS):0);
   });
   const rushSell=0; // rush is order-level, no per-item margin applied
   const tSell=garSell+hgSell+artSell+rushSell;
@@ -1364,13 +1362,14 @@ function calcAll(){
       if(!perItemMargins[hRushKey]) perItemMargins[hRushKey]={pct:20};
 
       const hNetPI = h.qty>0 ? h.netItem/h.qty : 0;
-      const hSetupPI = h.qty>0 ? h.netSetup/h.qty : 0;
-      const hLoadedPI = hNetPI + hSetupPI;
-      _lastLoadedNet[hItemKey] = hLoadedPI;
+      _lastLoadedNet[hItemKey] = hNetPI;
 
-      const hMgPct = perItemMargins[hItemKey].pct;
-      const hSellPI = hMgPct<100 && hLoadedPI>0 ? hLoadedPI/(1-hMgPct/100) : 0;
-      const hSellTotal = hSellPI * h.qty;
+      const hItemMgPct = perItemMargins[hItemKey].pct;
+      const hSetupMgPct = perItemMargins[hSetupKey].pct;
+      const hItemSell = hItemMgPct<100 && h.netItem>0 ? h.netItem/(1-hItemMgPct/100) : 0;
+      const hSetupSell = hSetupMgPct<100 && h.netSetup>0 ? h.netSetup/(1-hSetupMgPct/100) : 0;
+      const hSellTotal = hItemSell + hSetupSell;
+      const hSellPI = h.qty>0 ? hItemSell/h.qty : 0;
       totalSellAmt += hSellTotal;
 
       const hTitle = h.desc+(h.sku?' ('+h.sku+')':'')+(h.vendor?' via '+h.vendor:'');
@@ -1387,24 +1386,42 @@ function calcAll(){
 
       // Fully loaded & sell
       html += '<div class="cs-loaded-header-wrap">';
-      html += '<div class="cs-section-label cs-section-loaded">Fully loaded net &amp; sell</div>';
-      html += '<div class="cs-loaded-header"><span>Item</span><span>Net/item</span><span>Margin %</span><span>Sell/item</span></div>';
+      html += '<div class="cs-section-label cs-section-loaded">Pricing &amp; sell</div>';
+      html += '<div class="cs-loaded-header"><span>Line</span><span>Net</span><span>Margin %</span><span>Sell</span></div>';
+
+      // Item line
       html += '<div class="cs-loaded-row">'
-        +'<span style="font-weight:600;font-size:12px;">'+h.desc+'</span>'
-        +'<span style="color:var(--text2);font-size:12px;">$'+hLoadedPI.toFixed(2)+'</span>'
-        +'<input type="number" value="'+hMgPct.toFixed(2)+'" min="0" max="999.99" step="0.01"'
-        +' data-mg-pct="'+hItemKey+'" data-loaded-net="'+hLoadedPI.toFixed(4)+'"'
+        +'<span style="font-weight:600;font-size:12px;">'+h.desc+' ('+h.qty+' pcs)</span>'
+        +'<span style="color:var(--text2);font-size:12px;">$'+h.netItem.toFixed(2)+'</span>'
+        +'<input type="number" value="'+hItemMgPct.toFixed(2)+'" min="0" max="999.99" step="0.01"'
+        +' data-mg-pct="'+hItemKey+'" data-loaded-net="'+h.netItem.toFixed(4)+'"'
         +' style="width:80px;padding:4px 6px;font-size:12px;font-weight:700;border:1px solid var(--border2);border-radius:4px;text-align:center"'
         +' onchange=\'setItemMarginPct(\"'+hItemKey+'\",this.value)\'>'
-        +'<input type="number" step="0.01" min="0" value="'+hSellPI.toFixed(2)+'"'
+        +'<input type="number" step="0.01" min="0" value="'+hItemSell.toFixed(2)+'"'
         +' data-mg-sell="'+hItemKey+'"'
         +' style="width:85px;padding:4px 6px;font-size:12px;font-weight:700;color:var(--green);border:1px solid var(--border2);border-radius:4px;text-align:right"'
-        +' onchange=\'setItemMarginSell(\"'+hItemKey+'\",this.value,'+hLoadedPI.toFixed(4)+')\'>'
+        +' onchange=\'setItemMarginSell(\"'+hItemKey+'\",this.value,'+h.netItem.toFixed(4)+')\'>'
         +'</div>';
+
+      // Setup line (if applicable)
+      if(h.netSetup>0){
+        html += '<div class="cs-loaded-row">'
+          +'<span style="font-weight:600;font-size:12px;">Setup (flat)</span>'
+          +'<span style="color:var(--text2);font-size:12px;">$'+h.netSetup.toFixed(2)+'</span>'
+          +'<input type="number" value="'+hSetupMgPct.toFixed(2)+'" min="0" max="999.99" step="0.01"'
+          +' data-mg-pct="'+hSetupKey+'" data-loaded-net="'+h.netSetup.toFixed(4)+'"'
+          +' style="width:80px;padding:4px 6px;font-size:12px;font-weight:700;border:1px solid var(--border2);border-radius:4px;text-align:center"'
+          +' onchange=\'setItemMarginPct(\"'+hSetupKey+'\",this.value)\'>'
+          +'<input type="number" step="0.01" min="0" value="'+hSetupSell.toFixed(2)+'"'
+          +' data-mg-sell="'+hSetupKey+'"'
+          +' style="width:85px;padding:4px 6px;font-size:12px;font-weight:700;color:var(--green);border:1px solid var(--border2);border-radius:4px;text-align:right"'
+          +' onchange=\'setItemMarginSell(\"'+hSetupKey+'\",this.value,'+h.netSetup.toFixed(4)+')\'>'
+          +'</div>';
+      }
       html += '</div>'; // cs-loaded-header-wrap
 
       // Totals
-      const hMgDisplay = hSellTotal>0 ? Math.round((1-h.lt/hSellTotal)*1000)/10 : 0;
+      const hMgDisplay = hSellTotal>0 ? Math.round((1-(h.netItem+h.netSetup)/hSellTotal)*1000)/10 : 0;
       html += '<div class="cs-totals-row">'
         +'<span style="font-weight:700;color:var(--text2)">Totals</span>'
         +'<span>Net: <strong>$'+h.lt.toFixed(2)+'</strong></span>'
@@ -1556,12 +1573,11 @@ function calcCommission(){
     const cHgGlobS=v('hg_setup_pct',20)/100;
     const cHgGlobR=v('hg_rush_pct',20)/100;
     const effI=getItemMargin('hg_'+h.hid+'_item')/100;
-    const hNetPI=h.qty>0?h.netItem/h.qty:0;
-    const hSetupPI=h.qty>0?h.netSetup/h.qty:0;
-    const hLoadedPI2=hNetPI+hSetupPI;
-    const sellI=effI<1?(hLoadedPI2/(1-effI))*h.qty:0;
-    const sellS=0; // setup absorbed into loaded net
-    const sellR=0; // rush handled separately
+    const effS=getItemMargin('hg_'+h.hid+'_setup')/100;
+    const effR=getItemMargin('hg_'+h.hid+'_rush')/100;
+    const sellI=effI<1?h.netItem/(1-effI):0;
+    const sellS=effS<1?h.netSetup/(1-effS):0;
+    const sellR=effR<1?h.netRush/(1-effR):0;
     const totalSell=sellI+sellS+sellR;
     const gp=totalSell-h.lt;
     const mgPct=totalSell>0?((totalSell-h.lt)/totalSell)*100:0;
@@ -1945,6 +1961,7 @@ function serializeQuote(){
     const imps=[];
     if(impsContainer){impsContainer.querySelectorAll(':scope > .imp-card').forEach(impEl=>{
       const iid=impEl.id.replace('imp_','');
+      if(!/^\d+_\d+$/.test(iid)) return; // skip phantom elements
       const type=impEl.dataset.type||'screen';
       // Collect PMS colors from dynamic rows
         const pmsRows=document.querySelectorAll('[id^="sp_pms_'+iid+'_"]');
@@ -2078,7 +2095,7 @@ async function deserializeQuote(data){
       }
     }
     
-    for(const imp of(g.imps||[])){
+    for(const imp of(g.imps||[]).filter(im=>/^\d+_\d+$/.test(im.iid))){
       addImp(gid);await new Promise(r=>setTimeout(r,20));
       const iid=gid+'_'+(iCtrs[gid]||1);setIT(iid,imp.type);
       setV('sp_loc_'+iid,imp.sp_loc);setV('sp_col_'+iid,imp.sp_col);setV('sp_ink_'+iid,imp.sp_ink);

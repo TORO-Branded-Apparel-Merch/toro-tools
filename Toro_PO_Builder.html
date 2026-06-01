@@ -644,7 +644,7 @@ function captureFormData() {
         return (g?.imps||[]).some(imp => imp.imp_shared && imp.imp_share_with);
       });
       if(!hasShared) return '';
-      return 'Screens shared across: '+titles.join(' + ')+'. Setup charged to '+titles[0]+' only. Run charge applies per item.';
+      return 'Note: Screens to be shared across garments in this order.';
     })(),
     proofReq: document.querySelector('input[name="proof"]:checked')?.value||'',
     proofNotes: document.getElementById('proof-notes').value,
