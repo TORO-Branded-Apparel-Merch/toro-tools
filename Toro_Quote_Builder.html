@@ -1349,16 +1349,19 @@ function calcAll(){
     const totalRun2 = s.impLines.reduce((a,im)=>a+(im.run_per_item||0),0);
     const totalSetup2 = s.impLines.reduce((a,im)=>a+(im.setup_total||0),0);
     const setupPI2 = totalScreenQty2>0 ? totalSetup2/totalScreenQty2 : 0;
-    const miscPI2 = (()=>{
+    const _miscLines2 = [];
+    (()=>{
       const c=document.getElementById('misc_'+s.gid);
-      if(!c) return 0;
-      let t=0;
+      if(!c) return;
+      const _totalQtyM = s.szRows.reduce((a,r)=>a+r.qty,0)||1;
       c.querySelectorAll('[id^="miscrow_g"]').forEach(row=>{
         const parts=row.id.split('_');const mid=parts[parts.length-1];
-        t+=parseFloat(document.getElementById('misc_net_g'+s.gid+'_'+mid)?.value)||0;
+        const net=parseFloat(document.getElementById('misc_net_g'+s.gid+'_'+mid)?.value)||0;
+        const desc=document.getElementById('misc_desc_g'+s.gid+'_'+mid)?.value||'Misc fee';
+        if(net) _miscLines2.push({desc, netPI: net/_totalQtyM, netTotal: net});
       });
-      return t/(s.szRows.reduce((a,r)=>a+r.qty,0)||1);
     })();
+    const miscPI2 = _miscLines2.reduce((a,m)=>a+m.netPI, 0);
     const decoPI2 = totalRun2 + setupPI2;
 
     // ── Build clean nested pricing card for this garment ───────────────
@@ -1391,8 +1394,9 @@ function calcAll(){
         if(_runPI===0 && _setupPI===0 && im.total>0)
           html += '<div class="cs-row"><span class="cs-row-label">Decoration total</span><span class="cs-row-val">'+fmt(im.total)+'</span></div>';
       });
-      if(miscPI2>0)
-        html += '<div class="cs-row"><span class="cs-row-label">Misc fees</span><span class="cs-row-val">$'+miscPI2.toFixed(2)+'/item</span></div>';
+      _miscLines2.forEach(m=>{
+        html += '<div class="cs-row"><span class="cs-row-label">'+m.desc+'</span><span class="cs-row-val">$'+m.netPI.toFixed(2)+'/item</span></div>';
+      });
     }
 
     // 3. Fully loaded net & sell — ALWAYS SHOW (editable)
@@ -2372,6 +2376,43 @@ async function deserializeQuote(data){
       setV('dtf_loc_'+iid,imp.dtf_loc);setV('dtf_sq_'+iid,imp.dtf_sq);
       setV('heat_loc_'+iid,imp.heat_loc);setV('heat_t_'+iid,imp.heat_t);
       setV('vinyl_loc_'+iid,imp.vinyl_loc);setV('vinyl_t_'+iid,imp.vinyl_t);
+      // Restore share state
+      if(imp.imp_shared && imp.imp_share_with){
+        const chk=document.getElementById('imp_share_chk_'+iid);
+        if(chk){
+          chk.checked=true;
+          const wrap=document.getElementById('imp_share_wrap_'+iid);
+          if(wrap) wrap.style.display='';
+          refreshAllShareDropdowns();
+          await new Promise(r=>setTimeout(r,30));
+          setV('imp_share_with_'+iid, imp.imp_share_with);
+          const sizesDiv=document.getElementById('imp_share_sizes_'+iid);
+          if(sizesDiv) sizesDiv.style.display='';
+          populateShareSizes(iid, gid);
+          await new Promise(r=>setTimeout(r,20));
+          // Restore individual size modes and qtys
+          if(imp.imp_share_sizes&&imp.imp_share_sizes.length){
+            imp.imp_share_sizes.forEach(ss=>{
+              const key='share_sz_'+iid+'_'+ss.rid;
+              const modeEl=document.getElementById(key+'_mode');
+              const qtyEl=document.getElementById(key+'_qty');
+              if(modeEl){
+                modeEl.value=ss.mode||'all';
+                if(ss.mode==='some'&&qtyEl&&ss.qty){
+                  qtyEl.style.display='';
+                  qtyEl.value=ss.qty;
+                } else if(qtyEl){
+                  qtyEl.style.display='none';
+                }
+              }
+            });
+          }
+          // Update grey/warning state
+          checkShareAllMode(iid);
+          updatePartialShareWarning(imp.imp_share_with);
+          setGarmentScreensShared(imp.imp_share_with, imp.imp_share_sizes?.every(s=>s.mode==='all')||false);
+        }
+      }
     }
     updateGLbl(gid);
   }
@@ -3095,7 +3136,6 @@ function toggleShareSizeQty(key, maxQty) {
   }
   const parts = key.replace('share_sz_','').split('_');
   const iid = parts[0]+'_'+parts[1];
-  console.log('[share] toggleShareSizeQty key='+key+' iid='+iid+' mode='+sel.value);
   checkShareAllMode(iid);
   // Update the partial share warning on the target garment
   const _tSel = document.getElementById('imp_share_with_'+iid);
