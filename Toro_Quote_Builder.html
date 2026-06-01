@@ -143,6 +143,17 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--red);box
 #bam-btn-cancel{background:#f0f0f0;color:#333}
 #bam-btn-cancel:hover{background:#e0e0e0}
 
+
+.cs-item{background:#fff;border:1px solid var(--border);border-radius:var(--radius-sm);margin-bottom:12px;overflow:hidden;}
+.cs-item-title{font-size:14px;font-weight:700;padding:10px 14px;background:var(--bg);border-bottom:1px solid var(--border);}
+.cs-section-label{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--text3);padding:8px 14px 3px;margin-top:2px;}
+.cs-section-loaded{color:var(--red)!important;border-top:1px solid var(--border);margin-top:6px;padding-top:10px;}
+.cs-row{display:flex;justify-content:space-between;padding:3px 14px;font-size:12px;}
+.cs-row-label{color:var(--text2);}
+.cs-row-val{color:var(--text2);font-weight:600;}
+.cs-loaded-header{display:grid;grid-template-columns:80px 80px 90px 95px;gap:8px;padding:4px 14px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--text3);border-bottom:1px solid var(--border);}
+.cs-loaded-row{display:grid;grid-template-columns:80px 80px 90px 95px;gap:8px;padding:6px 14px;align-items:center;border-bottom:1px solid #f8f8f8;}
+.cs-totals-row{display:grid;grid-template-columns:60px 1fr 1fr 1fr;gap:8px;padding:8px 14px;background:var(--bg);border-top:1px solid var(--border);font-size:12px;}
 </style>
 </head>
 <body>
@@ -1192,119 +1203,109 @@ function calcAll(){
 
     const gMarginKey='g_'+s.gid;
     const gMgPctVal=getItemMargin(gMarginKey);
-    html+=`<div class="cs-head" style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px">
-      <span>${s.gdesign
-        ?s.gdesign+' '+s.gtype+(s.gbrand?' '+s.gbrand:'')
-        :'Apparel '+(i+1)+': '+s.gtype+(s.gbrand?' \u2014 '+s.gbrand:'')}${s.gsku?' <span style="color:var(--text3);font-size:11px"> #'+s.gsku+'</span>':''}${s.gvendor?' <span style="color:var(--text3);font-size:11px">via '+s.gvendor+'</span>':''}</span>
-    </div>`;
-    // Build per-size-group editable rows with fully-loaded net
-    // Shared screen qty calculation
-    let sharedQty2 = 0;
-    document.querySelectorAll('[id^="imp_share_chk_"]').forEach(chk => {
-      if(!chk.checked) return;
-      const _iid = chk.id.replace('imp_share_chk_','');
-      const _fromGid = _iid.split('_')[0];
-      if(String(_fromGid) !== String(s.gid)) return;
-      document.querySelectorAll('[id^="share_sz_'+_iid+'_"][id$="_mode"]').forEach(sel => {
-        const _key = sel.id.replace('_mode','');
-        const _mode = sel.value;
-        if(_mode === 'none') return;
-        const _maxQty = parseInt(document.getElementById(_key+'_qty')?.max)||0;
-        const _someQty = parseInt(document.getElementById(_key+'_qty')?.value)||0;
-        sharedQty2 += _mode==='all' ? _maxQty : _mode==='some' ? _someQty : 0;
-      });
-    });
-    const totalScreenQty2 = (s.szRows.reduce((a,r)=>a+r.qty,0)||1) + sharedQty2;
-    const totalRun2 = s.impLines.reduce((a,im)=>a+(im.run_per_item||0),0);
-    const totalSetup2 = s.impLines.reduce((a,im)=>a+(im.setup_total||0),0);
-    const setupPI2 = totalSetup2 / totalScreenQty2;
-    const miscPI2 = (()=>{
-      const c=document.getElementById('misc_'+s.gid);
-      if(!c) return 0;
-      let t=0;
-      c.querySelectorAll('[id^="miscrow_g"]').forEach(row=>{
-        const parts=row.id.split('_');const mid=parts[parts.length-1];
-        t+=parseFloat(document.getElementById('misc_net_g'+s.gid+'_'+mid)?.value)||0;
-      });
-      return t/(s.szRows.reduce((a,r)=>a+r.qty,0)||1);
-    })();
-    const decoPI2 = totalRun2 + setupPI2; // deco cost per item
+    // ── Build clean nested pricing card for this garment ───────────────
+    // Header
+    const _gTitle = (s.gdesign?s.gdesign+' — ':'')+s.gtype+(s.gbrand?' ('+s.gbrand+(s.gsku?' #'+s.gsku:'')+(s.gvendor?' via '+s.gvendor:'')+')'  :'');
+    html += '<div class="cs-item">';
+    html += '<div class="cs-item-title">'+_gTitle+'</div>';
 
-    // Column headers
-    html+=`<div style="display:grid;grid-template-columns:55px 50px 80px 90px 85px;gap:6px;padding:4px 0 2px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--text3);border-bottom:1px solid var(--border)">
-      <span>Size</span><span>Qty</span><span style="text-align:right">Loaded net</span><span style="text-align:center">Margin %</span><span style="text-align:right">Sell/item</span>
-    </div>`;
-
-    // Per-group rows
-    const _grpsSeen = {};
-    let _baseLoadedSell = null;
+    // ── Blank garment costs (read-only, grouped) ─────────────────────
+    html += '<div class="cs-section-label">Blank garment</div>';
+    const _grpNetSeen = {};
     s.szRows.forEach(r => {
       const grpKey = 'g_'+s.gid+'_grp_'+(r.grp==='none'?'ind_'+r.rid:r.grp);
-      const isFirstInGrp = r.grp==='none' || !_grpsSeen[r.grp];
-      if(r.grp!=='none') _grpsSeen[r.grp]=true;
-      if(!isFirstInGrp) return; // only show first row per group
-
-      // Fully loaded net for this group
-      const loadedNet = r.cost + decoPI2 + miscPI2;
-      _lastLoadedNet[grpKey] = loadedNet;
-
-      // Auto-populate sell on first render (if margin is still default 40 and no override)
-      const storedMg = perItemMargins[grpKey]?.pct;
-      let rowMgPct, rowSell;
-      if(_baseLoadedSell === null) {
-        // Base group — use stored margin or default 40%
-        rowMgPct = (storedMg !== undefined) ? storedMg : 40;
-        rowSell = loadedNet > 0 ? loadedNet / (1 - rowMgPct/100) : 0;
-        _baseLoadedSell = rowSell;
-        if(storedMg === undefined) perItemMargins[grpKey] = {pct: 40};
-      } else {
-        // Upcharge group — auto-calc from base sell + upcharge
-        rowSell = _baseLoadedSell + r.upcharge;
-        rowMgPct = loadedNet > 0 ? Math.round((1 - loadedNet/rowSell)*10000)/100 : 40;
-        if(storedMg === undefined) perItemMargins[grpKey] = {pct: rowMgPct};
-        else { rowMgPct = storedMg; rowSell = loadedNet > 0 ? loadedNet/(1-rowMgPct/100) : 0; }
-      }
-
-      const _sv = rowSell.toFixed(2);
-      const _pc = 'data-mg-pct="'+grpKey+'"';
-      const _sc = 'data-mg-sell="'+grpKey+'"';
-      const _rc = '<input type="number" value="'+rowMgPct.toFixed(2)+'" min="0" max="999.99" step="0.01" '+_pc
-        +' style="width:85px;padding:3px 5px;font-size:11px;font-weight:700;border:1px solid #ccc;border-radius:4px;text-align:center"'
-        +' onchange="setItemMarginPct('+JSON.stringify(grpKey)+',this.value)">'
-        +'<input type="number" step="0.01" min="0" value="'+_sv+'" '+_sc
-        +' style="width:85px;padding:3px 5px;font-size:11px;font-weight:700;color:#1a7f4b;border:1px solid #ccc;border-radius:4px;text-align:right"'
-        +' onchange="setGroupSell('+JSON.stringify(grpKey)+',this.value,'+r.cost+','+JSON.stringify(String(s.gid))+')">';
-
-      html += '<div style="display:grid;grid-template-columns:55px 50px 80px 90px 85px;gap:6px;padding:5px 0;font-size:12px;border-bottom:1px solid #f8f8f8;align-items:center">'
-        +'<span style="font-weight:600">'+r.size+(r.grp!=='none'?' <span style="font-size:10px;color:#aaa">grp '+r.grp+'</span>':'')+'</span>'
-        +'<span style="color:#888;font-size:11px">'+r.qty+' pcs</span>'
-        +'<span style="text-align:right">$'+loadedNet.toFixed(2)+'</span>'
-        +_rc+'</div>';
+      if(_grpNetSeen[grpKey]) return;
+      _grpNetSeen[grpKey] = true;
+      const grpLabel = r.grp==='none' ? r.size : 'Group '+r.grp+' ('+r.size+(r.upcharge>0?' +$'+r.upcharge.toFixed(2)+' sell':'  ')+'  ...)';
+      html += '<div class="cs-row">'
+        +'<span class="cs-row-label">'+grpLabel+'</span>'
+        +'<span class="cs-row-val">$'+r.cost.toFixed(2)+'/item</span>'
+        +'</div>';
     });
 
-    // Fully loaded summary box
+    // ── Decoration costs (read-only) ──────────────────────────────────
     if(s.impLines.length>0){
-      const _sharedNote = sharedQty2>0 ? ' \u2014 screens shared across '+totalScreenQty2+' pcs' : '';
-      const _miscRow = miscPI2>0 ? '<span style="color:#666;">Misc fees / item</span><span style="text-align:right;">$'+miscPI2.toFixed(2)+'</span>' : '';
-      html += '<div style="margin:8px 0 4px;padding:8px 10px;background:#f0f7ff;border-left:3px solid #4a90d9;border-radius:0 4px 4px 0;font-size:12px;">'
-        +'<div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:#4a6080;margin-bottom:6px;">Deco breakdown'+_sharedNote+'</div>'
-        +'<div style="display:grid;grid-template-columns:1fr 70px;gap:3px;">'
-        +'<span style="color:#666;">Run charges / item (all locations)</span><span style="text-align:right;">$'+totalRun2.toFixed(2)+'</span>'
-        +'<span style="color:#666;">Setup \u00f7 '+totalScreenQty2+' pcs'+(sharedQty2>0?' (incl. '+sharedQty2+' shared)':'')+' </span><span style="text-align:right;">$'+setupPI2.toFixed(2)+'</span>'
-        +_miscRow
-        +'<span style="font-weight:700;border-top:1px solid #c8d8e8;padding-top:3px;">Total deco / item</span><span style="text-align:right;font-weight:700;border-top:1px solid #c8d8e8;padding-top:3px;">$'+(decoPI2+miscPI2).toFixed(2)+'</span>'
-        +'</div></div>';
+      s.impLines.forEach(im => {
+        html += '<div class="cs-section-label">'+im.label+'</div>';
+        html += '<div class="cs-row"><span class="cs-row-label">Run charge</span>'
+          +'<span class="cs-row-val">$'+((im.run_per_item||0)).toFixed(2)+'/item</span></div>';
+        if((im.setup_total||0)>0){
+          html += '<div class="cs-row"><span class="cs-row-label">Setup ÷ '+totalScreenQty2+' pcs'+(sharedQty2>0?' (incl. '+sharedQty2+' shared)':'')+'</span>'
+            +'<span class="cs-row-val">$'+(im.setup_total/totalScreenQty2).toFixed(2)+'/item</span></div>';
+        }
+      });
+      if(miscPI2>0){
+        html += '<div class="cs-row"><span class="cs-row-label">Misc fees</span>'
+          +'<span class="cs-row-val">$'+miscPI2.toFixed(2)+'/item</span></div>';
+      }
     }
 
-    // Apparel cost subtotal + sell line (inside forEach)
-    html+=`<div class="cl" style="font-size:12px;color:var(--text3)"><span>Apparel cost subtotal</span><span>${fmt(s.garLine)}</span></div>`;
-    s.impLines.forEach((im,j)=>{
-      html+=`<div class="cl" style="padding-left:10px;font-size:12px"><span>&#8627; Imprint ${j+1}: ${im.label}</span><span>${fmt(im.total)}</span></div>`;
-    });
-    const _garSellDisplay = garSellAmt;
-    html+=`<div class="cl" style="font-size:13px;font-weight:700;padding:6px 0;border-top:1px solid var(--border);margin-top:4px"><span>Apparel ${i+1} net</span><span>${fmt(s.gTotal)}</span></div>`;
-    html+=`<div class="cl sell" style="font-size:15px;font-weight:700;padding:8px 0;border-top:1px solid var(--border);margin-top:4px"><span>Garment ${i+1} sell</span><span style="color:var(--green);font-size:16px">${fmt(_garSellDisplay)}</span></div>`;
+    // ── Fully loaded net & sell (editable) ───────────────────────────
+    if(s.impLines.length>0){
+      html += '<div class="cs-section-label cs-section-loaded">Fully loaded net &amp; sell</div>';
+      html += '<div class="cs-loaded-header">'
+        +'<span>Group</span><span>Net/item</span><span style="text-align:center">Margin %</span><span style="text-align:right">Sell/item</span>'
+        +'</div>';
+
+      const _grpLoadedSeen = {};
+      let _baseSellForCascade = null;
+
+      s.szRows.forEach(r => {
+        const grpKey = 'g_'+s.gid+'_grp_'+(r.grp==='none'?'ind_'+r.rid:r.grp);
+        if(_grpLoadedSeen[grpKey]) return;
+        _grpLoadedSeen[grpKey] = true;
+
+        const loadedNet = r.cost + decoPI2 + miscPI2;
+        _lastLoadedNet[grpKey] = loadedNet;
+
+        let rowMgPct, rowSell;
+        if(_baseSellForCascade === null){
+          rowMgPct = perItemMargins[grpKey]?.pct ?? 40;
+          rowSell = loadedNet > 0 ? loadedNet/(1-rowMgPct/100) : 0;
+          _baseSellForCascade = rowSell;
+          if(perItemMargins[grpKey]===undefined) perItemMargins[grpKey]={pct:40};
+        } else {
+          if(r.upcharge > 0){
+            rowSell = _baseSellForCascade + r.upcharge;
+            rowMgPct = loadedNet > 0 ? Math.round((1-loadedNet/rowSell)*10000)/100 : 40;
+            if(perItemMargins[grpKey]===undefined) perItemMargins[grpKey]={pct:rowMgPct};
+            else { rowMgPct = perItemMargins[grpKey].pct; rowSell = loadedNet>0?loadedNet/(1-rowMgPct/100):0; }
+          } else {
+            rowMgPct = perItemMargins[grpKey]?.pct ?? 40;
+            rowSell = loadedNet > 0 ? loadedNet/(1-rowMgPct/100) : 0;
+          }
+        }
+
+        const grpLabel = r.grp==='none' ? r.size : 'Grp '+r.grp+' ('+r.size+')';
+        const _pk = JSON.stringify(grpKey);
+        const _gidStr = JSON.stringify(String(s.gid));
+
+        html += '<div class="cs-loaded-row">'
+          +'<span style="font-weight:600;font-size:12px;">'+grpLabel+'</span>'
+          +'<span style="color:var(--text2);font-size:12px;">$'+loadedNet.toFixed(2)+'</span>'
+          +'<input type="number" value="'+rowMgPct.toFixed(2)+'" min="0" max="999.99" step="0.01"'
+          +' data-mg-pct='+_pk
+          +' style="width:80px;padding:4px 6px;font-size:12px;font-weight:700;border:1px solid var(--border2);border-radius:4px;text-align:center"'
+          +' onchange="setItemMarginPct('+_pk+',this.value)">'
+          +'<input type="number" step="0.01" min="0" value="'+rowSell.toFixed(2)+'"'
+          +' data-mg-sell='+_pk
+          +' style="width:85px;padding:4px 6px;font-size:12px;font-weight:700;color:var(--green);border:1px solid var(--border2);border-radius:4px;text-align:right"'
+          +' onchange="setGroupSell('+_pk+',this.value,'+r.cost+','+_gidStr+')">'
+          +'</div>';
+      });
+    }
+
+    // ── Garment totals ────────────────────────────────────────────────
+    const _garMgDisplay = garSellAmt>0 ? Math.round((1-s.gTotal/garSellAmt)*1000)/10 : 0;
+    html += '<div class="cs-totals-row">'
+      +'<span>Totals</span>'
+      +'<span>Net: <strong>$'+s.gTotal.toFixed(2)+'</strong></span>'
+      +'<span>Sell: <strong style="color:var(--green)">$'+garSellAmt.toFixed(2)+'</strong></span>'
+      +'<span>Margin: <strong>'+_garMgDisplay.toFixed(1)+'%</strong></span>'
+      +'</div>';
+    html += '</div>'; // cs-item
   });
+
 
   // ── Hard goods pricing HTML ───────────────────────────────────────────
   if(hgSecs.length>0){
@@ -1653,12 +1654,19 @@ function buildSummary(){
       gRows+=`<div style="font-size:10px;font-weight:700;color:var(--text3);text-align:right">Sell/item</div>`;
       gRows+=`</div>`;
       s.szRows.forEach(r=>{
-        const baseSellPI=gMgEff<1?r.cost/(1-gMgEff):0;
-        const sellPx=baseSellPI+(r.upcharge||0);
+        // Use per-group margin and fully loaded net (same as pricing page)
+        const grpKey = 'g_'+s.gid+'_grp_'+(r.grp==='none'?'ind_'+r.rid:r.grp);
+        const grpMgPct = getItemMargin(grpKey);
+        const grpMgEff = grpMgPct/100;
+        const decoPI = s.impLines.reduce((a,im)=>a+(im.run_per_item||0),0)
+                     + s.impLines.reduce((a,im)=>a+(im.setup_total||0),0)
+                       / Math.max(1, s.szRows.reduce((a2,r2)=>a2+r2.qty,0));
+        const loadedNet = r.cost + decoPI;
+        const sellPx = grpMgEff<1 ? loadedNet/(1-grpMgEff) : 0;
         gRows+=`<div style="display:grid;grid-template-columns:60px 50px 80px 80px;gap:4px;padding:4px 0;border-top:1px solid #f0f0f0">`;
         gRows+=`<div style="font-size:13px;font-weight:700">${r.size}</div>`;
         gRows+=`<div style="font-size:13px;text-align:right">${r.qty}</div>`;
-        gRows+=`<div style="font-size:13px;text-align:right">$${r.cost.toFixed(2)}</div>`;
+        gRows+=`<div style="font-size:13px;text-align:right">$${loadedNet.toFixed(2)}</div>`;
         gRows+=`<div style="font-size:13px;font-weight:700;color:var(--green);text-align:right">$${sellPx.toFixed(2)}</div>`;
         gRows+=`</div>`;
       });
@@ -2221,20 +2229,40 @@ function getItemMargin(key){if(!perItemMargins[key])perItemMargins[key]={pct:40}
 function setItemMarginPct(key,pct){
   if(!perItemMargins[key]) perItemMargins[key]={pct:40};
   const p = parseFloat(pct);
-  if(isNaN(p)) return; // don't update on incomplete input
+  if(isNaN(p)||pct===''||pct===null) return;
   perItemMargins[key].pct = p;
-  // Update sibling sell display without full re-render
-  const netEl = document.querySelector('[data-mg-net="'+key+'"]');
-  if(netEl) {
-    const net = parseFloat(netEl.dataset.net)||0;
-    const sell = p<100 ? net/(1-(p/100)) : 0;
-    const sellEl = document.querySelector('[data-mg-sell="'+key+'"]');
-    if(sellEl) sellEl.value = sell.toFixed(2);
+  // Calculate new sell from loaded net and updated margin
+  const loadedNet = _lastLoadedNet[key] || 0;
+  const newSell = (loadedNet > 0 && p < 100) ? loadedNet/(1-p/100) : 0;
+  // Update own sell field
+  const sellEl = document.querySelector('[data-mg-sell="'+key+'"]');
+  if(sellEl && newSell > 0) sellEl.value = newSell.toFixed(2);
+  // Cascade to upcharge groups using the new sell price
+  // Extract gid from key: 'g_1_grp_A' -> gid='1'
+  const keyParts = key.match(/^g_(\w+)_grp_/);
+  if(keyParts && newSell > 0) {
+    const gid = keyParts[1];
+    const szRows = getSzRows(gid);
+    let baseSet = false;
+    szRows.forEach(r => {
+      const otherKey = 'g_'+gid+'_grp_'+(r.grp==='none'?'ind_'+r.rid:r.grp);
+      if(otherKey === key) { baseSet = true; return; }
+      if(!baseSet || r.upcharge <= 0) return;
+      const cascadeSell = newSell + r.upcharge;
+      const otherLoaded = _lastLoadedNet[otherKey] || r.cost;
+      const cascadePct = otherLoaded > 0 ? Math.round((1-(otherLoaded/cascadeSell))*10000)/100 : 40;
+      perItemMargins[otherKey] = {pct: cascadePct};
+      const oSellEl = document.querySelector('[data-mg-sell="'+otherKey+'"]');
+      if(oSellEl) oSellEl.value = cascadeSell.toFixed(2);
+      const oPctEl = document.querySelector('[data-mg-pct="'+otherKey+'"]');
+      if(oPctEl) oPctEl.value = cascadePct.toFixed(2);
+    });
   }
   calcAllDebounced();
 }
 function setItemMarginSell(key,sell,netCost){
   if(!perItemMargins[key]) perItemMargins[key]={pct:40};
+  if(sell===''||sell===null||sell===undefined) return;
   const s = parseFloat(sell);
   if(isNaN(s)||s<=0) return;
   if(netCost>0) {
