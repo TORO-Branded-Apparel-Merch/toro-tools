@@ -1446,6 +1446,8 @@ function calcAll(){
   const _rawOrder = tSell>0 ? ((1-grand/tSell)*100) : 0;
   const orderMgPct = isFinite(_rawOrder) ? _rawOrder : 0;
 
+  console.log('[calcAll] sections:', sections.length, 'hgSecs:', hgSecs.length, 'html length:', html.length);
+
   html+=`<div style="border-top:2px solid var(--border);margin:10px 0"></div>`;
   html+=`<div class="cl grand"><span>Total production cost</span><span>${fmt(grand)}</span></div>`;
   html+=`<div class="cl sell" style="font-size:15px;font-weight:700"><span>Total sell price</span><span style="color:var(--green);font-size:17px">${fmt(tSell)}</span></div>`;
