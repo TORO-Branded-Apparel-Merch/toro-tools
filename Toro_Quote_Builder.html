@@ -268,9 +268,72 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--red);box
 
 <!-- PAGE 2: GARMENTS -->
 <div class="page" id="page2">
-  <p style="font-size:13px;color:var(--text3);margin-bottom:14px">Add decorated or blank apparel items. Leave empty to skip to hard goods.</p>
+  <div class="card-title" style="margin-bottom:12px">Apparel &amp; decorated items</div>
+  <p style="font-size:13px;color:var(--text3);margin-bottom:14px">Add T-shirts, hoodies, hats, and other wearables. Use the <strong>+ Add apparel item</strong> button below. Leave empty to skip.</p>
   <div id="garments_container"></div>
   <button class="btn-add" onclick="addGarment()">&#43; Add apparel item</button>
+  <div style="margin-top:24px;border-top:2px solid var(--border);padding-top:20px">
+    <div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:4px">Order add-ons</div>
+    <div style="font-size:12px;color:var(--text3);margin-bottom:14px">Rush, art, bagging, and flat fees. These apply to the full order and will appear as editable line items on the pricing page.</div>
+    <div class="row3">
+      <div class="field"><label>Rush charge (in-house deco)</label>
+        <select id="rush_pct" onchange="calcAllDebounced()">
+          <option value="0">None — standard 10 days</option>
+          <option value="10">10% — 6 business days</option>
+          <option value="20">20% — 5 business days</option>
+          <option value="30">30% — 4 business days</option>
+          <option value="40">40% — 3 business days</option>
+          <option value="50">50% — 2 business days</option>
+          <option value="65">65% — 1 business day</option>
+        </select>
+      </div>
+      <div class="field"><label>Graphic art hours</label>
+        <input type="number" id="art_hours" value="0" min="0" step="0.5" oninput="calcAllDebounced()">
+      </div>
+      <div class="field"><label>Bagging / sorting</label>
+        <select id="bagging" onchange="calcAllDebounced()">
+          <option value="0">No</option>
+          <option value="0.55">Yes — $0.55/item</option>
+        </select>
+      </div>
+    </div>
+    <div class="row3" style="margin-top:8px">
+      <div class="field"><label>Labeling applied</label>
+        <select id="labeling" onchange="calcAllDebounced()">
+          <option value="0">No</option>
+          <option value="0.30">Yes — $0.30/item</option>
+        </select>
+      </div>
+      <div class="field"><label>Online order processing</label>
+        <select id="oop" onchange="calcAllDebounced()">
+          <option value="0">No</option>
+          <option value="0.30">Yes — $0.30/item</option>
+        </select>
+      </div>
+      <div class="field"><label>Pre-production sample</label>
+        <select id="pre_prod" onchange="calcAllDebounced()">
+          <option value="0">No</option>
+          <option value="60">Yes — $60.00 flat</option>
+        </select>
+      </div>
+    </div>
+    <div class="row3" style="margin-top:8px">
+      <div class="field"><label>Simulated process</label>
+        <select id="sim_process" onchange="calcAllDebounced()">
+          <option value="0">No</option>
+          <option value="40">Yes — $40.00 flat</option>
+        </select>
+      </div>
+      <div class="field"><label>Inbound flat shipping</label>
+        <select id="inbound_ship" onchange="calcAllDebounced()">
+          <option value="0">No</option>
+          <option value="24">Yes — $24.00/location</option>
+        </select>
+      </div>
+      <div class="field"></div>
+    </div>
+  </div>
+
   <div class="actions">
     <button class="btn btn-outline" onclick="goTo(1)">&#8592; Back</button>
     <div class="actions-right"><button class="btn btn-primary" onclick="if(!garments.length||validatePage(2))goTo(3)">Next: Hard goods &#8594;</button></div>
@@ -281,7 +344,7 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--red);box
 <div class="page" id="page3">
   <div class="card">
     <div class="card-title">Hard goods &amp; promo items</div>
-    <p style="font-size:13px;color:var(--text3);margin-bottom:14px">Add non-apparel items drinkware, bags, pens, tech accessories, etc. Leave empty to skip.</p>
+    <p style="font-size:13px;color:var(--text3);margin-bottom:14px">Add non-apparel promotional items: drinkware, bags, pens, tech accessories, etc. Leave empty to skip.</p>
     <div id="hg_container"></div>
     <button class="btn-add" onclick="addHG()">&#43; Add hard good item</button>
   </div>
@@ -293,60 +356,13 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--red);box
 
 <!-- PAGE 4: PRICING -->
 <div class="page" id="page4">
+  <div class="card-title" style="margin-bottom:4px">Pricing &amp; margin</div>
+  <p style="font-size:13px;color:var(--text3);margin-bottom:16px">Review fully loaded net costs and set your sell price for each item. Adjust margin % or sell/item directly. Changes cascade to upcharge groups automatically.</p>
   <div class="card">
     <div class="card-title">Pricing &amp; margin</div>
 
     <!-- Order-level add-ons (keep these) -->
-    <div id="pricing_apparel_section" style="background:var(--bg);border:1px solid var(--border);border-radius:var(--radius-sm);padding:12px;margin-bottom:12px">
-      <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--red);margin-bottom:10px">Order-level add-ons</div>
-      <div class="row3">
-        <div class="field"><label>Rush charge (in-house deco)</label>
-          <select id="rush_pct" onchange="calcAll()">
-            <option value="0">None standard 10 days</option>
-            <option value="10">10%   6 business days</option>
-            <option value="20">20%   5 business days</option>
-            <option value="30">30%   4 business days</option>
-            <option value="40">40%   3 business days</option>
-            <option value="50">50%   2 business days</option>
-            <option value="65">65%   1 business day</option>
-          </select>
-        </div>
-        <div class="field"><label>Graphic art hours</label>
-          <input type="number" id="art_hours" value="0" min="0" step="0.5" oninput="calcAll()">
-        </div>
-        <div class="field"><label>Bagging / sorting</label>
-          <select id="bagging" onchange="calcAll()"><option value="0">No</option><option value="0.55">Yes,   $0.55/item</option></select>
-        </div>
-      </div>
-      <div class="row2" style="margin-top:8px">
-        <div class="field"><label>Labeling applied</label>
-          <select id="labeling" onchange="calcAll()"><option value="0">No</option><option value="0.30">Yes,   $0.30/item</option></select>
-        </div>
-        <div class="field"><label>Online order processing</label>
-          <select id="oop" onchange="calcAll()"><option value="0">No</option><option value="0.30">Yes,   $0.30/item</option></select>
-        </div>
-      </div>
-      <div class="row3" style="margin-top:8px;">
-        <div class="field"><label>Pre-production sample</label>
-          <select id="pre_prod" onchange="calcAll()">
-            <option value="0">No</option>
-            <option value="60">Yes   +$60.00 flat</option>
-          </select>
-        </div>
-        <div class="field"><label>Simulated process</label>
-          <select id="sim_process" onchange="calcAll()">
-            <option value="0">No</option>
-            <option value="40">Yes   +$40.00 flat</option>
-          </select>
-        </div>
-        <div class="field"><label>Inbound flat shipping</label>
-          <select id="inbound_ship" onchange="calcAll()">
-            <option value="0">No</option>
-            <option value="24">Yes   +$24.00/location</option>
-          </select>
-        </div>
-      </div>
-    </div>
+    <div id="pricing_apparel_section" style="display:none"></div>
     <!-- Hidden fields kept for backward compat with calcAll -->
     <input type="hidden" id="margin_pct" value="40">
     <input type="hidden" id="hg_margin_pct" value="40">
@@ -369,6 +385,7 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--red);box
 
 <!-- PAGE 5: COMMISSION -->
 <div class="page" id="page5">
+  <div class="card-title" style="margin-bottom:16px">Quote summary</div>
   <div class="metrics" id="metric_cards"></div>
   <div id="summary_output"></div>
   <div class="actions no-print">
@@ -1143,9 +1160,8 @@ function calcAll(){
       const r=getIC(iid,_recvQtyForSetup>0?_ownImpQty:qty,isNW);
       impTotal+=r.total;impLines.push(r);
     });
-    const addons=(bag+lab+oop)*qty;
     const garLine=weightedGC;
-    const gTotal=garLine+impTotal+addons;
+    const gTotal=garLine+impTotal; // bag/lab/oop charged at order level, not per-garment
     sections.push({type:'g',gid,qty,gc,gtype:vsOther('gtype_'+gid),gbrand:vs('gbrand_'+gid),gsku:vs('gsku_'+gid),gdesign:vs('gdesign_'+gid),
       gvendor:vs('gvendor_'+gid),gfit:vs('gfit_'+gid),szRows,
       garLine,impLines,impTotal,addons,gTotal,margin});
@@ -1236,7 +1252,7 @@ function calcAll(){
     garSell+=gMiscSell;
   });
 
-  const artSell=margin<1?art/(1-margin):0;
+  const _artMgT=(perItemMargins['fee_art']?.pct??40)/100; const artSell=_artMgT<1&&art>0?art/(1-_artMgT):0;
   // HG sell (per-line margins or order margin)
   let hgSell=0;
   hgSecs.forEach(h=>{
@@ -1247,7 +1263,7 @@ function calcAll(){
            +(effD<1?h.netDC/(1-effD):0)
            +(effS<1?h.netSetup/(1-effS):0);
   });
-  const rushSell=0; // rush is order-level, no per-item margin applied
+  const _rushMgT=(perItemMargins['fee_rush']?.pct??40)/100; const rushSell=_rushMgT<1&&rushAmt>0?rushAmt/(1-_rushMgT):0; applied
   const tSell=garSell+hgSell+artSell+rushSell;
   const spi=totalQty>0?garSell/totalQty:0;
   const gp=tSell-grand;
@@ -1551,14 +1567,126 @@ function calcAll(){
 
   // ── Order totals ──────────────────────────────────────────────────────
   if(art>0){
-    const artSellAmt=margin<1?art/(1-margin):0;
+    if(!perItemMargins['fee_art']) perItemMargins['fee_art']={pct:40};
+    const artMg=perItemMargins['fee_art'].pct;
+    const artSellAmt=artMg<100?art/(1-artMg/100):0;
+    _lastLoadedNet['fee_art']=art;
     totalNetCost+=art; totalSellAmt+=artSellAmt;
-    html+=`<div class="cl"><span>Art (${v('art_hours',0)} hrs × $40)</span><span>net ${fmt(art)} → sell ${fmt(artSellAmt)}</span></div>`;
+    html+='<div class="cs-item">';
+    html+='<div class="cs-item-title">Graphic art ('+v('art_hours',0)+' hrs × $40)</div>';
+    html+='<div class="cs-loaded-header-wrap">';
+    html+='<div class="cs-section-label cs-section-loaded">Pricing &amp; sell</div>';
+    html+='<div class="cs-loaded-header"><span>Line</span><span>Net</span><span>Margin %</span><span>Sell</span></div>';
+    html+='<div class="cs-loaded-row">'
+      +'<span style="font-weight:600;font-size:12px;">Art hours</span>'
+      +'<span style="color:var(--text2);font-size:12px;">$'+art.toFixed(2)+'</span>'
+      +'<input type="number" value="'+artMg.toFixed(2)+'" min="0" max="999.99" step="0.01"'
+      +' data-mg-pct="fee_art" data-loaded-net="'+art.toFixed(4)+'"'
+      +' style="width:80px;padding:4px 6px;font-size:12px;font-weight:700;border:1px solid var(--border2);border-radius:4px;text-align:center"'
+      +' onchange=\'setItemMarginPct(\"fee_art\",this.value)\'>'
+      +'<input type="number" step="0.01" min="0" value="'+artSellAmt.toFixed(2)+'"'
+      +' data-mg-sell="fee_art"'
+      +' style="width:85px;padding:4px 6px;font-size:12px;font-weight:700;color:var(--green);border:1px solid var(--border2);border-radius:4px;text-align:right"'
+      +' onchange=\'setItemMarginSell(\"fee_art\",this.value,'+art.toFixed(4)+')\'>'
+      +'</div>';
+    html+='</div>';
+    html+='<div class="cs-totals-row">'
+      +'<span style="font-weight:700;color:var(--text2)">Totals</span>'
+      +'<span>Net: <strong>$'+art.toFixed(2)+'</strong></span>'
+      +'<span>Sell: <strong style="color:var(--green)">$'+artSellAmt.toFixed(2)+'</strong></span>'
+      +'<span>Margin: <strong>'+(artSellAmt>0?Math.round((1-art/artSellAmt)*1000)/10:0).toFixed(1)+'%</strong></span>'
+      +'</div>';
+    html+='</div>';
   }
   if(rush>0){
-    const rushSellAmt=margin<1?rushAmt/(1-margin):0;
+    if(!perItemMargins['fee_rush']) perItemMargins['fee_rush']={pct:40};
+    const rushMg=perItemMargins['fee_rush'].pct;
+    const rushSellAmt=rushMg<100?rushAmt/(1-rushMg/100):0;
+    _lastLoadedNet['fee_rush']=rushAmt;
     totalNetCost+=rushAmt; totalSellAmt+=rushSellAmt;
-    html+=`<div class="cl"><span>Rush charge (${Math.round(rush*100)}%)</span><span>net ${fmt(rushAmt)} → sell ${fmt(rushSellAmt)}</span></div>`;
+    html+='<div class="cs-item"><div class="cs-item-title">Rush charge ('+Math.round(rush*100)+'%)</div>'
+      +'<div class="cs-loaded-header-wrap"><div class="cs-section-label cs-section-loaded">Pricing &amp; sell</div>'
+      +'<div class="cs-loaded-header"><span>Line</span><span>Net</span><span>Margin %</span><span>Sell</span></div>'
+      +'<div class="cs-loaded-row">'
+      +'<span style="font-weight:600;font-size:12px;">Rush charge</span>'
+      +'<span style="color:var(--text2);font-size:12px;">$'+rushAmt.toFixed(2)+'</span>'
+      +'<input type="number" value="'+rushMg.toFixed(2)+'" min="0" max="999.99" step="0.01"'
+      +' data-mg-pct="fee_rush" data-loaded-net="'+rushAmt.toFixed(4)+'"'
+      +' style="width:80px;padding:4px 6px;font-size:12px;font-weight:700;border:1px solid var(--border2);border-radius:4px;text-align:center"'
+      +' onchange=\'setItemMarginPct(\"fee_rush\",this.value)\'>'
+      +'<input type="number" step="0.01" min="0" value="'+rushSellAmt.toFixed(2)+'"'
+      +' data-mg-sell="fee_rush"'
+      +' style="width:85px;padding:4px 6px;font-size:12px;font-weight:700;color:var(--green);border:1px solid var(--border2);border-radius:4px;text-align:right"'
+      +' onchange=\'setItemMarginSell(\"fee_rush\",this.value,'+rushAmt.toFixed(4)+')\'>'
+      +'</div></div>'
+      +'<div class="cs-totals-row"><span style="font-weight:700;color:var(--text2)">Totals</span>'
+      +'<span>Net: <strong>$'+rushAmt.toFixed(2)+'</strong></span>'
+      +'<span>Sell: <strong style="color:var(--green)">$'+rushSellAmt.toFixed(2)+'</strong></span>'
+      +'<span>Margin: <strong>'+(rushSellAmt>0?Math.round((1-rushAmt/rushSellAmt)*1000)/10:0).toFixed(1)+'%</strong></span>'
+      +'</div></div>';
+  }
+
+  // ── Per-item add-ons (bag, label, OOP) ──
+  if(bag>0||lab>0||oop>0){
+    const addAmt=(bag+lab+oop)*totalQty;
+    if(!perItemMargins['fee_addons']) perItemMargins['fee_addons']={pct:40};
+    const addMg=perItemMargins['fee_addons'].pct;
+    const addSell=addMg<100?addAmt/(1-addMg/100):0;
+    _lastLoadedNet['fee_addons']=addAmt;
+    totalNetCost+=addAmt; totalSellAmt+=addSell;
+    const addDesc=[bag>0?'Bagging':'',lab>0?'Labeling':'',oop>0?'OOP':''].filter(Boolean).join(', ');
+    html+='<div class="cs-item"><div class="cs-item-title">Add-ons ('+addDesc+') — '+totalQty+' pcs</div>'
+      +'<div class="cs-loaded-header-wrap"><div class="cs-section-label cs-section-loaded">Pricing &amp; sell</div>'
+      +'<div class="cs-loaded-header"><span>Line</span><span>Net</span><span>Margin %</span><span>Sell</span></div>'
+      +'<div class="cs-loaded-row">'
+      +'<span style="font-weight:600;font-size:12px;">Add-ons</span>'
+      +'<span style="color:var(--text2);font-size:12px;">$'+addAmt.toFixed(2)+'</span>'
+      +'<input type="number" value="'+addMg.toFixed(2)+'" min="0" max="999.99" step="0.01"'
+      +' data-mg-pct="fee_addons" data-loaded-net="'+addAmt.toFixed(4)+'"'
+      +' style="width:80px;padding:4px 6px;font-size:12px;font-weight:700;border:1px solid var(--border2);border-radius:4px;text-align:center"'
+      +' onchange=\'setItemMarginPct(\"fee_addons\",this.value)\'>'
+      +'<input type="number" step="0.01" min="0" value="'+addSell.toFixed(2)+'"'
+      +' data-mg-sell="fee_addons"'
+      +' style="width:85px;padding:4px 6px;font-size:12px;font-weight:700;color:var(--green);border:1px solid var(--border2);border-radius:4px;text-align:right"'
+      +' onchange=\'setItemMarginSell(\"fee_addons\",this.value,'+addAmt.toFixed(4)+')\'>'
+      +'</div></div>'
+      +'<div class="cs-totals-row"><span style="font-weight:700;color:var(--text2)">Totals</span>'
+      +'<span>Net: <strong>$'+addAmt.toFixed(2)+'</strong></span>'
+      +'<span>Sell: <strong style="color:var(--green)">$'+addSell.toFixed(2)+'</strong></span>'
+      +'<span>Margin: <strong>'+(addSell>0?Math.round((1-addAmt/addSell)*1000)/10:0).toFixed(1)+'%</strong></span>'
+      +'</div></div>';
+  }
+
+  // ── Flat fees (pre-prod, sim process, inbound ship) ──
+  const preProd=v('pre_prod',0),simProc=v('sim_process',0),inboundShip=v('inbound_ship',0);
+  const flatFees=preProd+simProc+inboundShip;
+  if(flatFees>0){
+    if(!perItemMargins['fee_flat']) perItemMargins['fee_flat']={pct:40};
+    const flatMg=perItemMargins['fee_flat'].pct;
+    const flatSell=flatMg<100?flatFees/(1-flatMg/100):0;
+    _lastLoadedNet['fee_flat']=flatFees;
+    totalNetCost+=flatFees; totalSellAmt+=flatSell;
+    const flatDesc=[preProd>0?'Pre-prod $'+preProd:'',simProc>0?'Sim $'+simProc:'',inboundShip>0?'Ship $'+inboundShip:''].filter(Boolean).join(', ');
+    html+='<div class="cs-item"><div class="cs-item-title">Flat fees ('+flatDesc+')</div>'
+      +'<div class="cs-loaded-header-wrap"><div class="cs-section-label cs-section-loaded">Pricing &amp; sell</div>'
+      +'<div class="cs-loaded-header"><span>Line</span><span>Net</span><span>Margin %</span><span>Sell</span></div>'
+      +'<div class="cs-loaded-row">'
+      +'<span style="font-weight:600;font-size:12px;">Flat fees</span>'
+      +'<span style="color:var(--text2);font-size:12px;">$'+flatFees.toFixed(2)+'</span>'
+      +'<input type="number" value="'+flatMg.toFixed(2)+'" min="0" max="999.99" step="0.01"'
+      +' data-mg-pct="fee_flat" data-loaded-net="'+flatFees.toFixed(4)+'"'
+      +' style="width:80px;padding:4px 6px;font-size:12px;font-weight:700;border:1px solid var(--border2);border-radius:4px;text-align:center"'
+      +' onchange=\'setItemMarginPct(\"fee_flat\",this.value)\'>'
+      +'<input type="number" step="0.01" min="0" value="'+flatSell.toFixed(2)+'"'
+      +' data-mg-sell="fee_flat"'
+      +' style="width:85px;padding:4px 6px;font-size:12px;font-weight:700;color:var(--green);border:1px solid var(--border2);border-radius:4px;text-align:right"'
+      +' onchange=\'setItemMarginSell(\"fee_flat\",this.value,'+flatFees.toFixed(4)+')\'>'
+      +'</div></div>'
+      +'<div class="cs-totals-row"><span style="font-weight:700;color:var(--text2)">Totals</span>'
+      +'<span>Net: <strong>$'+flatFees.toFixed(2)+'</strong></span>'
+      +'<span>Sell: <strong style="color:var(--green)">$'+flatSell.toFixed(2)+'</strong></span>'
+      +'<span>Margin: <strong>'+(flatSell>0?Math.round((1-flatFees/flatSell)*1000)/10:0).toFixed(1)+'%</strong></span>'
+      +'</div></div>';
   }
 
   const _rawOrder = tSell>0 ? ((1-grand/tSell)*100) : 0;
@@ -1595,20 +1723,25 @@ function calcAll(){
       warn.style.border='1.5px solid #E24B4A';
       warn.style.color='#A32D2D';
       warn.innerHTML='&#9888; Margin below 30%   management approval required';
-      // Color sell lines red
-      document.querySelectorAll('.cl.sell').forEach(el=>{if(!el.dataset.colored)el.style.color='#E24B4A';});
-      document.querySelectorAll('.cl.grand').forEach(el=>{el.style.color='var(--text)';});
+      // Color sell numbers red on all pricing cards
+      document.querySelectorAll('[data-mg-sell]').forEach(el=>{ el.style.color='#E24B4A'; });
+      document.querySelectorAll('.cs-totals-row strong').forEach(el=>{
+        if(el.style.color&&el.style.color.includes('green')) el.style.color='#E24B4A';
+      });
     } else if(m<35){
       warn.style.display='';
       warn.style.background='#FFF8E1';
       warn.style.border='1.5px solid #F0A500';
       warn.style.color='#7A4F00';
       warn.innerHTML='&#9888; Average margin below 35%   review before submitting';
+      document.querySelectorAll('[data-mg-sell]').forEach(el=>{ el.style.color='#B8860B'; });
       document.querySelectorAll('.cl.sell').forEach(el=>{if(!el.dataset.colored)el.style.color='#B8860B';});
-      document.querySelectorAll('.cl.grand').forEach(el=>{el.style.color='var(--text)';});
     } else {
       warn.style.display='none';
-      document.querySelectorAll('.cl.sell').forEach(el=>{if(!el.dataset.colored)el.style.color='';});
+      warn.innerHTML='';
+      // Restore all sell numbers to green
+      document.querySelectorAll('[data-mg-sell]').forEach(el=>{ el.style.color='var(--green)'; });
+      document.querySelectorAll('.cl.sell').forEach(el=>{ el.style.color=''; });
     }
   }
 }
@@ -1825,7 +1958,19 @@ function buildSummary(){
     const gMgEff=gMgPct/100;
     const totalQty=s.szRows?s.szRows.reduce((a,r)=>a+r.qty,0):0;
     const totalNet=s.gTotal||0;
-    const totalSellAmt=gMgEff<1?totalNet/(1-gMgEff):0;
+    // Compute sell using per-group margins (matches pricing page)
+    let totalSellAmt=0;
+    if(s.szRows&&s.szRows.length>0){
+      const _grpSeenS={};
+      s.szRows.forEach(r=>{
+        const _gkS='g_'+s.gid+'_grp_'+(r.grp==='none'?'ind_'+r.rid:r.grp);
+        if(_grpSeenS[_gkS])return; _grpSeenS[_gkS]=true;
+        const _lnS=_lastLoadedNet[_gkS]||r.cost;
+        const _mgS=getItemMargin(_gkS)/100;
+        const _qS=s.szRows.filter(r2=>r.grp==='none'?r2.rid===r.rid:r2.grp===r.grp).reduce((a,r2)=>a+r2.qty,0);
+        totalSellAmt+=_mgS<1?(_lnS/(1-_mgS))*_qS:0;
+      });
+    } else { totalSellAmt=gMgEff<1?totalNet/(1-gMgEff):0; }
     const mgColor=gMgPct<30?'#E24B4A':gMgPct<35?'#B8860B':'#1a7f4b';
     // Garment header card
     gRows+=`<div style="background:var(--bg);border:1px solid var(--border);border-radius:var(--radius-sm);padding:14px;margin-bottom:12px">`;
@@ -2004,8 +2149,8 @@ function buildSummary(){
       ${(()=>{const s=d.tSell||0,n=d.grand||0;const m=s>0?Math.round((1-n/s)*1000)/10:0;const col=m<30?'#E24B4A':m<35?'#B8860B':'#1a7f4b';return `<div class="sr"><span>Average order margin</span><span style="font-weight:700;color:${col}">${m}%</span></div>`;})()}
     </div>
 
-    <div class="sum-sec" style="background:linear-gradient(135deg,#fffaf4,#fff);border:1px solid #f0c080;border-radius:var(--radius-sm);padding:14px">
-      <div class="sum-sec-title" style="color:var(--brown);border-color:#f0c080">Commission breakdown</div>
+    <div class="sum-sec no-print" style="background:linear-gradient(135deg,#fffaf4,#fff);border:1px solid #f0c080;border-radius:var(--radius-sm);padding:14px">
+      <div class="sum-sec-title" style="color:var(--brown);border-color:#f0c080">Commission breakdown <span style="font-size:10px;font-weight:400;color:var(--text3)">(internal — does not print)</span></div>
       ${(d.commLines||[]).length?`
       <div style="display:grid;grid-template-columns:1fr 65px 60px 70px 70px;gap:4px;padding:4px 0;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:#999;border-bottom:1px solid #f0e0c8">
         <span>Item</span><span style="text-align:right">Margin</span><span style="text-align:right">Profit</span><span style="text-align:right">House</span><span style="text-align:right">Rep</span>
