@@ -472,7 +472,7 @@ function addGarment(){
             <div style="font-size:11px;color:var(--text3);margin-top:3px;padding-left:22px">Uncheck to skip white base</div>
           </div>
           <label style="display:flex;align-items:center;gap:7px;cursor:pointer;margin-top:6px;font-size:12px;font-weight:600;color:var(--text2)">
-            <input type="checkbox" id="gno_screens_${id}" style="width:13px;height:13px;cursor:pointer;accent-color:var(--red)" onchange="calcAllDebounced()">
+            <input type="checkbox" id="gno_screens_${id}" style="width:13px;height:13px;cursor:pointer;accent-color:var(--red)" onchange="onNoScreensChange(${id})">
             No screens needed for this item
           </label>
         </div>
@@ -511,7 +511,13 @@ function addGarment(){
 
       <div class="sec" style="margin-top:16px">Imprints</div>
       <div id="imps_${id}"></div>
-      <button class="btn-add" style="font-size:12px;padding:7px;margin-top:4px" onclick="addImp(${id})">&#43; Add imprint</button>
+      <div style="display:flex;align-items:center;gap:10px;margin-top:8px">
+        <button class="btn-add" style="font-size:12px;padding:7px" onclick="addImp(${id})">&#43; Add imprint</button>
+        <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:12px;font-weight:600;color:var(--text2);margin:0">
+          <input type="checkbox" id="gblank_${id}" style="width:13px;height:13px;cursor:pointer;accent-color:var(--red)" onchange="calcAllDebounced()">
+          This item ships blank (no decoration)
+        </label>
+      </div>
 
       <div style="margin-top:14px;border-top:1px solid var(--border);padding-top:10px">
         <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--text3);margin-bottom:8px">Misc fees</div>
@@ -1128,13 +1134,34 @@ function calcAll(){
   // Garment sell sum per-garment sells using individual margin inputs
   let garSell=0;
   sections.filter(s=>s.type==='g').forEach(s=>{
-    // Use per-group margins for accurate garSell
+    // Compute loaded net inline (same formula as card rendering) so garSell is always accurate
+    // Compute shared qty for this garment's imprints
+    let _sharedQtyGS=0;
+    document.querySelectorAll('[id^="imp_share_chk_"]').forEach(chk=>{
+      if(!chk.checked)return;
+      const _iid=chk.id.replace('imp_share_chk_','');
+      if(_iid.split('_')[0]!==String(s.gid))return;
+      document.querySelectorAll('[id^="share_sz_'+_iid+'_"][id$="_mode"]').forEach(sel=>{
+        const _k=sel.id.replace('_mode','');
+        const _m=sel.value;if(_m==='none')return;
+        const _mxQ=parseInt(document.getElementById(_k+'_qty')?.max)||0;
+        const _smQ=parseInt(document.getElementById(_k+'_qty')?.value)||0;
+        _sharedQtyGS+=_m==='all'?_mxQ:_m==='some'?_smQ:0;
+      });
+    });
+    const _totalQtyGS=(s.szRows.reduce((a,r)=>a+r.qty,0)||1)+_sharedQtyGS;
+    const _totalRunGS=s.impLines.reduce((a,im)=>a+(im.run_per_item||0),0);
+    const _totalSetupGS=s.impLines.reduce((a,im)=>a+(im.setup_total||0),0);
+    const _setupPIGS=_totalQtyGS>0?_totalSetupGS/_totalQtyGS:0;
+    const _decoPIGS=_totalRunGS+_setupPIGS;
     const grpsSeen={};
     s.szRows.forEach(r=>{
       const gk='g_'+s.gid+'_grp_'+(r.grp==='none'?'ind_'+r.rid:r.grp);
-      if(grpsSeen[gk]) return;
+      if(grpsSeen[gk])return;
       grpsSeen[gk]=true;
-      const ln=_lastLoadedNet[gk]||r.cost;
+      const ln=r.cost+_decoPIGS;
+      // Store for immediate use by card rendering
+      _lastLoadedNet[gk]=ln;
       const mg=getItemMargin(gk)/100;
       const grpQty=s.szRows.filter(r2=>(r.grp==='none'?r2.rid===r.rid:r2.grp===r.grp)).reduce((a,r2)=>a+r2.qty,0);
       garSell+=mg<1?(ln/(1-mg))*grpQty:0;
@@ -1378,8 +1405,9 @@ function calcAll(){
 
       // Cost breakdown
       html += '<div class="cs-section-label">Hard goods cost</div>';
-      html += '<div class="cs-row"><span class="cs-row-label">Item cost ('+h.qty+' pcs)</span><span class="cs-row-val">$'+hNetPI.toFixed(2)+'/item</span></div>';
-      if(h.netSetup>0) html += '<div class="cs-row"><span class="cs-row-label">Setup / die charge (flat)</span><span class="cs-row-val">$'+h.netSetup.toFixed(2)+' total</span></div>';
+      html += '<div class="cs-row"><span class="cs-row-label">Item cost ('+h.qty+' pcs)</span><span class="cs-row-val">$'+(h.cost).toFixed(2)+'/item</span></div>';
+      if(h.dc>0) html += '<div class="cs-row"><span class="cs-row-label">Run charge</span><span class="cs-row-val">$'+h.dc.toFixed(2)+'/item</span></div>';
+      if(h.netSetup>0) html += '<div class="cs-row"><span class="cs-row-label">Setup / die charge</span><span class="cs-row-val">$'+h.netSetup.toFixed(2)+' flat</span></div>';
       if(h.dec && h.dec!=='none' && h.dec!=='Blank')
         html += '<div class="cs-row"><span class="cs-row-label">Decoration</span><span class="cs-row-val">'+h.dec+'</span></div>';
 
@@ -1932,6 +1960,7 @@ function serializeQuote(){
       gfit:vs('gfit_'+gid),gcost:v('gcost_'+gid),gavgcost:v('gavgcost_'+gid),
       gwhitebase:document.getElementById('gwhitebase_'+gid)?.checked||false,
       gno_screens:document.getElementById('gno_screens_'+gid)?.checked||false,
+      gblank:document.getElementById('gblank_'+gid)?.checked||false,
       g_upcharge:v('g_upcharge_'+gid)||0,
       g_margin_pct:getItemMargin('g_'+gid),
       g_misc_fees:(()=>{
@@ -2059,6 +2088,7 @@ async function deserializeQuote(data){
     setV('gvendor_'+gid,g.gvendor);setV('gdesign_'+gid,g.gdesign);
     setV('gcolor_'+gid,g.gcolor);setV('gcolor_name_'+gid,g.gcolor_name);setV('gfit_'+gid,g.gfit);
     setC('gwhitebase_'+gid,g.gwhitebase);setC('gno_screens_'+gid,g.gno_screens);
+    setC('gblank_'+gid,g.gblank);
     if(g.g_margin_pct)perItemMargins['g_'+gid]={pct:g.g_margin_pct};
     // Restore per-group margins if saved
     if(data.perItemMargins){Object.assign(perItemMargins,data.perItemMargins);}
@@ -2523,6 +2553,16 @@ function vsOther(selectId,def){
   if(val==='Other'){const otherEl=document.getElementById('other_'+selectId);if(otherEl&&otherEl.value.trim())return otherEl.value.trim();}
   return val;
 }
+function onNoScreensChange(gid){
+  const noScreenEl = document.getElementById('gno_screens_'+gid);
+  if(noScreenEl && noScreenEl.checked){
+    // Uncheck white base when no screens needed
+    const wbEl = document.getElementById('gwhitebase_'+gid);
+    if(wbEl) wbEl.checked = false;
+  }
+  calcAllDebounced();
+}
+
 function updateWhiteBaseVisibility(gid){
   const colorVal=vs('gcolor_'+gid,'white');
   const isDark=['dark','black'].includes(colorVal);
