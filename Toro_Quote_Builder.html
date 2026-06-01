@@ -1360,6 +1360,7 @@ function calcAll(){
       if(!perItemMargins[hRushKey]) perItemMargins[hRushKey]={pct:20};
 
       const hNetPI = h.qty>0 ? h.netItem/h.qty : 0;
+      const hSetupPI = h.qty>0 ? h.netSetup/h.qty : 0; // for display only
       _lastLoadedNet[hItemKey] = hNetPI;
 
       const hItemMgPct = perItemMargins[hItemKey].pct;
