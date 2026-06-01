@@ -1128,19 +1128,32 @@ function calcAll(){
   // Garment sell sum per-garment sells using individual margin inputs
   let garSell=0;
   sections.filter(s=>s.type==='g').forEach(s=>{
+    // Use per-group margins for accurate garSell
+    const grpsSeen={};
+    s.szRows.forEach(r=>{
+      const gk='g_'+s.gid+'_grp_'+(r.grp==='none'?'ind_'+r.rid:r.grp);
+      if(grpsSeen[gk]) return;
+      grpsSeen[gk]=true;
+      const ln=_lastLoadedNet[gk]||r.cost;
+      const mg=getItemMargin(gk)/100;
+      const grpQty=s.szRows.filter(r2=>(r.grp==='none'?r2.rid===r.rid:r2.grp===r.grp)).reduce((a,r2)=>a+r2.qty,0);
+      garSell+=mg<1?(ln/(1-mg))*grpQty:0;
+    });
     const gMgPct=getItemMargin('g_'+s.gid)/100;
     const gMiscSell=getGMiscFees(s.gid,gMgPct).sell;
-    garSell+=(gMgPct<1?s.gTotal/(1-gMgPct):0)+gMiscSell;
+    garSell+=gMiscSell;
   });
 
   const artSell=margin<1?art/(1-margin):0;
   // HG sell (per-line margins or order margin)
   let hgSell=0;
   hgSecs.forEach(h=>{
+    const hNetPI=h.qty>0?h.netItem/h.qty:0;
+    const hSetupPI=h.qty>0?h.netSetup/h.qty:0;
+    const hLoadedPI=hNetPI+hSetupPI;
     const effI=getItemMargin('hg_'+h.hid+'_item')/100;
-    const effS=getItemMargin('hg_'+h.hid+'_setup')/100;
-    const effR=getItemMargin('hg_'+h.hid+'_rush')/100;
-    hgSell+=(effI<1?h.netItem/(1-effI):0)+(effS<1?h.netSetup/(1-effS):0)+(effR<1?h.netRush/(1-effR):0);
+    // Sell from loaded net at item margin
+    hgSell+=effI<1?(hLoadedPI/(1-effI))*h.qty:0;
   });
   const rushSell=0; // rush is order-level, no per-item margin applied
   const tSell=garSell+hgSell+artSell+rushSell;
@@ -1511,9 +1524,19 @@ function calcCommission(){
   const _garSellTotal=d.garSell||0;
   const _garNetTotal=(d.sections||[]).filter(s=>s.type==='g').reduce((a,s)=>a+s.gTotal,0);
   (d.sections||[]).filter(s=>s.type==='g').forEach((s,i)=>{
-    // Sell = proportional share of total garment sell based on net cost weight
-    const sellAmt=_garNetTotal>0&&_garSellTotal>0?(_garSellTotal*(s.gTotal/_garNetTotal)):
-                  (orderMargin<1?s.gTotal/(1-orderMargin):0);
+    // Sell = sum of per-group sell amounts
+    let sellAmt=0;
+    const _grpSeenC={};
+    s.szRows.forEach(r=>{
+      const gk='g_'+s.gid+'_grp_'+(r.grp==='none'?'ind_'+r.rid:r.grp);
+      if(_grpSeenC[gk]) return;
+      _grpSeenC[gk]=true;
+      const ln=_lastLoadedNet[gk]||r.cost;
+      const mg=getItemMargin(gk)/100;
+      const grpQty=s.szRows.filter(r2=>(r.grp==='none'?r2.rid===r.rid:r2.grp===r.grp)).reduce((a,r2)=>a+r2.qty,0);
+      sellAmt+=mg<1?(ln/(1-mg))*grpQty:0;
+    });
+    if(sellAmt===0) sellAmt=orderMargin<1?s.gTotal/(1-orderMargin):0;
     const gp=sellAmt-s.gTotal;
     const mgPct=sellAmt>0?Math.round(((sellAmt-s.gTotal)/sellAmt)*100):Math.round(orderMargin*100);
     const qualifies=mgPct>=30;
@@ -1532,12 +1555,13 @@ function calcCommission(){
     const cHgGlobI=v('hg_margin_pct',40)/100;
     const cHgGlobS=v('hg_setup_pct',20)/100;
     const cHgGlobR=v('hg_rush_pct',20)/100;
-    const effI=h.mgItem!==null?h.mgItem:cHgGlobI;
-    const effS=h.mgSetup!==null?h.mgSetup:cHgGlobS;
-    const effR=h.mgRush!==null?h.mgRush:cHgGlobR;
-    const sellI=effI<1?h.netItem/(1-effI):0;
-    const sellS=effS<1?h.netSetup/(1-effS):0;
-    const sellR=effR<1?h.netRush/(1-effR):0;
+    const effI=getItemMargin('hg_'+h.hid+'_item')/100;
+    const hNetPI=h.qty>0?h.netItem/h.qty:0;
+    const hSetupPI=h.qty>0?h.netSetup/h.qty:0;
+    const hLoadedPI2=hNetPI+hSetupPI;
+    const sellI=effI<1?(hLoadedPI2/(1-effI))*h.qty:0;
+    const sellS=0; // setup absorbed into loaded net
+    const sellR=0; // rush handled separately
     const totalSell=sellI+sellS+sellR;
     const gp=totalSell-h.lt;
     const mgPct=totalSell>0?((totalSell-h.lt)/totalSell)*100:0;
