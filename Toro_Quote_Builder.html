@@ -511,6 +511,7 @@ function addGarment(){
 
       <div class="sec" style="margin-top:16px">Imprints</div>
       <div id="imps_${id}"></div>
+      <div id="gpartial_warn_${id}"></div>
       <div style="display:flex;align-items:center;gap:12px;margin-top:8px;flex-wrap:wrap">
         <button class="btn-add" style="font-size:12px;padding:7px" onclick="addImp(${id})">&#43; Add imprint</button>
         <label style="display:flex;align-items:center;gap:7px;cursor:pointer;margin:0;padding:6px 10px;background:#f9f9f9;border:1px solid var(--border);border-radius:6px;font-size:12px;font-weight:600;color:var(--text2)">
@@ -1101,6 +1102,7 @@ function calcAll(){
   const art=v('art_hours',0)*40,bag=v('bagging',0),lab=v('labeling',0),oop=v('oop',0);
   let sections=[],totalQty=0;
 
+  const _receivedShareByGid={};
   garments.forEach(g=>{
     const gid=g.id;if(!$c('g_'+gid))return;
     const szRows=getSzRows(gid);
@@ -1116,9 +1118,30 @@ function calcAll(){
     const isNW=isDark&&(wbCheckbox?wbCheckbox.checked:true);
     totalQty+=qty;
     let impLines=[],impTotal=0;
+    // Compute how many pcs this garment RECEIVES from other garments' shared imprints
+    let _receivedShareQty=0;
+    document.querySelectorAll('[id^="imp_share_chk_"]').forEach(chk=>{
+      if(!chk.checked)return;
+      const _siid=chk.id.replace('imp_share_chk_','');
+      const _shareSel=document.getElementById('imp_share_with_'+_siid);
+      if(!_shareSel||String(_shareSel.value)!==String(gid))return;
+      // This imprint shares TO this garment — count the shared qty
+      document.querySelectorAll('[id^="share_sz_'+_siid+'_"][id$="_mode"]').forEach(msel=>{
+        const _k=msel.id.replace('_mode','');
+        const _m=msel.value;if(_m==='none')return;
+        const _mxQ=parseInt(document.getElementById(_k+'_qty')?.max)||0;
+        const _smQ=parseInt(document.getElementById(_k+'_qty')?.value)||0;
+        _receivedShareQty+=_m==='all'?_mxQ:_m==='some'?_smQ:0;
+      });
+    });
+    // Effective qty for this garment's own imprints = pcs not covered by shared screens
+    _receivedShareByGid[gid] = _receivedShareQty;
+    const _ownImpQty = Math.max(1, qty - _receivedShareQty);
     $c('imps_'+gid)?.querySelectorAll('.imp-card').forEach(imp=>{
       const iid=imp.id.replace('imp_','');
-      const r=getIC(iid,qty,isNW);impTotal+=r.total;impLines.push(r);
+      // Use _ownImpQty so rate reflects only pcs that need independent decoration
+      const r=getIC(iid,_recvQtyForSetup>0?_ownImpQty:qty,isNW);
+      impTotal+=r.total;impLines.push(r);
     });
     const addons=(bag+lab+oop)*qty;
     const garLine=weightedGC;
@@ -1165,8 +1188,9 @@ function calcAll(){
     const lt=netItem+netSetup+netRush;
     if(lt===0&&cost===0)return; // skip empty HG cards
     hgTotal+=lt;
+    const netCostSafe=netCost||0, netDCSafe=netDC||0;
     hgSecs.push({hid,qty,cost,dc,sc,rush,desc,sku,vendor,design,colors,dec,lt,
-      netCost,netDC,netItem,netSetup,netRush,mgItem,mgSetup,mgRush});
+      netCost:netCostSafe,netDC:netDCSafe,netItem,netSetup,netRush,mgItem,mgSetup,mgRush});
   });
 
   const garProd=sections.filter(s=>s.type==='g').reduce((a,s)=>a+s.gTotal,0);
@@ -1301,7 +1325,11 @@ function calcAll(){
         sharedQty2 += _m2==='all' ? _mxQ : _m2==='some' ? _smQ : 0;
       });
     });
-    const totalScreenQty2 = (s.szRows.reduce((a,r)=>a+r.qty,0)||1) + sharedQty2;
+    // For setup divisor: own pcs needing screens = total - received shares + outgoing shares
+    // Pcs receiving screens from another garment don't need their own setup
+    const _recvQtyForSetup = _receivedShareByGid[s.gid]||0;
+    const _ownPcsForSetup = Math.max(1, (s.szRows.reduce((a,r)=>a+r.qty,0)||1) - _recvQtyForSetup);
+    const totalScreenQty2 = _ownPcsForSetup + sharedQty2;
     const totalRun2 = s.impLines.reduce((a,im)=>a+(im.run_per_item||0),0);
     const totalSetup2 = s.impLines.reduce((a,im)=>a+(im.setup_total||0),0);
     const setupPI2 = totalScreenQty2>0 ? totalSetup2/totalScreenQty2 : 0;
@@ -1424,7 +1452,6 @@ function calcAll(){
   // ── Hard goods pricing HTML ───────────────────────────────────────────
   if(hgSecs.length>0){
     hgSecs.forEach(h=>{
-      try {
       const hItemKey='hg_'+h.hid+'_item', hDCKey='hg_'+h.hid+'_dc',
             hSetupKey='hg_'+h.hid+'_setup', hRushKey='hg_'+h.hid+'_rush';
       if(!perItemMargins[hItemKey]) perItemMargins[hItemKey]={pct:40};
@@ -1454,7 +1481,7 @@ function calcAll(){
       // Cost breakdown
       html += '<div class="cs-section-label">Hard goods cost</div>';
       html += '<div class="cs-row"><span class="cs-row-label">Item cost ('+h.qty+' pcs)</span><span class="cs-row-val">$'+h.cost.toFixed(2)+'/item</span></div>';
-      if(h.dc>0) html += '<div class="cs-row"><span class="cs-row-label">Run / deco charge</span><span class="cs-row-val">$'+h.dc.toFixed(2)+'/item</span></div>';
+      if(h.dc>0) html += '<div class="cs-row"><span class="cs-row-label">Run charge</span><span class="cs-row-val">$'+h.dc.toFixed(2)+'/item</span></div>';
       if(h.netSetup>0) html += '<div class="cs-row"><span class="cs-row-label">Setup / die charge</span><span class="cs-row-val">$'+h.netSetup.toFixed(2)+' flat</span></div>';
       if(h.dec && h.dec!=='none' && h.dec!=='Blank')
         html += '<div class="cs-row"><span class="cs-row-label">Decoration</span><span class="cs-row-val">'+h.dec+'</span></div>';
@@ -1478,10 +1505,10 @@ function calcAll(){
         +' onchange=\'setItemMarginSell(\"'+hItemKey+'\",this.value*'+h.qty+','+h.netCost.toFixed(4)+')\'>'
         +'</div>';
 
-      // Run / deco charge line (per piece, if applicable)
+      // Run charge line (per piece, if applicable)
       if(h.dc>0){
         html += '<div class="cs-loaded-row">'
-          +'<span style="font-weight:600;font-size:12px;">Run / deco charge</span>'
+          +'<span style="font-weight:600;font-size:12px;">Run charge</span>'
           +'<span style="color:var(--text2);font-size:12px;">$'+hDCPI.toFixed(2)+'/item</span>'
           +'<input type="number" value="'+hDCMgPct.toFixed(2)+'" min="0" max="999.99" step="0.01"'
           +' data-mg-pct="'+hDCKey+'" data-loaded-net="'+h.netDC.toFixed(4)+'"'
@@ -1519,7 +1546,6 @@ function calcAll(){
         +'<span>Margin: <strong>'+hMgDisplay.toFixed(1)+'%</strong></span>'
         +'</div>';
       html += '</div>'; // cs-item
-      } catch(e) { console.error('[calcAll] HG card error:', e.message, h); }
     });
   }
 
@@ -1543,7 +1569,7 @@ function calcAll(){
   html+=`<div class="cl sell" style="font-size:15px;font-weight:700"><span>Total sell price</span><span style="color:var(--green);font-size:17px">${fmt(tSell)}</span></div>`;
   html+=`<div class="cl sell" style="font-weight:700"><span>Gross profit</span><span style="color:var(--green)">${fmt(tSell-grand)}</span></div>`;
   html+=`<div class="cl sell" style="font-size:13px;margin-top:2px;border-top:1px solid var(--border);padding-top:8px"><span>Average order margin</span><span>${orderMgPct.toFixed(1)}%</span></div>`;
-  try{ $c('pricing_breakdown').innerHTML=html; }catch(e){ console.error('[QB] pricing render error:',e.message,e.stack?.split('\n')[1]); }
+  if($c('pricing_breakdown')) $c('pricing_breakdown').innerHTML=html;
 
   // Margin warning
   // Compute effective average margin across all items for warning
@@ -2752,7 +2778,7 @@ function toggleImpShare(iid, gid) {
   if(chk.checked) {
     populateShareDropdown(iid, gid);
     const sel = document.getElementById('imp_share_with_'+iid);
-    if(sel && sel.value) onShareWithChange(iid, gid);
+    if(sel && sel.value) { onShareWithChange(iid, gid); updatePartialShareWarning(sel.value); }
     // Hide screen setup type — setup charged to owning garment
     const setupWrap = document.getElementById('sp_setup_wrap_'+iid);
     if(setupWrap) setupWrap.style.display = 'none';
@@ -2762,7 +2788,10 @@ function toggleImpShare(iid, gid) {
     if(setupWrap) setupWrap.style.display = '';
     // Restore screen options on target garment
     const sel = document.getElementById('imp_share_with_'+iid);
-    if(sel && sel.value) setGarmentScreensShared(sel.value, false);
+    if(sel && sel.value) {
+      setGarmentScreensShared(sel.value, false);
+      updatePartialShareWarning(sel.value);
+    }
   }
 }
 
@@ -2826,8 +2855,8 @@ function onShareWithChange(iid, gid) {
     sizesDiv.style.display = '';
     populateShareSizes(iid, gid);
     sel.dataset.prevTarget = sel.value;
-    // Grey only if all sizes already set to "all" (e.g. on load restore)
     checkShareAllMode(iid);
+    updatePartialShareWarning(sel.value);
   } else {
     sizesDiv.style.display = 'none';
     sel.dataset.prevTarget = '';
@@ -2860,6 +2889,43 @@ function populateShareSizes(iid, gid) {
   container.innerHTML = html;
 }
 
+function updatePartialShareWarning(targetGid) {
+  const warnEl = document.getElementById('gpartial_warn_'+targetGid);
+  if(!warnEl) return;
+  let totalGarQty = 0;
+  const szCont = document.getElementById('szrows_'+targetGid);
+  if(szCont) szCont.querySelectorAll('[id^="szrow_"]').forEach(row=>{
+    const r2id = row.id.replace('szrow_','');
+    totalGarQty += parseInt(document.getElementById('sz_qty_'+r2id)?.value)||0;
+  });
+  let totalShared = 0;
+  document.querySelectorAll('[id^="imp_share_chk_"]').forEach(chk=>{
+    if(!chk.checked) return;
+    const iid = chk.id.replace('imp_share_chk_','');
+    const shareSel = document.getElementById('imp_share_with_'+iid);
+    if(!shareSel || String(shareSel.value) !== String(targetGid)) return;
+    document.querySelectorAll('[id^="share_sz_'+iid+'_"][id$="_mode"]').forEach(msel=>{
+      const k2 = msel.id.replace('_mode','');
+      const m2 = msel.value; if(m2==='none') return;
+      if(m2==='all'){
+        const r2id2 = k2.replace('share_sz_'+iid+'_','');
+        totalShared += parseInt(document.getElementById('sz_qty_'+r2id2)?.value)||0;
+      } else if(m2==='some'){
+        totalShared += parseInt(document.getElementById(k2+'_qty')?.value)||0;
+      }
+    });
+  });
+  const remaining = totalGarQty - totalShared;
+  if(totalShared > 0 && remaining > 0) {
+    warnEl.innerHTML = '<div style="margin-top:6px;padding:8px 10px;background:#fff8e1;border:1px solid #f0c040;border-radius:6px;font-size:12px;color:#7a5c00;display:flex;align-items:flex-start;gap:7px">'
+      +'<span style="font-size:14px;flex-shrink:0">⚠️</span>'
+      +'<span><strong>Partial share:</strong> '+totalShared+' of '+totalGarQty+' pcs use shared screens. '
+      +'The remaining <strong>'+remaining+' pcs</strong> need their own imprint added below, or they will ship blank.</span>'
+      +'</div>';
+  } else {
+    warnEl.innerHTML = '';
+  }
+}
 function checkShareAllMode(iid) {
   // Check if every size row for this imprint is set to "all"
   const sel = document.getElementById('imp_share_with_'+iid);
@@ -2886,6 +2952,9 @@ function toggleShareSizeQty(key, maxQty) {
   const iid = parts[0]+'_'+parts[1];
   console.log('[share] toggleShareSizeQty key='+key+' iid='+iid+' mode='+sel.value);
   checkShareAllMode(iid);
+  // Update the partial share warning on the target garment
+  const _tSel = document.getElementById('imp_share_with_'+iid);
+  if(_tSel && _tSel.value) updatePartialShareWarning(_tSel.value);
   calcAllDebounced();
 }
 
