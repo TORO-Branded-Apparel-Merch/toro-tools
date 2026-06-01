@@ -1255,16 +1255,23 @@ function calcAll(){
     // 2. Decoration costs (read-only reference)
     if(s.impLines.length>0){
       s.impLines.forEach(im => {
-        html += '<div class="cs-section-label">'+im.label+'</div>';
-        if((im.run_per_item||0)>0)
-          html += '<div class="cs-row"><span class="cs-row-label">Run charge</span><span class="cs-row-val">$'+im.run_per_item.toFixed(2)+'/item</span></div>';
-        if((im.setup_total||0)>0)
-          html += '<div class="cs-row"><span class="cs-row-label">Setup ÷ '+totalScreenQty2+' pcs'+(sharedQty2>0?' (incl. '+sharedQty2+' shared)':'')+'</span><span class="cs-row-val">$'+(im.setup_total/totalScreenQty2).toFixed(2)+'/item</span></div>';
+        html += '<div class="cs-section-label">'+(im.label||'Imprint')+'</div>';
+        const _runPI = im.run_per_item||0;
+        const _setupT = im.setup_total||0;
+        const _setupPI = totalScreenQty2>0 ? _setupT/totalScreenQty2 : 0;
+        if(_runPI>0)
+          html += '<div class="cs-row"><span class="cs-row-label">Run charge</span><span class="cs-row-val">$'+_runPI.toFixed(2)+'/item</span></div>';
+        if(_setupPI>0)
+          html += '<div class="cs-row"><span class="cs-row-label">Setup ÷ '+totalScreenQty2+' pcs'+(sharedQty2>0?' (incl. '+sharedQty2+' shared)':'')+'</span><span class="cs-row-val">$'+_setupPI.toFixed(2)+'/item</span></div>';
+        if(_runPI===0 && _setupPI===0 && im.total>0)
+          html += '<div class="cs-row"><span class="cs-row-label">Decoration total</span><span class="cs-row-val">'+fmt(im.total)+'</span></div>';
       });
       if(miscPI2>0)
         html += '<div class="cs-row"><span class="cs-row-label">Misc fees</span><span class="cs-row-val">$'+miscPI2.toFixed(2)+'/item</span></div>';
+    }
 
-      // 3. Fully loaded net & sell — EDITABLE
+    // 3. Fully loaded net & sell — ALWAYS SHOW (editable)
+    {
       html += '<div class="cs-loaded-header-wrap">';
       html += '<div class="cs-section-label cs-section-loaded">Fully loaded net &amp; sell</div>';
       html += '<div class="cs-loaded-header"><span>Group</span><span>Net/item</span><span>Margin %</span><span>Sell/item</span></div>';
