@@ -1822,9 +1822,9 @@ function calcAll(){
           {key:'fee_flat',   label:`Flat fees (${_flatDesc||'pre-prod/sim/ship'})`, net:_flatNet, sell:_flatSell, mg:_flatMg},
         ];
         _feesDef.forEach(f=>{
-          if(!isFirstInProject) return; // fees only under first garment of each project
-          const sh = _feeShare(f.key, gidStr, f.net, f.sell);
-          if(!sh) return; // not assigned to this project
+          if(!isFirstInProject) return;
+          // Always show fee rows — use _feeShare for split logic, but always render
+          const sh = _feeShare(f.key, gidStr, f.net, f.sell) || {net:f.net, sell:f.sell};
           const _assignSel = _feeAssignSelect(f.key);
           const shNet=sh.net, shSell=sh.sell;
           const shMg = shNet>0&&shSell>0 ? (1-shNet/shSell)*100 : f.mg;
