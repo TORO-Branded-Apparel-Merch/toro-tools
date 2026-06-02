@@ -487,7 +487,7 @@ function addGarment(){
           </div>
           <label style="display:flex;align-items:center;gap:7px;cursor:pointer;margin-top:6px;font-size:12px;font-weight:600;color:var(--text2)">
             <input type="checkbox" id="gno_screens_${id}" style="width:13px;height:13px;cursor:pointer;accent-color:var(--red)" onchange="onNoScreensChange(${id})">
-            No screens needed for this item
+            No base screen needed for this item
           </label>
         </div>
         <div class="field"><label>Garment upcharge</label>
@@ -904,8 +904,8 @@ function addImp(gid){
             </select>
           </div>
           <div id="imp_share_sizes_${iid}" style="display:none;margin-bottom:8px;">
-            <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--text3);margin-bottom:6px;">Which sizes share this screen?</div>
-            <div id="imp_share_size_rows_${iid}" style="display:grid;grid-template-columns:60px 80px 1fr;gap:6px;align-items:center;font-size:12px;"></div>
+            <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--text3);margin-bottom:6px;">Which sizes share this design?</div>
+            <div id="imp_share_size_rows_${iid}"></div>
           </div>
           <div style="font-size:11px;color:var(--text3);margin-top:6px;">
             ⚙ Setup charged to this item only. Run charge applies per item to all shared garments.
@@ -1015,9 +1015,12 @@ function getIC(iid,qty,isNW){
       const pmsFilled=Array.from(pmsContainer.querySelectorAll('input[type="text"]')).filter(el=>el.value.trim()!=='').length;
       if(pmsFilled>0){const pmsCharge=pmsFilled*10;lines.push({l:'PMS match ('+pmsFilled+' color'+(pmsFilled!==1?'s':'')+' × $10)',v:fmt(pmsCharge)});total+=pmsCharge;}
     }
-    label='Screen print   '+loc+' ('+col+' color'+(col!==1?'s':'')+')';
+    label='Screen print   '+loc+' ('+col+' color'+(col!==1?'s':'')+(isNW?' + 1 white base':'')+')'
+      +' — '+effC+' screen'+(effC!==1?'s':'');
     total_run=base+(ink>0?ink*qty:0)+(ao>0?ao*qty:0);total_setup=sf+(ic>0?ic*10:0);
     const _pC2=document.getElementById('sp_pms_rows_'+iid);if(_pC2)total_setup+=Array.from(_pC2.querySelectorAll('input')).filter(el=>el.value.trim()).length*10;
+    return{total,lines,label,loc,type,isNW,colorCount:col,effColorCount:effC,
+      run_per_item:(qty>0?total_run/qty:0),setup_total:total_setup};
   } else if(type==='embroidery'){
     loc=vsOther('emb_loc_'+iid,'Left chest');
     const st=Math.round(v('emb_st_'+iid,7000)),tc=Math.round(v('emb_tc_'+iid,1));
@@ -1050,7 +1053,7 @@ function getIC(iid,qty,isNW){
     label='Vinyl   '+loc;
     total_run=x;total_setup=0;
   }
-  return{total,lines,label,loc,type,run_per_item:(qty>0?total_run/qty:0),setup_total:total_setup};
+  return{total,lines,label,loc,type,isNW:false,colorCount:0,effColorCount:0,run_per_item:(qty>0?total_run/qty:0),setup_total:total_setup};
 }
 
 function addHG(){
@@ -1159,13 +1162,61 @@ function calcAll(){
         const _recvQtyGIC = _receivedShareByGid[gid]||0;
         const r=getIC(iid,_recvQtyGIC>0?_ownImpQty:qty,isNW);
         impTotal+=r.total;impLines.push(r);
+
+        // ── Cross-color shared run charge ────────────────────────────────
+        // If this imprint is shared to another garment, add run charge for those pcs
+        // at THEIR correct color count (respecting their needsbase checkbox).
+        // Setup is already in r.setup_total (charged to this garment).
+        const _shareChk = $c('imp_share_chk_'+iid);
+        if(_shareChk?.checked && r.type==='screen'){
+          const _shareSel = $c('imp_share_with_'+iid);
+          if(_shareSel?.value){
+            const _targetGid = _shareSel.value;
+            const _targetColorVal = vs('gcolor_'+_targetGid,'white');
+            const _targetIsDark = ['dark','black'].includes(_targetColorVal);
+            const _col = r.colorCount||Math.round(v('sp_col_'+iid,1));
+            document.querySelectorAll('[id^="share_sz_'+iid+'_"][id$="_mode"]').forEach(msel=>{
+              const _k = msel.id.replace('_mode','');
+              const _m = msel.value; if(_m==='none') return;
+              const _mxQ = parseInt($c(_k+'_qty')?.max)||0;
+              const _smQ = parseInt($c(_k+'_qty')?.value)||0;
+              const _shQty = _m==='all'?_mxQ:_m==='some'?_smQ:0;
+              if(_shQty<=0) return;
+              // Check needsbase for this size — default to target garment's dark status
+              const _nbEl = $c(_k+'_needsbase');
+              const _shNW = _nbEl ? _nbEl.checked : _targetIsDark;
+              const _shEffC = _shNW ? _col+1 : _col;
+              const _shRate = getSpRate(_shQty, _shEffC);
+              if(_shRate!==null){
+                const _shRun = _shRate * _shQty;
+                impTotal += _shRun;
+                // Add a note line to the impLine for transparency on pricing card
+                r._sharedRunLines = r._sharedRunLines||[];
+                r._sharedRunLines.push({
+                  targetGid:_targetGid, qty:_shQty, effC:_shEffC, hasBase:_shNW, run:_shRun,
+                  label:`Shared run (${_shQty} pcs${_shNW?' + base':''}): $${_shRate.toFixed(2)}×${_shQty}`
+                });
+              }
+            });
+          }
+        }
       });
     }
     const garLine=weightedGC;
-    const gTotal=garLine+impTotal; // bag/lab/oop charged at order level, not per-garment
+    // Include garment misc fee net costs so they flow into garProd and grand
+    const _gMiscNet=(()=>{
+      const c=document.getElementById('misc_'+gid);if(!c)return 0;
+      let n=0;
+      c.querySelectorAll('[id^="miscrow_g'+gid+'_"]').forEach(row=>{
+        const mid=row.id.split('_').pop();
+        n+=parseFloat(document.getElementById('misc_net_g'+gid+'_'+mid)?.value)||0;
+      });
+      return n;
+    })();
+    const gTotal=garLine+impTotal+_gMiscNet; // misc net costs included in production cost
     sections.push({type:'g',gid,qty,gc,gtype:vsOther('gtype_'+gid),gbrand:vs('gbrand_'+gid),gsku:vs('gsku_'+gid),gdesign:vs('gdesign_'+gid),
       gvendor:vs('gvendor_'+gid),gfit:vs('gfit_'+gid),szRows,
-      garLine,impLines,impTotal,gTotal,margin});
+      isNW,colorVal,garLine,impLines,impTotal,_gMiscNet,gTotal,margin});
   });
 
   let hgSecs=[],hgTotal=0;
@@ -1202,16 +1253,28 @@ function calcAll(){
     const netItem=netCost+netDC;  // combined for legacy compat
     const netSetup=sc;
     const netRush=rush;
-    const lt=netItem+netSetup+netRush;
+    // Include HG misc fee net costs so they flow into hgTotal and grand
+    const _hgMiscNetRaw=(()=>{
+      const c=document.getElementById('hgmisc_'+hid);if(!c)return 0;
+      let n=0;
+      c.querySelectorAll('[id^="hgmiscrow_'+hid+'_"]').forEach(row=>{
+        const mid=row.id.split('_').pop();
+        n+=parseFloat(document.getElementById('hgmisc_net_'+hid+'_'+mid)?.value)||0;
+      });
+      return n;
+    })();
+    const lt=netItem+netSetup+netRush+_hgMiscNetRaw;
     if(lt===0&&cost===0)return; // skip empty HG cards
     hgTotal+=lt;
     const netCostSafe=netCost||0, netDCSafe=netDC||0;
     hgSecs.push({hid,qty,cost,dc,sc,rush,desc,sku,vendor,design,colors,dec,lt,
-      netCost:netCostSafe,netDC:netDCSafe,netItem,netSetup,netRush,mgItem,mgSetup,mgRush});
+      netCost:netCostSafe,netDC:netDCSafe,netItem,netSetup,netRush,hgMiscNet:_hgMiscNetRaw,mgItem,mgSetup,mgRush});
   });
 
   const garProd=sections.filter(s=>s.type==='g').reduce((a,s)=>a+s.gTotal,0);
-  const sub=garProd+hgTotal+art,rushAmt=sub*rush,grand=sub+rushAmt;
+  const _addonsAmt=(bag+lab+oop)*(sections.filter(s=>s.type==='g').reduce((a,s)=>a+(s.szRows?.reduce((a2,r)=>a2+r.qty,0)||0),0)||1);
+  const _flatAmt=v('pre_prod',0)+v('sim_process',0)+v('inbound_ship',0);
+  const sub=garProd+hgTotal+art,rushAmt=sub*rush,grand=sub+rushAmt+_addonsAmt+_flatAmt;
   const cpi=totalQty>0?grand/totalQty:0;
   // Garment sell sum per-garment sells using individual margin inputs
   let garSell=0;
@@ -1231,9 +1294,12 @@ function calcAll(){
         _sharedQtyGS+=_m==='all'?_mxQ:_m==='some'?_smQ:0;
       });
     });
-    const _totalQtyGS=(s.szRows.reduce((a,r)=>a+r.qty,0)||1)+_sharedQtyGS;
     const _totalRunGS=s.impLines.reduce((a,im)=>a+(im.run_per_item||0),0);
     const _totalSetupGS=s.impLines.reduce((a,im)=>a+(im.setup_total||0),0);
+    // Setup divisor matches card render: own pcs needing setup = own qty - received shared + outgoing shared
+    const _recvQtyGS=_receivedShareByGid[s.gid]||0;
+    const _ownPcsGS=Math.max(1,(s.szRows.reduce((a,r)=>a+r.qty,0)||1)-_recvQtyGS);
+    const _totalQtyGS=_ownPcsGS+_sharedQtyGS;
     const _setupPIGS=_totalQtyGS>0?_totalSetupGS/_totalQtyGS:0;
     const _decoPIGS=_totalRunGS+_setupPIGS;
     const grpsSeen={};
@@ -1260,19 +1326,37 @@ function calcAll(){
     const effI=getItemMargin('hg_'+h.hid+'_item')/100;
     const effD=getItemMargin('hg_'+h.hid+'_dc')/100;
     const effS=getItemMargin('hg_'+h.hid+'_setup')/100;
+    const effR=getItemMargin('hg_'+h.hid+'_rush')/100;
     hgSell+=(effI<1?h.netCost/(1-effI):0)
            +(effD<1?h.netDC/(1-effD):0)
-           +(effS<1?h.netSetup/(1-effS):0);
+           +(effS<1?h.netSetup/(1-effS):0)
+           +(effR<1&&h.netRush>0?h.netRush/(1-effR):0);
+    // HG misc fees
+    const _hgMC=document.getElementById('hgmisc_'+h.hid);
+    if(_hgMC) _hgMC.querySelectorAll('[id^="hgmiscrow_'+h.hid+'_"]').forEach(row=>{
+      const _mid=row.id.replace('hgmiscrow_'+h.hid+'_','');
+      const _mnet=parseFloat(document.getElementById('hgmisc_net_'+h.hid+'_'+_mid)?.value)||0;
+      const _mkey='hg_'+h.hid+'_misc_'+_mid;
+      const _mmg=getItemMargin(_mkey)/100;
+      if(_mnet>0) hgSell+=_mmg<1?_mnet/(1-_mmg):0;
+    });
   });
   const _rushMgT=(perItemMargins['fee_rush']?.pct??40)/100; const rushSell=_rushMgT<1&&rushAmt>0?rushAmt/(1-_rushMgT):0;
-  const tSell=garSell+hgSell+artSell+rushSell;
+  // Add-ons and flat fees: sell amounts must be in tSell to match grand
+  const _addonsMgT=(perItemMargins['fee_addons']?.pct??40)/100;
+  const addonsSell=_addonsMgT<1&&_addonsAmt>0?_addonsAmt/(1-_addonsMgT):0;
+  const _flatMgT=(perItemMargins['fee_flat']?.pct??40)/100;
+  const flatSellAmt=_flatMgT<1&&_flatAmt>0?_flatAmt/(1-_flatMgT):0;
+  const tSell=garSell+hgSell+artSell+rushSell+addonsSell+flatSellAmt;
   const spi=totalQty>0?garSell/totalQty:0;
   const gp=tSell-grand;
 
   const hgMarginPct=v('hg_margin_pct',40)/100;
   const hgSetupPct=v('hg_setup_pct',20)/100;
   const hgRushPct=v('hg_rush_pct',20)/100;
-  lastCalc={margin,rush,rushAmt,sub,grand,cpi,spi,tSell,gp,sections,hgSecs,art,totalQty,garProd,hgTotal,hgSell,garSell,hgMarginPct,hgSetupPct,hgRushPct};
+  lastCalc={margin,rush,rushAmt,sub,grand,cpi,spi,tSell,gp,sections,hgSecs,art,totalQty,garProd,hgTotal,hgSell,garSell,
+    addonsSell,flatSellAmt,_addonsAmt,_flatAmt,artSell,rushSell,
+    hgMarginPct,hgSetupPct,hgRushPct};
 
   // Show/hide pricing sections based on whether items exist
   const hasGarments=sections.filter(s=>s.type==='g').length>0;
@@ -1305,6 +1389,9 @@ function calcAll(){
   let totalNetCost=0, totalSellAmt=0;
 
   // ── Garments ─────────────────────────────────────────────────────────
+  if(sections.filter(s=>s.type==='g').length>0){
+    html += '<div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--red);margin-bottom:12px">Apparel &amp; decorated items</div>';
+  }
   sections.filter(s=>s.type==='g').forEach((s,i)=>{
     const gMarginKeyCalc='g_'+s.gid;
     const gMgPctRaw=getItemMargin(gMarginKeyCalc);
@@ -1359,7 +1446,7 @@ function calcAll(){
         const mid=row.id.replace('miscrow_g'+s.gid+'_','');
         const net=parseFloat(document.getElementById('misc_net_g'+s.gid+'_'+mid)?.value)||0;
         const desc=document.getElementById('misc_desc_g'+s.gid+'_'+mid)?.value||'Misc fee';
-        if(net) _miscLines2.push({desc, netPI: net/_totalQtyM, netTotal: net});
+        if(net) _miscLines2.push({desc, mid, netPI: net/_totalQtyM, netTotal: net});
       });
     })();
     const miscPI2 = _miscLines2.reduce((a,m)=>a+m.netPI, 0);
@@ -1389,11 +1476,23 @@ function calcAll(){
         const _setupT = im.setup_total||0;
         const _setupPI = totalScreenQty2>0 ? _setupT/totalScreenQty2 : 0;
         if(_runPI>0)
-          html += '<div class="cs-row"><span class="cs-row-label">Run charge</span><span class="cs-row-val">$'+_runPI.toFixed(2)+'/item</span></div>';
+          html += '<div class="cs-row"><span class="cs-row-label">Run charge (own pcs)</span><span class="cs-row-val">$'+_runPI.toFixed(2)+'/item</span></div>';
         if(_setupPI>0)
           html += '<div class="cs-row"><span class="cs-row-label">Setup ÷ '+totalScreenQty2+' pcs'+(sharedQty2>0?' (incl. '+sharedQty2+' shared)':'')+'</span><span class="cs-row-val">$'+_setupPI.toFixed(2)+'/item</span></div>';
         if(_runPI===0 && _setupPI===0 && im.total>0)
           html += '<div class="cs-row"><span class="cs-row-label">Decoration total</span><span class="cs-row-val">'+fmt(im.total)+'</span></div>';
+        // Shared run lines (cross-color aware)
+        if(im._sharedRunLines&&im._sharedRunLines.length){
+          im._sharedRunLines.forEach(sl=>{
+            const _tName = [document.getElementById('gdesign_'+sl.targetGid)?.value,
+              document.getElementById('gtype_'+sl.targetGid)?.value].filter(Boolean).join(' ')||('Garment '+sl.targetGid);
+            html += '<div class="cs-row" style="color:var(--text3);font-style:italic">'
+              +'<span class="cs-row-label">↳ Shared run → '+_tName
+              +(sl.hasBase?' <span style="color:#c06000;font-size:10px">[+ base screen]</span>':' <span style="color:var(--text3);font-size:10px">[no base — light garment]</span>')
+              +'</span>'
+              +'<span class="cs-row-val">'+fmt(sl.run)+'</span></div>';
+          });
+        }
       });
       _miscLines2.forEach(m=>{
         html += '<div class="cs-row"><span class="cs-row-label">'+m.desc+'</span><span class="cs-row-val">$'+m.netPI.toFixed(2)+'/item</span></div>';
@@ -1456,6 +1555,34 @@ function calcAll(){
           +'</div>';
       });
       html += '</div>'; // cs-loaded-header-wrap
+
+      // Misc fees — editable individual pricing rows
+      if(_miscLines2.length > 0){
+        html += '<div class="cs-loaded-header-wrap">';
+        html += '<div class="cs-section-label cs-section-loaded">Misc fees</div>';
+        html += '<div class="cs-loaded-header"><span>Line</span><span>Net</span><span>Margin %</span><span>Sell</span></div>';
+        _miscLines2.forEach(m=>{
+          const _mkey = 'g_'+s.gid+'_misc_'+m.mid;
+          if(!perItemMargins[_mkey]) perItemMargins[_mkey]={pct:40};
+          const _mMgPct = perItemMargins[_mkey].pct;
+          const _mSell = _mMgPct<100 ? m.netTotal/(1-_mMgPct/100) : 0;
+          _lastLoadedNet[_mkey] = m.netTotal;
+          garSellAmt += _mSell;
+          html += '<div class="cs-loaded-row">'
+            +'<span style="font-weight:600;font-size:12px;">'+m.desc+'</span>'
+            +'<span style="color:var(--text2);font-size:12px;">$'+m.netTotal.toFixed(2)+'</span>'
+            +'<input type="number" value="'+_mMgPct.toFixed(2)+'" min="0" max="999.99" step="0.01"'
+            +' data-mg-pct="'+_mkey+'" data-loaded-net="'+m.netTotal.toFixed(4)+'"'
+            +' style="width:80px;padding:4px 6px;font-size:12px;font-weight:700;border:1px solid var(--border2);border-radius:4px;text-align:center"'
+            +' onchange=\'setItemMarginPct(\"'+_mkey+'\",this.value)\'>'
+            +'<input type="number" step="0.01" min="0" value="'+_mSell.toFixed(2)+'"'
+            +' data-mg-sell="'+_mkey+'"'
+            +' style="width:85px;padding:4px 6px;font-size:12px;font-weight:700;color:var(--green);border:1px solid var(--border2);border-radius:4px;text-align:right"'
+            +' onchange=\'setItemMarginSell(\"'+_mkey+'\",this.value,'+m.netTotal.toFixed(4)+')\'>'
+            +'</div>';
+        });
+        html += '</div>';
+      }
     }
 
     // 4. Garment totals line
@@ -1472,6 +1599,9 @@ function calcAll(){
 
   // ── Hard goods pricing HTML ───────────────────────────────────────────
   if(hgSecs.length>0){
+    html += '<div style="margin:24px 0 16px;border-top:3px solid var(--border);padding-top:16px">'
+      +'<div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--red);margin-bottom:12px">Hard goods &amp; promo items</div>'
+      +'</div>';
     hgSecs.forEach(h=>{
       const hItemKey='hg_'+h.hid+'_item', hDCKey='hg_'+h.hid+'_dc',
             hSetupKey='hg_'+h.hid+'_setup', hRushKey='hg_'+h.hid+'_rush';
@@ -1491,7 +1621,7 @@ function calcAll(){
       const hItemSell = hItemMgPct<100 && h.netCost>0 ? h.netCost/(1-hItemMgPct/100) : 0;
       const hDCSell = hDCMgPct<100 && h.netDC>0 ? h.netDC/(1-hDCMgPct/100) : 0;
       const hSetupSell = hSetupMgPct<100 && h.netSetup>0 ? h.netSetup/(1-hSetupMgPct/100) : 0;
-      const hSellTotal = hItemSell + hDCSell + hSetupSell;
+      let hSellTotal = hItemSell + hDCSell + hSetupSell;
       totalSellAmt += hSellTotal;
 
       const hTitle = h.desc+(h.sku?' ('+h.sku+')':'')+(h.vendor?' via '+h.vendor:'');
@@ -1556,13 +1686,67 @@ function calcAll(){
           +' onchange=\'setItemMarginSell(\"'+hSetupKey+'\",this.value,'+h.netSetup.toFixed(4)+')\'>'
           +'</div>';
       }
+      // Rush line (if applicable)
+      if(h.rush>0){
+        if(!perItemMargins[hRushKey]) perItemMargins[hRushKey]={pct:20};
+        const hRushMgPct = perItemMargins[hRushKey].pct;
+        const hRushSell = hRushMgPct<100 && h.netRush>0 ? h.netRush/(1-hRushMgPct/100) : 0;
+        hSellTotal += hRushSell;
+        html += '<div class="cs-loaded-row">'
+          +'<span style="font-weight:600;font-size:12px;">Rush / extra fees</span>'
+          +'<span style="color:var(--text2);font-size:12px;">$'+h.netRush.toFixed(2)+'</span>'
+          +'<input type="number" value="'+hRushMgPct.toFixed(2)+'" min="0" max="999.99" step="0.01"'
+          +' data-mg-pct="'+hRushKey+'" data-loaded-net="'+h.netRush.toFixed(4)+'"'
+          +' style="width:80px;padding:4px 6px;font-size:12px;font-weight:700;border:1px solid var(--border2);border-radius:4px;text-align:center"'
+          +' onchange=\'setItemMarginPct(\"'+hRushKey+'\",this.value)\'>'
+          +'<input type="number" step="0.01" min="0" value="'+hRushSell.toFixed(2)+'"'
+          +' data-mg-sell="'+hRushKey+'"'
+          +' style="width:85px;padding:4px 6px;font-size:12px;font-weight:700;color:var(--green);border:1px solid var(--border2);border-radius:4px;text-align:right"'
+          +' onchange=\'setItemMarginSell(\"'+hRushKey+'\",this.value,'+h.netRush.toFixed(4)+')\'>'
+          +'</div>';
+      }
+
+      // HG misc fees
+      const _hgMiscLines = [];
+      (()=>{
+        const c=document.getElementById('hgmisc_'+h.hid);
+        if(!c) return;
+        c.querySelectorAll('[id^="hgmiscrow_'+h.hid+'_"]').forEach(row=>{
+          const mid=row.id.replace('hgmiscrow_'+h.hid+'_','');
+          const net=parseFloat(document.getElementById('hgmisc_net_'+h.hid+'_'+mid)?.value)||0;
+          const desc=document.getElementById('hgmisc_desc_'+h.hid+'_'+mid)?.value||'Misc fee';
+          if(net) _hgMiscLines.push({desc, net, key:'hg_'+h.hid+'_misc_'+mid});
+        });
+      })();
+      _hgMiscLines.forEach(m=>{
+        if(!perItemMargins[m.key]) perItemMargins[m.key]={pct:40};
+        const mMgPct = perItemMargins[m.key].pct;
+        const mSell = mMgPct<100 ? m.net/(1-mMgPct/100) : 0;
+        _lastLoadedNet[m.key] = m.net;
+        hSellTotal += mSell;
+        html += '<div class="cs-loaded-row">'
+          +'<span style="font-weight:600;font-size:12px;">'+m.desc+'</span>'
+          +'<span style="color:var(--text2);font-size:12px;">$'+m.net.toFixed(2)+'</span>'
+          +'<input type="number" value="'+mMgPct.toFixed(2)+'" min="0" max="999.99" step="0.01"'
+          +' data-mg-pct="'+m.key+'" data-loaded-net="'+m.net.toFixed(4)+'"'
+          +' style="width:80px;padding:4px 6px;font-size:12px;font-weight:700;border:1px solid var(--border2);border-radius:4px;text-align:center"'
+          +' onchange=\'setItemMarginPct(\"'+m.key+'\",this.value)\'>'
+          +'<input type="number" step="0.01" min="0" value="'+mSell.toFixed(2)+'"'
+          +' data-mg-sell="'+m.key+'"'
+          +' style="width:85px;padding:4px 6px;font-size:12px;font-weight:700;color:var(--green);border:1px solid var(--border2);border-radius:4px;text-align:right"'
+          +' onchange=\'setItemMarginSell(\"'+m.key+'\",this.value,'+m.net.toFixed(4)+')\'>'
+          +'</div>';
+      });
+
       html += '</div>'; // cs-loaded-header-wrap
 
-      // Totals
-      const hMgDisplay = hSellTotal>0 ? Math.round((1-h.lt/hSellTotal)*1000)/10 : 0;
+      // Totals — include misc fee nets in the net total
+      // h.lt already includes misc net costs (added during calcAll)
+      const _hgNetTotal = h.lt;
+      const hMgDisplay = hSellTotal>0 ? Math.round((1-_hgNetTotal/hSellTotal)*1000)/10 : 0;
       html += '<div class="cs-totals-row">'
         +'<span style="font-weight:700;color:var(--text2)">Totals</span>'
-        +'<span>Net: <strong>$'+h.lt.toFixed(2)+'</strong></span>'
+        +'<span>Net: <strong>$'+_hgNetTotal.toFixed(2)+'</strong></span>'
         +'<span>Sell: <strong style="color:var(--green)">$'+hSellTotal.toFixed(2)+'</strong></span>'
         +'<span>Margin: <strong>'+hMgDisplay.toFixed(1)+'%</strong></span>'
         +'</div>';
@@ -1571,6 +1755,14 @@ function calcAll(){
   }
 
   // ── Order totals ──────────────────────────────────────────────────────
+  // ── Order-level fees section ──
+  const _hasOrderFees = art>0 || rush>0 || bag>0 || lab>0 || oop>0 ||
+    v('pre_prod',0)>0 || v('sim_process',0)>0 || v('inbound_ship',0)>0;
+  if(_hasOrderFees){
+    html += '<div style="margin:24px 0 16px;border-top:3px solid var(--border);padding-top:16px">'
+      +'<div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--red);margin-bottom:12px">Order add-ons</div>'
+      +'</div>';
+  }
   if(art>0){
     if(!perItemMargins['fee_art']) perItemMargins['fee_art']={pct:40};
     const artMg=perItemMargins['fee_art'].pct;
@@ -1849,10 +2041,33 @@ function calcCommission(){
     });
   });
 
-  lastCalc.commLines=lines;
   lastCalc.repName=repName;
   lastCalc.splitType=splitType;
   lastCalc.hasAM=hasAM;
+
+  // ── Order-level fees: art, rush, add-ons, flat — all GP goes to house+rep split ──
+  // These are real gross profit and must be included in commission totals
+  const _orderFees=[
+    {name:'Art fees', net:d.art||0, sell:d.artSell||0},
+    {name:'Rush charge', net:d.rushAmt||0, sell:d.rushSell||0},
+    {name:'Add-ons (bag/label/OOP)', net:d._addonsAmt||0, sell:d.addonsSell||0},
+    {name:'Flat fees (pre-prod/sim/ship)', net:d._flatAmt||0, sell:d.flatSellAmt||0},
+  ].filter(f=>f.net>0||f.sell>0);
+  _orderFees.forEach(f=>{
+    const gp=f.sell-f.net;
+    if(gp===0)return;
+    const mgPct=f.sell>0?((f.sell-f.net)/f.sell)*100:0;
+    const qualifies=mgPct>=30;
+    if(!qualifies)needsApproval=true;
+    const {houseEarns,repEarns,amEarns}=splitLine(gp,qualifies);
+    totalRepComm+=repEarns;
+    totalHouseProfit+=houseEarns;
+    lines.push({name:f.name,net:f.net,sell:f.sell,gp,mgPct,qualifies,repEarns,houseEarns,amEarns});
+  });
+
+  // Assign commLines AFTER all lines are pushed (including order-level fees)
+  lastCalc.commLines=lines;
+
   lastCalc.totalAM=lines.reduce((a,l)=>a+(l.amEarns||0),0);
   lastCalc.totalRepComm=totalRepComm;
   lastCalc.totalHouseProfit=totalHouseProfit;
@@ -2045,6 +2260,17 @@ function buildSummary(){
         gRows+=`<div style="font-size:12px;padding:4px 0;border-bottom:1px solid #f8f8f8">`;
         gRows+=`<span style="font-weight:700">${im.label}</span>`;
         gRows+=`<span style="color:var(--text3);margin-left:8px">${fmt(im.total)}</span>`;
+        // Show shared run breakdown if present
+        if(im._sharedRunLines&&im._sharedRunLines.length){
+          im._sharedRunLines.forEach(sl=>{
+            const _tName=[document.getElementById('gdesign_'+sl.targetGid)?.value,
+              document.getElementById('gtype_'+sl.targetGid)?.value].filter(Boolean).join(' ')||('Garment '+sl.targetGid);
+            gRows+=`<div style="font-size:11px;color:var(--text3);padding-left:12px;margin-top:2px">`
+              +`↳ Shared run → ${_tName} (${sl.qty} pcs, ${sl.effC} screens`
+              +(sl.hasBase?' incl. base':'') +'): '+fmt(sl.run)
+              +'</div>';
+          });
+        }
         gRows+=`</div>`;
       });
       gRows+=`</div>`;
@@ -2433,6 +2659,7 @@ async function deserializeQuote(data){
   const p4=data.page4||{};
   setV('rush_pct',p4.rushPct||0);setV('art_hours',p4.artHours||0);
   setV('bagging',p4.bagging||0);setV('labeling',p4.labeling||0);setV('oop',p4.oop||0);
+  setV('pre_prod',p4.preProd||0);setV('sim_process',p4.simProcess||0);setV('inbound_ship',p4.inboundShip||0);
   calcAll();goTo(1);
 }
 
@@ -3053,27 +3280,95 @@ function onShareWithChange(iid, gid) {
 function populateShareSizes(iid, gid) {
   const container = document.getElementById('imp_share_size_rows_'+iid);
   if(!container) return;
-  // Get size rows for this garment
-  const szRows = getSzRows(gid);
-  if(!szRows.length) { container.innerHTML = '<span style="color:var(--text3);font-size:12px;">No sizes entered yet.</span>'; return; }
-  // Show header
-  let html = '<div style="font-weight:700;color:var(--text3)">Size</div><div style="font-weight:700;color:var(--text3)">Qty entered</div><div style="font-weight:700;color:var(--text3)">Sharing</div>';
+
+  // Determine if owning garment has a white base (dark/black + base checkbox)
+  const ownerColorVal = vs('gcolor_'+gid,'white');
+  const ownerIsDark = ['dark','black'].includes(ownerColorVal);
+  const ownerIsNW = ownerIsDark && ($c('gwhitebase_'+gid)?.checked !== false);
+
+  // Determine target garment — sizes pulled from HERE, not the owning garment
+  const shareSel = document.getElementById('imp_share_with_'+iid);
+  const targetGid = shareSel?.value||'';
+  if(!targetGid) {
+    container.innerHTML = '<span style="color:var(--text3);font-size:12px;">Select a garment first.</span>';
+    return;
+  }
+
+  const szRows = getSzRows(targetGid);
+  if(!szRows.length) {
+    container.innerHTML = '<span style="color:var(--text3);font-size:12px;">No sizes entered on target garment yet.</span>';
+    return;
+  }
+
+  const targetColorVal = vs('gcolor_'+targetGid,'white');
+  const targetIsDark = ['dark','black'].includes(targetColorVal);
+  const targetDefaultNW = targetIsDark;
+
+  // Single flat grid — header + all data rows share the same column definition
+  const cols = ownerIsNW
+    ? '44px 52px 110px 80px'   // Size | Qty | Sharing (select stacked over qty) | Needs base?
+    : '44px 52px 110px';       // Size | Qty | Sharing
+  const colCount = ownerIsNW ? 4 : 3;
+
+  let html = `<div style="display:grid;grid-template-columns:${cols};gap:5px 8px;align-items:center;font-size:12px;">`;
+
+  // Header row
+  html += '<div style="font-weight:700;color:var(--text3);font-size:11px;">Size</div>';
+  html += '<div style="font-weight:700;color:var(--text3);font-size:11px;">Qty</div>';
+  html += '<div style="font-weight:700;color:var(--text3);font-size:11px;">Sharing</div>';
+  if(ownerIsNW) html += '<div style="font-weight:700;color:var(--text3);font-size:11px;">Needs base?</div>';
+
+  // Data rows — each row is colCount cells in the same grid
   szRows.forEach(r => {
     const key = 'share_sz_'+iid+'_'+r.rid;
-    html += `<div style="font-weight:600">${r.size}</div>
-      <div style="color:var(--text3)">${r.qty} pcs</div>
-      <div style="display:flex;align-items:center;gap:6px;">
-        <select id="${key}_mode" onchange="toggleShareSizeQty('${key}',${r.qty})"
-          style="padding:4px 8px;font-size:12px;border:1px solid var(--border2);border-radius:4px;">
-          <option value="all">All</option>
-          <option value="some">Some</option>
-          <option value="none">None</option>
-        </select>
-        <input type="number" id="${key}_qty" min="1" max="${r.qty}" value="${r.qty}"
-          style="display:none;width:60px;padding:4px 6px;font-size:12px;border:1px solid var(--border2);border-radius:4px;">
+
+    // Col 1: size label
+    html += `<div style="font-weight:600">${r.size}</div>`;
+
+    // Col 2: qty
+    html += `<div style="color:var(--text3)">${r.qty}</div>`;
+
+    // Col 3: mode select, qty input stacked below when "Some" is chosen
+    html += `<div style="display:flex;flex-direction:column;gap:3px;">
+      <select id="${key}_mode" onchange="toggleShareSizeQty('${key}',${r.qty})"
+        style="padding:3px 5px;font-size:12px;border:1px solid var(--border2);border-radius:4px;width:100%;">
+        <option value="all">All</option>
+        <option value="some">Some</option>
+        <option value="none">None</option>
+      </select>
+      <input type="number" id="${key}_qty" min="1" max="${r.qty}" value="${r.qty}"
+        style="display:none;width:100%;padding:3px 5px;font-size:12px;border:1px solid var(--border2);border-radius:4px;">
+    </div>`;
+
+    // Col 4 (only when ownerIsNW): needs base checkbox
+    if(ownerIsNW){
+      html += `<div>
+        <label style="display:flex;align-items:center;gap:4px;cursor:pointer;">
+          <input type="checkbox" id="${key}_needsbase" ${targetDefaultNW?'checked':''}
+            style="width:13px;height:13px;accent-color:var(--red);flex-shrink:0;"
+            onchange="updateNeedsBaseLabel('${key}');calcAllDebounced()">
+          <span id="${key}_needsbase_lbl" style="font-size:11px;color:var(--text2);">${targetDefaultNW?'Yes':'No'}</span>
+        </label>
       </div>`;
+    }
   });
+
+  html += '</div>';
   container.innerHTML = html;
+
+  // White base note below grid — only when ownerIsNW
+  // Remove any existing note first
+  const existingNote = document.getElementById('imp_share_base_note_'+iid);
+  if(existingNote) existingNote.remove();
+  if(ownerIsNW){
+    const noteDiv = document.createElement('div');
+    noteDiv.id = 'imp_share_base_note_'+iid;
+    noteDiv.style.cssText = 'margin-top:8px;padding:7px 10px;background:#fff8e1;border:1px solid #f0c040;border-radius:5px;font-size:11px;color:#7a4f00;line-height:1.4;';
+    noteDiv.innerHTML = '⚠ <strong>White base note:</strong> This garment uses a white base screen. '
+      +'"Needs base?" defaults to <strong>Yes</strong> for dark garments and <strong>No</strong> for light ones. '
+      +'Correct any that are wrong — light pcs charged with a base will be overpriced.';
+    container.insertAdjacentElement('afterend', noteDiv);
+  }
 }
 
 function updatePartialShareWarning(targetGid) {
@@ -3086,11 +3381,13 @@ function updatePartialShareWarning(targetGid) {
     totalGarQty += parseInt(document.getElementById('sz_qty_'+r2id)?.value)||0;
   });
   let totalShared = 0;
+  const sharingIids = [];
   document.querySelectorAll('[id^="imp_share_chk_"]').forEach(chk=>{
     if(!chk.checked) return;
     const iid = chk.id.replace('imp_share_chk_','');
     const shareSel = document.getElementById('imp_share_with_'+iid);
     if(!shareSel || String(shareSel.value) !== String(targetGid)) return;
+    sharingIids.push(iid);
     document.querySelectorAll('[id^="share_sz_'+iid+'_"][id$="_mode"]').forEach(msel=>{
       const k2 = msel.id.replace('_mode','');
       const m2 = msel.value; if(m2==='none') return;
@@ -3107,11 +3404,30 @@ function updatePartialShareWarning(targetGid) {
     warnEl.innerHTML = '<div style="margin-top:6px;padding:8px 10px;background:#fff8e1;border:1px solid #f0c040;border-radius:6px;font-size:12px;color:#7a5c00;display:flex;align-items:flex-start;gap:7px">'
       +'<span style="font-size:14px;flex-shrink:0">⚠️</span>'
       +'<span><strong>Partial share:</strong> '+totalShared+' of '+totalGarQty+' pcs use shared screens. '
-      +'The remaining <strong>'+remaining+' pcs</strong> need their own imprint added below, or they will ship blank.</span>'
+      +'The remaining <strong>'+remaining+' pcs</strong> need their own imprint added to this garment below, or they will ship blank.</span>'
       +'</div>';
   } else {
     warnEl.innerHTML = '';
   }
+  // Also update reminder note on the owning garment's share UI
+  sharingIids.forEach(iid=>{
+    const remindId = 'imp_share_partial_remind_'+iid;
+    let remindEl = document.getElementById(remindId);
+    if(totalShared > 0 && remaining > 0){
+      if(!remindEl){
+        remindEl = document.createElement('div');
+        remindEl.id = remindId;
+        remindEl.style.cssText = 'margin-top:6px;padding:7px 10px;background:#fff0f5;border:1px solid #e08090;border-radius:5px;font-size:11px;color:#8a1a30;';
+        const wrap = document.getElementById('imp_share_wrap_'+iid);
+        if(wrap) wrap.appendChild(remindEl);
+      }
+      remindEl.innerHTML = '⚠ <strong>Partial share:</strong> Only '+totalShared+' of '+totalGarQty
+        +' pcs of the receiving garment use these screens. '
+        +'The remaining <strong>'+remaining+' pcs</strong> need a separate imprint added to that garment — otherwise those pcs ship blank.';
+    } else {
+      if(remindEl) remindEl.remove();
+    }
+  });
 }
 function checkShareAllMode(iid) {
   // Check if every size row for this imprint is set to "all"
@@ -3122,6 +3438,12 @@ function checkShareAllMode(iid) {
   const allAreAll = modes.length > 0 && modes.every(m => m.value === 'all');
   console.log('[share] checkShareAllMode iid='+iid+' target='+targetGid+' modes='+modes.length+' allAreAll='+allAreAll);
   setGarmentScreensShared(targetGid, allAreAll);
+}
+
+function updateNeedsBaseLabel(key) {
+  const cb = document.getElementById(key+'_needsbase');
+  const lbl = document.getElementById(key+'_needsbase_lbl');
+  if(cb && lbl) lbl.textContent = cb.checked ? 'Yes' : 'No';
 }
 
 function toggleShareSizeQty(key, maxQty) {
