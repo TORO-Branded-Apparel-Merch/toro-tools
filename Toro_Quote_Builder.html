@@ -1815,6 +1815,7 @@ function calcAll(){
       // Order fee rows (art, rush, addons, flat) — ALWAYS show so rep can edit from pricing page
       // Build fee rows regardless of net amount (allow rep to set $0 or override)
       {
+        console.log('[FEES DEBUG] gidStr='+gidStr+' isFirst='+isFirstInProject+' artNet='+_artNet+' assign='+perItemMargins['fee_art_assign']+' defAssign='+_defAssign);
         const _feesDef = [
           {key:'fee_art',    label:`Graphic art (${v('art_hours',0)} hrs × $40)`, net:_artNet, sell:_artSell, mg:_artMg},
           {key:'fee_rush',   label:`Rush charge (${Math.round(rush*100)}%)`,        net:_rushNet, sell:_rushSell, mg:_rushMg},
