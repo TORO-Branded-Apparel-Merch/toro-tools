@@ -156,6 +156,28 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--red);box
 .cs-totals-row{display:grid;grid-template-columns:60px 1fr 1fr 1fr;gap:8px;padding:8px 14px;background:var(--bg);border-top:1px solid var(--border);font-size:12px;}
 
 .cs-loaded-header-wrap{background:#fafbff;border-top:2px solid var(--red);margin-top:4px;}
+
+/* ── Project-grid pricing layout ── */
+.cs-section-header{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--red);margin-bottom:12px;margin-top:4px;}
+.cs-project-label{padding:6px 0 4px;margin-bottom:4px;}
+.cs-master-card{background:#fff;border:1px solid var(--border);border-radius:var(--radius-sm);margin-bottom:16px;overflow:hidden;}
+.cs-master-header{display:flex;align-items:center;gap:10px;padding:10px 14px;background:var(--bg);border-bottom:1px solid var(--border);}
+.cs-master-title{font-size:14px;font-weight:700;flex:1;}
+.cs-master-net-label{font-size:12px;color:var(--text2);}
+.cs-master-margin-label{font-size:13px;font-weight:700;}
+.cs-ref-section{background:#fafafa;border-bottom:1px solid var(--border);}
+.cs-proj-grid-header{display:grid;grid-template-columns:1fr 110px 90px 95px;gap:6px;padding:5px 14px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--text3);background:#fafbff;border-top:2px solid var(--red);border-bottom:1px solid var(--border);}
+.cs-proj-child-row{display:grid;grid-template-columns:1fr 110px 90px 95px;gap:6px;padding:5px 14px;align-items:center;border-bottom:1px solid #f4f4f4;}
+.cs-proj-child-row:hover{background:#fafafa;}
+.cs-proj-fee-row{background:#fffcf5;}
+.cs-proj-child-label{font-size:12px;font-weight:600;color:var(--text2);}
+.cs-proj-child-net{font-size:12px;color:var(--text2);}
+.cs-proj-mg-input{width:78px;padding:4px 6px;font-size:12px;font-weight:700;border:1px solid var(--border2);border-radius:4px;text-align:center;}
+.cs-proj-sell-input{width:88px;padding:4px 6px;font-size:12px;font-weight:700;color:var(--green);border:1px solid var(--border2);border-radius:4px;text-align:right;}
+.cs-master-sell-row{display:grid;grid-template-columns:1fr 130px 90px 95px;gap:6px;padding:7px 14px;align-items:center;background:#f0f4ff;border-top:2px solid var(--red);border-bottom:1px solid var(--border);}
+.cs-master-sell-label{font-size:12px;color:var(--text2);}
+.cs-master-sell-input{width:88px;padding:5px 6px;font-size:13px;font-weight:700;border:2px solid var(--green);border-radius:4px;text-align:right;background:#fff;}
+.cs-master-totals{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;padding:7px 14px;background:var(--bg);border-top:1px solid var(--border);font-size:12px;}
 </style>
 </head>
 <body>
@@ -1419,220 +1441,503 @@ function calcAll(){
   let html='';
   let totalNetCost=0, totalSellAmt=0;
 
-  // ── Garments ─────────────────────────────────────────────────────────
-  if(sections.filter(s=>s.type==='g').length>0){
-    html += '<div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--red);margin-bottom:12px">Apparel &amp; decorated items</div>';
-  }
-  sections.filter(s=>s.type==='g').forEach((s,i)=>{
-    const gMarginKeyCalc='g_'+s.gid;
-    const gMgPctRaw=getItemMargin(gMarginKeyCalc);
-    const gMgEff=gMgPctRaw/100;
-    const baseCostPI=s.szRows.length>0?s.szRows[0].cost:s.gc;
-    // Sell = sum of (loaded net * qty / (1-margin)) per group
-    let garSellAmt = 0;
-    const _grpSell = {};
-    s.szRows.forEach(r => {
-      const gk = 'g_'+s.gid+'_grp_'+(r.grp==='none'?'ind_'+r.rid:r.grp);
-      if(_grpSell[gk]) return; // already counted this group
-      _grpSell[gk] = true;
-      const loadedNet = r.cost + (s.impLines.reduce((a,im)=>a+(im.run_per_item||0),0)) + (s.impLines.reduce((a,im)=>a+(im.setup_total||0),0))/((s.szRows.reduce((a2,r2)=>a2+r2.qty,0)||1));
-      const mg = getItemMargin(gk)/100;
-      const grpQty = s.szRows.filter(r2=>(r.grp==='none'?r2.rid===r.rid:r2.grp===r.grp)).reduce((a,r2)=>a+r2.qty,0);
-      garSellAmt += mg<1 ? (loadedNet/(1-mg))*grpQty : 0;
-    });
-    const garMgPct=Math.round(gMgPctRaw*10)/10;
-    totalNetCost+=s.gTotal; totalSellAmt+=garSellAmt;
-
-    const gMarginKey='g_'+s.gid;
-    const gMgPctVal=getItemMargin(gMarginKey);
-    // ── Compute deco costs per item for this garment ─────────────────
-    let sharedQty2 = 0;
-    document.querySelectorAll('[id^="imp_share_chk_"]').forEach(chk => {
+  // ── Build project groups ───────────────────────────────────────────────
+  // A project = set of garments linked by shared decoration (connected component)
+  // Garments sharing decoration are grouped; standalone garments are solo projects
+  // HG items are always standalone projects
+  const _garSections = sections.filter(s=>s.type==='g');
+  const _adj = {};
+  _garSections.forEach(s=>{
+    document.querySelectorAll('[id^="imp_share_chk_"]').forEach(chk=>{
       if(!chk.checked) return;
-      const _iid2 = chk.id.replace('imp_share_chk_','');
-      if(_iid2.split('_')[0] !== String(s.gid)) return;
-      document.querySelectorAll('[id^="share_sz_'+_iid2+'_"][id$="_mode"]').forEach(sel => {
-        const _k2 = sel.id.replace('_mode','');
-        const _m2 = sel.value;
-        if(_m2==='none') return;
-        const _mxQ = parseInt(document.getElementById(_k2+'_qty')?.max)||0;
-        const _smQ = parseInt(document.getElementById(_k2+'_qty')?.value)||0;
-        sharedQty2 += _m2==='all' ? _mxQ : _m2==='some' ? _smQ : 0;
-      });
+      const _iid=chk.id.replace('imp_share_chk_','');
+      if(String(_iid.split('_')[0])!==String(s.gid)) return;
+      const _tSel=document.getElementById('imp_share_with_'+_iid);
+      if(!_tSel||!_tSel.value) return;
+      const tg=String(_tSel.value);
+      if(!_adj[String(s.gid)]) _adj[String(s.gid)]=new Set();
+      _adj[String(s.gid)].add(tg);
+      if(!_adj[tg]) _adj[tg]=new Set();
+      _adj[tg].add(String(s.gid));
     });
-    // For setup divisor: own pcs needing screens = total - received shares + outgoing shares
-    // Pcs receiving screens from another garment don't need their own setup
-    const _recvQtyForSetup = _receivedShareByGid[s.gid]||0;
-    const _ownPcsForSetup = Math.max(1, (s.szRows.reduce((a,r)=>a+r.qty,0)||1) - _recvQtyForSetup);
-    const totalScreenQty2 = _ownPcsForSetup + sharedQty2;
-    const totalRun2 = s.impLines.reduce((a,im)=>a+(im.run_per_item||0),0);
-    const totalSetup2 = s.impLines.reduce((a,im)=>a+(im.setup_total||0),0);
-    const setupPI2 = totalScreenQty2>0 ? totalSetup2/totalScreenQty2 : 0;
-    const _miscLines2 = [];
-    (()=>{
-      const c=document.getElementById('misc_'+s.gid);
-      if(!c) return;
-      const _totalQtyM = s.szRows.reduce((a,r)=>a+r.qty,0)||1;
-      c.querySelectorAll('[id^="miscrow_g'+s.gid+'_"]').forEach(row=>{
-        const mid=row.id.replace('miscrow_g'+s.gid+'_','');
-        const net=parseFloat(document.getElementById('misc_net_g'+s.gid+'_'+mid)?.value)||0;
-        const desc=document.getElementById('misc_desc_g'+s.gid+'_'+mid)?.value||'Misc fee';
-        if(net) _miscLines2.push({desc, mid, netPI: net/_totalQtyM, netTotal: net});
-      });
-    })();
-    const miscPI2 = _miscLines2.reduce((a,m)=>a+m.netPI, 0);
-    const decoPI2 = totalRun2 + setupPI2;
+  });
+  const _visited=new Set();
+  const _projects=[]; // [{gids:[...], name:'...'}]
+  _garSections.forEach(s=>{
+    const sg=String(s.gid);
+    if(_visited.has(sg)) return;
+    const group=[];
+    const stack=[sg];
+    while(stack.length){
+      const n=stack.pop();
+      if(_visited.has(n)) continue;
+      _visited.add(n); group.push(n);
+      (_adj[n]||new Set()).forEach(nb=>{ if(!_visited.has(nb)) stack.push(nb); });
+    }
+    const pName = group.length>1
+      ? group.map(g=>{ const sec=_garSections.find(s2=>String(s2.gid)===g); return sec?(sec.gdesign||sec.gtype):''; }).filter(Boolean).join(' + ')
+      : null;
+    _projects.push({gids:group, name:pName, isSharedProject:group.length>1});
+  });
 
-    // ── Build clean nested pricing card for this garment ───────────────
-    const _gTitle = (s.gdesign?s.gdesign+' — ':'')+s.gtype+(s.gbrand?' ('+s.gbrand+(s.gsku?' #'+s.gsku:'')+(s.gvendor?' via '+s.gvendor:'')+')'  :'');
-    html += '<div class="cs-item">';
-    html += '<div class="cs-item-title">'+_gTitle+'</div>';
+  // ── Fee assignment: which garment project does each order fee belong to? ─
+  // Stored in perItemMargins as fee_art_assign, fee_rush_assign, etc.
+  // Values: gid string, or 'split' (50/50 across first two projects), or 'hg'
+  // Default: if 1 apparel project → that project; else first project
+  const _appProjects = _projects; // all are apparel
+  const _defAssign = _appProjects.length>0 ? String(_appProjects[0].gids[0]) : 'none';
+  const _feeKeys = ['fee_art','fee_rush','fee_addons','fee_flat'];
+  _feeKeys.forEach(k=>{
+    if(!perItemMargins[k+'_assign']){
+      perItemMargins[k+'_assign'] = _defAssign;
+    }
+  });
 
-    // 1. Blank garment costs (read-only reference)
-    html += '<div class="cs-section-label">Blank garment</div>';
-    const _grpNetSeen = {};
-    s.szRows.forEach(r => {
-      const _gk2 = 'g_'+s.gid+'_grp_'+(r.grp==='none'?'ind_'+r.rid:r.grp);
-      if(_grpNetSeen[_gk2]) return;
-      _grpNetSeen[_gk2] = true;
-      const _gl = r.grp==='none' ? r.size : 'Group '+r.grp+' ('+r.size+(r.upcharge>0?' · $'+r.upcharge.toFixed(2)+' sell upcharge':'')+')';
-      html += '<div class="cs-row"><span class="cs-row-label">'+_gl+'</span><span class="cs-row-val">$'+r.cost.toFixed(2)+'/item</span></div>';
+  // Build project selector options for fee rows
+  const _projOptions = _appProjects.map(p=>{
+    const label = p.isSharedProject ? 'Project: '+p.name : (_garSections.find(s=>String(s.gid)===p.gids[0])?.gdesign||'Garment '+p.gids[0]);
+    return p.gids.map(g=>({value:g, label}));
+  }).flat();
+  // Deduplicate to one option per project (use first gid as key)
+  const _projOptsUniq = _appProjects.map(p=>{
+    const sec=_garSections.find(s=>String(s.gid)===p.gids[0]);
+    const lbl=p.isSharedProject?'Project: '+p.name:(sec?.gdesign||sec?.gtype||'Garment '+p.gids[0]);
+    return {value:p.gids[0], label:lbl, gids:p.gids};
+  });
+
+  // Helper: build project selector for a fee key
+  function _feeAssignSelect(feeKey){
+    if(_projOptsUniq.length<=1) return ''; // only one project, no selector needed
+    let opts='';
+    const cur=perItemMargins[feeKey+'_assign']||_defAssign;
+    _projOptsUniq.forEach(o=>{
+      opts+=`<option value="${o.value}"${cur===o.value?' selected':''}>${o.label}</option>`;
     });
+    if(_projOptsUniq.length>=2){
+      opts+=`<option value="split"${cur==='split'?' selected':''}>Split 50/50</option>`;
+    }
+    return `<select style="font-size:11px;padding:2px 5px;border:1px solid var(--border2);border-radius:4px;margin-left:8px;color:var(--text3)"
+      onchange="perItemMargins['${feeKey}_assign']=this.value;calcAll()">${opts}</select>`;
+  }
 
-    // 2. Decoration costs (read-only reference)
-    if(s.impLines.length>0){
-      s.impLines.forEach(im => {
-        html += '<div class="cs-section-label">'+(im.label||'Imprint')+'</div>';
-        const _runPI = im.run_per_item||0;
-        const _setupT = im.setup_total||0;
-        const _setupPI = totalScreenQty2>0 ? _setupT/totalScreenQty2 : 0;
-        if(_runPI>0)
-          html += '<div class="cs-row"><span class="cs-row-label">Run charge (own pcs)</span><span class="cs-row-val">$'+_runPI.toFixed(2)+'/item</span></div>';
-        if(_setupPI>0)
-          html += '<div class="cs-row"><span class="cs-row-label">Setup ÷ '+totalScreenQty2+' pcs'+(sharedQty2>0?' (incl. '+sharedQty2+' shared)':'')+'</span><span class="cs-row-val">$'+_setupPI.toFixed(2)+'/item</span></div>';
-        if(_runPI===0 && _setupPI===0 && im.total>0)
-          html += '<div class="cs-row"><span class="cs-row-label">Decoration total</span><span class="cs-row-val">'+fmt(im.total)+'</span></div>';
-        // Shared run lines (cross-color aware)
-        if(im._sharedRunLines&&im._sharedRunLines.length){
-          im._sharedRunLines.forEach(sl=>{
-            const _tName = [document.getElementById('gdesign_'+sl.targetGid)?.value,
-              document.getElementById('gtype_'+sl.targetGid)?.value].filter(Boolean).join(' ')||('Garment '+sl.targetGid);
-            html += '<div class="cs-row" style="color:var(--text3);font-style:italic">'
-              +'<span class="cs-row-label">↳ Shared run → '+_tName
-              +(sl.hasBase?' <span style="color:#c06000;font-size:10px">[+ base screen]</span>':' <span style="color:var(--text3);font-size:10px">[no base — light garment]</span>')
-              +'</span>'
-              +'<span class="cs-row-val">'+fmt(sl.run)+'</span></div>';
-          });
-        }
-      });
-      _miscLines2.forEach(m=>{
-        html += '<div class="cs-row"><span class="cs-row-label">'+m.desc+'</span><span class="cs-row-val">$'+m.netPI.toFixed(2)+'/item</span></div>';
-      });
+  // Helper: get net/sell for a fee assigned to a specific project gid
+  // Returns {net, sell, mg} for that fee contribution
+  // 'split' returns half values; called twice
+  function _feeShare(feeKey, projectGid, feeNet, feeSell){
+    const assign=perItemMargins[feeKey+'_assign']||_defAssign;
+    if(assign==='split'){
+      const isFirst = _projOptsUniq.length>0 && _projOptsUniq[0].value===projectGid;
+      const isSecond = _projOptsUniq.length>1 && _projOptsUniq[1].value===projectGid;
+      if(!isFirst&&!isSecond) return null;
+      return {net:feeNet/2, sell:feeSell/2};
+    }
+    // assign is a gid — belongs to the project that contains it
+    const assignedProject = _appProjects.find(p=>p.gids.includes(assign));
+    if(!assignedProject) return null;
+    if(!assignedProject.gids.includes(projectGid)&&assignedProject.gids[0]!==projectGid) return null;
+    // The fee belongs to the project that contains projectGid only if projectGid is in assignedProject
+    // We render fees under the first gid of each project
+    if(assignedProject.gids[0]!==projectGid) return null;
+    return {net:feeNet, sell:feeSell};
+  }
+
+  // Pre-compute all fee net/sell amounts
+  const _artNet=art; const _artMg=perItemMargins['fee_art']?.pct??40;
+  const _artSell=_artMg<100&&_artNet>0?_artNet/(1-_artMg/100):0;
+  const _rushNet=rushAmt; const _rushMg=perItemMargins['fee_rush']?.pct??40;
+  const _rushSell=_rushMg<100&&_rushNet>0?_rushNet/(1-_rushMg/100):0;
+  const _addNet=_addonsAmt; const _addMg=perItemMargins['fee_addons']?.pct??40;
+  const _addSell=_addMg<100&&_addNet>0?_addNet/(1-_addMg/100):0;
+  const _flatNet=_flatAmt; const _flatMg=perItemMargins['fee_flat']?.pct??40;
+  const _flatSell=_flatMg<100&&_flatNet>0?_flatNet/(1-_flatMg/100):0;
+
+  const _preProd=v('pre_prod',0),_simProc=v('sim_process',0),_inboundShip=v('inbound_ship',0);
+  const _flatDesc=[_preProd>0?'Pre-prod $'+_preProd:'',_simProc>0?'Sim $'+_simProc:'',_inboundShip>0?'Ship $'+_inboundShip:''].filter(Boolean).join(', ');
+  const _addDesc=[v('bagging',0)>0?'Bagging':'',v('labeling',0)>0?'Labeling':'',v('oop',0)>0?'OOP':''].filter(Boolean).join(', ');
+
+  // Helper: render one fee child row under a garment master
+  function _feeRow(feeKey, label, title, netAmt, sellAmt){
+    if(netAmt<=0&&sellAmt<=0) return '';
+    const mg=perItemMargins[feeKey]?.pct??40;
+    _lastLoadedNet[feeKey]=netAmt;
+    totalNetCost+=netAmt; totalSellAmt+=sellAmt;
+    return `<div class="cs-proj-child-row">
+      <span class="cs-proj-child-label">${title}</span>
+      <span class="cs-proj-child-net">$${netAmt.toFixed(2)}</span>
+      <input type="number" value="${mg.toFixed(2)}" min="0" max="999.99" step="0.01"
+        data-mg-pct="${feeKey}" data-loaded-net="${netAmt.toFixed(4)}"
+        class="cs-proj-mg-input" onchange="setItemMarginPct('${feeKey}',this.value)">
+      <input type="number" step="0.01" min="0" value="${sellAmt.toFixed(2)}"
+        data-mg-sell="${feeKey}"
+        class="cs-proj-sell-input" onchange="setItemMarginSell('${feeKey}',this.value,${netAmt.toFixed(4)})">
+    </div>`;
+  }
+
+  // ── Section header ─────────────────────────────────────────────────────
+  if(_garSections.length>0){
+    html += '<div class="cs-section-header">Apparel &amp; decorated items</div>';
+  }
+
+  // ── Render apparel projects ────────────────────────────────────────────
+  _projects.forEach(proj=>{
+    // Project label (only if shared decoration)
+    if(proj.isSharedProject){
+      html += `<div class="cs-project-label">
+        <span style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--text3)">
+          Project: ${proj.name}
+        </span>
+      </div>`;
     }
 
-    // 3. Fully loaded net & sell — ALWAYS SHOW (editable)
-    {
-      html += '<div class="cs-loaded-header-wrap">';
-      html += '<div class="cs-section-label cs-section-loaded">Fully loaded net &amp; sell</div>';
-      html += '<div class="cs-loaded-header"><span>Group</span><span>Net/item</span><span>Margin %</span><span>Sell/item</span></div>';
+    proj.gids.forEach(gidStr=>{
+      const s = _garSections.find(sec=>String(sec.gid)===gidStr);
+      if(!s) return;
 
-      const _grpLoadedSeen = {};
-      let _baseSellFC = null;
+      // ── Per-garment setup for card rendering ─────────────────────────
+      let sharedQty2=0;
+      document.querySelectorAll('[id^="imp_share_chk_"]').forEach(chk=>{
+        if(!chk.checked) return;
+        const _iid2=chk.id.replace('imp_share_chk_','');
+        if(_iid2.split('_')[0]!==String(s.gid)) return;
+        document.querySelectorAll(`[id^="share_sz_${_iid2}_"][id$="_mode"]`).forEach(sel=>{
+          const _k2=sel.id.replace('_mode','');
+          const _m2=sel.value; if(_m2==='none') return;
+          const _mxQ=parseInt(document.getElementById(_k2+'_qty')?.max)||0;
+          const _smQ=parseInt(document.getElementById(_k2+'_qty')?.value)||0;
+          sharedQty2+=_m2==='all'?_mxQ:_m2==='some'?_smQ:0;
+        });
+      });
+      const _recvQtyForSetup=_receivedShareByGid[s.gid]||0;
+      const _ownPcsForSetup=Math.max(1,(s.szRows.reduce((a,r)=>a+r.qty,0)||1)-_recvQtyForSetup);
+      const totalScreenQty2=_ownPcsForSetup+sharedQty2;
+      const totalSetup2=s.impLines.reduce((a,im)=>a+(im.setup_total||0),0);
+      const totalRun2=s.impLines.reduce((a,im)=>a+(im.run_per_item||0),0);
+      const setupPI2=totalScreenQty2>0?totalSetup2/totalScreenQty2:0;
+      const decoPI2=totalRun2+setupPI2;
 
-      s.szRows.forEach(r => {
-        const grpKey = 'g_'+s.gid+'_grp_'+(r.grp==='none'?'ind_'+r.rid:r.grp);
-        if(_grpLoadedSeen[grpKey]) return;
-        _grpLoadedSeen[grpKey] = true;
+      const _miscLines2=[];
+      (()=>{
+        const c=document.getElementById('misc_'+s.gid);if(!c) return;
+        const _tq=s.szRows.reduce((a,r)=>a+r.qty,0)||1;
+        c.querySelectorAll('[id^="miscrow_g'+s.gid+'_"]').forEach(row=>{
+          const mid=row.id.replace('miscrow_g'+s.gid+'_','');
+          const net=parseFloat(document.getElementById('misc_net_g'+s.gid+'_'+mid)?.value)||0;
+          const desc=document.getElementById('misc_desc_g'+s.gid+'_'+mid)?.value||'Misc fee';
+          if(net) _miscLines2.push({desc,mid,netPI:net/_tq,netTotal:net});
+        });
+      })();
+      const miscPI2=_miscLines2.reduce((a,m)=>a+m.netPI,0);
 
-        const loadedNet = r.cost + decoPI2 + miscPI2;
-        _lastLoadedNet[grpKey] = loadedNet;
+      // garment sell total for this card
+      let garSellAmt=0;
+      const _grpSell={};
+      let _baseSellFC=null;
+      s.szRows.forEach(r=>{
+        const gk='g_'+s.gid+'_grp_'+(r.grp==='none'?'ind_'+r.rid:r.grp);
+        if(_grpSell[gk]) return;
+        _grpSell[gk]=true;
+        const loadedNet=r.cost+decoPI2+miscPI2;
+        _lastLoadedNet[gk]=loadedNet;
+        let rowMgPct,rowSell;
+        if(_baseSellFC===null){
+          rowMgPct=perItemMargins[gk]?.pct??40;
+          rowSell=loadedNet>0?loadedNet/(1-rowMgPct/100):0;
+          _baseSellFC=rowSell;
+          if(!perItemMargins[gk]) perItemMargins[gk]={pct:40};
+        } else {
+          if(r.upcharge>0){
+            rowSell=_baseSellFC+r.upcharge;
+            rowMgPct=loadedNet>0?Math.round((1-loadedNet/rowSell)*10000)/100:40;
+            perItemMargins[gk]={pct:rowMgPct};
+          } else {
+            rowMgPct=perItemMargins[gk]?.pct??40;
+            rowSell=loadedNet>0?loadedNet/(1-rowMgPct/100):0;
+            if(!perItemMargins[gk]) perItemMargins[gk]={pct:rowMgPct};
+          }
+        }
+        const grpQty=s.szRows.filter(r2=>(r.grp==='none'?r2.rid===r.rid:r2.grp===r.grp)).reduce((a,r2)=>a+r2.qty,0);
+        garSellAmt+=rowMgPct<100?(loadedNet/(1-rowMgPct/100))*grpQty:0;
+      });
+      _miscLines2.forEach(m=>{
+        const _mk='g_'+s.gid+'_misc_'+m.mid;
+        if(!perItemMargins[_mk]) perItemMargins[_mk]={pct:40};
+        const _mmg=perItemMargins[_mk].pct;
+        const _ms=_mmg<100?m.netTotal/(1-_mmg/100):0;
+        _lastLoadedNet[_mk]=m.netTotal;
+        garSellAmt+=_ms;
+      });
 
-        let rowMgPct, rowSell;
-        if(_baseSellFC === null){
-          rowMgPct = perItemMargins[grpKey]?.pct ?? 40;
-          rowSell = loadedNet > 0 ? loadedNet/(1-rowMgPct/100) : 0;
-          _baseSellFC = rowSell;
+      totalNetCost+=s.gTotal; totalSellAmt+=garSellAmt;
+
+      // ── Read master sell override ─────────────────────────────────────
+      const _masterKey='g_'+s.gid+'_master';
+      // Check if fees are assigned to this garment (first gid of a project)
+      const isFirstInProject = proj.gids[0]===gidStr;
+      let _projFeeNet=0, _projFeeSell=0, _projFeeRows='';
+      if(isFirstInProject){
+        // Art
+        if(_artNet>0){
+          const sh=_feeShare('fee_art',gidStr,_artNet,_artSell);
+          if(sh){
+            _projFeeNet+=sh.net; _projFeeSell+=sh.sell;
+            const assignSel=_feeAssignSelect('fee_art');
+            _projFeeRows+=`<div class="cs-proj-child-row cs-proj-fee-row">
+              <span class="cs-proj-child-label">Graphic art (${v('art_hours',0)} hrs × $40)${assignSel}</span>
+              <span class="cs-proj-child-net">$${sh.net.toFixed(2)}</span>
+              <input type="number" value="${_artMg.toFixed(2)}" min="0" max="999.99" step="0.01"
+                data-mg-pct="fee_art" data-loaded-net="${sh.net.toFixed(4)}"
+                class="cs-proj-mg-input" onchange="setItemMarginPct('fee_art',this.value)">
+              <input type="number" step="0.01" min="0" value="${sh.sell.toFixed(2)}"
+                data-mg-sell="fee_art"
+                class="cs-proj-sell-input" onchange="setItemMarginSell('fee_art',this.value,${_artNet.toFixed(4)})">
+            </div>`;
+            totalNetCost+=sh.net; totalSellAmt+=sh.sell;
+          }
+        }
+        // Rush
+        if(_rushNet>0){
+          const sh=_feeShare('fee_rush',gidStr,_rushNet,_rushSell);
+          if(sh){
+            _projFeeNet+=sh.net; _projFeeSell+=sh.sell;
+            const assignSel=_feeAssignSelect('fee_rush');
+            _projFeeRows+=`<div class="cs-proj-child-row cs-proj-fee-row">
+              <span class="cs-proj-child-label">Rush charge (${Math.round(rush*100)}%)${assignSel}</span>
+              <span class="cs-proj-child-net">$${sh.net.toFixed(2)}</span>
+              <input type="number" value="${_rushMg.toFixed(2)}" min="0" max="999.99" step="0.01"
+                data-mg-pct="fee_rush" data-loaded-net="${sh.net.toFixed(4)}"
+                class="cs-proj-mg-input" onchange="setItemMarginPct('fee_rush',this.value)">
+              <input type="number" step="0.01" min="0" value="${sh.sell.toFixed(2)}"
+                data-mg-sell="fee_rush"
+                class="cs-proj-sell-input" onchange="setItemMarginSell('fee_rush',this.value,${_rushNet.toFixed(4)})">
+            </div>`;
+            totalNetCost+=sh.net; totalSellAmt+=sh.sell;
+          }
+        }
+        // Add-ons
+        if(_addNet>0){
+          const sh=_feeShare('fee_addons',gidStr,_addNet,_addSell);
+          if(sh){
+            _projFeeNet+=sh.net; _projFeeSell+=sh.sell;
+            const assignSel=_feeAssignSelect('fee_addons');
+            _projFeeRows+=`<div class="cs-proj-child-row cs-proj-fee-row">
+              <span class="cs-proj-child-label">Add-ons (${_addDesc}) — ${totalQty} pcs${assignSel}</span>
+              <span class="cs-proj-child-net">$${sh.net.toFixed(2)}</span>
+              <input type="number" value="${_addMg.toFixed(2)}" min="0" max="999.99" step="0.01"
+                data-mg-pct="fee_addons" data-loaded-net="${sh.net.toFixed(4)}"
+                class="cs-proj-mg-input" onchange="setItemMarginPct('fee_addons',this.value)">
+              <input type="number" step="0.01" min="0" value="${sh.sell.toFixed(2)}"
+                data-mg-sell="fee_addons"
+                class="cs-proj-sell-input" onchange="setItemMarginSell('fee_addons',this.value,${_addNet.toFixed(4)})">
+            </div>`;
+            totalNetCost+=sh.net; totalSellAmt+=sh.sell;
+          }
+        }
+        // Flat fees
+        if(_flatNet>0){
+          const sh=_feeShare('fee_flat',gidStr,_flatNet,_flatSell);
+          if(sh){
+            _projFeeNet+=sh.net; _projFeeSell+=sh.sell;
+            const assignSel=_feeAssignSelect('fee_flat');
+            _projFeeRows+=`<div class="cs-proj-child-row cs-proj-fee-row">
+              <span class="cs-proj-child-label">Flat fees (${_flatDesc})${assignSel}</span>
+              <span class="cs-proj-child-net">$${sh.net.toFixed(2)}</span>
+              <input type="number" value="${_flatMg.toFixed(2)}" min="0" max="999.99" step="0.01"
+                data-mg-pct="fee_flat" data-loaded-net="${sh.net.toFixed(4)}"
+                class="cs-proj-mg-input" onchange="setItemMarginPct('fee_flat',this.value)">
+              <input type="number" step="0.01" min="0" value="${sh.sell.toFixed(2)}"
+                data-mg-sell="fee_flat"
+                class="cs-proj-sell-input" onchange="setItemMarginSell('fee_flat',this.value,${_flatNet.toFixed(4)})">
+            </div>`;
+            totalNetCost+=sh.net; totalSellAmt+=sh.sell;
+          }
+        }
+      }
+
+      // Total net for this master = garment production + assigned fees
+      const _masterNet = s.gTotal + _projFeeNet;
+      // Master sell: stored override, or sum of child sells
+      if(!perItemMargins[_masterKey]) perItemMargins[_masterKey]={sell: garSellAmt+_projFeeSell};
+      // If child sells changed, update master suggestion (but don't override rep's manual value)
+      const _childSellSum = garSellAmt + _projFeeSell;
+      const _masterSell = perItemMargins[_masterKey].sell ?? _childSellSum;
+      const _masterGP = _masterSell - _masterNet;
+      const _masterMg = _masterSell>0 ? (_masterGP/_masterSell*100) : 0;
+
+      // ── Build the garment master card ─────────────────────────────────
+      const _gTitle=(s.gdesign?s.gdesign+' — ':'')+s.gtype+(s.gbrand?' ('+s.gbrand+(s.gsku?' #'+s.gsku:'')+(s.gvendor?' via '+s.gvendor:'')+')'  :'');
+
+      html += `<div class="cs-master-card">`;
+
+      // Master card header
+      html += `<div class="cs-master-header">
+        <span class="cs-master-title">${_gTitle}</span>
+        <span class="cs-master-net-label">Net: <strong>$${_masterNet.toFixed(2)}</strong></span>
+        <span class="cs-master-margin-label" style="color:${_masterMg>=35?'var(--green)':_masterMg>=30?'#b07000':'var(--red)'}">${_masterMg.toFixed(1)}%</span>
+      </div>`;
+
+      // Cost breakdown (read-only reference section, collapsible feel via subtle styling)
+      html += `<div class="cs-ref-section">`;
+      html += `<div class="cs-section-label">Blank garment</div>`;
+      const _grpNetSeen2={};
+      s.szRows.forEach(r=>{
+        const _gk2='g_'+s.gid+'_grp_'+(r.grp==='none'?'ind_'+r.rid:r.grp);
+        if(_grpNetSeen2[_gk2]) return; _grpNetSeen2[_gk2]=true;
+        const _gl=r.grp==='none'?r.size:'Group '+r.grp+' ('+r.size+(r.upcharge>0?' · $'+r.upcharge.toFixed(2)+' sell upcharge':'')+')';
+        html += `<div class="cs-row"><span class="cs-row-label">${_gl}</span><span class="cs-row-val">$${r.cost.toFixed(2)}/item</span></div>`;
+      });
+      if(s.impLines.length>0){
+        s.impLines.forEach(im=>{
+          html += `<div class="cs-section-label">${im.label||'Imprint'}</div>`;
+          const _runPI=im.run_per_item||0;
+          const _setupT=im.setup_total||0;
+          const _setupPI=totalScreenQty2>0?_setupT/totalScreenQty2:0;
+          if(_runPI>0) html+=`<div class="cs-row"><span class="cs-row-label">Run charge (own pcs)</span><span class="cs-row-val">$${_runPI.toFixed(2)}/item</span></div>`;
+          if(_setupPI>0) html+=`<div class="cs-row"><span class="cs-row-label">Setup ÷ ${totalScreenQty2} pcs${sharedQty2>0?' (incl. '+sharedQty2+' shared)':''}</span><span class="cs-row-val">$${_setupPI.toFixed(2)}/item</span></div>`;
+          if(_runPI===0&&_setupPI===0&&im.total>0) html+=`<div class="cs-row"><span class="cs-row-label">Decoration total</span><span class="cs-row-val">${fmt(im.total)}</span></div>`;
+          if(im._sharedRunLines&&im._sharedRunLines.length){
+            im._sharedRunLines.forEach(sl=>{
+              const _tName=[document.getElementById('gdesign_'+sl.targetGid)?.value,document.getElementById('gtype_'+sl.targetGid)?.value].filter(Boolean).join(' ')||('Garment '+sl.targetGid);
+              html+=`<div class="cs-row" style="color:var(--text3);font-style:italic"><span class="cs-row-label">↳ Shared run → ${_tName}${sl.hasBase?' <span style="color:#c06000;font-size:10px">[+ base screen]</span>':' <span style="color:var(--text3);font-size:10px">[no base — light garment]</span>'}</span><span class="cs-row-val">${fmt(sl.run)}</span></div>`;
+            });
+          }
+          _miscLines2.forEach(m=>{ html+=`<div class="cs-row"><span class="cs-row-label">${m.desc}</span><span class="cs-row-val">$${m.netPI.toFixed(2)}/item</span></div>`; });
+        });
+      }
+      html += `</div>`; // cs-ref-section
+
+      // ── Child rows: pricing grid ───────────────────────────────────────
+      html += `<div class="cs-proj-grid-header">
+        <span>Line</span><span>Net</span><span>Margin %</span><span>Sell</span>
+      </div>`;
+
+      // Garment size group rows
+      const _grpLoadedSeen2={};
+      let _baseSellFC2=null;
+      s.szRows.forEach(r=>{
+        const grpKey='g_'+s.gid+'_grp_'+(r.grp==='none'?'ind_'+r.rid:r.grp);
+        if(_grpLoadedSeen2[grpKey]) return; _grpLoadedSeen2[grpKey]=true;
+        const loadedNet=r.cost+decoPI2+miscPI2;
+        let rowMgPct,rowSell;
+        if(_baseSellFC2===null){
+          rowMgPct=perItemMargins[grpKey]?.pct??40;
+          rowSell=loadedNet>0?loadedNet/(1-rowMgPct/100):0;
+          _baseSellFC2=rowSell;
           if(!perItemMargins[grpKey]) perItemMargins[grpKey]={pct:40};
         } else {
-          if(r.upcharge > 0){
-            // Always cascade: upcharge group sell = base sell + upcharge
-            // This ensures the sell gap stays consistent with what rep set on base
-            rowSell = _baseSellFC + r.upcharge;
-            rowMgPct = loadedNet > 0 ? Math.round((1-loadedNet/rowSell)*10000)/100 : 40;
-            // Store back so margin field shows the correct back-calculated value
-            perItemMargins[grpKey] = {pct:rowMgPct};
+          if(r.upcharge>0){
+            rowSell=_baseSellFC2+r.upcharge;
+            rowMgPct=loadedNet>0?Math.round((1-loadedNet/rowSell)*10000)/100:40;
+            perItemMargins[grpKey]={pct:rowMgPct};
           } else {
-            rowMgPct = perItemMargins[grpKey]?.pct ?? 40;
-            rowSell = loadedNet > 0 ? loadedNet/(1-rowMgPct/100) : 0;
+            rowMgPct=perItemMargins[grpKey]?.pct??40;
+            rowSell=loadedNet>0?loadedNet/(1-rowMgPct/100):0;
             if(!perItemMargins[grpKey]) perItemMargins[grpKey]={pct:rowMgPct};
           }
         }
-
-        const grpLabel = r.grp==='none' ? r.size : 'Grp '+r.grp+' ('+r.size+')';
-        const _pk = JSON.stringify(grpKey);
-        const _gidStr = JSON.stringify(String(s.gid));
-
-        html += '<div class="cs-loaded-row">'
-          +'<span style="font-weight:600;font-size:12px;">'+grpLabel+'</span>'
-          +'<span style="color:var(--text2);font-size:12px;">$'+loadedNet.toFixed(2)+'</span>'
-          +'<input type="number" value="'+rowMgPct.toFixed(2)+'" min="0" max="999.99" step="0.01"'
-          +' data-mg-pct="'+grpKey+'" data-loaded-net="'+loadedNet.toFixed(4)+'"'
-          +' style="width:80px;padding:4px 6px;font-size:12px;font-weight:700;border:1px solid var(--border2);border-radius:4px;text-align:center"'
-          +' onchange=\'setItemMarginPct(\"'+grpKey+'\",this.value)\'>'
-          +'<input type="number" step="0.01" min="0" value="'+rowSell.toFixed(2)+'"'
-          +' data-mg-sell="'+grpKey+'"'
-          +' style="width:85px;padding:4px 6px;font-size:12px;font-weight:700;color:var(--green);border:1px solid var(--border2);border-radius:4px;text-align:right"'
-          +' onchange=\'setGroupSell(\"'+grpKey+'\",this.value,'+r.cost+',\"'+s.gid+'\")\'>'
-          +'</div>';
+        const grpLabel=r.grp==='none'?r.size:'Grp '+r.grp+' ('+r.size+')';
+        const grpQty=s.szRows.filter(r2=>(r.grp==='none'?r2.rid===r.rid:r2.grp===r.grp)).reduce((a,r2)=>a+r2.qty,0);
+        const grpTotalSell=rowMgPct<100?(loadedNet/(1-rowMgPct/100))*grpQty:0;
+        html+=`<div class="cs-proj-child-row">
+          <span class="cs-proj-child-label">${grpLabel} (${grpQty} pcs)</span>
+          <span class="cs-proj-child-net">$${loadedNet.toFixed(2)}/item</span>
+          <input type="number" value="${rowMgPct.toFixed(2)}" min="0" max="999.99" step="0.01"
+            data-mg-pct="${grpKey}" data-loaded-net="${loadedNet.toFixed(4)}"
+            class="cs-proj-mg-input" onchange="setItemMarginPct('${grpKey}',this.value)">
+          <input type="number" step="0.01" min="0" value="${rowSell.toFixed(2)}"
+            data-mg-sell="${grpKey}"
+            class="cs-proj-sell-input" onchange="setGroupSell('${grpKey}',this.value,${r.cost},'${s.gid}')">
+        </div>`;
       });
-      html += '</div>'; // cs-loaded-header-wrap
 
-      // Misc fees — editable individual pricing rows
-      if(_miscLines2.length > 0){
-        html += '<div class="cs-loaded-header-wrap">';
-        html += '<div class="cs-section-label cs-section-loaded">Misc fees</div>';
-        html += '<div class="cs-loaded-header"><span>Line</span><span>Net</span><span>Margin %</span><span>Sell</span></div>';
-        _miscLines2.forEach(m=>{
-          const _mkey = 'g_'+s.gid+'_misc_'+m.mid;
-          if(!perItemMargins[_mkey]) perItemMargins[_mkey]={pct:40};
-          const _mMgPct = perItemMargins[_mkey].pct;
-          const _mSell = _mMgPct<100 ? m.netTotal/(1-_mMgPct/100) : 0;
-          _lastLoadedNet[_mkey] = m.netTotal;
-          garSellAmt += _mSell;
-          html += '<div class="cs-loaded-row">'
-            +'<span style="font-weight:600;font-size:12px;">'+m.desc+'</span>'
-            +'<span style="color:var(--text2);font-size:12px;">$'+m.netTotal.toFixed(2)+'</span>'
-            +'<input type="number" value="'+_mMgPct.toFixed(2)+'" min="0" max="999.99" step="0.01"'
-            +' data-mg-pct="'+_mkey+'" data-loaded-net="'+m.netTotal.toFixed(4)+'"'
-            +' style="width:80px;padding:4px 6px;font-size:12px;font-weight:700;border:1px solid var(--border2);border-radius:4px;text-align:center"'
-            +' onchange=\'setItemMarginPct(\"'+_mkey+'\",this.value)\'>'
-            +'<input type="number" step="0.01" min="0" value="'+_mSell.toFixed(2)+'"'
-            +' data-mg-sell="'+_mkey+'"'
-            +' style="width:85px;padding:4px 6px;font-size:12px;font-weight:700;color:var(--green);border:1px solid var(--border2);border-radius:4px;text-align:right"'
-            +' onchange=\'setItemMarginSell(\"'+_mkey+'\",this.value,'+m.netTotal.toFixed(4)+')\'>'
-            +'</div>';
-        });
-        html += '</div>';
-      }
+      // Garment misc fee rows
+      _miscLines2.forEach(m=>{
+        const _mk='g_'+s.gid+'_misc_'+m.mid;
+        if(!perItemMargins[_mk]) perItemMargins[_mk]={pct:40};
+        const _mmg=perItemMargins[_mk].pct;
+        const _ms=_mmg<100?m.netTotal/(1-_mmg/100):0;
+        _lastLoadedNet[_mk]=m.netTotal;
+        html+=`<div class="cs-proj-child-row">
+          <span class="cs-proj-child-label">${m.desc}</span>
+          <span class="cs-proj-child-net">$${m.netTotal.toFixed(2)}</span>
+          <input type="number" value="${_mmg.toFixed(2)}" min="0" max="999.99" step="0.01"
+            data-mg-pct="${_mk}" data-loaded-net="${m.netTotal.toFixed(4)}"
+            class="cs-proj-mg-input" onchange="setItemMarginPct('${_mk}',this.value)">
+          <input type="number" step="0.01" min="0" value="${_ms.toFixed(2)}"
+            data-mg-sell="${_mk}"
+            class="cs-proj-sell-input" onchange="setItemMarginSell('${_mk}',this.value,${m.netTotal.toFixed(4)})">
+        </div>`;
+      });
+
+      // Fee rows (art, rush, addons, flat) nested under this garment
+      html += _projFeeRows;
+
+      // ── Master sell row ────────────────────────────────────────────────
+      html += `<div class="cs-master-sell-row">
+        <span class="cs-master-sell-label">
+          <strong>Master sell</strong>
+          <span style="font-size:11px;color:var(--text3);margin-left:6px">Independent — overrides child sum</span>
+        </span>
+        <span style="font-size:12px;color:var(--text2)">Net: <strong>$${_masterNet.toFixed(2)}</strong></span>
+        <span></span>
+        <input type="number" step="0.01" min="0" value="${_masterSell.toFixed(2)}"
+          id="master_sell_${s.gid}"
+          class="cs-master-sell-input"
+          style="color:var(--green)"
+          onchange="perItemMargins['${_masterKey}']={sell:parseFloat(this.value)||0};calcAll()">
+      </div>`;
+
+      // Master totals bar
+      const _dispMg = _masterMg;
+      const _mgColor = _dispMg>=35?'var(--green)':_dispMg>=30?'#b07000':'var(--red)';
+      html+=`<div class="cs-master-totals">
+        <span>Net: <strong>$${_masterNet.toFixed(2)}</strong></span>
+        <span>Sell: <strong style="color:var(--green)">$${_masterSell.toFixed(2)}</strong></span>
+        <span>GP: <strong style="color:var(--green)">$${_masterGP.toFixed(2)}</strong></span>
+        <span>Margin: <strong style="color:${_mgColor}">${_dispMg.toFixed(1)}%</strong></span>
+      </div>`;
+
+      html += `</div>`; // cs-master-card
+    }); // end proj.gids.forEach
+
+    // Project summary row — only for shared projects (2+ garments)
+    if(proj.isSharedProject){
+      // Sum net and sell across all garments + fees in this project
+      let _projSumNet=0, _projSumSell=0;
+      proj.gids.forEach(gidStr=>{
+        const s=_garSections.find(sec=>String(sec.gid)===gidStr);
+        if(!s) return;
+        // Master net = gTotal + assigned fee net
+        const _mk='g_'+s.gid+'_master';
+        const _isFirst=proj.gids[0]===gidStr;
+        let _fNet=0, _fSell=0;
+        if(_isFirst){
+          if(_artNet>0){const sh=_feeShare('fee_art',gidStr,_artNet,_artSell);if(sh){_fNet+=sh.net;_fSell+=sh.sell;}}
+          if(_rushNet>0){const sh=_feeShare('fee_rush',gidStr,_rushNet,_rushSell);if(sh){_fNet+=sh.net;_fSell+=sh.sell;}}
+          if(_addNet>0){const sh=_feeShare('fee_addons',gidStr,_addNet,_addSell);if(sh){_fNet+=sh.net;_fSell+=sh.sell;}}
+          if(_flatNet>0){const sh=_feeShare('fee_flat',gidStr,_flatNet,_flatSell);if(sh){_fNet+=sh.net;_fSell+=sh.sell;}}
+        }
+        const _mNet=s.gTotal+_fNet;
+        const _mSell=perItemMargins[_mk]?.sell??0;
+        _projSumNet+=_mNet;
+        _projSumSell+=_mSell;
+      });
+      const _projGP=_projSumSell-_projSumNet;
+      const _projMg=_projSumSell>0?(_projGP/_projSumSell*100):0;
+      const _projMgColor=_projMg>=35?'var(--green)':_projMg>=30?'#b07000':'var(--red)';
+      html+=`<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px;padding:8px 14px 12px;
+        background:#f0f4ff;border:1px solid var(--border);border-radius:0 0 var(--radius-sm) var(--radius-sm);
+        margin-bottom:8px;font-size:12px;border-top:2px solid var(--red);">
+        <span style="font-weight:700;color:var(--red)">Project total</span>
+        <span>Net: <strong>$${_projSumNet.toFixed(2)}</strong></span>
+        <span>Sell: <strong style="color:var(--green)">$${_projSumSell.toFixed(2)}</strong></span>
+        <span>Margin: <strong style="color:${_projMgColor}">${_projMg.toFixed(1)}%</strong></span>
+      </div>`;
     }
+  }); // end _projects.forEach
 
-    // 4. Garment totals line
-    const _garMgDisplay = garSellAmt>0 ? Math.round((1-s.gTotal/garSellAmt)*1000)/10 : 0;
-    html += '<div class="cs-totals-row">'
-      +'<span style="font-weight:700;color:var(--text2)">Totals</span>'
-      +'<span>Net: <strong>$'+s.gTotal.toFixed(2)+'</strong></span>'
-      +'<span>Sell: <strong style="color:var(--green)">$'+garSellAmt.toFixed(2)+'</strong></span>'
-      +'<span>Margin: <strong>'+_garMgDisplay.toFixed(1)+'%</strong></span>'
-      +'</div>';
-    html += '</div>'; // cs-item
-  });
-
-
-  // ── Hard goods pricing HTML ───────────────────────────────────────────
+  // ── Hard goods section ────────────────────────────────────────────────
   if(hgSecs.length>0){
-    html += '<div style="margin:24px 0 16px;border-top:3px solid var(--border);padding-top:16px">'
-      +'<div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--red);margin-bottom:12px">Hard goods &amp; promo items</div>'
-      +'</div>';
+    html+=`<div class="cs-section-header" style="margin-top:28px">Hard goods &amp; promo items</div>`;
     hgSecs.forEach(h=>{
       const hItemKey='hg_'+h.hid+'_item', hDCKey='hg_'+h.hid+'_dc',
             hSetupKey='hg_'+h.hid+'_setup', hRushKey='hg_'+h.hid+'_rush';
@@ -1641,286 +1946,178 @@ function calcAll(){
       if(!perItemMargins[hSetupKey]) perItemMargins[hSetupKey]={pct:40};
       if(!perItemMargins[hRushKey]) perItemMargins[hRushKey]={pct:20};
 
-      const hCostPI = h.cost;                    // item cost per piece
-      const hDCPI = h.dc;                        // run charge per piece
-      _lastLoadedNet[hItemKey] = hCostPI;
-      _lastLoadedNet[hDCKey] = hDCPI;
+      const hItemMgPct=perItemMargins[hItemKey].pct;
+      const hDCMgPct=perItemMargins[hDCKey].pct;
+      const hSetupMgPct=perItemMargins[hSetupKey].pct;
+      const hItemSell=hItemMgPct<100&&h.netCost>0?h.netCost/(1-hItemMgPct/100):0;
+      const hDCSell=hDCMgPct<100&&h.netDC>0?h.netDC/(1-hDCMgPct/100):0;
+      const hSetupSell=hSetupMgPct<100&&h.netSetup>0?h.netSetup/(1-hSetupMgPct/100):0;
+      let hChildSell=hItemSell+hDCSell+hSetupSell;
+      let hChildNet=h.lt;
 
-      const hItemMgPct = perItemMargins[hItemKey].pct;
-      const hDCMgPct = perItemMargins[hDCKey].pct;
-      const hSetupMgPct = perItemMargins[hSetupKey].pct;
-      const hItemSell = hItemMgPct<100 && h.netCost>0 ? h.netCost/(1-hItemMgPct/100) : 0;
-      const hDCSell = hDCMgPct<100 && h.netDC>0 ? h.netDC/(1-hDCMgPct/100) : 0;
-      const hSetupSell = hSetupMgPct<100 && h.netSetup>0 ? h.netSetup/(1-hSetupMgPct/100) : 0;
-      let hSellTotal = hItemSell + hDCSell + hSetupSell;
-      totalSellAmt += hSellTotal;
+      _lastLoadedNet[hItemKey]=h.cost;
+      _lastLoadedNet[hDCKey]=h.dc;
 
-      const hTitle = h.desc+(h.sku?' ('+h.sku+')':'')+(h.vendor?' via '+h.vendor:'');
-
-      html += '<div class="cs-item">';
-      html += '<div class="cs-item-title">'+hTitle+'</div>';
-
-      // Cost breakdown
-      html += '<div class="cs-section-label">Hard goods cost</div>';
-      html += '<div class="cs-row"><span class="cs-row-label">Item cost ('+h.qty+' pcs)</span><span class="cs-row-val">$'+h.cost.toFixed(2)+'/item</span></div>';
-      if(h.dc>0) html += '<div class="cs-row"><span class="cs-row-label">Run charge</span><span class="cs-row-val">$'+h.dc.toFixed(2)+'/item</span></div>';
-      if(h.netSetup>0) html += '<div class="cs-row"><span class="cs-row-label">Setup / die charge</span><span class="cs-row-val">$'+h.netSetup.toFixed(2)+' flat</span></div>';
-      if(h.dec && h.dec!=='none' && h.dec!=='Blank')
-        html += '<div class="cs-row"><span class="cs-row-label">Decoration</span><span class="cs-row-val">'+h.dec+'</span></div>';
-
-      // Fully loaded & sell
-      html += '<div class="cs-loaded-header-wrap">';
-      html += '<div class="cs-section-label cs-section-loaded">Pricing &amp; sell</div>';
-      html += '<div class="cs-loaded-header"><span>Line</span><span>Net</span><span>Margin %</span><span>Sell</span></div>';
-
-      // Item cost line (per piece)
-      html += '<div class="cs-loaded-row">'
-        +'<span style="font-weight:600;font-size:12px;">'+h.desc+' ('+h.qty+' pcs)</span>'
-        +'<span style="color:var(--text2);font-size:12px;">$'+hCostPI.toFixed(2)+'/item</span>'
-        +'<input type="number" value="'+hItemMgPct.toFixed(2)+'" min="0" max="999.99" step="0.01"'
-        +' data-mg-pct="'+hItemKey+'" data-loaded-net="'+h.netCost.toFixed(4)+'"'
-        +' style="width:80px;padding:4px 6px;font-size:12px;font-weight:700;border:1px solid var(--border2);border-radius:4px;text-align:center"'
-        +' onchange=\'setItemMarginPct(\"'+hItemKey+'\",this.value)\'>'
-        +'<input type="number" step="0.01" min="0" value="'+(h.qty>0?(hItemSell/h.qty).toFixed(2):'0.00')+'"'
-        +' data-mg-sell="'+hItemKey+'"'
-        +' style="width:85px;padding:4px 6px;font-size:12px;font-weight:700;color:var(--green);border:1px solid var(--border2);border-radius:4px;text-align:right"'
-        +' onchange=\'setItemMarginSell(\"'+hItemKey+'\",this.value*'+h.qty+','+h.netCost.toFixed(4)+')\'>'
-        +'</div>';
-
-      // Run charge line (per piece, if applicable)
-      if(h.dc>0){
-        html += '<div class="cs-loaded-row">'
-          +'<span style="font-weight:600;font-size:12px;">Run charge</span>'
-          +'<span style="color:var(--text2);font-size:12px;">$'+hDCPI.toFixed(2)+'/item</span>'
-          +'<input type="number" value="'+hDCMgPct.toFixed(2)+'" min="0" max="999.99" step="0.01"'
-          +' data-mg-pct="'+hDCKey+'" data-loaded-net="'+h.netDC.toFixed(4)+'"'
-          +' style="width:80px;padding:4px 6px;font-size:12px;font-weight:700;border:1px solid var(--border2);border-radius:4px;text-align:center"'
-          +' onchange=\'setItemMarginPct(\"'+hDCKey+'\",this.value)\'>'
-          +'<input type="number" step="0.01" min="0" value="'+(h.qty>0?(hDCSell/h.qty).toFixed(2):'0.00')+'"'
-          +' data-mg-sell="'+hDCKey+'"'
-          +' style="width:85px;padding:4px 6px;font-size:12px;font-weight:700;color:var(--green);border:1px solid var(--border2);border-radius:4px;text-align:right"'
-          +' onchange=\'setItemMarginSell(\"'+hDCKey+'\",this.value*'+h.dc+','+h.netDC.toFixed(4)+')\'>'
-          +'</div>';
-      }
-      // Setup line (if applicable)
-      if(h.netSetup>0){
-        html += '<div class="cs-loaded-row">'
-          +'<span style="font-weight:600;font-size:12px;">Setup (flat)</span>'
-          +'<span style="color:var(--text2);font-size:12px;">$'+h.netSetup.toFixed(2)+'</span>'
-          +'<input type="number" value="'+hSetupMgPct.toFixed(2)+'" min="0" max="999.99" step="0.01"'
-          +' data-mg-pct="'+hSetupKey+'" data-loaded-net="'+h.netSetup.toFixed(4)+'"'
-          +' style="width:80px;padding:4px 6px;font-size:12px;font-weight:700;border:1px solid var(--border2);border-radius:4px;text-align:center"'
-          +' onchange=\'setItemMarginPct(\"'+hSetupKey+'\",this.value)\'>'
-          +'<input type="number" step="0.01" min="0" value="'+hSetupSell.toFixed(2)+'"'
-          +' data-mg-sell="'+hSetupKey+'"'
-          +' style="width:85px;padding:4px 6px;font-size:12px;font-weight:700;color:var(--green);border:1px solid var(--border2);border-radius:4px;text-align:right"'
-          +' onchange=\'setItemMarginSell(\"'+hSetupKey+'\",this.value,'+h.netSetup.toFixed(4)+')\'>'
-          +'</div>';
-      }
-      // Rush line (if applicable)
-      if(h.rush>0){
-        if(!perItemMargins[hRushKey]) perItemMargins[hRushKey]={pct:20};
-        const hRushMgPct = perItemMargins[hRushKey].pct;
-        const hRushSell = hRushMgPct<100 && h.netRush>0 ? h.netRush/(1-hRushMgPct/100) : 0;
-        hSellTotal += hRushSell;
-        html += '<div class="cs-loaded-row">'
-          +'<span style="font-weight:600;font-size:12px;">Rush / extra fees</span>'
-          +'<span style="color:var(--text2);font-size:12px;">$'+h.netRush.toFixed(2)+'</span>'
-          +'<input type="number" value="'+hRushMgPct.toFixed(2)+'" min="0" max="999.99" step="0.01"'
-          +' data-mg-pct="'+hRushKey+'" data-loaded-net="'+h.netRush.toFixed(4)+'"'
-          +' style="width:80px;padding:4px 6px;font-size:12px;font-weight:700;border:1px solid var(--border2);border-radius:4px;text-align:center"'
-          +' onchange=\'setItemMarginPct(\"'+hRushKey+'\",this.value)\'>'
-          +'<input type="number" step="0.01" min="0" value="'+hRushSell.toFixed(2)+'"'
-          +' data-mg-sell="'+hRushKey+'"'
-          +' style="width:85px;padding:4px 6px;font-size:12px;font-weight:700;color:var(--green);border:1px solid var(--border2);border-radius:4px;text-align:right"'
-          +' onchange=\'setItemMarginSell(\"'+hRushKey+'\",this.value,'+h.netRush.toFixed(4)+')\'>'
-          +'</div>';
-      }
+      const _hMasterKey='hg_'+h.hid+'_master';
+      const hTitle=h.desc+(h.sku?' ('+h.sku+')':'')+(h.vendor?' via '+h.vendor:'');
 
       // HG misc fees
-      const _hgMiscLines = [];
+      const _hgMiscLines=[];
       (()=>{
-        const c=document.getElementById('hgmisc_'+h.hid);
-        if(!c) return;
+        const c=document.getElementById('hgmisc_'+h.hid);if(!c) return;
         c.querySelectorAll('[id^="hgmiscrow_'+h.hid+'_"]').forEach(row=>{
           const mid=row.id.replace('hgmiscrow_'+h.hid+'_','');
           const net=parseFloat(document.getElementById('hgmisc_net_'+h.hid+'_'+mid)?.value)||0;
           const desc=document.getElementById('hgmisc_desc_'+h.hid+'_'+mid)?.value||'Misc fee';
-          if(net) _hgMiscLines.push({desc, net, key:'hg_'+h.hid+'_misc_'+mid});
+          if(net||desc) _hgMiscLines.push({desc,net,key:'hg_'+h.hid+'_misc_'+mid});
         });
       })();
+
+      // Rush
+      let hRushSell=0;
+      if(h.rush>0){
+        const hRushMgPct=perItemMargins[hRushKey].pct;
+        hRushSell=hRushMgPct<100&&h.netRush>0?h.netRush/(1-hRushMgPct/100):0;
+        hChildSell+=hRushSell;
+      }
+
+      // Misc
       _hgMiscLines.forEach(m=>{
         if(!perItemMargins[m.key]) perItemMargins[m.key]={pct:40};
-        const mMgPct = perItemMargins[m.key].pct;
-        const mSell = mMgPct<100 ? m.net/(1-mMgPct/100) : 0;
-        _lastLoadedNet[m.key] = m.net;
-        hSellTotal += mSell;
-        html += '<div class="cs-loaded-row">'
-          +'<span style="font-weight:600;font-size:12px;">'+m.desc+'</span>'
-          +'<span style="color:var(--text2);font-size:12px;">$'+m.net.toFixed(2)+'</span>'
-          +'<input type="number" value="'+mMgPct.toFixed(2)+'" min="0" max="999.99" step="0.01"'
-          +' data-mg-pct="'+m.key+'" data-loaded-net="'+m.net.toFixed(4)+'"'
-          +' style="width:80px;padding:4px 6px;font-size:12px;font-weight:700;border:1px solid var(--border2);border-radius:4px;text-align:center"'
-          +' onchange=\'setItemMarginPct(\"'+m.key+'\",this.value)\'>'
-          +'<input type="number" step="0.01" min="0" value="'+mSell.toFixed(2)+'"'
-          +' data-mg-sell="'+m.key+'"'
-          +' style="width:85px;padding:4px 6px;font-size:12px;font-weight:700;color:var(--green);border:1px solid var(--border2);border-radius:4px;text-align:right"'
-          +' onchange=\'setItemMarginSell(\"'+m.key+'\",this.value,'+m.net.toFixed(4)+')\'>'
-          +'</div>';
+        const mMgPct=perItemMargins[m.key].pct;
+        const mSell=mMgPct<100&&m.net>0?m.net/(1-mMgPct/100):0;
+        _lastLoadedNet[m.key]=m.net;
+        hChildSell+=mSell;
       });
 
-      html += '</div>'; // cs-loaded-header-wrap
+      totalNetCost+=h.lt; totalSellAmt+=hChildSell;
 
-      // Totals — include misc fee nets in the net total
-      // h.lt already includes misc net costs (added during calcAll)
-      const _hgNetTotal = h.lt;
-      const hMgDisplay = hSellTotal>0 ? Math.round((1-_hgNetTotal/hSellTotal)*1000)/10 : 0;
-      html += '<div class="cs-totals-row">'
-        +'<span style="font-weight:700;color:var(--text2)">Totals</span>'
-        +'<span>Net: <strong>$'+_hgNetTotal.toFixed(2)+'</strong></span>'
-        +'<span>Sell: <strong style="color:var(--green)">$'+hSellTotal.toFixed(2)+'</strong></span>'
-        +'<span>Margin: <strong>'+hMgDisplay.toFixed(1)+'%</strong></span>'
-        +'</div>';
-      html += '</div>'; // cs-item
+      // Master sell
+      if(!perItemMargins[_hMasterKey]) perItemMargins[_hMasterKey]={sell:hChildSell};
+      const _hMasterSell=perItemMargins[_hMasterKey].sell??hChildSell;
+      const _hMasterGP=_hMasterSell-hChildNet;
+      const _hMasterMg=_hMasterSell>0?(_hMasterGP/_hMasterSell*100):0;
+      const _hMgColor=_hMasterMg>=35?'var(--green)':_hMasterMg>=30?'#b07000':'var(--red)';
+
+      html+=`<div class="cs-master-card">`;
+      html+=`<div class="cs-master-header">
+        <span class="cs-master-title">${hTitle}</span>
+        <span class="cs-master-net-label">Net: <strong>$${hChildNet.toFixed(2)}</strong></span>
+        <span class="cs-master-margin-label" style="color:${_hMgColor}">${_hMasterMg.toFixed(1)}%</span>
+      </div>`;
+
+      // Cost reference
+      html+=`<div class="cs-ref-section">`;
+      html+=`<div class="cs-section-label">Hard goods cost</div>`;
+      html+=`<div class="cs-row"><span class="cs-row-label">Item cost (${h.qty} pcs)</span><span class="cs-row-val">$${h.cost.toFixed(2)}/item</span></div>`;
+      if(h.dc>0) html+=`<div class="cs-row"><span class="cs-row-label">Run charge</span><span class="cs-row-val">$${h.dc.toFixed(2)}/item</span></div>`;
+      if(h.netSetup>0) html+=`<div class="cs-row"><span class="cs-row-label">Setup / die charge</span><span class="cs-row-val">$${h.netSetup.toFixed(2)} flat</span></div>`;
+      if(h.dec&&h.dec!=='none'&&h.dec!=='Blank') html+=`<div class="cs-row"><span class="cs-row-label">Decoration</span><span class="cs-row-val">${h.dec}</span></div>`;
+      html+=`</div>`;
+
+      // Grid header
+      html+=`<div class="cs-proj-grid-header"><span>Line</span><span>Net</span><span>Margin %</span><span>Sell</span></div>`;
+
+      // Item row
+      html+=`<div class="cs-proj-child-row">
+        <span class="cs-proj-child-label">${h.desc} (${h.qty} pcs)</span>
+        <span class="cs-proj-child-net">$${h.cost.toFixed(2)}/item</span>
+        <input type="number" value="${hItemMgPct.toFixed(2)}" min="0" max="999.99" step="0.01"
+          data-mg-pct="${hItemKey}" data-loaded-net="${h.netCost.toFixed(4)}"
+          class="cs-proj-mg-input" onchange="setItemMarginPct('${hItemKey}',this.value)">
+        <input type="number" step="0.01" min="0" value="${h.qty>0?(hItemSell/h.qty).toFixed(2):'0.00'}"
+          data-mg-sell="${hItemKey}"
+          class="cs-proj-sell-input" onchange="setItemMarginSell('${hItemKey}',this.value*${h.qty},${h.netCost.toFixed(4)})">
+      </div>`;
+
+      // Run charge row
+      if(h.dc>0){
+        html+=`<div class="cs-proj-child-row">
+          <span class="cs-proj-child-label">Run charge</span>
+          <span class="cs-proj-child-net">$${h.dc.toFixed(2)}/item</span>
+          <input type="number" value="${hDCMgPct.toFixed(2)}" min="0" max="999.99" step="0.01"
+            data-mg-pct="${hDCKey}" data-loaded-net="${h.netDC.toFixed(4)}"
+            class="cs-proj-mg-input" onchange="setItemMarginPct('${hDCKey}',this.value)">
+          <input type="number" step="0.01" min="0" value="${h.qty>0?(hDCSell/h.qty).toFixed(2):'0.00'}"
+            data-mg-sell="${hDCKey}"
+            class="cs-proj-sell-input" onchange="setItemMarginSell('${hDCKey}',this.value*${h.dc},${h.netDC.toFixed(4)})">
+        </div>`;
+      }
+
+      // Setup row
+      if(h.netSetup>0){
+        html+=`<div class="cs-proj-child-row">
+          <span class="cs-proj-child-label">Setup (flat)</span>
+          <span class="cs-proj-child-net">$${h.netSetup.toFixed(2)}</span>
+          <input type="number" value="${hSetupMgPct.toFixed(2)}" min="0" max="999.99" step="0.01"
+            data-mg-pct="${hSetupKey}" data-loaded-net="${h.netSetup.toFixed(4)}"
+            class="cs-proj-mg-input" onchange="setItemMarginPct('${hSetupKey}',this.value)">
+          <input type="number" step="0.01" min="0" value="${hSetupSell.toFixed(2)}"
+            data-mg-sell="${hSetupKey}"
+            class="cs-proj-sell-input" onchange="setItemMarginSell('${hSetupKey}',this.value,${h.netSetup.toFixed(4)})">
+        </div>`;
+      }
+
+      // Rush row
+      if(h.rush>0){
+        const hRushMgPct=perItemMargins[hRushKey].pct;
+        html+=`<div class="cs-proj-child-row">
+          <span class="cs-proj-child-label">Rush / extra fees</span>
+          <span class="cs-proj-child-net">$${h.netRush.toFixed(2)}</span>
+          <input type="number" value="${hRushMgPct.toFixed(2)}" min="0" max="999.99" step="0.01"
+            data-mg-pct="${hRushKey}" data-loaded-net="${h.netRush.toFixed(4)}"
+            class="cs-proj-mg-input" onchange="setItemMarginPct('${hRushKey}',this.value)">
+          <input type="number" step="0.01" min="0" value="${hRushSell.toFixed(2)}"
+            data-mg-sell="${hRushKey}"
+            class="cs-proj-sell-input" onchange="setItemMarginSell('${hRushKey}',this.value,${h.netRush.toFixed(4)})">
+        </div>`;
+      }
+
+      // HG misc rows
+      _hgMiscLines.forEach(m=>{
+        const mMgPct=perItemMargins[m.key]?.pct??40;
+        const mSell=mMgPct<100&&m.net>0?m.net/(1-mMgPct/100):0;
+        html+=`<div class="cs-proj-child-row">
+          <span class="cs-proj-child-label">${m.desc}</span>
+          <span class="cs-proj-child-net">$${m.net.toFixed(2)}</span>
+          <input type="number" value="${mMgPct.toFixed(2)}" min="0" max="999.99" step="0.01"
+            data-mg-pct="${m.key}" data-loaded-net="${m.net.toFixed(4)}"
+            class="cs-proj-mg-input" onchange="setItemMarginPct('${m.key}',this.value)">
+          <input type="number" step="0.01" min="0" value="${mSell.toFixed(2)}"
+            data-mg-sell="${m.key}"
+            class="cs-proj-sell-input" onchange="setItemMarginSell('${m.key}',this.value,${m.net.toFixed(4)})">
+        </div>`;
+      });
+
+      // Master sell row
+      html+=`<div class="cs-master-sell-row">
+        <span class="cs-master-sell-label">
+          <strong>Master sell</strong>
+          <span style="font-size:11px;color:var(--text3);margin-left:6px">Independent — overrides child sum</span>
+        </span>
+        <span style="font-size:12px;color:var(--text2)">Net: <strong>$${hChildNet.toFixed(2)}</strong></span>
+        <span></span>
+        <input type="number" step="0.01" min="0" value="${_hMasterSell.toFixed(2)}"
+          id="master_sell_hg_${h.hid}"
+          class="cs-master-sell-input"
+          style="color:var(--green)"
+          onchange="perItemMargins['${_hMasterKey}']={sell:parseFloat(this.value)||0};calcAll()">
+      </div>`;
+
+      html+=`<div class="cs-master-totals">
+        <span>Net: <strong>$${hChildNet.toFixed(2)}</strong></span>
+        <span>Sell: <strong style="color:var(--green)">$${_hMasterSell.toFixed(2)}</strong></span>
+        <span>GP: <strong style="color:var(--green)">$${_hMasterGP.toFixed(2)}</strong></span>
+        <span>Margin: <strong style="color:${_hMgColor}">${_hMasterMg.toFixed(1)}%</strong></span>
+      </div>`;
+      html+=`</div>`; // cs-master-card
     });
   }
 
-  // ── Order totals ──────────────────────────────────────────────────────
-  // ── Order-level fees section ──
-  const _hasOrderFees = art>0 || rush>0 || bag>0 || lab>0 || oop>0 ||
-    v('pre_prod',0)>0 || v('sim_process',0)>0 || v('inbound_ship',0)>0;
-  if(_hasOrderFees){
-    html += '<div style="margin:24px 0 16px;border-top:3px solid var(--border);padding-top:16px">'
-      +'<div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--red);margin-bottom:12px">Order add-ons</div>'
-      +'</div>';
-  }
-  if(art>0){
-    if(!perItemMargins['fee_art']) perItemMargins['fee_art']={pct:40};
-    const artMg=perItemMargins['fee_art'].pct;
-    const artSellAmt=artMg<100?art/(1-artMg/100):0;
-    _lastLoadedNet['fee_art']=art;
-    totalNetCost+=art; totalSellAmt+=artSellAmt;
-    html+='<div class="cs-item">';
-    html+='<div class="cs-item-title">Graphic art ('+v('art_hours',0)+' hrs × $40)</div>';
-    html+='<div class="cs-loaded-header-wrap">';
-    html+='<div class="cs-section-label cs-section-loaded">Pricing &amp; sell</div>';
-    html+='<div class="cs-loaded-header"><span>Line</span><span>Net</span><span>Margin %</span><span>Sell</span></div>';
-    html+='<div class="cs-loaded-row">'
-      +'<span style="font-weight:600;font-size:12px;">Art hours</span>'
-      +'<span style="color:var(--text2);font-size:12px;">$'+art.toFixed(2)+'</span>'
-      +'<input type="number" value="'+artMg.toFixed(2)+'" min="0" max="999.99" step="0.01"'
-      +' data-mg-pct="fee_art" data-loaded-net="'+art.toFixed(4)+'"'
-      +' style="width:80px;padding:4px 6px;font-size:12px;font-weight:700;border:1px solid var(--border2);border-radius:4px;text-align:center"'
-      +' onchange=\'setItemMarginPct(\"fee_art\",this.value)\'>'
-      +'<input type="number" step="0.01" min="0" value="'+artSellAmt.toFixed(2)+'"'
-      +' data-mg-sell="fee_art"'
-      +' style="width:85px;padding:4px 6px;font-size:12px;font-weight:700;color:var(--green);border:1px solid var(--border2);border-radius:4px;text-align:right"'
-      +' onchange=\'setItemMarginSell(\"fee_art\",this.value,'+art.toFixed(4)+')\'>'
-      +'</div>';
-    html+='</div>';
-    html+='<div class="cs-totals-row">'
-      +'<span style="font-weight:700;color:var(--text2)">Totals</span>'
-      +'<span>Net: <strong>$'+art.toFixed(2)+'</strong></span>'
-      +'<span>Sell: <strong style="color:var(--green)">$'+artSellAmt.toFixed(2)+'</strong></span>'
-      +'<span>Margin: <strong>'+(artSellAmt>0?Math.round((1-art/artSellAmt)*1000)/10:0).toFixed(1)+'%</strong></span>'
-      +'</div>';
-    html+='</div>';
-  }
-  if(rush>0){
-    if(!perItemMargins['fee_rush']) perItemMargins['fee_rush']={pct:40};
-    const rushMg=perItemMargins['fee_rush'].pct;
-    const rushSellAmt=rushMg<100?rushAmt/(1-rushMg/100):0;
-    _lastLoadedNet['fee_rush']=rushAmt;
-    totalNetCost+=rushAmt; totalSellAmt+=rushSellAmt;
-    html+='<div class="cs-item"><div class="cs-item-title">Rush charge ('+Math.round(rush*100)+'%)</div>'
-      +'<div class="cs-loaded-header-wrap"><div class="cs-section-label cs-section-loaded">Pricing &amp; sell</div>'
-      +'<div class="cs-loaded-header"><span>Line</span><span>Net</span><span>Margin %</span><span>Sell</span></div>'
-      +'<div class="cs-loaded-row">'
-      +'<span style="font-weight:600;font-size:12px;">Rush charge</span>'
-      +'<span style="color:var(--text2);font-size:12px;">$'+rushAmt.toFixed(2)+'</span>'
-      +'<input type="number" value="'+rushMg.toFixed(2)+'" min="0" max="999.99" step="0.01"'
-      +' data-mg-pct="fee_rush" data-loaded-net="'+rushAmt.toFixed(4)+'"'
-      +' style="width:80px;padding:4px 6px;font-size:12px;font-weight:700;border:1px solid var(--border2);border-radius:4px;text-align:center"'
-      +' onchange=\'setItemMarginPct(\"fee_rush\",this.value)\'>'
-      +'<input type="number" step="0.01" min="0" value="'+rushSellAmt.toFixed(2)+'"'
-      +' data-mg-sell="fee_rush"'
-      +' style="width:85px;padding:4px 6px;font-size:12px;font-weight:700;color:var(--green);border:1px solid var(--border2);border-radius:4px;text-align:right"'
-      +' onchange=\'setItemMarginSell(\"fee_rush\",this.value,'+rushAmt.toFixed(4)+')\'>'
-      +'</div></div>'
-      +'<div class="cs-totals-row"><span style="font-weight:700;color:var(--text2)">Totals</span>'
-      +'<span>Net: <strong>$'+rushAmt.toFixed(2)+'</strong></span>'
-      +'<span>Sell: <strong style="color:var(--green)">$'+rushSellAmt.toFixed(2)+'</strong></span>'
-      +'<span>Margin: <strong>'+(rushSellAmt>0?Math.round((1-rushAmt/rushSellAmt)*1000)/10:0).toFixed(1)+'%</strong></span>'
-      +'</div></div>';
-  }
-
-  // ── Per-item add-ons (bag, label, OOP) ──
-  if(bag>0||lab>0||oop>0){
-    const addAmt=(bag+lab+oop)*totalQty;
-    if(!perItemMargins['fee_addons']) perItemMargins['fee_addons']={pct:40};
-    const addMg=perItemMargins['fee_addons'].pct;
-    const addSell=addMg<100?addAmt/(1-addMg/100):0;
-    _lastLoadedNet['fee_addons']=addAmt;
-    totalNetCost+=addAmt; totalSellAmt+=addSell;
-    const addDesc=[bag>0?'Bagging':'',lab>0?'Labeling':'',oop>0?'OOP':''].filter(Boolean).join(', ');
-    html+='<div class="cs-item"><div class="cs-item-title">Add-ons ('+addDesc+') — '+totalQty+' pcs</div>'
-      +'<div class="cs-loaded-header-wrap"><div class="cs-section-label cs-section-loaded">Pricing &amp; sell</div>'
-      +'<div class="cs-loaded-header"><span>Line</span><span>Net</span><span>Margin %</span><span>Sell</span></div>'
-      +'<div class="cs-loaded-row">'
-      +'<span style="font-weight:600;font-size:12px;">Add-ons</span>'
-      +'<span style="color:var(--text2);font-size:12px;">$'+addAmt.toFixed(2)+'</span>'
-      +'<input type="number" value="'+addMg.toFixed(2)+'" min="0" max="999.99" step="0.01"'
-      +' data-mg-pct="fee_addons" data-loaded-net="'+addAmt.toFixed(4)+'"'
-      +' style="width:80px;padding:4px 6px;font-size:12px;font-weight:700;border:1px solid var(--border2);border-radius:4px;text-align:center"'
-      +' onchange=\'setItemMarginPct(\"fee_addons\",this.value)\'>'
-      +'<input type="number" step="0.01" min="0" value="'+addSell.toFixed(2)+'"'
-      +' data-mg-sell="fee_addons"'
-      +' style="width:85px;padding:4px 6px;font-size:12px;font-weight:700;color:var(--green);border:1px solid var(--border2);border-radius:4px;text-align:right"'
-      +' onchange=\'setItemMarginSell(\"fee_addons\",this.value,'+addAmt.toFixed(4)+')\'>'
-      +'</div></div>'
-      +'<div class="cs-totals-row"><span style="font-weight:700;color:var(--text2)">Totals</span>'
-      +'<span>Net: <strong>$'+addAmt.toFixed(2)+'</strong></span>'
-      +'<span>Sell: <strong style="color:var(--green)">$'+addSell.toFixed(2)+'</strong></span>'
-      +'<span>Margin: <strong>'+(addSell>0?Math.round((1-addAmt/addSell)*1000)/10:0).toFixed(1)+'%</strong></span>'
-      +'</div></div>';
-  }
-
-  // ── Flat fees (pre-prod, sim process, inbound ship) ──
-  const preProd=v('pre_prod',0),simProc=v('sim_process',0),inboundShip=v('inbound_ship',0);
-  const flatFees=preProd+simProc+inboundShip;
-  if(flatFees>0){
-    if(!perItemMargins['fee_flat']) perItemMargins['fee_flat']={pct:40};
-    const flatMg=perItemMargins['fee_flat'].pct;
-    const flatSell=flatMg<100?flatFees/(1-flatMg/100):0;
-    _lastLoadedNet['fee_flat']=flatFees;
-    totalNetCost+=flatFees; totalSellAmt+=flatSell;
-    const flatDesc=[preProd>0?'Pre-prod $'+preProd:'',simProc>0?'Sim $'+simProc:'',inboundShip>0?'Ship $'+inboundShip:''].filter(Boolean).join(', ');
-    html+='<div class="cs-item"><div class="cs-item-title">Flat fees ('+flatDesc+')</div>'
-      +'<div class="cs-loaded-header-wrap"><div class="cs-section-label cs-section-loaded">Pricing &amp; sell</div>'
-      +'<div class="cs-loaded-header"><span>Line</span><span>Net</span><span>Margin %</span><span>Sell</span></div>'
-      +'<div class="cs-loaded-row">'
-      +'<span style="font-weight:600;font-size:12px;">Flat fees</span>'
-      +'<span style="color:var(--text2);font-size:12px;">$'+flatFees.toFixed(2)+'</span>'
-      +'<input type="number" value="'+flatMg.toFixed(2)+'" min="0" max="999.99" step="0.01"'
-      +' data-mg-pct="fee_flat" data-loaded-net="'+flatFees.toFixed(4)+'"'
-      +' style="width:80px;padding:4px 6px;font-size:12px;font-weight:700;border:1px solid var(--border2);border-radius:4px;text-align:center"'
-      +' onchange=\'setItemMarginPct(\"fee_flat\",this.value)\'>'
-      +'<input type="number" step="0.01" min="0" value="'+flatSell.toFixed(2)+'"'
-      +' data-mg-sell="fee_flat"'
-      +' style="width:85px;padding:4px 6px;font-size:12px;font-weight:700;color:var(--green);border:1px solid var(--border2);border-radius:4px;text-align:right"'
-      +' onchange=\'setItemMarginSell(\"fee_flat\",this.value,'+flatFees.toFixed(4)+')\'>'
-      +'</div></div>'
-      +'<div class="cs-totals-row"><span style="font-weight:700;color:var(--text2)">Totals</span>'
-      +'<span>Net: <strong>$'+flatFees.toFixed(2)+'</strong></span>'
-      +'<span>Sell: <strong style="color:var(--green)">$'+flatSell.toFixed(2)+'</strong></span>'
-      +'<span>Margin: <strong>'+(flatSell>0?Math.round((1-flatFees/flatSell)*1000)/10:0).toFixed(1)+'%</strong></span>'
-      +'</div></div>';
-  }
-
-  const _rawOrder = tSell>0 ? ((1-grand/tSell)*100) : 0;
-  const orderMgPct = isFinite(_rawOrder) ? _rawOrder : 0;
-
-  html+=`<div style="border-top:2px solid var(--border);margin:10px 0"></div>`;
+  // ── Grand totals ──────────────────────────────────────────────────────
+  const _rawOrder=tSell>0?((1-grand/tSell)*100):0;
+  const orderMgPct=isFinite(_rawOrder)?_rawOrder:0;
+  html+=`<div style="border-top:2px solid var(--border);margin:16px 0 8px"></div>`;
   html+=`<div class="cl grand"><span>Total production cost</span><span>${fmt(grand)}</span></div>`;
   html+=`<div class="cl sell" style="font-size:15px;font-weight:700"><span>Total sell price</span><span style="color:var(--green);font-size:17px">${fmt(tSell)}</span></div>`;
   html+=`<div class="cl sell" style="font-weight:700"><span>Gross profit</span><span style="color:var(--green)">${fmt(tSell-grand)}</span></div>`;
@@ -2673,6 +2870,18 @@ async function deserializeQuote(data){
       }
     }
     updateGLbl(gid);
+    // Restore garment misc fees
+    if(g.miscFees&&g.miscFees.length){
+      const hdr=document.getElementById('misc_'+gid+'_hdr');
+      if(hdr) hdr.style.display='grid';
+      for(const mf of g.miscFees){
+        addMiscFee(gid);
+        const mid=miscCtrs[gid];
+        setV('misc_desc_g'+gid+'_'+mid, mf.desc||'');
+        setV('misc_net_g'+gid+'_'+mid, mf.net||0);
+        setV('misc_sell_g'+gid+'_'+mid, mf.sell||0);
+      }
+    }
   }
   for(const h of(data.hardGoods||[])){
     addHG();const hid=hCount;await new Promise(r=>setTimeout(r,20));
@@ -2686,6 +2895,19 @@ async function deserializeQuote(data){
     if(h.hg_dc_margin)perItemMargins['hg_'+hid+'_dc']={pct:h.hg_dc_margin};
     if(h.hg_setup_margin)perItemMargins['hg_'+hid+'_setup']={pct:h.hg_setup_margin};
     if(h.hg_rush_margin)perItemMargins['hg_'+hid+'_rush']={pct:h.hg_rush_margin};
+    // Restore HG misc fees
+    if(h.hg_misc_fees&&h.hg_misc_fees.length){
+      const hdrHG=document.getElementById('hgmisc_'+hid+'_hdr');
+      if(hdrHG) hdrHG.style.display='grid';
+      for(const mf of h.hg_misc_fees){
+        addHGMiscFee(hid);
+        const mid=hgMiscCtrs[hid];
+        setV('hgmisc_desc_'+hid+'_'+mid, mf.desc||'');
+        setV('hgmisc_net_'+hid+'_'+mid, mf.net||0);
+        setV('hgmisc_sell_'+hid+'_'+mid, mf.sell||0);
+        if(mf.key&&mf.margin!=null) perItemMargins[mf.key]={pct:mf.margin};
+      }
+    }
   }
   const p4=data.page4||{};
   setV('rush_pct',p4.rushPct||0);setV('art_hours',p4.artHours||0);
