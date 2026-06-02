@@ -535,7 +535,13 @@ function addGarment(){
       </div>
 
       <div style="margin-top:14px;border-top:1px solid var(--border);padding-top:10px">
-        <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--text3);margin-bottom:8px">Misc fees</div>
+        <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--text3);margin-bottom:6px">Misc fees</div>
+        <div id="misc_${id}_hdr" style="display:none;grid-template-columns:1fr 90px 90px 24px;gap:6px;margin-bottom:3px">
+          <div style="font-size:10px;font-weight:700;color:var(--text3);padding:0 8px">Description</div>
+          <div style="font-size:10px;font-weight:700;color:var(--text3);text-align:right">Net cost ($)</div>
+          <div style="font-size:10px;font-weight:700;color:var(--green);text-align:right">Sell price ($)</div>
+          <div></div>
+        </div>
         <div id="misc_${id}" style="margin-bottom:6px"></div>
         <button class="btn-add" style="font-size:11px;padding:5px 8px" onclick="addMiscFee(${id})">&#43; Add misc fee</button>
       </div>
@@ -919,7 +925,26 @@ function addImp(gid){
   $c('imp_'+iid).dataset.type='screen';
 }
 
-function removeImp(iid){$c('imp_'+iid)?.remove();}
+function removeImp(iid){
+  $c('imp_'+iid)?.remove();
+  // Renumber surviving imprints sequentially (1, 2, 3…)
+  const gid = iid.split('_')[0];
+  const container = $c('imps_'+gid);
+  if(!container) return;
+  container.querySelectorAll('.imp-card').forEach((card, idx) => {
+    const label = card.querySelector('.imp-head-left');
+    if(!label) return;
+    // Replace the text node that holds "Imprint N" — it's the first text content
+    // The structure is: <div class="imp-dot"></div>Imprint N<span class="type-tag">...
+    // Walk child nodes to find and update the text node
+    for(const node of label.childNodes) {
+      if(node.nodeType === Node.TEXT_NODE && node.textContent.includes('Imprint')) {
+        node.textContent = 'Imprint ' + (idx + 1);
+        break;
+      }
+    }
+  });
+}
 function impHasData(iid, currentType){
   // Check if the current imprint type has any data filled in
   const checks = {
@@ -1106,7 +1131,13 @@ function addHG(){
     </div>
 
     <div style="margin-top:10px;border-top:1px solid var(--border);padding-top:10px">
-      <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--text3);margin-bottom:8px">Misc fees</div>
+      <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--text3);margin-bottom:6px">Misc fees</div>
+      <div id="hgmisc_${id}_hdr" style="display:none;grid-template-columns:1fr 90px 90px 24px;gap:6px;margin-bottom:3px">
+        <div style="font-size:10px;font-weight:700;color:var(--text3);padding:0 8px">Description</div>
+        <div style="font-size:10px;font-weight:700;color:var(--text3);text-align:right">Net cost ($)</div>
+        <div style="font-size:10px;font-weight:700;color:var(--green);text-align:right">Sell price ($)</div>
+        <div></div>
+      </div>
       <div id="hgmisc_${id}" style="margin-bottom:6px"></div>
       <button class="btn-add" style="font-size:11px;padding:5px 8px" onclick="addHGMiscFee(${id})">&#43; Add misc fee</button>
     </div>`;
@@ -3001,18 +3032,24 @@ let miscCtrs={};
 function addMiscFee(gid){
   if(!miscCtrs[gid])miscCtrs[gid]=0;miscCtrs[gid]++;const mid=miscCtrs[gid];
   const c=document.getElementById('misc_'+gid);if(!c)return;
+  // Show column header row on first fee
+  const hdr=document.getElementById('misc_'+gid+'_hdr');
+  if(hdr) hdr.style.display='grid';
   const d=document.createElement('div');d.id='miscrow_g'+gid+'_'+mid;
   d.style.cssText='display:grid;grid-template-columns:1fr 90px 90px 24px;gap:6px;align-items:center;margin-bottom:5px';
-  d.innerHTML=`<input type="text" id="misc_desc_g${gid}_${mid}" style="padding:5px 8px;font-size:13px;border:1px solid var(--border2);border-radius:var(--radius-sm)" placeholder="Description"><input type="number" id="misc_net_g${gid}_${mid}" step="0.01" min="0" value="0" oninput="calcAll()" style="padding:5px 6px;font-size:13px;font-weight:700;border:1px solid var(--border2);border-radius:var(--radius-sm);text-align:right" title="Net cost"><input type="number" id="misc_sell_g${gid}_${mid}" step="0.01" min="0" oninput="calcAll()" style="padding:5px 6px;font-size:13px;font-weight:700;color:var(--green);border:1px solid var(--border2);border-radius:var(--radius-sm);text-align:right" title="Sell price"><button onclick="this.parentElement.remove();calcAll()" style="border:none;background:none;cursor:pointer;color:#aaa;font-size:14px;padding:0">&#10005;</button>`;
+  d.innerHTML=`<input type="text" id="misc_desc_g${gid}_${mid}" style="padding:5px 8px;font-size:13px;border:1px solid var(--border2);border-radius:var(--radius-sm)" placeholder="Description"><input type="number" id="misc_net_g${gid}_${mid}" step="0.01" min="0" value="0" oninput="calcAll()" style="padding:5px 6px;font-size:13px;font-weight:700;border:1px solid var(--border2);border-radius:var(--radius-sm);text-align:right" placeholder="0.00" title="Net cost"><input type="number" id="misc_sell_g${gid}_${mid}" step="0.01" min="0" oninput="calcAll()" style="padding:5px 6px;font-size:13px;font-weight:700;color:var(--green);border:1px solid var(--border2);border-radius:var(--radius-sm);text-align:right" placeholder="0.00" title="Sell price"><button onclick="this.parentElement.remove();const _h=document.getElementById('misc_${gid}_hdr');if(_h&&!document.getElementById('misc_${gid}').children.length)_h.style.display='none';calcAll()" style="border:none;background:none;cursor:pointer;color:#aaa;font-size:14px;padding:0">&#10005;</button>`;
   c.appendChild(d);
 }
 let hgMiscCtrs={};
 function addHGMiscFee(hid){
   if(!hgMiscCtrs[hid])hgMiscCtrs[hid]=0;hgMiscCtrs[hid]++;const mid=hgMiscCtrs[hid];
   const c=document.getElementById('hgmisc_'+hid);if(!c)return;
+  // Show column header row on first fee
+  const hdr=document.getElementById('hgmisc_'+hid+'_hdr');
+  if(hdr) hdr.style.display='grid';
   const d=document.createElement('div');d.id='hgmiscrow_'+hid+'_'+mid;
   d.style.cssText='display:grid;grid-template-columns:1fr 90px 90px 24px;gap:6px;align-items:center;margin-bottom:5px';
-  d.innerHTML=`<input type="text" id="hgmisc_desc_${hid}_${mid}" style="padding:5px 8px;font-size:13px;border:1px solid var(--border2);border-radius:var(--radius-sm)" placeholder="Description"><input type="number" id="hgmisc_net_${hid}_${mid}" step="0.01" min="0" value="0" oninput="calcAll()" style="padding:5px 6px;font-size:13px;border:1px solid var(--border2);border-radius:var(--radius-sm);text-align:right"><input type="number" id="hgmisc_sell_${hid}_${mid}" step="0.01" min="0" oninput="calcAll()" style="padding:5px 6px;font-size:13px;color:var(--green);border:1px solid var(--border2);border-radius:var(--radius-sm);text-align:right"><button onclick="this.parentElement.remove();calcAll()" style="border:none;background:none;cursor:pointer;color:#aaa;font-size:14px;padding:0">&#10005;</button>`;
+  d.innerHTML=`<input type="text" id="hgmisc_desc_${hid}_${mid}" style="padding:5px 8px;font-size:13px;border:1px solid var(--border2);border-radius:var(--radius-sm)" placeholder="Description"><input type="number" id="hgmisc_net_${hid}_${mid}" step="0.01" min="0" value="0" oninput="calcAll()" style="padding:5px 6px;font-size:13px;border:1px solid var(--border2);border-radius:var(--radius-sm);text-align:right" placeholder="0.00" title="Net cost"><input type="number" id="hgmisc_sell_${hid}_${mid}" step="0.01" min="0" oninput="calcAll()" style="padding:5px 6px;font-size:13px;color:var(--green);border:1px solid var(--border2);border-radius:var(--radius-sm);text-align:right" placeholder="0.00" title="Sell price"><button onclick="this.parentElement.remove();const _h=document.getElementById('hgmisc_${hid}_hdr');if(_h&&!document.getElementById('hgmisc_${hid}').children.length)_h.style.display='none';calcAll()" style="border:none;background:none;cursor:pointer;color:#aaa;font-size:14px;padding:0">&#10005;</button>`;
   c.appendChild(d);
 }
 function getGMiscFees(gid,margin){
@@ -3189,16 +3226,16 @@ function toggleImpShare(iid, gid) {
   const wrap = document.getElementById('imp_share_wrap_'+iid);
   if(!wrap) return;
   wrap.style.display = chk.checked ? '' : 'none';
+  const setupWrap = document.getElementById('sp_setup_wrap_'+iid);
   if(chk.checked) {
     populateShareDropdown(iid, gid);
     const sel = document.getElementById('imp_share_with_'+iid);
     if(sel && sel.value) { onShareWithChange(iid, gid); updatePartialShareWarning(sel.value); }
-    // Hide screen setup type — setup charged to owning garment
-    const setupWrap = document.getElementById('sp_setup_wrap_'+iid);
-    if(setupWrap) setupWrap.style.display = 'none';
+    // Keep setup type visible and editable — new vs reorder is independent of sharing.
+    // Sharing determines who pays setup and how it divides across pcs.
+    // New vs reorder determines the per-screen cost. Both can apply to shared screens.
+    if(setupWrap) setupWrap.style.display = '';
   } else {
-    // Restore setup type field
-    const setupWrap = document.getElementById('sp_setup_wrap_'+iid);
     if(setupWrap) setupWrap.style.display = '';
     // Restore screen options on target garment
     const sel = document.getElementById('imp_share_with_'+iid);
@@ -3207,6 +3244,7 @@ function toggleImpShare(iid, gid) {
       updatePartialShareWarning(sel.value);
     }
   }
+  calcAllDebounced();
 }
 
 function populateShareDropdown(iid, gid) {
@@ -3245,11 +3283,31 @@ function setGarmentScreensShared(targetGid, isShared) {
       const noScEl = noScCb?.closest('label');
       if(noScEl) noScEl.insertAdjacentElement('afterend', note);
     }
+    // Hide setup type on all of this garment's screen imprint cards —
+    // when all pcs are covered by shared screens, this garment pays $0 setup.
+    const impContainer = document.getElementById('imps_'+targetGid);
+    if(impContainer) {
+      impContainer.querySelectorAll('.imp-card').forEach(card => {
+        if(card.dataset.type !== 'screen') return;
+        const sw = card.querySelector('[id^="sp_setup_wrap_"]');
+        if(sw) sw.style.display = 'none';
+      });
+    }
   } else {
     // Restore
     if(wbWrap) { wbWrap.style.opacity=''; wbWrap.style.pointerEvents=''; }
     if(noScCb) { noScCb.disabled=false; noScCb.closest('label').style.opacity=''; noScCb.closest('label').style.pointerEvents=''; }
     if(sharedNote) sharedNote.remove();
+    // Restore setup type fields on this garment's screen imprint cards —
+    // partial or no sharing means this garment needs its own setup for its pcs.
+    const impContainer = document.getElementById('imps_'+targetGid);
+    if(impContainer) {
+      impContainer.querySelectorAll('.imp-card').forEach(card => {
+        if(card.dataset.type !== 'screen') return;
+        const sw = card.querySelector('[id^="sp_setup_wrap_"]');
+        if(sw) sw.style.display = '';
+      });
+    }
   }
 }
 
