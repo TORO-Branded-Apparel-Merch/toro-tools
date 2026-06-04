@@ -210,7 +210,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
         </div>
         <div class="row3">
           <div class="field"><label>Imprint colors <span class="req">*</span></label><input type="text" id="d-colors" placeholder="e.g. Red, White, PMS 286 C"></div>
-          <div class="field"><label>Color count</label><input type="text" id="d-count" placeholder="e.g. 2 colors, 7,500 stitches"></div>
+          <div class="field"><label>Design details</label><input type="text" id="d-count" placeholder="e.g. 2 colors, 7,500 stitches"></div>
           <div class="field"><label>Special deco instructions</label><input type="text" id="d-notes" placeholder="Any special notes"></div>
         </div>
       </div>
@@ -771,7 +771,7 @@ function buildPOHTML(poNum, d) {
       <div><span style="font-size:10px;font-weight:700;text-transform:uppercase;color:#888;display:block;margin-bottom:3px;">Location(s)</span><input class="po-field-edit" style="font-size:13px;font-weight:700;" value="${d.decoLoc}"></div>
       <div><span style="font-size:10px;font-weight:700;text-transform:uppercase;color:#888;display:block;margin-bottom:3px;">Art / design name</span><input class="po-field-edit" style="font-size:13px;font-weight:700;" value="${d.decoArt}"></div>
       <div style="grid-column:span 3;"><span style="font-size:10px;font-weight:700;text-transform:uppercase;color:#888;display:block;margin-bottom:3px;">Imprint colors <span style="color:var(--red)">★</span></span><input class="po-field-edit" style="font-size:14px;font-weight:800;color:var(--red);" value="${d.decoColors}"></div>
-      ${d.decoCount?`<div><span style="font-size:10px;font-weight:700;text-transform:uppercase;color:#888;display:block;margin-bottom:3px;">Color count</span><input class="po-field-edit" style="font-size:13px;font-weight:700;" value="${d.decoCount}"></div>`:''}
+      ${d.decoCount?`<div><span style="font-size:10px;font-weight:700;text-transform:uppercase;color:#888;display:block;margin-bottom:3px;">Design details</span><input class="po-field-edit" style="font-size:13px;font-weight:700;" value="${d.decoCount}"></div>`:''}
       ${d.specialtyInk?`<div><span style="font-size:10px;font-weight:700;text-transform:uppercase;color:#888;display:block;margin-bottom:3px;">Specialty ink</span><input class="po-field-edit" style="font-size:13px;font-weight:700;" value="${d.specialtyInk}"></div>`:''}
       ${d.pmsColors?`<div><span style="font-size:10px;font-weight:700;text-transform:uppercase;color:#888;display:block;margin-bottom:3px;">PMS colors</span><input class="po-field-edit" style="font-size:13px;font-weight:700;" value="${d.pmsColors}"></div>`:''}
       ${d.decoNotes?`<div><span style="font-size:10px;font-weight:700;text-transform:uppercase;color:#888;display:block;margin-bottom:3px;">Special instructions</span><input class="po-field-edit" style="font-size:13px;" value="${d.decoNotes}"></div>`:''}
