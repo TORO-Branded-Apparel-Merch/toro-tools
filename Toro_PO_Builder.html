@@ -178,10 +178,13 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
       </div>
       <div id="ship-to-alt" style="display:none;">
         <div class="row2">
-          <div class="field"><label>Ship to — Name / Company <span class="req">*</span></label><input type="text" id="ship-name" placeholder="Recipient name or company"></div>
-          <div class="field"><label>Address line 1 <span class="req">*</span></label><input type="text" id="ship-addr1" placeholder="Street address"></div>
+          <div class="field"><label>Recipient name <span class="req">*</span></label><input type="text" id="ship-name" placeholder="First Last"></div>
+          <div class="field"><label>Company name</label><input type="text" id="ship-company" placeholder="Company (optional)"></div>
         </div>
-        <div class="field"><label>Address line 2</label><input type="text" id="ship-addr2" placeholder="Suite, floor, etc. (optional)"></div>
+        <div class="row2">
+          <div class="field"><label>Address line 1 <span class="req">*</span></label><input type="text" id="ship-addr1" placeholder="Street address"></div>
+          <div class="field"><label>Address line 2</label><input type="text" id="ship-addr2" placeholder="Suite, floor, etc. (optional)"></div>
+        </div>
         <div class="row3">
           <div class="field"><label>City <span class="req">*</span></label><input type="text" id="ship-city" placeholder="City"></div>
           <div class="field"><label>State <span class="req">*</span></label><input type="text" id="ship-state" placeholder="TX" style="text-transform:uppercase;"></div>
@@ -217,9 +220,9 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
         <div style="border-top:1px solid var(--border);margin:16px 0;"></div>
         <div style="font-size:13px;font-weight:700;color:var(--text2);margin-bottom:10px;">Proof requirement <span class="req">*</span></div>
         <div class="proof-options">
-          <label class="proof-option"><input type="radio" name="proof" value="Digital proof"> Digital proof</label>
-          <label class="proof-option"><input type="radio" name="proof" value="Pre-production sample"> Pre-production sample</label>
-          <label class="proof-option"><input type="radio" name="proof" value="No proof required — proceed to production"> No proof required — proceed to production</label>
+          <label class="proof-option"><input type="radio" name="proof" value="Digital proof" onchange="autoProofNotes(this)"> Digital proof</label>
+          <label class="proof-option"><input type="radio" name="proof" value="Pre-production sample" onchange="autoProofNotes(this)"> Pre-production sample</label>
+          <label class="proof-option"><input type="radio" name="proof" value="No proof required — proceed to production" onchange="autoProofNotes(this)"> No proof required — proceed to production</label>
         </div>
         <div class="field" style="margin-top:12px;">
           <label>Proof instructions (optional)</label>
@@ -563,7 +566,7 @@ function autoFill() {
 }
 
 function clearAutoFills() {
-  ['v-name','v-email','v-phone','v-acct','d-method','d-loc','d-art','d-colors','d-count','d-notes','rep-name','rep-email','order-notes','proof-notes'].forEach(id=>{
+  ['v-name','v-email','v-phone','v-acct','d-method','d-loc','d-art','d-colors','d-count','d-notes','rep-name','rep-email','order-notes','proof-notes','ship-name','ship-company','ship-addr1','ship-addr2','ship-city','ship-state','ship-zip'].forEach(id=>{
     const el=document.getElementById(id); if(el&&el.tagName!=='SELECT') el.value=''; else if(el) el.value='';
   });
   document.querySelectorAll('input[name="proof"]').forEach(r=>r.checked=false);
@@ -656,6 +659,7 @@ function captureFormData() {
     repEmail: document.getElementById('rep-email').value,
     shipToType: document.querySelector('input[name="ship-to-type"]:checked')?.value||'toro',
     shipName: document.getElementById('ship-name')?.value||'',
+    shipCompany: document.getElementById('ship-company')?.value||'',
     shipAddr1: document.getElementById('ship-addr1')?.value||'',
     shipAddr2: document.getElementById('ship-addr2')?.value||'',
     shipCity: document.getElementById('ship-city')?.value||'',
@@ -807,7 +811,8 @@ function buildPOHTML(poNum, d) {
         <div style="padding:6px 8px;background:#f8f8fa;border-radius:4px;">
           <div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:#888;margin-bottom:3px;">Ship to</div>
           ${d.shipToType==='alternate' && d.shipAddr1 ? `
-            <div style="font-size:12px;font-weight:700;word-wrap:break-word;white-space:normal;overflow-wrap:anywhere;">${d.shipName||''}</div>
+            ${d.shipName?`<div style="font-size:12px;font-weight:700;word-wrap:break-word;white-space:normal;overflow-wrap:anywhere;">${d.shipName}</div>`:''}
+            ${d.shipCompany?`<div style="font-size:11px;font-weight:600;color:#444;word-wrap:break-word;white-space:normal;overflow-wrap:anywhere;">${d.shipCompany}</div>`:''}
             <input class="po-field-edit" style="font-size:11px;word-wrap:break-word;white-space:normal;" value="${d.shipAddr1||''}">
             ${d.shipAddr2?`<input class="po-field-edit" style="font-size:11px;" value="${d.shipAddr2}">` : ''}
             <input class="po-field-edit" style="font-size:11px;" value="${(d.shipCity||'')+', '+(d.shipState||'')+' '+(d.shipZip||'')}">
@@ -1013,6 +1018,22 @@ function clearQuote() {
   // Clear file input so same file can be re-selected
   const fi = document.getElementById('file-input');
   if(fi) fi.value = '';
+}
+
+function autoProofNotes(radio) {
+  const notes = document.getElementById('proof-notes');
+  if(!notes) return;
+  const repEmail = document.getElementById('rep-email')?.value || 'lexi@toromerch.com';
+  if(radio.value === 'Digital proof') {
+    if(!notes.value) notes.value = `Please send digital proof to ${repEmail} for approval. Do not begin production until written approval is received.`;
+  } else if(radio.value === 'Pre-production sample') {
+    if(!notes.value) notes.value = `Please provide a pre-production sample before proceeding. Send tracking and confirmation to ${repEmail}.`;
+  } else {
+    // No proof — clear auto-text but don't wipe manual entries
+    if(notes.value.startsWith('Please send digital proof') || notes.value.startsWith('Please provide a pre-production sample')) {
+      notes.value = '';
+    }
+  }
 }
 
 function toggleShipTo(val) {
