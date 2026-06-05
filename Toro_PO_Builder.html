@@ -239,14 +239,45 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 
       <div class="field"><label>Additional notes / special instructions</label><textarea id="order-notes" placeholder="Rush instructions, packaging notes, etc."></textarea></div>
 
-      <div style="display:flex;justify-content:flex-end;gap:10px;margin-top:8px;">
+      <div style="display:flex;justify-content:flex-end;gap:10px;margin-top:8px;flex-wrap:wrap;">
         <button class="btn btn-gray" onclick="resetForm()">↩ Reset form</button>
+        <button class="btn" style="background:#f0f4ff;color:#2255cc;border:1px solid #99aaee;" onclick="openSplitModal()">⚡ Split into multiple POs</button>
         <button class="btn btn-green" onclick="addToQueue()">+ Add to PO queue</button>
       </div>
     </div>
 
   </div>
 
+</div>
+
+<!-- Split PO Modal -->
+<div id="split-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:600;overflow-y:auto;">
+  <div style="max-width:680px;margin:32px auto;background:#fff;border-radius:10px;box-shadow:0 8px 40px rgba(0,0,0,.2);overflow:hidden;">
+    <div style="background:var(--red);color:#fff;padding:16px 20px;display:flex;align-items:center;justify-content:space-between;">
+      <div>
+        <div style="font-size:16px;font-weight:700;">⚡ Split into Multiple POs</div>
+        <div style="font-size:12px;opacity:.85;margin-top:2px;" id="split-modal-subtitle">Divide this order across multiple purchase orders</div>
+      </div>
+      <button onclick="closeSplitModal()" style="background:rgba(255,255,255,.2);border:none;color:#fff;border-radius:6px;padding:6px 12px;cursor:pointer;font-size:13px;">✕ Cancel</button>
+    </div>
+    <div style="padding:16px 20px;border-bottom:1px solid #eee;background:#fafafa;">
+      <div style="font-size:13px;font-weight:700;color:#333;margin-bottom:10px;">How many POs?</div>
+      <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+        <div style="display:flex;align-items:center;gap:6px;">
+          <input type="number" id="split-count" value="2" min="2" max="20" style="width:64px;padding:6px 8px;border:1px solid #ccc;border-radius:6px;font-size:14px;text-align:center;" oninput="buildSplitRows()">
+          <span style="font-size:13px;color:#555;">POs</span>
+        </div>
+        <button onclick="equalSplit()" style="background:#f0f4ff;color:#2255cc;border:1px solid #99aaee;border-radius:6px;padding:6px 14px;cursor:pointer;font-size:13px;font-weight:600;">⚖️ Split evenly</button>
+        <span style="font-size:12px;color:#888;" id="split-total-note"></span>
+      </div>
+    </div>
+    <div id="split-rows" style="padding:16px 20px;max-height:400px;overflow-y:auto;"></div>
+    <div id="split-validation" style="padding:0 20px 8px;color:var(--red);font-size:13px;min-height:20px;"></div>
+    <div style="padding:12px 20px;border-top:1px solid #eee;display:flex;justify-content:flex-end;gap:10px;">
+      <button class="btn btn-gray" onclick="closeSplitModal()">Cancel</button>
+      <button class="btn btn-green" onclick="confirmSplit()">✓ Generate POs</button>
+    </div>
+  </div>
 </div>
 
 <!-- PO Queue bar -->
@@ -993,6 +1024,224 @@ function resetForm() {
   document.getElementById('step2').classList.add('hidden');
   document.getElementById('step3').classList.add('hidden');
   clearAutoFills();
+}
+
+// ── Split PO ───────────────────────────────────────────────────────────────
+
+function getTotalQty() {
+  // Returns total orderable quantity across selected items
+  let total = 0;
+  selectedItems.forEach(item => {
+    if(item.type === 'hg') {
+      const h = (quoteData.hardGoods||[])[item.idx];
+      total += parseInt(h?.hg_qty)||0;
+    } else if(item.type === 'g') {
+      const g = (quoteData.garments||[])[item.idx];
+      total += (g?.szRows||[]).filter(r=>r.qty>0).reduce((a,r)=>a+r.qty,0);
+    }
+  });
+  return total;
+}
+
+function openSplitModal() {
+  if(!validate()) return;
+  const total = getTotalQty();
+  document.getElementById('split-modal-subtitle').textContent =
+    'Total quantity: ' + total + ' pcs — divide across multiple POs';
+  document.getElementById('split-count').value = 2;
+  document.getElementById('split-validation').textContent = '';
+  buildSplitRows();
+  document.getElementById('split-modal').style.display = 'block';
+}
+
+function closeSplitModal() {
+  document.getElementById('split-modal').style.display = 'none';
+}
+
+function buildSplitRows() {
+  const count = Math.max(2, Math.min(20, parseInt(document.getElementById('split-count').value)||2));
+  const total = getTotalQty();
+  document.getElementById('split-total-note').textContent = 'Total: ' + total + ' pcs';
+  const container = document.getElementById('split-rows');
+
+  // Preserve existing qty values if count hasn't shrunk
+  const existing = Array.from(container.querySelectorAll('.split-qty')).map(el=>el.value);
+
+  let html = '';
+  for(let i=0; i<count; i++) {
+    const prevQty = existing[i] || '';
+    html += `
+    <div style="border:1px solid #e8e8e8;border-radius:8px;margin-bottom:12px;overflow:hidden;">
+      <div style="background:#f5f5f7;padding:8px 14px;font-size:12px;font-weight:700;color:#555;display:flex;align-items:center;justify-content:space-between;">
+        <span>PO ${i+1}</span>
+        <span style="font-weight:400;color:#888;">PO-${(quoteData?.quoteNum||'XXXX')}-${(poQueue.length+i+1)}</span>
+      </div>
+      <div style="padding:12px 14px;display:grid;grid-template-columns:80px 1fr;gap:10px;align-items:start;">
+        <div>
+          <label style="font-size:11px;font-weight:700;color:#888;text-transform:uppercase;display:block;margin-bottom:4px;">Qty *</label>
+          <input type="number" class="split-qty" data-idx="${i}" min="1"
+            value="${prevQty}"
+            style="width:100%;padding:6px 8px;border:1px solid #ccc;border-radius:6px;font-size:15px;font-weight:700;text-align:center;"
+            oninput="updateSplitRemainder()">
+        </div>
+        <div>
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;">
+            <label style="font-size:11px;font-weight:700;color:#888;text-transform:uppercase;">Ship to</label>
+            <label style="font-size:11px;color:#888;display:flex;align-items:center;gap:4px;cursor:pointer;">
+              <input type="checkbox" class="split-same-ship" data-idx="${i}" onchange="toggleSplitShip(${i})" ${i===0?'':'checked'}>
+              Same as main PO
+            </label>
+          </div>
+          <div class="split-ship-fields" id="split-ship-${i}" style="${i===0?'':'display:none;'}">
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:6px;">
+              <input class="split-ship-name" placeholder="Recipient name" style="padding:5px 8px;border:1px solid #ccc;border-radius:5px;font-size:12px;">
+              <input class="split-ship-company" placeholder="Company name" style="padding:5px 8px;border:1px solid #ccc;border-radius:5px;font-size:12px;">
+            </div>
+            <input class="split-ship-addr1" placeholder="Address line 1" style="width:100%;box-sizing:border-box;padding:5px 8px;border:1px solid #ccc;border-radius:5px;font-size:12px;margin-bottom:6px;">
+            <input class="split-ship-addr2" placeholder="Address line 2 (optional)" style="width:100%;box-sizing:border-box;padding:5px 8px;border:1px solid #ccc;border-radius:5px;font-size:12px;margin-bottom:6px;">
+            <div style="display:grid;grid-template-columns:2fr 1fr 1fr;gap:6px;">
+              <input class="split-ship-city" placeholder="City" style="padding:5px 8px;border:1px solid #ccc;border-radius:5px;font-size:12px;">
+              <input class="split-ship-state" placeholder="ST" style="padding:5px 8px;border:1px solid #ccc;border-radius:5px;font-size:12px;text-transform:uppercase;">
+              <input class="split-ship-zip" placeholder="ZIP" style="padding:5px 8px;border:1px solid #ccc;border-radius:5px;font-size:12px;">
+            </div>
+          </div>
+          <div class="split-ship-same-note" id="split-ship-same-${i}" style="${i===0?'display:none;':''}">
+            <div style="font-size:12px;color:#888;padding:4px 0;">Uses ship-to from main PO form</div>
+          </div>
+        </div>
+      </div>
+      <div style="padding:4px 14px 10px;">
+        <label style="font-size:11px;font-weight:700;color:#888;text-transform:uppercase;display:block;margin-bottom:3px;">Notes for this PO only (optional)</label>
+        <input class="split-notes" placeholder="e.g. Rush this shipment, different contact, etc."
+          style="width:100%;box-sizing:border-box;padding:5px 8px;border:1px solid #ccc;border-radius:5px;font-size:12px;">
+      </div>
+    </div>`;
+  }
+  container.innerHTML = html;
+  updateSplitRemainder();
+}
+
+function toggleSplitShip(idx) {
+  const cb = document.querySelector(`.split-same-ship[data-idx="${idx}"]`);
+  const fields = document.getElementById('split-ship-'+idx);
+  const note = document.getElementById('split-ship-same-'+idx);
+  if(cb.checked) {
+    fields.style.display = 'none';
+    note.style.display = '';
+  } else {
+    fields.style.display = '';
+    note.style.display = 'none';
+  }
+}
+
+function equalSplit() {
+  const count = Math.max(2, parseInt(document.getElementById('split-count').value)||2);
+  const total = getTotalQty();
+  const base = Math.floor(total / count);
+  const rem = total % count;
+  const qtys = document.querySelectorAll('.split-qty');
+  qtys.forEach((el, i) => {
+    el.value = base + (i < rem ? 1 : 0);
+  });
+  updateSplitRemainder();
+}
+
+function updateSplitRemainder() {
+  const total = getTotalQty();
+  const qtys = document.querySelectorAll('.split-qty');
+  let assigned = 0;
+  qtys.forEach(el => assigned += parseInt(el.value)||0);
+  const diff = total - assigned;
+  const note = document.getElementById('split-total-note');
+  note.textContent = 'Total: ' + total + ' pcs — assigned: ' + assigned + (diff !== 0 ? ' (' + (diff > 0 ? '+' + diff + ' unassigned' : Math.abs(diff) + ' over') + ')' : ' ✓');
+  note.style.color = diff !== 0 ? '#cc4400' : '#2a8a2a';
+  document.getElementById('split-validation').textContent = '';
+}
+
+function confirmSplit() {
+  const total = getTotalQty();
+  const qtys = Array.from(document.querySelectorAll('.split-qty'));
+  const assigned = qtys.reduce((a,el)=>a+(parseInt(el.value)||0),0);
+
+  if(assigned !== total) {
+    document.getElementById('split-validation').textContent =
+      'Assigned qty (' + assigned + ') must equal total qty (' + total + '). Adjust split quantities.';
+    return;
+  }
+  for(let i=0;i<qtys.length;i++) {
+    if((parseInt(qtys[i].value)||0) < 1) {
+      document.getElementById('split-validation').textContent = 'Each PO must have at least 1 unit.';
+      return;
+    }
+  }
+
+  // Build base data from current form
+  const baseData = captureFormData();
+
+  // Generate one PO per split
+  const rows = document.querySelectorAll('#split-rows > div');
+  rows.forEach((row, i) => {
+    const qty = parseInt(row.querySelector('.split-qty').value)||0;
+    const sameShip = row.querySelector('.split-same-ship').checked;
+    const splitNotes = row.querySelector('.split-notes').value.trim();
+    const poNum = 'PO-'+(quoteData?.quoteNum||'XXXX')+'-'+(poQueue.length+1);
+
+    // Deep copy base data
+    const d = JSON.parse(JSON.stringify(baseData));
+
+    // Adjust quantities proportionally across all size rows
+    applyQtyToData(d, qty, total);
+
+    // Override ship-to if custom
+    if(!sameShip) {
+      d.shipToType = 'alternate';
+      d.shipName = row.querySelector('.split-ship-name').value.trim();
+      d.shipCompany = row.querySelector('.split-ship-company').value.trim();
+      d.shipAddr1 = row.querySelector('.split-ship-addr1').value.trim();
+      d.shipAddr2 = row.querySelector('.split-ship-addr2').value.trim();
+      d.shipCity = row.querySelector('.split-ship-city').value.trim();
+      d.shipState = row.querySelector('.split-ship-state').value.trim();
+      d.shipZip = row.querySelector('.split-ship-zip').value.trim();
+    }
+
+    // Append split note to order notes
+    if(splitNotes) {
+      d.orderNotes = [d.orderNotes, splitNotes].filter(Boolean).join('\n');
+    }
+
+    const html = buildPOHTML(poNum, d);
+    poQueue.push({id:poNum, typeLabel:currentTypeLabel, html, data:d, poNum});
+  });
+
+  updateQueueUI();
+  closeSplitModal();
+  resetForm();
+  openPO(poQueue.length - rows.length); // open first of the new POs
+  document.querySelector('#po-queue').scrollIntoView({behavior:'smooth'});
+}
+
+function applyQtyToData(d, splitQty, totalQty) {
+  // Scale all item quantities proportionally to the split qty
+  if(totalQty <= 0) return;
+  const ratio = splitQty / totalQty;
+  (d.items||[]).forEach(item => {
+    if(item.type === 'hg' && item.data) {
+      item.data.hg_qty = Math.max(1, Math.round((parseInt(item.data.hg_qty)||0) * ratio));
+    } else if(item.type === 'g' && item.data) {
+      let remaining = splitQty;
+      const rows = (item.data.szRows||[]).filter(r=>r.qty>0);
+      const origTotal = rows.reduce((a,r)=>a+r.qty,0);
+      rows.forEach((r, i) => {
+        if(i === rows.length - 1) {
+          r.qty = Math.max(0, remaining);
+        } else {
+          const scaled = Math.round(r.qty * (splitQty / origTotal));
+          r.qty = scaled;
+          remaining -= scaled;
+        }
+      });
+    }
+  });
 }
 
 function clearQuote() {
