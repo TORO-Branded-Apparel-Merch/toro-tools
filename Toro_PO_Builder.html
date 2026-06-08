@@ -736,29 +736,26 @@ function buildPOHTML(poNum, d) {
           ${rows.length ? `
           <table class="po-table" style="margin-top:8px;">
             <thead><tr>
-              <th>Size</th><th>Qty</th><th>Net cost/ea</th><th>Line total</th>
+              <th>Size</th><th>Qty</th><th>Net cost/ea</th><th>Line total</th><th style="width:24px;"></th>
             </tr></thead>
-            <tbody>
-              ${rows.map(r=>`<tr>
+            <tbody id="po-gar-rows-${poNum.replace(/[^a-z0-9]/gi,'_')}">
+              ${rows.map((r,ri)=>`<tr id="po-row-g-${poNum.replace(/[^a-z0-9]/gi,'_')}-${ri}">
                 <td style="font-weight:700;"><input class="po-field-edit" value="${r.size}" style="font-weight:700;width:60px;"></td>
-                <td><input class="po-field-edit" value="${r.qty}" style="width:60px;text-align:center;"></td>
-                <td><input class="po-field-edit" value="${fmt(r.cost)}" style="width:80px;"></td>
-                <td style="font-weight:600;">${fmt(r.qty*(r.cost||0))}</td>
+                <td><input class="po-field-edit po-calc" data-role="qty" value="${r.qty}" style="width:60px;text-align:center;" oninput="recalcPORow(this)"></td>
+                <td><input class="po-field-edit po-calc" data-role="cost" value="${fmt(r.cost)}" style="width:80px;" oninput="recalcPORow(this)"></td>
+                <td style="font-weight:600;" class="po-line-total">${fmt(r.qty*(r.cost||0))}</td>
+                <td><button onclick="this.closest('tr').remove();recalcPOTable(this)" style="border:none;background:none;cursor:pointer;color:#bbb;font-size:13px;padding:2px 4px;" title="Remove row">✕</button></td>
               </tr>`).join('')}
-              ${(g.g_misc_fees||[]).map(f=>`<tr>
-                <td colspan="2">${f.desc||'Misc fee'}</td>
+              ${(g.g_misc_fees||[]).map((f,fi)=>`<tr id="po-row-gf-${poNum.replace(/[^a-z0-9]/gi,'_')}-${fi}">
+                <td colspan="2"><input class="po-field-edit" value="${f.desc||'Misc fee'}" style="font-style:italic;"></td>
                 <td></td>
-                <td><input class="po-field-edit" value="${fmt(f.net)}" style="width:80px;"></td>
+                <td class="po-line-total"><input class="po-field-edit po-calc" data-role="flat" value="${fmt(f.net)}" style="width:80px;" oninput="recalcPOTable(this)"></td>
+                <td><button onclick="this.closest('tr').remove();recalcPOTable(this)" style="border:none;background:none;cursor:pointer;color:#bbb;font-size:13px;padding:2px 4px;" title="Remove row">✕</button></td>
               </tr>`).join('')}
-              ${(g.g_misc_fees||[]).map(f=>`<tr>
-                <td colspan="2">${f.desc||'Misc fee'}</td>
+              <tr class="po-total-row" style="background:#f5f5f7;font-weight:700;">
+                <td colspan="3">Total</td>
+                <td class="po-grand-total">${fmt(rows.reduce((a,r)=>a+r.qty*(r.cost||0),0)+(g.g_misc_fees||[]).reduce((a,f)=>a+(f.net||0),0))}</td>
                 <td></td>
-                <td><input class="po-field-edit" value="${fmt(f.net)}" style="width:80px;"></td>
-              </tr>`).join('')}
-              <tr style="background:#f5f5f7;font-weight:700;">
-                <td colspan="2">Total</td>
-                <td></td>
-                <td>${fmt(rows.reduce((a,r)=>a+r.qty*(r.cost||0),0)+(g.g_misc_fees||[]).reduce((a,f)=>a+(f.net||0),0))}</td>
               </tr>
             </tbody>
           </table>` : ''}
@@ -781,14 +778,48 @@ function buildPOHTML(poNum, d) {
             ${h.hg_promo?`<div><span style="color:#888;font-size:10px;font-weight:700;text-transform:uppercase;display:block;">Promo code</span><input class="po-field-edit" value="${h.hg_promo}"></div>`:''}
           </div>
           <table class="po-table">
-            <thead><tr><th>Description</th><th>Qty</th><th>Unit cost</th><th>Total</th></tr></thead>
+            <thead><tr><th>Description</th><th>Qty</th><th>Unit cost</th><th>Total</th><th style="width:24px;"></th></tr></thead>
             <tbody>
-              <tr><td>Item</td><td><input class="po-field-edit" value="${qty}" style="width:60px;text-align:center;"></td><td><input class="po-field-edit" value="${fmt(cost)}" style="width:80px;"></td><td>${fmt(qty*cost)}</td></tr>
-              ${run>0?`<tr><td>Run charge</td><td><input class="po-field-edit" value="${qty}" style="width:60px;text-align:center;"></td><td><input class="po-field-edit" value="${fmt(run)}" style="width:80px;"></td><td>${fmt(qty*run)}</td></tr>`:''}
-              ${setup>0?`<tr><td>Setup / die charge</td><td>1</td><td><input class="po-field-edit" value="${fmt(setup)}" style="width:80px;"></td><td>${fmt(setup)}</td></tr>`:''}
-              ${rush>0?`<tr><td>Rush / extra fees</td><td>1</td><td><input class="po-field-edit" value="${fmt(rush)}" style="width:80px;"></td><td>${fmt(rush)}</td></tr>`:''}
-              ${(h.hg_misc_fees||[]).map(f=>`<tr><td>${f.desc||'Misc fee'}</td><td>1</td><td><input class="po-field-edit" value="${fmt(f.net)}" style="width:80px;"></td><td>${fmt(f.net)}</td></tr>`).join('')}
-              <tr style="background:#f5f5f7;font-weight:700;"><td colspan="3">Total</td><td>${fmt(qty*cost+(run?qty*run:0)+setup+rush+(h.hg_misc_fees||[]).reduce((a,f)=>a+(f.net||0),0))}</td></tr>
+              <tr>
+                <td>Item</td>
+                <td><input class="po-field-edit po-calc" data-role="qty" value="${qty}" style="width:60px;text-align:center;" oninput="recalcPORow(this)"></td>
+                <td><input class="po-field-edit po-calc" data-role="cost" value="${fmt(cost)}" style="width:80px;" oninput="recalcPORow(this)"></td>
+                <td class="po-line-total">${fmt(qty*cost)}</td>
+                <td><button onclick="this.closest('tr').remove();recalcPOTable(this)" style="border:none;background:none;cursor:pointer;color:#bbb;font-size:13px;padding:2px 4px;" title="Remove row">✕</button></td>
+              </tr>
+              ${run>0?`<tr>
+                <td>Run charge</td>
+                <td><input class="po-field-edit po-calc" data-role="qty" value="${qty}" style="width:60px;text-align:center;" oninput="recalcPORow(this)"></td>
+                <td><input class="po-field-edit po-calc" data-role="cost" value="${fmt(run)}" style="width:80px;" oninput="recalcPORow(this)"></td>
+                <td class="po-line-total">${fmt(qty*run)}</td>
+                <td><button onclick="this.closest('tr').remove();recalcPOTable(this)" style="border:none;background:none;cursor:pointer;color:#bbb;font-size:13px;padding:2px 4px;" title="Remove row">✕</button></td>
+              </tr>`:''}
+              ${setup>0?`<tr>
+                <td>Setup / die charge</td>
+                <td>1</td>
+                <td><input class="po-field-edit po-calc" data-role="flat" value="${fmt(setup)}" style="width:80px;" oninput="recalcPOTable(this)"></td>
+                <td class="po-line-total">${fmt(setup)}</td>
+                <td><button onclick="this.closest('tr').remove();recalcPOTable(this)" style="border:none;background:none;cursor:pointer;color:#bbb;font-size:13px;padding:2px 4px;" title="Remove row">✕</button></td>
+              </tr>`:''}
+              ${rush>0?`<tr>
+                <td>Rush / extra fees</td>
+                <td>1</td>
+                <td><input class="po-field-edit po-calc" data-role="flat" value="${fmt(rush)}" style="width:80px;" oninput="recalcPOTable(this)"></td>
+                <td class="po-line-total">${fmt(rush)}</td>
+                <td><button onclick="this.closest('tr').remove();recalcPOTable(this)" style="border:none;background:none;cursor:pointer;color:#bbb;font-size:13px;padding:2px 4px;" title="Remove row">✕</button></td>
+              </tr>`:''}
+              ${(h.hg_misc_fees||[]).map(f=>`<tr>
+                <td><input class="po-field-edit" value="${f.desc||'Misc fee'}" style="font-style:italic;"></td>
+                <td>1</td>
+                <td><input class="po-field-edit po-calc" data-role="flat" value="${fmt(f.net)}" style="width:80px;" oninput="recalcPOTable(this)"></td>
+                <td class="po-line-total">${fmt(f.net)}</td>
+                <td><button onclick="this.closest('tr').remove();recalcPOTable(this)" style="border:none;background:none;cursor:pointer;color:#bbb;font-size:13px;padding:2px 4px;" title="Remove row">✕</button></td>
+              </tr>`).join('')}
+              <tr class="po-total-row" style="background:#f5f5f7;font-weight:700;">
+                <td colspan="3">Total</td>
+                <td class="po-grand-total">${fmt(qty*cost+(run?qty*run:0)+setup+rush+(h.hg_misc_fees||[]).reduce((a,f)=>a+(f.net||0),0))}</td>
+                <td></td>
+              </tr>
             </tbody>
           </table>
         </div>`;
@@ -1267,6 +1298,40 @@ function clearQuote() {
   // Clear file input so same file can be re-selected
   const fi = document.getElementById('file-input');
   if(fi) fi.value = '';
+}
+
+function recalcPORow(input) {
+  const tr = input.closest('tr');
+  if(!tr) return;
+  const qtyEl  = tr.querySelector('[data-role="qty"]');
+  const costEl = tr.querySelector('[data-role="cost"]');
+  const totalEl = tr.querySelector('.po-line-total');
+  if(qtyEl && costEl && totalEl) {
+    const qty  = parseFloat(qtyEl.value)  || 0;
+    const cost = parseFloat(costEl.value) || 0;
+    totalEl.textContent = '$' + (qty * cost).toFixed(2);
+  }
+  recalcPOTable(input);
+}
+
+function recalcPOTable(input) {
+  const tbody = input.closest('tbody');
+  if(!tbody) return;
+  const grandEl = tbody.querySelector('.po-grand-total');
+  if(!grandEl) return;
+  let total = 0;
+  tbody.querySelectorAll('tr:not(.po-total-row)').forEach(tr => {
+    const lineEl = tr.querySelector('.po-line-total');
+    if(!lineEl) return;
+    // .po-line-total may be text content or contain a flat input
+    const flatInput = lineEl.querySelector('[data-role="flat"]');
+    if(flatInput) {
+      total += parseFloat(flatInput.value) || 0;
+    } else {
+      total += parseFloat(lineEl.textContent.replace(/[^0-9.\-]/g,'')) || 0;
+    }
+  });
+  grandEl.textContent = '$' + total.toFixed(2);
 }
 
 function autoProofNotes(radio) {
