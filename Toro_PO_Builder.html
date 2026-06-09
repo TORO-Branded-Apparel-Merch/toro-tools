@@ -983,8 +983,7 @@ function openPrintTab(poNum, content) {
   if(content && content.startsWith('%7B')) {
     try { const p = JSON.parse(decodeURIComponent(content)); content = p.html; } catch(e) {}
   }
-  const win = window.open('','_blank');
-  win.document.write(`<!DOCTYPE html><html><head><title>${poNum}</title>
+  const fullHTML = `<!DOCTYPE html><html><head><title>${poNum}</title>
     <style>
       *{box-sizing:border-box;margin:0;padding:0;}
       body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;color:#1a1a1f;}
@@ -1009,22 +1008,18 @@ function openPrintTab(poNum, content) {
     <div class="print-banner no-print">
       <div>
         <strong>🐂 ${poNum}</strong><br>
-        <span class="steps">To save as PDF: File → Print → change destination to "Save as PDF" → Save</span>
+        <span class="steps">To save as PDF: File &rarr; Print &rarr; change destination to "Save as PDF" &rarr; Save</span>
       </div>
       <button onclick="window.print()">🖨️ Print / Save as PDF</button>
     </div>
     <div class="po-content">${content}</div>
-  
-<!-- BAM Modal -->
-<div id="bam-overlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:9999;align-items:center;justify-content:center;">
-  <div style="background:#fff;border-radius:12px;padding:28px 32px;max-width:420px;width:90%;box-shadow:0 8px 40px rgba(0,0,0,0.2);">
-    <div style="font-size:17px;font-weight:700;color:#BC112A;margin-bottom:12px;">🐂 BAM the Bull says</div>
-    <div id="bam-msg" style="font-size:15px;color:#333;margin-bottom:22px;line-height:1.5;"></div>
-    <div id="bam-btns" style="display:flex;gap:10px;justify-content:flex-end;"></div>
-  </div>
-</div>
-</body></html>`);
-  win.document.close();
+  </body></html>`;
+  const blob = new Blob([fullHTML], {type:'text/html'});
+  const url = URL.createObjectURL(blob);
+  const win = window.open(url, '_blank');
+  if(win) {
+    win.addEventListener('load', () => URL.revokeObjectURL(url));
+  }
 }
 
 function exportAll() {
