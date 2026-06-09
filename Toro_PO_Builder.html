@@ -983,6 +983,12 @@ function openPrintTab(poNum, content) {
   if(content && content.startsWith('%7B')) {
     try { const p = JSON.parse(decodeURIComponent(content)); content = p.html; } catch(e) {}
   }
+  // Strip base64 logo image — large inline images crash Safari/WebKit print renderer.
+  // Replace with a lightweight CSS text logo so the print output still looks clean.
+  content = content.replace(
+    /<img[^>]+alt="Toro Brandabulls"[^>]*>/gi,
+    '<span class="print-logo-text">TORO</span>'
+  );
   const win = window.open('','_blank');
   win.document.write(`<!DOCTYPE html><html><head><title>${poNum}</title>
     <style>
@@ -993,6 +999,7 @@ function openPrintTab(poNum, content) {
       .print-banner .steps{opacity:.85;}
       .print-banner button{padding:8px 18px;background:#BC112A;color:#fff;border:none;border-radius:6px;cursor:pointer;font-weight:700;font-size:13px;}
       .po-content{padding:24px;max-width:860px;margin:0 auto;}
+      .print-logo-text{font-size:22px;font-weight:900;color:#BC112A;letter-spacing:.08em;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;}
       input{border:none;border-bottom:1px solid #ddd;background:transparent;font-family:inherit;font-size:inherit;font-weight:inherit;color:inherit;padding:2px 0;width:100%;}
       textarea{border:none;background:transparent;font-family:inherit;font-size:inherit;width:100%;resize:none;}
       table{width:100%;border-collapse:collapse;}
