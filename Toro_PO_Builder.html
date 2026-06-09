@@ -234,7 +234,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
       <div style="border-top:1px solid var(--border);margin:16px 0;"></div>
       <div class="row2">
         <div class="field"><label>Rep name <span class="req">*</span></label><input type="text" id="rep-name" placeholder="Your name"></div>
-        <div class="field"><label>Rep email <span class="req">*</span></label><input type="email" id="rep-email" placeholder="your@email.com"></div>
+        <div class="field"><label>Rep email <span class="req">*</span></label><input type="email" id="rep-email" placeholder="your@email.com" value="operations@toromerch.com"></div>
       </div>
 
       <div class="field"><label>Additional notes / special instructions</label><textarea id="order-notes" placeholder="Rush instructions, packaging notes, etc."></textarea></div>
@@ -826,19 +826,80 @@ function buildPOHTML(poNum, d) {
     }
   });
 
-  const decoHTML = d.type !== 'blank' ? `
+  // Build per-item imprint sections from actual quote data
+  const methodMap = {screen:'Screen printing',embroidery:'Embroidery',dtf:'DTF',heat:'Heat press',vinyl:'Vinyl'};
+  const hgDecMap = {'screen-print':'Screen printing','embroidery':'Embroidery','dtf':'DTF','laser':'Laser engraving','pad-print':'Pad printing','digital':'Digital print'};
+  const inkLabels = {'0.55':'Metallic/glitter/fluorescent/neon ink (+$0.55/item)','1.05':'Reflective/glow-in-dark ink (+$1.05/item)'};
+
+  let perItemDecoHTML = '';
+  if(d.type !== 'blank') {
+    (d.items||[]).forEach(item => {
+      if(item.type === 'g') {
+        const g = item.data;
+        if(!g) return;
+        const itemTitle = [g.gdesign, g.gtype||g.gtype_other].filter(Boolean).join(' - ') || 'Apparel item';
+        const imps = g.imps||[];
+        if(!imps.length) {
+          perItemDecoHTML += `
+            <div style="margin-bottom:8px;padding:8px 10px;background:#f8f8fa;border-radius:5px;border-left:3px solid #BC112A;">
+              <div style="font-size:11px;font-weight:800;color:#BC112A;margin-bottom:6px;">${itemTitle}</div>
+              <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;font-size:11px;">
+                <div><span style="font-size:10px;font-weight:700;text-transform:uppercase;color:#888;display:block;margin-bottom:3px;">Method</span><input class="po-field-edit" style="font-size:13px;font-weight:700;" value="${d.decoMethod||''}"></div>
+                <div><span style="font-size:10px;font-weight:700;text-transform:uppercase;color:#888;display:block;margin-bottom:3px;">Location(s)</span><input class="po-field-edit" style="font-size:13px;font-weight:700;" value=""></div>
+                <div><span style="font-size:10px;font-weight:700;text-transform:uppercase;color:#888;display:block;margin-bottom:3px;">Art / design name</span><input class="po-field-edit" style="font-size:13px;font-weight:700;" value="${g.gdesign||''}"></div>
+                <div style="grid-column:span 3;"><span style="font-size:10px;font-weight:700;text-transform:uppercase;color:#888;display:block;margin-bottom:3px;">Imprint colors <span style="color:#BC112A">&#9733;</span></span><input class="po-field-edit" style="font-size:14px;font-weight:800;color:#BC112A;" value=""></div>
+              </div>
+            </div>`;
+        } else {
+          imps.forEach((imp, ii) => {
+            const method = methodMap[imp.type]||imp.type||d.decoMethod||'';
+            const loc = imp.sp_loc||imp.emb_loc||imp.dtf_loc||imp.heat_loc||imp.vinyl_loc||'';
+            const art = g.gdesign||'';
+            let colors = imp.sp_ink_names||imp.emb_thread_names||imp.dtf_colors||imp.heat_colors||imp.vinyl_colors||'';
+            if(imp.type==='embroidery' && imp.emb_thread_names) colors = imp.emb_thread_names;
+            const pmsStr = (imp.sp_pms_colors||[]).join(', ');
+            if(pmsStr) colors = colors ? colors+', '+pmsStr : pmsStr;
+            const count = imp.sp_col ? imp.sp_col+' color(s)' : imp.emb_st ? imp.emb_st+' stitches' : '';
+            const specialtyInk = (imp.sp_ink && imp.sp_ink!=='0') ? (inkLabels[String(imp.sp_ink)]||'Specialty ink') : '';
+            const impLabel = imps.length > 1 ? ` — Imprint ${ii+1}` : '';
+            perItemDecoHTML += `
+              <div style="margin-bottom:8px;padding:8px 10px;background:#f8f8fa;border-radius:5px;border-left:3px solid #BC112A;">
+                <div style="font-size:11px;font-weight:800;color:#BC112A;margin-bottom:6px;">${itemTitle}${impLabel}</div>
+                <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;font-size:11px;">
+                  <div><span style="font-size:10px;font-weight:700;text-transform:uppercase;color:#888;display:block;margin-bottom:3px;">Method</span><input class="po-field-edit" style="font-size:13px;font-weight:700;" value="${method}"></div>
+                  <div><span style="font-size:10px;font-weight:700;text-transform:uppercase;color:#888;display:block;margin-bottom:3px;">Location(s)</span><input class="po-field-edit" style="font-size:13px;font-weight:700;" value="${loc}"></div>
+                  <div><span style="font-size:10px;font-weight:700;text-transform:uppercase;color:#888;display:block;margin-bottom:3px;">Art / design name</span><input class="po-field-edit" style="font-size:13px;font-weight:700;" value="${art}"></div>
+                  <div style="grid-column:span 3;"><span style="font-size:10px;font-weight:700;text-transform:uppercase;color:#888;display:block;margin-bottom:3px;">Imprint colors <span style="color:#BC112A">&#9733;</span></span><input class="po-field-edit" style="font-size:14px;font-weight:800;color:#BC112A;" value="${colors}"></div>
+                  ${count?`<div><span style="font-size:10px;font-weight:700;text-transform:uppercase;color:#888;display:block;margin-bottom:3px;">Design details</span><input class="po-field-edit" style="font-size:13px;font-weight:700;" value="${count}"></div>`:''}
+                  ${specialtyInk?`<div><span style="font-size:10px;font-weight:700;text-transform:uppercase;color:#888;display:block;margin-bottom:3px;">Specialty ink</span><input class="po-field-edit" style="font-size:13px;font-weight:700;" value="${specialtyInk}"></div>`:''}
+                  ${d.decoNotes?`<div><span style="font-size:10px;font-weight:700;text-transform:uppercase;color:#888;display:block;margin-bottom:3px;">Special instructions</span><input class="po-field-edit" style="font-size:13px;" value="${d.decoNotes}"></div>`:''}
+                </div>
+              </div>`;
+          });
+        }
+      } else if(item.type === 'hg') {
+        const h = item.data;
+        if(!h || !h.hg_dec || h.hg_dec === 'none') return;
+        const itemTitle = h.hg_desc||'Hard good';
+        const method = hgDecMap[h.hg_dec]||h.hg_dec||'';
+        perItemDecoHTML += `
+          <div style="margin-bottom:8px;padding:8px 10px;background:#f8f8fa;border-radius:5px;border-left:3px solid #BC112A;">
+            <div style="font-size:11px;font-weight:800;color:#BC112A;margin-bottom:6px;">${itemTitle}</div>
+            <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;font-size:11px;">
+              <div><span style="font-size:10px;font-weight:700;text-transform:uppercase;color:#888;display:block;margin-bottom:3px;">Method</span><input class="po-field-edit" style="font-size:13px;font-weight:700;" value="${method}"></div>
+              <div><span style="font-size:10px;font-weight:700;text-transform:uppercase;color:#888;display:block;margin-bottom:3px;">Art / design name</span><input class="po-field-edit" style="font-size:13px;font-weight:700;" value="${h.hg_design||h.hg_desc||''}"></div>
+              <div><span style="font-size:10px;font-weight:700;text-transform:uppercase;color:#888;display:block;margin-bottom:3px;">Imprint colors <span style="color:#BC112A">&#9733;</span></span><input class="po-field-edit" style="font-size:14px;font-weight:800;color:#BC112A;" value="${h.hg_colors||''}"></div>
+            </div>
+          </div>`;
+      }
+    });
+  }
+
+  const decoHTML = perItemDecoHTML ? `
     <div class="po-section-title">Decoration specifications</div>
-    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;font-size:11px;padding:8px 10px;background:#f8f8fa;border-radius:5px;margin-bottom:10px;">
-      <div><span style="font-size:10px;font-weight:700;text-transform:uppercase;color:#888;display:block;margin-bottom:3px;">Method</span><input class="po-field-edit" style="font-size:13px;font-weight:700;" value="${d.decoMethod}"></div>
-      <div><span style="font-size:10px;font-weight:700;text-transform:uppercase;color:#888;display:block;margin-bottom:3px;">Location(s)</span><input class="po-field-edit" style="font-size:13px;font-weight:700;" value="${d.decoLoc}"></div>
-      <div><span style="font-size:10px;font-weight:700;text-transform:uppercase;color:#888;display:block;margin-bottom:3px;">Art / design name</span><input class="po-field-edit" style="font-size:13px;font-weight:700;" value="${d.decoArt}"></div>
-      <div style="grid-column:span 3;"><span style="font-size:10px;font-weight:700;text-transform:uppercase;color:#888;display:block;margin-bottom:3px;">Imprint colors <span style="color:var(--red)">★</span></span><input class="po-field-edit" style="font-size:14px;font-weight:800;color:var(--red);" value="${d.decoColors}"></div>
-      ${d.decoCount?`<div><span style="font-size:10px;font-weight:700;text-transform:uppercase;color:#888;display:block;margin-bottom:3px;">Design details</span><input class="po-field-edit" style="font-size:13px;font-weight:700;" value="${d.decoCount}"></div>`:''}
-      ${d.specialtyInk?`<div><span style="font-size:10px;font-weight:700;text-transform:uppercase;color:#888;display:block;margin-bottom:3px;">Specialty ink</span><input class="po-field-edit" style="font-size:13px;font-weight:700;" value="${d.specialtyInk}"></div>`:''}
-      ${d.pmsColors?`<div><span style="font-size:10px;font-weight:700;text-transform:uppercase;color:#888;display:block;margin-bottom:3px;">PMS colors</span><input class="po-field-edit" style="font-size:13px;font-weight:700;" value="${d.pmsColors}"></div>`:''}
-      ${d.decoNotes?`<div><span style="font-size:10px;font-weight:700;text-transform:uppercase;color:#888;display:block;margin-bottom:3px;">Special instructions</span><input class="po-field-edit" style="font-size:13px;" value="${d.decoNotes}"></div>`:''}
-      ${d.sharedNote?`<div style="grid-column:span 3;margin-top:4px;padding:8px 10px;background:#fff8e1;border:1px solid #ffd54f;border-radius:4px;font-size:12px;color:#b8860b;">🔗 ${d.sharedNote}</div>`:''}
-    </div>` : '';
+    ${perItemDecoHTML}
+    ${d.sharedNote?`<div style="margin-bottom:8px;padding:8px 10px;background:#fff8e1;border:1px solid #ffd54f;border-radius:4px;font-size:12px;color:#b8860b;">&#128279; ${d.sharedNote}</div>`:''}
+  ` : '';
 
   const proofHTML = d.type !== 'blank' && d.proofReq ? `
     <div style="padding:12px;background:#fffaf0;border:1px solid #f0c060;border-radius:6px;margin-bottom:16px;">
@@ -1334,7 +1395,7 @@ function recalcPOTable(input) {
 function autoProofNotes(radio) {
   const notes = document.getElementById('proof-notes');
   if(!notes) return;
-  const repEmail = document.getElementById('rep-email')?.value || 'lexi@toromerch.com';
+  const repEmail = document.getElementById('rep-email')?.value || 'operations@toromerch.com';
   if(radio.value === 'Digital proof') {
     if(!notes.value) notes.value = `Please send digital proof to ${repEmail} for approval. Do not begin production until written approval is received.`;
   } else if(radio.value === 'Pre-production sample') {
