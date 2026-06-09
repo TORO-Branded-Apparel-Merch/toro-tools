@@ -910,7 +910,7 @@ function buildPOHTML(poNum, d) {
     <div style="padding:12px;background:#fffaf0;border:1px solid #f0c060;border-radius:6px;margin-bottom:16px;">
       <div style="font-size:12px;font-weight:700;margin-bottom:6px;">Proof requirement</div>
       <input class="po-field-edit" style="font-size:13px;font-weight:700;" value="${d.proofReq}">
-      ${d.proofNotes?`<div style="margin-top:6px;"><input class="po-field-edit" style="font-size:12px;" value="${d.proofNotes}"></div>`:''}
+      ${d.proofNotes?`<div style="margin-top:6px;"><textarea class="po-field-edit" style="font-size:12px;width:100%;resize:vertical;border:none;border-bottom:1px solid #ddd;background:transparent;font-family:inherit;overflow:hidden;">${d.proofNotes}</textarea></div>`:''}
     </div>` : '';
 
   const notesHTML = d.orderNotes ? `
@@ -1059,7 +1059,7 @@ function openPrintTab(poNum, content) {
       .print-banner button{padding:8px 18px;background:#BC112A;color:#fff;border:none;border-radius:6px;cursor:pointer;font-weight:700;font-size:13px;}
       .po-content{padding:24px;max-width:860px;margin:0 auto;}
       input{border:none;border-bottom:1px solid #ddd;background:transparent;font-family:inherit;font-size:inherit;font-weight:inherit;color:inherit;padding:2px 0;width:100%;}
-      textarea{border:none;background:transparent;font-family:inherit;font-size:inherit;width:100%;resize:none;}
+      textarea{border:none;background:transparent;font-family:inherit;font-size:inherit;width:100%;resize:none;overflow:hidden;min-height:1.4em;}
       table{width:100%;border-collapse:collapse;}
       th,td{padding:6px 10px;border:1px solid #ddd;}
       th{background:#f5f5f7;}
@@ -1080,7 +1080,10 @@ function openPrintTab(poNum, content) {
     </div>
     <div class="po-content">${content}</div>
   </body></html>`;
-  const blob = new Blob([fullHTML], {type: 'text/html'});
+  // Auto-size all textareas to their content
+  const autoSizeScript = '<script>document.querySelectorAll(\'textarea\').forEach(t=>{t.style.height=\'auto\';t.style.height=t.scrollHeight+\'px\';});<\/script>';
+  const blobWithScript = fullHTML.replace('</body></html>', autoSizeScript + '</body></html>');
+  const blob = new Blob([blobWithScript], {type: 'text/html'});
   const url = URL.createObjectURL(blob);
   const win = window.open(url, '_blank');
   if(win) {
