@@ -289,6 +289,19 @@ async function init() {
   startListeners();
   render();
   setSyncing(false);
+  // Polling fallback every 45s in case SSE drops
+  setInterval(async () => {
+    for(const rep of REPS) {
+      try {
+        const apData = await fbGet('approvals/'+rep.toLowerCase());
+        const prev = JSON.stringify(approvals[rep.toLowerCase()]||{});
+        if(JSON.stringify(apData||{}) !== prev) {
+          approvals[rep.toLowerCase()] = apData || {};
+          render();
+        }
+      } catch(e) { /* silent */ }
+    }
+  }, 45000);
 }
 
 async function loadAll() {
@@ -308,6 +321,25 @@ async function loadAll() {
       approvals[rep.toLowerCase()] = (apData && typeof apData==='object') ? apData : {};
     } catch(e) { approvals[rep.toLowerCase()]={}; }
   }
+}
+
+// Mark rep messages as read when management views them
+async function markRepMessagesRead(repLower) {
+  const repAp = approvals[repLower] || {};
+  const updates = [];
+  Object.entries(repAp).forEach(([quoteKey, ap]) => {
+    if(!ap || !ap.thread) return;
+    let hasUnread = false;
+    const updated = ap.thread.map(m => {
+      if(m.role === 'rep' && !m.readByMgmt) { hasUnread = true; return {...m, readByMgmt: true}; }
+      return m;
+    });
+    if(hasUnread) {
+      approvals[repLower][quoteKey].thread = updated;
+      updates.push(fbSet('approvals/'+repLower+'/'+quoteKey+'/thread', updated));
+    }
+  });
+  if(updates.length) await Promise.all(updates);
 }
 
 function startListeners() {
@@ -337,22 +369,24 @@ function startListeners() {
     });
     fbListen('approvals/'+rl, data => {
       if(!data) return;
-      if(data.path && data.path !== '/' && data.data) {
-        // Patch event - partial update, merge into existing
-        if(!approvals[rl]) approvals[rl] = {};
-        const key = data.path.replace(/^\//, '');
-        if(data.data === null) {
-          delete approvals[rl][key];
-        } else {
-          approvals[rl][key] = data.data;
+      // Full snapshot (initial connect or full replace)
+      if(data.path === '/' || data.path === '') {
+        if(data.data && typeof data.data === 'object') {
+          approvals[rl] = data.data;
+        } else if(data.data === null) {
+          approvals[rl] = {};
         }
-      } else if(data.data && typeof data.data === 'object') {
-        // Put event - full replace
-        approvals[rl] = data.data;
-      } else if(data.data === null) {
-        approvals[rl] = {};
+        render();
+        return;
       }
-      render();
+      // Partial update (rep reply, status change, etc.)
+      // Re-fetch the full approvals node to avoid path-parsing bugs
+      // e.g. path="/quoteKey/thread" would corrupt the key if parsed naively
+      fbGet('approvals/'+rl).then(d => {
+        approvals[rl] = (d && typeof d === 'object') ? d : {};
+        markRepMessagesRead(rl);
+        render();
+      });
     });
   }
   fbListen('feedback', data => {
@@ -368,6 +402,10 @@ function startListeners() {
 
 function switchTab(tab) {
   currentTab = tab;
+  // Mark rep messages as read when mgmt opens the approvals tab
+  if(tab === 'approvals') {
+    for(const rep of REPS) markRepMessagesRead(rep.toLowerCase());
+  }
   ['approvals','commission','by-rep','all','feedback'].forEach(t=>{
     const el = document.getElementById('tab-'+t);
     if(el) el.classList.toggle('active', t===tab);
@@ -627,14 +665,15 @@ async function sendMgmtReply(repLower, encKey) {
   const text = ta?.value?.trim();
   if(!text) { bamAlert('Enter a message before sending.'); return; }
   try {
-    const existing = (approvals[repLower]||{})[key]||{};
-    const thread = existing.thread||[];
-    thread.push({role:'management',author:'Management',text,time:new Date().toISOString(),readByRep:false});
-    thread.forEach(m=>{ if(m.role==='rep') m.readByMgmt=true; });
-    existing.thread = thread;
-    await fbSet('approvals/'+repLower+'/'+key+'/thread', thread);
+    // Re-fetch fresh thread to avoid overwriting rep messages
+    const fresh = await fbGet('approvals/'+repLower+'/'+key);
+    const freshThread = fresh?.thread || [];
+    const newMsg = {role:'management',author:'Management',text,time:new Date().toISOString(),readByRep:false};
+    if(!freshThread.find(m => m.time === newMsg.time)) freshThread.push(newMsg);
+    freshThread.forEach(m=>{ if(m.role==='rep') m.readByMgmt=true; });
+    await fbSet('approvals/'+repLower+'/'+key+'/thread', freshThread);
     if(!approvals[repLower]) approvals[repLower]={};
-    approvals[repLower][key] = existing;
+    approvals[repLower][key] = {...(fresh||{}), thread: freshThread};
     if(ta) ta.value='';
     render();
   } catch(e) { console.error('sendMgmtReply error:',e); bamAlert('Error sending reply.'); }

@@ -61,7 +61,24 @@ tr:hover td{background:#fafafa}
 .locked-badge{font-size:10px;background:#e8e8e8;color:#888;padding:1px 6px;border-radius:6px;margin-left:4px}
 details summary{padding:10px 16px;cursor:pointer;font-size:12px;color:var(--text3);user-select:none;list-style:none}
 details summary::-webkit-details-marker{display:none}
-</style>
+
+    .approval-thread{background:#f8f9fa;border:1px solid #e0e0e0;border-radius:6px;padding:10px;margin-top:8px;font-size:12px;}
+    .thread-hdr{font-weight:700;margin-bottom:8px;color:#333;}
+    .thread-status{color:#888;font-style:italic;padding:4px 0;}
+    .tmsg-status{background:#f0f4ff;border-radius:4px;padding:5px 8px;margin:3px 0;color:#555;font-style:italic;}
+    .tmsg-mgmt{background:#fff3e0;border-radius:4px;padding:5px 8px;margin:3px 0;}
+    .tmsg-rep{background:#e8f5e9;border-radius:4px;padding:5px 8px;margin:3px 0;}
+    .tmsg-meta{font-size:10px;color:#888;display:block;margin-bottom:2px;}
+    .tmsg-text{color:#333;}
+    .thread-reply-row{display:flex;gap:6px;margin-top:8px;align-items:flex-start;}
+    .ap-approved{background:#e8f5e9;border:1px solid #a5d6b8;border-radius:4px;padding:8px 12px;font-size:13px;color:#2e7d32;margin-bottom:6px;}
+    .ap-rejected{background:#ffebee;border:1px solid #f5c6c6;border-radius:4px;padding:8px 12px;font-size:13px;color:#c62828;margin-bottom:6px;}
+    .ap-waiting{background:#fff8e1;border:1px solid #ffd54f;border-radius:4px;padding:8px 12px;font-size:13px;color:#b8860b;margin-bottom:6px;}
+    .ap-needs{background:#fff3e0;border:1px solid #ffcc80;border-radius:4px;padding:8px 12px;font-size:13px;color:#e65100;margin-bottom:6px;}
+    .ap-reupload{display:inline-block;margin-top:6px;padding:5px 10px;background:#f5f5f5;border:1px solid #ddd;border-radius:4px;cursor:pointer;font-size:12px;}
+    .unread-badge{background:#BC112A;color:#fff;border-radius:10px;font-size:10px;font-weight:700;padding:1px 6px;margin-left:4px;}
+    
+    </style>
 </head>
 <body>
 
@@ -265,42 +282,171 @@ async function loadFromFirebase(){
   localStorage.setItem(STORAGE_KEY,JSON.stringify(quotes));
   render();
 }
+
+// ── Approval infrastructure ─────────────────────────────────────────────
+let approvals = {};
+
+function fbKey(q) {
+  return q._fbKey || (q.quoteNum||'').replace(/[.#$\/\[\]]/g,'_') || ('q_'+(q.loadedAt||Date.now()));
+}
+
+async function loadApprovalsFromFirebase() {
+  try {
+    const apData = await fbGet('approvals/julia');
+    approvals['julia'] = (apData && typeof apData === 'object') ? apData : {};
+  } catch(e) {
+    approvals['julia'] = {};
+  }
+}
+
+function syncWorkflowFromApprovals() {
+  const repAp = approvals['julia'] || {};
+  let changed = false;
+  quotes.forEach(q => {
+    const ap = repAp[fbKey(q)];
+    if(!ap) return;
+    if(ap.status === 'approved' && q.workflowStatus === 'waitingApproval') {
+      q.workflowStatus = 'active'; q.marginApproved = true; changed = true;
+    } else if(ap.status === 'rejected' && (q.workflowStatus === 'waitingApproval' || q.workflowStatus === 'active')) {
+      q.workflowStatus = 'needsApproval'; q.marginApproved = false; changed = true;
+    }
+  });
+  if(changed) localStorage.setItem(STORAGE_KEY, JSON.stringify(quotes));
+}
+
+async function markUnreadMessages() {
+  const repAp = approvals['julia'] || {};
+  const updates = [];
+  Object.entries(repAp).forEach(([quoteKey, ap]) => {
+    if(!ap || !ap.thread) return;
+    let hasUnread = false;
+    const updated = ap.thread.map(m => {
+      if(m.role === 'management' && !m.readByRep) { hasUnread = true; return {...m, readByRep: true}; }
+      return m;
+    });
+    if(hasUnread) {
+      approvals['julia'][quoteKey].thread = updated;
+      updates.push(fbSet('approvals/julia/'+quoteKey+'/thread', updated));
+    }
+  });
+  if(updates.length) await Promise.all(updates);
+}
+
+function approvalHtmlForQuote(q) {
+  const key = fbKey(q);
+  const encKey = encodeURIComponent(key);
+  const repAp = approvals['julia'] || {};
+  const approval = repAp[key];
+  if(approval) {
+    const thread = approval.thread || [];
+    const unread = thread.filter(m => m.role === 'management' && !m.readByRep).length;
+    let th = '<div class="approval-thread">';
+    th += '<div class="thread-hdr">💬 Approval Thread'+(unread?' <span class="unread-badge">'+unread+' new</span>':'')+' </div>';
+    if(thread.length === 0) {
+      th += '<div class="thread-status">Submitted for approval — awaiting management response.</div>';
+    } else {
+      thread.forEach(m => {
+        const cls = m.type === 'status' ? 'tmsg-status' : (m.role === 'management' ? 'tmsg-mgmt' : 'tmsg-rep');
+        const time = m.time ? new Date(m.time).toLocaleString('en-US',{month:'short',day:'numeric',hour:'numeric',minute:'2-digit'}) : '';
+        th += '<div class="'+cls+'"><span class="tmsg-meta">'+(m.author||m.role)+' · '+time+'</span><div class="tmsg-text">'+(m.text||'')+'</div></div>';
+      });
+    }
+    th += '<div class="thread-reply-row"><textarea id="treply_'+encKey+'" placeholder="Reply to management..." rows="2" style="flex:1;padding:6px 8px;border:1px solid #ddd;border-radius:4px;font-size:12px;font-family:inherit;resize:none;min-height:44px"></textarea>';
+    th += '<button onclick="sendRepReply(decodeURIComponent(''+encKey+''))" style="padding:6px 12px;font-size:12px;background:#BC112A;color:#fff;border:none;border-radius:4px;cursor:pointer;white-space:nowrap;align-self:flex-end">Send</button></div>';
+    th += '</div>';
+    if(approval.status === 'approved') {
+      return '<div class="ap-approved">✅ Approved by management</div>'+th;
+    } else if(approval.status === 'rejected') {
+      return '<div class="ap-rejected">❌ Rejected — see thread below. Reply or re-upload a revised quote.</div>'+th+
+        '<label class="ap-reupload">📂 Re-upload revised quote<input type="file" accept=".json" style="display:none" onchange="reuploadRevised(event,decodeURIComponent(''+encKey+''))"></label>';
+    } else {
+      return th;
+    }
+  } else if(q.workflowStatus === 'waitingApproval') {
+    return '<div class="ap-waiting">⏳ Submitted for approval. Awaiting management response.</div>';
+  } else if(q.workflowStatus === 'needsApproval' || q.needsApproval) {
+    return '<div class="ap-needs">⚠️ Margin below 30%. Submit for approval before presenting to client.</div>';
+  }
+  return '';
+}
+
+async function sendRepReply(encKey) {
+  const key = decodeURIComponent(encKey);
+  const ta = document.getElementById('treply_'+encKey);
+  const text = ta?.value?.trim();
+  if(!text) { alert('Please enter a message before sending.'); return; }
+  const newMsg = {role:'rep',author:REP,text,time:new Date().toISOString(),readByMgmt:false};
+  try {
+    const fresh = await fbGet('approvals/julia/'+key);
+    const freshThread = fresh?.thread || [];
+    if(!freshThread.find(m => m.time === newMsg.time)) freshThread.push(newMsg);
+    await fbSet('approvals/julia/'+key+'/thread', freshThread);
+    if(!approvals['julia']) approvals['julia'] = {};
+    approvals['julia'][key] = {...(fresh||{}), thread: freshThread};
+    if(ta) ta.value = '';
+    render();
+  } catch(e) { alert('Error sending reply.'); }
+}
+
+async function reuploadRevised(event, encKey) {
+  const file = event.target.files[0]; if(!file) return;
+  const key = decodeURIComponent(encKey);
+  const r = new FileReader();
+  r.onload = async e => {
+    try {
+      const newQ = JSON.parse(e.target.result);
+      if(!newQ.totalSell && !newQ.quoteNum) { alert('Not a valid TORO quote file.'); return; }
+      const idx = quotes.findIndex(x => fbKey(x) === key);
+      if(idx < 0) { alert('Original quote not found.'); return; }
+      newQ._fbKey = key; newQ.workflowStatus = 'needsApproval';
+      newQ.statusChecks = quotes[idx].statusChecks || {};
+      quotes[idx] = newQ;
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(quotes));
+      await fbSet(FB_PATH+'/'+key, newQ);
+      const existing = (approvals['julia']||{})[key] || {};
+      const thread = existing.thread || [];
+      thread.push({role:'rep',author:REP,text:'Revised quote uploaded.',time:new Date().toISOString(),type:'status',readByMgmt:false});
+      existing.thread = thread; existing.status = 'pending'; existing.requestedAt = new Date().toISOString();
+      await fbSet('approvals/julia/'+key, existing);
+      approvals['julia'][key] = existing;
+      render();
+      alert('Revised quote uploaded. Resubmit for approval when ready.');
+    } catch(ex) { alert('Error: '+ex.message); }
+  };
+  r.readAsText(file);
+}
+
 function startListeners(){
   if(fbListenerActive) return;
   fbListenerActive=true;
-  let first=true;
+  let firstQ=true;
   fbListen(FB_PATH,event=>{
     if(!event||!event.data) return;
-    if(first){ first=false; return; }
+    if(firstQ){firstQ=false;return;}
     if(_saving) return;
     loadFromFirebase();
   });
-  // Listen for approval updates from dashboard
-  fbListen('approvals',event=>{
-    if(!event||!event.data||typeof event.data!=='object') return;
-    let changed=false;
-    Object.entries(event.data).forEach(([key,val])=>{
-      if(!val) return;
-      const idx=quotes.findIndex(q=>q._fbKey===key||q.quoteNum&&q.quoteNum.replace(/[.#$\/\[\]]/g,'_')===key);
-      if(idx>=0){
-        quotes[idx].approvalStatus=val.status;
-        quotes[idx].approvalNote=val.note||'';
-        if(val.status==='approved') quotes[idx].marginApproved=true;
-        changed=true;
+  // Approvals listener — listens to this rep's approval path
+  let apFirstEvent=true;
+  fbListen('approvals/julia',event=>{
+    if(!event||!event.data) return;
+    const apData=event.data;
+    if(apFirstEvent){
+      apFirstEvent=false;
+      if(apData&&apData.path==='/'&&apData.data&&typeof apData.data==='object'){
+        approvals['julia']=apData.data;
+        syncWorkflowFromApprovals();
+        markUnreadMessages();
+        render();
       }
+      return;
+    }
+    fbGet('approvals/julia').then(d=>{
+      approvals['julia']=d||{};
+      syncWorkflowFromApprovals();
+      markUnreadMessages();
+      render();
     });
-    if(changed){ localStorage.setItem(STORAGE_KEY,JSON.stringify(quotes)); render(); }
-  });
-  // Listen for paid status from dashboard
-  fbListen('paid',event=>{
-    if(!event||!event.data||typeof event.data!=='object') return;
-    let changed=false;
-    Object.entries(event.data).forEach(([key,val])=>{
-      if(!val) return;
-      const idx=quotes.findIndex(q=>q._fbKey===key);
-      if(idx>=0&&val.rep===REP){ quotes[idx].paid=val.paid; quotes[idx].paidDate=val.paidDate; changed=true; }
-    });
-    if(changed){ localStorage.setItem(STORAGE_KEY,JSON.stringify(quotes)); render(); }
   });
 }
 
@@ -371,20 +517,29 @@ async function toggleStatus(qKey,field){
 }
 
 async function submitForApproval(qKey){
-  const q=quotes.find(x=>(x._fbKey||x.quoteNum)===qKey);
+  const q=quotes.find(x=>fbKey(x)===qKey||(x._fbKey||x.quoteNum)===qKey);
   if(!q) return;
+  if(!confirm('Submit this quote for margin approval?')) return;
   q.workflowStatus='waitingApproval';
-  q.approvalStatus='waiting';
   localStorage.setItem(STORAGE_KEY,JSON.stringify(quotes));
-  render(); // render immediately so button feedback is instant
-  const key=q._fbKey||q.quoteNum;
-  await fbSet('approvals/'+key,{
-    quoteNum:q.quoteNum, quoteName:q.quoteName,
-    rep:REP, status:'waiting', requestedAt:new Date().toISOString(),
-    sell:q.totalSell, margin:q.avgMargin,
-    commissionSplit:q.commissionSplit
-  });
-  await fbSave(q);
+  render();
+  const key=fbKey(q);
+  const existing=(approvals['julia']||{})[key]||{};
+  const thread=existing.thread||[];
+  thread.push({role:'rep',author:REP,text:'Submitted for margin approval.',type:'status',time:new Date().toISOString(),readByMgmt:false});
+  const payload={
+    ...existing,
+    rep:REP, quoteNum:q.quoteNum, quoteName:q.quoteName,
+    status:'pending', requestedAt:new Date().toISOString(),
+    sellTotal:q.totalSell||0, netTotal:q.totalNetCost||0,
+    margin:q.avgMargin||0,
+    clientName:q.clientName||'', clientCompany:q.clientCompany||'',
+    thread,
+  };
+  await fbSet('approvals/julia/'+key, payload);
+  if(!approvals['julia']) approvals['julia']={};
+  approvals['julia'][key]=payload;
+  alert('Submitted. You\'ll see management\'s response here when it comes in.');
 }
 
 async function submitForCommission(period){
@@ -569,10 +724,29 @@ function render(){
 
 // ── Init ──────────────────────────────────────────────────────────────────
 async function init(){
-  localStorage.removeItem('toro_portal_julia'); // clear old v1/v2 data
+  localStorage.removeItem('toro_portal_julia');
   localStorage.removeItem('toro_portal_julia_v2');
+  try { quotes=JSON.parse(localStorage.getItem(STORAGE_KEY)||'[]'); } catch(e) { quotes=[]; }
+  if(quotes.length) render();
   await loadFromFirebase();
+  await loadApprovalsFromFirebase();
+  syncWorkflowFromApprovals();
+  render();
   startListeners();
+  // Polling fallback every 45s
+  setInterval(async () => {
+    if(_saving) return;
+    try {
+      const apData = await fbGet('approvals/julia');
+      const prev = JSON.stringify(approvals['julia']||{});
+      if(JSON.stringify(apData||{}) !== prev) {
+        approvals['julia'] = apData || {};
+        syncWorkflowFromApprovals();
+        markUnreadMessages();
+        render();
+      }
+    } catch(e) { /* silent */ }
+  }, 45000);
 }
 init();
 
