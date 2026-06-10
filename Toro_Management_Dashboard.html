@@ -628,7 +628,11 @@ async function approveQuote(repLower, encKey) {
       approvals[repLower][key] = updated;
       const rep = REPS.find(r=>r.toLowerCase()===repLower);
       const q = (allQuotes[rep]||[]).find(x=>fbKey(x)===key);
-      if(q) { q.workflowStatus='active'; await fbSet('quotes/'+repLower+'/'+fbKey(q), q); }
+      if(q) {
+        q.workflowStatus = 'active';
+        allQuotes[rep][allQuotes[rep].indexOf(q)] = q;
+        await fbSet('quotes/'+repLower+'/'+key+'/workflowStatus', 'active');
+      }
       render();
       bamAlert('Approved. The rep will see this in their portal.');
     } catch(e) { console.error('approveQuote error:',e); bamAlert('Error saving. Check connection and try again.'); }
@@ -637,24 +641,29 @@ async function approveQuote(repLower, encKey) {
 
 async function rejectQuote(repLower, encKey) {
   const key = decodeURIComponent(encKey);
-  bamPrompt('Rejection reason (required — will be shown to the rep):', '', async note => {
-    if(note === null) return;
-    if(!note.trim()) { bamAlert('A rejection reason is required.'); return; }
+  bamPrompt('Rejection reason (optional — will be shown to the rep):', '', async note => {
+    if(note === null) return; // cancelled
     await new Promise(r=>setTimeout(r,100));
+    const reason = (note||'').trim() || 'Please revise and resubmit.';
     try {
       const existing = (approvals[repLower]||{})[key]||{};
       const thread = existing.thread||[];
-      thread.push({role:'management',author:'Management',text:note,time:new Date().toISOString(),readByRep:false});
+      thread.push({role:'management',author:'Management',text:reason,time:new Date().toISOString(),readByRep:false});
       thread.push({role:'management',author:'Management',text:'Quote rejected.',type:'status',time:new Date().toISOString(),readByRep:false});
       thread.forEach(m=>{ if(m.role==='rep') m.readByMgmt=true; });
-      const updated = {...existing, status:'rejected', decidedAt:new Date().toISOString(), thread, note};
+      const updated = {...existing, status:'rejected', decidedAt:new Date().toISOString(), thread, note:reason};
       const ok = await fbSet('approvals/'+repLower+'/'+key, updated);
       if(!ok) throw new Error('Firebase write returned false');
       if(!approvals[repLower]) approvals[repLower]={};
       approvals[repLower][key] = updated;
+      // Update the quote workflowStatus in memory AND Firebase — but only if we can find the quote
       const rep = REPS.find(r=>r.toLowerCase()===repLower);
-      const q = (allQuotes[rep]||[]).find(x=>fbKey(x)===key);
-      if(q) { q.workflowStatus='needsApproval'; await fbSet('quotes/'+repLower+'/'+fbKey(q), q); }
+      const q = rep ? (allQuotes[rep]||[]).find(x=>fbKey(x)===key) : null;
+      if(q) {
+        q.workflowStatus = 'needsApproval';
+        allQuotes[rep][allQuotes[rep].indexOf(q)] = q;
+        await fbSet('quotes/'+repLower+'/'+key+'/workflowStatus', 'needsApproval');
+      }
       render();
       bamAlert('Rejected. The rep will see your note and can reply.');
     } catch(e) { console.error('rejectQuote error:',e); bamAlert('Error saving. Check connection and try again.'); }

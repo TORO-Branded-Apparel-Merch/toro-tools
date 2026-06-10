@@ -369,7 +369,7 @@ async function loadFromFirebase() {
     console.log('Firebase data:', data);
     if(data && typeof data === 'object') {
       quotes = Object.values(data)
-        .filter(q => q && typeof q === 'object' && (q.totalSell||q.quoteName||q.quoteNum))
+        .filter(q => q && typeof q === 'object')
         .map(q => {
           if(!q._fbKey) q._fbKey = fbKey(q);
           if(!q.workflowStatus) q.workflowStatus = 'active';
@@ -1034,7 +1034,42 @@ function startListeners() {
     if(!event || !event.data) return;
     if(firstQ) { firstQ = false; return; } // skip initial snapshot (loadFromFirebase already loaded it)
     if(_saving) return;
-    loadFromFirebase();
+    const ev = event.data;
+    // Patch in-memory quotes[] from the SSE event instead of doing a full reload.
+    // Full reloads can drop quotes that are mid-save or have unusual field combinations.
+    if(ev.path && ev.path !== '/' && ev.data !== undefined) {
+      // Partial patch: single quote updated or deleted
+      const key = ev.path.replace(/^\//, '').split('/')[0];
+      if(ev.data === null) {
+        // Quote deleted — remove from local array
+        quotes = quotes.filter(q => fbKey(q) !== key);
+      } else {
+        // Quote updated — merge into local array
+        const idx = quotes.findIndex(q => fbKey(q) === key);
+        const updated = (typeof ev.data === 'object') ? {...ev.data, _fbKey: key} : null;
+        if(updated) {
+          if(idx >= 0) {
+            // Preserve workflowStatus from local if Firebase doesn't have it yet
+            // (avoids flicker when we just wrote a status change ourselves)
+            if(!updated.workflowStatus && quotes[idx].workflowStatus)
+              updated.workflowStatus = quotes[idx].workflowStatus;
+            quotes[idx] = updated;
+          } else {
+            quotes.push(updated);
+          }
+        }
+      }
+    } else if(ev.data && typeof ev.data === 'object') {
+      // Full snapshot replacement (unusual but handle it)
+      quotes = Object.entries(ev.data)
+        .filter(([k,v]) => v && typeof v === 'object')
+        .map(([k,v]) => ({...v, _fbKey: k}));
+    } else if(ev.data === null) {
+      quotes = [];
+    }
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(quotes));
+    syncWorkflowFromApprovals();
+    render();
   });
 
   // ── Approvals listener ───────────────────────────────────────────────────
