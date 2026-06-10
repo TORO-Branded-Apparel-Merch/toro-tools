@@ -582,7 +582,7 @@ function renderAll() {
       <div class="rep-header"><h3>${rep} <span style="font-size:13px;font-weight:400;color:var(--text3);">${qs.length} quote(s)</span></h3></div>
       <div class="rep-body">
         <div class="quote-row" style="border-bottom:2px solid var(--border);">
-          <div class="th">Quote</div><div class="th">Period</div><div class="th">Net</div><div class="th">Sell</div><div class="th">Margin</div><div class="th">Est. Comm</div><div class="th">Status</div>
+          <div class="th">Quote</div><div class="th">Period</div><div class="th">Net</div><div class="th">Sell</div><div class="th">Margin</div><div class="th">Est. Comm</div><div class="th">Status</div><div class="th"></div>
         </div>`;
     qs.forEach(q => {
       const net=quoteTotal(q,'net'), sell=quoteTotal(q,'sell');
@@ -590,6 +590,7 @@ function renderAll() {
       const comm=quoteComm(q);
       const statusLabels={active:'Active',readyForSubmission:'Ready',submittedCommission:'Submitted',paid:'Paid',waitingApproval:'Awaiting Approval',needsApproval:'Needs Approval',rejected:'Rejected'};
       const statusLabel=statusLabels[q.workflowStatus]||q.workflowStatus||'Active';
+      const encQKey = encodeURIComponent(fbKey(q));
       html += `<div class="quote-row">
         <div><strong>${q.quoteName||q.quoteNum||'—'}</strong><br><span style="font-size:11px;color:var(--text3);">#${q.quoteNum}</span></div>
         <div>${q.period||'—'}</div>
@@ -598,6 +599,7 @@ function renderAll() {
         <div>${marginBadge(net,sell)}</div>
         <div>$${comm.toFixed(2)}</div>
         <div><span style="font-size:12px;background:#f0f0f0;padding:2px 8px;border-radius:10px;">${statusLabel}</span></div>
+        <div><button class="btn btn-sm" style="font-size:10px;padding:2px 7px;background:transparent;border:1px solid #e0e0e0;color:var(--text3);" onclick="deleteQuoteFromFirebase('${rep}','${encQKey}')" title="Delete from Firebase">🗑</button></div>
       </div>`;
     });
     html += '</div></div>';
@@ -693,6 +695,25 @@ async function dismissApproval(repLower, encKey) {
       if(approvals[repLower]) delete approvals[repLower][key];
       render();
     } catch(e) { console.error('dismissApproval error:',e); bamAlert('Error dismissing. Please try again.'); }
+  });
+}
+
+async function deleteQuoteFromFirebase(rep, encKey) {
+  const key = decodeURIComponent(encKey);
+  const rl = rep.toLowerCase();
+  const q = (allQuotes[rep]||[]).find(x=>fbKey(x)===key);
+  const label = q ? (q.quoteName||q.quoteNum||key) : key;
+  bamConfirm(`Delete quote "${label}" from Firebase?\n\nThis removes it from the database permanently. Use this to clear orphaned quotes the rep deleted locally but that are still stuck here.`, async ok => {
+    if(!ok) return;
+    try {
+      await fbSet('quotes/'+rl+'/'+key, null);
+      // Also clean up any approval entry
+      await fbSet('approvals/'+rl+'/'+key, null);
+      if(allQuotes[rep]) allQuotes[rep] = allQuotes[rep].filter(x=>fbKey(x)!==key);
+      if(approvals[rl]) delete approvals[rl][key];
+      render();
+      bamAlert('Quote deleted from Firebase.');
+    } catch(e) { console.error('deleteQuoteFromFirebase error:',e); bamAlert('Error deleting. Check console.'); }
   });
 }
 
