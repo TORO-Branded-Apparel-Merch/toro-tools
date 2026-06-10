@@ -538,7 +538,7 @@ function quoteCard(q, locked) {
   const clientLine = (q.clientName||q.clientCompany) ? '<div style="font-size:12px;font-weight:600;color:var(--text2);">'+(q.clientName||'')+(q.clientName&&q.clientCompany?' / ':'')+(q.clientCompany||'')+'</div>' : '';
 
   return '<div class="quote-card" id="qc-'+key.replace(/[^a-zA-Z0-9]/g,'_')+'">'+
-    '<div class="qc-header">'+ '<div class="qc-toggle" onclick="toggleCard(this.closest('.quote-card'))" style="cursor:pointer;padding:4px 6px;font-size:11px;color:var(--text3);user-select:none;flex-shrink:0;" title="Open/close">▶</div>'+
+    '<div class="qc-header">'+ '<div class="qc-toggle" onclick="toggleCard(this.closest(\'.quote-card\'))" style="cursor:pointer;padding:4px 6px;font-size:11px;color:var(--text3);user-select:none;flex-shrink:0;" title="Open/close">▶</div>'+
       '<div class="qc-meta">'+
         clientLine+
         '<div class="qc-title">'+(q.quoteName||q.quoteNum||'Untitled')+' <span style="font-size:12px;color:var(--text3);font-weight:400;">#'+(q.quoteNum||'?')+'</span></div>'+
