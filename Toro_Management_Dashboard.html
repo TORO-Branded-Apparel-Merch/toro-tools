@@ -113,7 +113,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script>
 const DASH_PW = 'Toro#Mv3kG';
-const DASH_VERSION = 'v2.2';
+const DASH_VERSION = 'v2.3';
 const LOCK_KEY = 'toro_lock_dash';
 const ATTEMPTS_KEY = 'toro_attempts_dash';
 const FIREBASE_DB_URL = 'https://toro-commission-318b4-default-rtdb.firebaseio.com';
@@ -323,7 +323,8 @@ function renderCommission() {
   let html = '';
   let grandNet=0, grandSell=0, grandComm=0;
   for(const rep of REPS) {
-    const qs = (allQuotes[rep]||[]).filter(q=>q.workflowStatus==='readyForSubmission'||q.workflowStatus==='submittedCommission'||q.workflowStatus==='paid');
+    // Only show pending (not yet paid) in main view
+    const qs = (allQuotes[rep]||[]).filter(q=>q.workflowStatus==='readyForSubmission'||q.workflowStatus==='submittedCommission');
     if(qs.length===0) continue;
     let repNet=0, repSell=0, repComm=0;
     qs.forEach(q=>{ repNet+=quoteTotal(q,'net'); repSell+=quoteTotal(q,'sell'); repComm+=quoteComm(q); });
@@ -358,6 +359,24 @@ function renderCommission() {
   }
   if(!html) html = '<div class="card" style="color:var(--text3);text-align:center;padding:32px;">No quotes ready for commission.</div>';
   else html += `<div class="card" style="text-align:right;"><strong>Grand Total Commission Due: <span style="color:var(--green);font-size:18px;">$${grandComm.toFixed(2)}</span></strong></div>`;
+
+  // Paid History — collapsible section at the bottom
+  const paidQuotes = [];
+  for(const rep of REPS) {
+    (allQuotes[rep]||[]).filter(q=>q.workflowStatus==='paid').forEach(q=>paidQuotes.push({...q,_rep:rep}));
+  }
+  if(paidQuotes.length) {
+    let paidSell=0, paidComm=0;
+    paidQuotes.forEach(q=>{ paidSell+=quoteTotal(q,'sell'); paidComm+=quoteComm(q); });
+    let paidHtml = `<details style="margin-top:16px;"><summary style="cursor:pointer;font-size:14px;font-weight:700;color:var(--text2);padding:10px 0;user-select:none;">🗂 Paid History (${paidQuotes.length} quote${paidQuotes.length!==1?'s':''}) — Total Paid Out: <span style="color:var(--green);">$${paidComm.toFixed(2)}</span></summary><div style="margin-top:8px;">`;
+    paidQuotes.sort((a,b)=>(b.paidAt||'').localeCompare(a.paidAt||'')).forEach(q => {
+      const net=quoteTotal(q,'net'), sell=quoteTotal(q,'sell'), comm=quoteComm(q);
+      paidHtml += `<div class="quote-row" style="opacity:.85;"><div><strong>${q.quoteName||q.quoteNum||'—'}</strong><br><span style="font-size:11px;color:var(--text3);">${q._rep} · #${q.quoteNum||'?'}</span></div><div>${q.period||q.commissionReport||'—'}</div><div>$${net.toFixed(2)}</div><div>$${sell.toFixed(2)}</div><div>${marginBadge(net,sell)}</div><div style="color:var(--green);font-weight:700;">$${comm.toFixed(2)}</div><div><span class="paid-indicator">Paid</span></div><div></div></div>`;
+    });
+    paidHtml += `</div></details>`;
+    html += paidHtml;
+  }
+
   document.getElementById('tab-content').innerHTML = html;
 }
 
@@ -454,16 +473,22 @@ async function deleteQuoteFromFirebase(rep, encKey) {
 
 async function markPaid(rep, encKey) {
   const key = decodeURIComponent(encKey);
-  bamConfirm('Mark this commission as paid?', async ok => {
+  bamConfirm('Mark this commission as paid? It will move to Paid History.', async ok => {
     if(!ok) return;
     try {
       const rl = rep.toLowerCase();
       const q = (allQuotes[rep]||[]).find(x=>fbKey(x)===key);
       if(q) {
+        const paidAt = new Date().toISOString();
         q.workflowStatus = 'paid';
+        q.paidAt = paidAt;
+        // Write updated status back to quotes node
         await fbSet('quotes/'+rl+'/'+fbKey(q), q);
+        // Also write permanent copy to paid history node (reps can't touch this)
+        const histKey = fbKey(q) || ('paid_'+Date.now());
+        await fbSet('paid/'+rl+'/'+histKey, Object.assign({}, q, {_rep:rep, _paidAt:paidAt}));
         render();
-        bamAlert('Marked as paid!');
+        bamAlert('Marked as paid and saved to history!');
       }
     } catch(e) { console.error('markPaid error:',e); bamAlert('Error marking paid.'); }
   });
