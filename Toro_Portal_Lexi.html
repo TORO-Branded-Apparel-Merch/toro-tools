@@ -595,9 +595,27 @@ function render() {
   sa.innerHTML = (approval.length||waiting.length)?
     '<div class="section-title">⚠️ Needs Attention <span class="badge">'+(approval.length+waiting.length)+'</span></div>'+
     [...approval,...waiting].map(q=>quoteCard(q,false)).join('') : '';
-  sr.innerHTML = ready.length?
-    '<div class="section-title">✅ Ready for Submission <span class="badge">'+ready.length+'</span></div>'+
-    ready.map(q=>quoteCard(q,false)).join('') : '';
+  if(ready.length){
+    const rSell=ready.reduce((a,q)=>a+quoteTotal(q,'sell'),0);
+    const rNet=ready.reduce((a,q)=>a+quoteTotal(q,'net'),0);
+    const rComm=ready.reduce((a,q)=>a+quoteComm(q),0);
+    const rMg=rSell>0?((rSell-rNet)/rSell*100):0;
+    sr.innerHTML=
+      '<div class="section-title" style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;">'+
+        '<span>✅ Ready for Submission <span class="badge">'+ready.length+'</span></span>'+
+        '<button class="btn btn-green btn-sm" onclick="submitAllCommission()">📤 Submit All ('+ready.length+')</button>'+
+      '</div>'+
+      '<div style="padding:8px 14px;background:#e6f4ee;border-radius:0;border-bottom:1px solid #c8e6c9;font-size:12px;display:flex;gap:20px;flex-wrap:wrap;margin-bottom:2px">'+
+        '<span>Quotes: <strong>'+ready.length+'</strong></span>'+
+        '<span>Total sell: <strong>'+fmt(rSell)+'</strong></span>'+
+        '<span>Gross profit: <strong>'+fmt(rSell-rNet)+'</strong></span>'+
+        '<span>Avg margin: <strong style="color:'+(rMg<30?'var(--red)':rMg<35?'var(--orange)':'var(--green)')+'">'+(rMg).toFixed(1)+'%</strong></span>'+
+        '<span>Est. commission: <strong style="color:#7c4d00">'+fmt(rComm)+'</strong></span>'+
+      '</div>'+
+      ready.map(q=>quoteCard(q,false)).join('');
+  } else {
+    sr.innerHTML='';
+  }
   sac.innerHTML = '<div class="section-title">📋 Active Quotes <span class="badge">'+active.length+'</span></div>'+
     (active.length?active.map(q=>quoteCard(q,false)).join(''):'<div style="color:var(--text3);font-size:14px;padding:20px 0;text-align:center;">No active quotes. Upload a quote JSON to get started.</div>');
   sar.innerHTML = archived.length?
@@ -815,13 +833,33 @@ function submitForCommission(encKey) {
   const decoded=decodeURIComponent(encKey);
   const q=quotes.find(x=>fbKey(x)===decoded);
   if(!q) return;
-  bamConfirm('Submit for commission payment? This quote will be archived.', async ok=>{
+  bamConfirm('Submit this quote for commission payment? It will be archived.', async ok=>{
     if(!ok) return;
     q.workflowStatus='submittedCommission';
+    q.submittedAt=new Date().toISOString();
     render();
     localStorage.setItem(STORAGE_KEY,JSON.stringify(quotes));
     await saveQuote(q);
     bamAlert('Commission submission recorded!');
+  });
+}
+
+async function submitAllCommission() {
+  const ready=quotes.filter(q=>q.workflowStatus==='readyForSubmission');
+  if(!ready.length){ bamAlert('No quotes ready for submission.'); return; }
+  const totalComm=ready.reduce((a,q)=>a+quoteComm(q),0);
+  const totalSell=ready.reduce((a,q)=>a+quoteTotal(q,'sell'),0);
+  bamConfirm('Submit all '+ready.length+' quote'+(ready.length!==1?'s':'')+' for commission?\n\nTotal sell: '+fmt(totalSell)+'\nEst. commission: '+fmt(totalComm)+'\n\nThey will be archived.', async ok=>{
+    if(!ok) return;
+    const submittedAt=new Date().toISOString();
+    for(const q of ready){
+      q.workflowStatus='submittedCommission';
+      q.submittedAt=submittedAt;
+    }
+    render();
+    localStorage.setItem(STORAGE_KEY,JSON.stringify(quotes));
+    for(const q of ready) await saveQuote(q);
+    bamAlert('All '+ready.length+' quote'+(ready.length!==1?'s':'')+' submitted!');
   });
 }
 

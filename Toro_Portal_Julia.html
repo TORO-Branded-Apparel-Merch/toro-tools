@@ -617,6 +617,63 @@ function statusChecksHtml(q,idx){
   }).join('')+'</div>';
 }
 // ── Render ────────────────────────────────────────────────────────────────
+
+function quoteRow(q, idx, locked, isReady) {
+  const sell = q.totalSell||0;
+  const net = q.totalNetCost||0;
+  const comm = q.totalRepComm||0;
+  const mg = sell>0?Math.round((1-net/sell)*1000)/10:0;
+  const mgCls = mg<30?'red':mg<35?'orange':'green';
+  const qKey = q._fbKey||q.quoteNum||('idx_'+idx);
+  const encKey = encodeURIComponent(qKey);
+  const project = [q.quoteName||q.quoteNum||'Untitled', q.clientName, q.clientCompany].filter(Boolean).join(' — ');
+
+  let actions = '';
+  if(!locked) {
+    if(isReady) {
+      actions += '<button class="btn btn-green btn-sm" onclick="submitOneCommission(''+encKey+'')" title="Submit this quote">📤 Submit</button> ';
+    }
+    if(q.workflowStatus==='needsApproval'||(q.needsApproval&&!q.marginApproved)) {
+      actions += '<button class="btn btn-outline btn-sm" onclick="submitForApproval(''+qKey+'')">🔔 Approval</button> ';
+    }
+    actions += '<button class="btn btn-outline btn-sm" onclick="deleteQuote(''+encKey+'')" title="Delete">🗑</button>';
+  }
+
+  const statusHtml = locked ? '<span class="status-badge badge-archived">Submitted</span>' : approvalBadge(q);
+  const checks = locked ? '' : statusChecksHtml(q, idx);
+  const apHtml = approvalHtmlForQuote(q);
+
+  return `<tr>
+    <td><strong>${project}</strong>${q.ihd?'<br><span style="font-size:10px;color:var(--text3)">IHD: '+q.ihd+'</span>':''}</td>
+    <td class="r">${fmt(net)}</td>
+    <td class="r">${fmt(sell)}</td>
+    <td class="r"><span class="${mgCls}">${pct(mg)}</span></td>
+    <td class="r" style="color:var(--brown)">${fmt(comm)}</td>
+    <td>${q.commissionSplit||'standard'}</td>
+    <td>${statusHtml}${checks}</td>
+    <td style="white-space:nowrap">${actions}</td>
+  </tr>
+  ${apHtml?'<tr><td colspan="8" style="padding:0 8px 8px">'+apHtml+'</td></tr>':''}`;
+}
+
+async function submitOneCommission(encKey) {
+  const key = decodeURIComponent(encKey);
+  const q = quotes.find(x=>(x._fbKey||x.quoteNum)===key||(x._fbKey||x.quoteNum)===encodeURIComponent(key));
+  const qq = q || quotes.find(x=>encodeURIComponent(x._fbKey||x.quoteNum)===encKey);
+  if(!qq) return;
+  if(!confirm('Submit this quote for commission payment? It will be archived.')) return;
+  const submittedAt = new Date().toISOString();
+  qq.workflowStatus = 'submittedCommission';
+  qq.submittedAt = submittedAt;
+  qq.locked = true;
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(quotes));
+  render();
+  await fbSave(qq);
+  const k2 = qq._fbKey||qq.quoteNum;
+  await fbSet('commissionSubmissions/'+REP.toLowerCase()+'/'+k2, {...qq, submittedAt, rep:REP});
+}
+
+
 function render(){
   const status=document.getElementById('status-text');
   const cards=document.getElementById('summary-cards');
@@ -677,7 +734,7 @@ function render(){
     html+=`<div class="section-block">
       <div class="section-hdr ready">
         <span>&#9989; Ready for Commission Submission (${readyForSub.length})</span>
-        <button class="btn btn-sm" style="background:#fff;color:var(--green);font-weight:700" onclick="submitForCommission()">Submit for Commission</button>
+        <div style="display:flex;gap:8px;align-items:center"><button class="btn btn-sm" style="background:#fff;color:var(--green);font-weight:700" onclick="submitForCommission()">📤 Submit All</button></div>
       </div>
       <div style="padding:8px 16px;background:#e6f4ee;border-bottom:1px solid #c8e6c9;font-size:12px;display:flex;gap:20px;flex-wrap:wrap">
         <span>Quotes: <strong>${readyForSub.length}</strong></span>
