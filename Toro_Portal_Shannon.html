@@ -172,8 +172,13 @@ async function fbSet(path, data){
     const method = data===null?'DELETE':'PUT';
     const opts = {method,headers:{'Content-Type':'application/json'}};
     if(data!==null) opts.body=JSON.stringify(data);
-    const r=await fetch(FIREBASE_DB_URL+'/'+path+'.json',opts);
-    return r.ok;
+    const controller = new AbortController();
+    const timer = setTimeout(()=>controller.abort(), 8000);
+    try{
+      const r=await fetch(FIREBASE_DB_URL+'/'+path+'.json',{...opts,signal:controller.signal});
+      clearTimeout(timer);
+      return r.ok;
+    } catch(e){ clearTimeout(timer); throw e; }
   } catch(e){console.warn('fbSet failed:',e.message);return false;}
 }
 async function fbGet(path){

@@ -257,8 +257,16 @@ async function fbSet(path, data) {
     const method = data === null ? 'DELETE' : 'PUT';
     const opts = { method, headers:{'Content-Type':'application/json'} };
     if(data !== null) opts.body = JSON.stringify(data);
-    const res = await fetch(FIREBASE_DB_URL+'/'+path+'.json', opts);
-    return res.ok;
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 8000);
+    try {
+      const res = await fetch(FIREBASE_DB_URL+'/'+path+'.json', {...opts, signal:controller.signal});
+      clearTimeout(timer);
+      return res.ok;
+    } catch(e) {
+      clearTimeout(timer);
+      throw e;
+    }
   } catch(e) { console.warn('fbSet failed:',e.message); return false; }
 }
 async function fbGet(path) {
@@ -591,10 +599,17 @@ async function submitFeedback() {
   const msg=document.getElementById('feedback-text').value.trim();
   const status=document.getElementById('feedback-status');
   if(!msg){status.style.color='var(--red)';status.textContent='Please enter a message.';return;}
+  const sendBtn=document.querySelector('#feedback-modal .btn-red');
+  if(sendBtn) sendBtn.disabled=true;
   status.style.color='var(--text3)';status.textContent='Sending...';
   const ok=await fbSet('feedback/fb_'+Date.now(),{rep:REP,message:msg,sentAt:new Date().toISOString(),read:false});
-  if(ok){status.style.color='var(--green)';status.textContent='Sent! Thank you.';setTimeout(()=>document.getElementById('feedback-modal').classList.remove('open'),1500);}
-  else{status.style.color='var(--red)';status.textContent='Failed to send. Please try again.';}
+  if(sendBtn) sendBtn.disabled=false;
+  if(ok){
+    status.style.color='var(--green)';status.textContent='Sent! Thank you.';
+    setTimeout(()=>document.getElementById('feedback-modal').classList.remove('open'),1500);
+  } else {
+    status.style.color='var(--red)';status.textContent='Failed to send. Please try again.';
+  }
 }
 
 // ── Reporting ──────────────────────────────────────────────────────────────
