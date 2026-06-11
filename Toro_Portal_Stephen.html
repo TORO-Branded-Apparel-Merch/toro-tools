@@ -405,9 +405,9 @@ function quoteRow(q,locked,isReady){
   let actions='';
   if(!locked){
     if(isReady){
-      actions+='<button class="btn btn-green btn-sm" onclick="submitOneCommission(''+encKey+'')" title="Submit this quote">📤 Submit</button> ';
+      actions+='<button class="btn btn-green btn-sm" data-key="'+encKey+'" onclick="submitOneCommission(this.dataset.key)" title="Submit this quote">📤 Submit</button> ';
     }
-    actions+='<button class="del-btn" onclick="deleteQuote(''+encKey+'')" title="Delete">🗑</button>';
+    actions+='<button class="del-btn" data-key="'+encKey+'" onclick="deleteQuote(this.dataset.key)" title="Delete">🗑</button>';
   }
 
   const checks=locked?'':statusChecksHtml(q);
