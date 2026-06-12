@@ -113,7 +113,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script>
 const DASH_PW = 'Toro#Mv3kG';
-const DASH_VERSION = 'v2.4';
+const DASH_VERSION = 'v2.6';
 const LOCK_KEY = 'toro_lock_dash';
 const ATTEMPTS_KEY = 'toro_attempts_dash';
 const FIREBASE_DB_URL = 'https://toro-commission-318b4-default-rtdb.firebaseio.com';
@@ -281,7 +281,8 @@ function startListeners() {
   }
   fbListen('feedback', data => {
     if(data && data.data && typeof data.data==='object') {
-      feedbackData = data.data;
+      // Filter out any null entries (deleted keys Firebase may still stream)
+      feedbackData = Object.fromEntries(Object.entries(data.data).filter(([,v])=>v!==null));
       const unread=Object.values(feedbackData).filter(f=>!f.read).length;
       const badge=document.getElementById('feedback-badge');
       if(badge){badge.style.display=unread?'':'none';badge.textContent=unread;}
@@ -359,7 +360,7 @@ function renderCommission() {
         <div>${marginBadge(net,sell)}</div>
         <div style="color:var(--green);font-weight:700;">$${comm.toFixed(2)}</div>
         <div>${isPaid?'<span class="paid-indicator">Paid</span>':`<button class="btn btn-green btn-sm" onclick="markPaid('${rep}','${encQKey}')">Mark Paid</button>`}</div>
-        <div></div>
+        <div><button class="btn btn-sm" style="background:#fff0f2;color:var(--red);border:1px solid #f5c2c7;" onclick="deleteQuoteHard('${rep}','${encQKey}')">🗑</button></div>
       </div>`;
     });
     html += `<div class="totals-row">Rep Total Comm: <strong style="color:var(--green);">$${repComm.toFixed(2)}</strong></div>
@@ -379,7 +380,8 @@ function renderCommission() {
     let paidHtml = `<details style="margin-top:16px;"><summary style="cursor:pointer;font-size:14px;font-weight:700;color:var(--text2);padding:10px 0;user-select:none;">🗂 Paid History (${paidQuotes.length} quote${paidQuotes.length!==1?'s':''}) — Total Paid Out: <span style="color:var(--green);">$${paidComm.toFixed(2)}</span></summary><div style="margin-top:8px;">`;
     paidQuotes.sort((a,b)=>(b.paidAt||'').localeCompare(a.paidAt||'')).forEach(q => {
       const net=quoteTotal(q,'net'), sell=quoteTotal(q,'sell'), comm=quoteComm(q);
-      paidHtml += `<div class="quote-row" style="opacity:.85;"><div><strong>${q.quoteName||q.quoteNum||'—'}</strong><br><span style="font-size:11px;color:var(--text3);">${q._rep} · #${q.quoteNum||'?'}</span></div><div>${q.period||q.commissionReport||'—'}</div><div>$${net.toFixed(2)}</div><div>$${sell.toFixed(2)}</div><div>${marginBadge(net,sell)}</div><div style="color:var(--green);font-weight:700;">$${comm.toFixed(2)}</div><div><span class="paid-indicator">Paid</span></div><div></div></div>`;
+      const encPaidKey = encodeURIComponent(fbKey(q));
+      paidHtml += `<div class="quote-row" style="opacity:.85;"><div><strong>${q.quoteName||q.quoteNum||'—'}</strong><br><span style="font-size:11px;color:var(--text3);">${q._rep} · #${q.quoteNum||'?'}</span></div><div>${q.period||q.commissionReport||'—'}</div><div>$${net.toFixed(2)}</div><div>$${sell.toFixed(2)}</div><div>${marginBadge(net,sell)}</div><div style="color:var(--green);font-weight:700;">$${comm.toFixed(2)}</div><div><span class="paid-indicator">Paid</span></div><div><button class="btn btn-sm" style="background:#fff0f2;color:var(--red);border:1px solid #f5c2c7;" onclick="deleteQuoteHard('${q._rep}','${encPaidKey}')">🗑</button></div></div>`;
     });
     paidHtml += `</div></details>`;
     html += paidHtml;
@@ -476,6 +478,23 @@ async function deleteQuoteFromFirebase(rep, encKey) {
       render();
       bamAlert('Quote deleted.');
     } catch(e) { console.error('deleteQuoteFromFirebase error:',e); bamAlert('Something went wrong while deleting. Check the console for details.'); }
+  });
+}
+
+async function deleteQuoteHard(rep, encKey) {
+  const key = decodeURIComponent(encKey);
+  const rl = rep.toLowerCase();
+  const q = (allQuotes[rep]||[]).find(x=>fbKey(x)===key);
+  const label = q ? (q.quoteName||q.quoteNum||key) : key;
+  bamConfirm('Permanently delete <strong>'+label+'</strong> for '+rep+'? This removes it from Firebase entirely and cannot be undone.', async ok => {
+    if(!ok) return;
+    try {
+      await fbSet('quotes/'+rl+'/'+key, null);
+      await fbSet('paid/'+rl+'/'+key, null);
+      if(allQuotes[rep]) allQuotes[rep] = allQuotes[rep].filter(x=>fbKey(x)!==key);
+      render();
+      bamAlert('Deleted. Gone for good.');
+    } catch(e) { console.error('deleteQuoteHard error:',e); bamAlert('Something went wrong while deleting. Check the console for details.'); }
   });
 }
 

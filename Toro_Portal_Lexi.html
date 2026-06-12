@@ -174,7 +174,7 @@ const PW_KEY = 'toro_pw_lexi';
 const LOCK_KEY = 'toro_lock_lexi';
 const ATTEMPTS_KEY = 'toro_attempts_lexi';
 const DEFAULT_PW = 'Toro#Qd2fH';
-const PORTAL_VERSION = 'v2.5';
+const PORTAL_VERSION = 'v2.6';
 const FIREBASE_DB_URL = 'https://toro-commission-318b4-default-rtdb.firebaseio.com';
 const FB_PATH = 'quotes/' + REP_LOWER;
 
@@ -414,6 +414,8 @@ function quoteCard(q, locked) {
       actionBtns+='<button class="btn btn-gray btn-sm" data-key="'+encKey+'" onclick="undoReady(decodeURIComponent(this.dataset.key))">↩ Undo</button>';
     }
     actionBtns+='<button class="btn btn-gray btn-sm" data-key="'+encKey+'" onclick="exportToBuilder(decodeURIComponent(this.dataset.key))">✏️ Edit</button>';
+    actionBtns+='<button class="del-btn" data-key="'+encKey+'" onclick="deleteQuote(decodeURIComponent(this.dataset.key))">🗑</button>';
+  } else {
     actionBtns+='<button class="del-btn" data-key="'+encKey+'" onclick="deleteQuote(decodeURIComponent(this.dataset.key))">🗑</button>';
   }
 
