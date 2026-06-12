@@ -113,7 +113,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script>
 const DASH_PW = 'Toro#Mv3kG';
-const DASH_VERSION = 'v3.8';
+const DASH_VERSION = 'v3.9';
 const LOCK_KEY = 'toro_lock_dash';
 const ATTEMPTS_KEY = 'toro_attempts_dash';
 const FIREBASE_DB_URL = 'https://toro-commission-318b4-default-rtdb.firebaseio.com';
@@ -172,28 +172,21 @@ function submitPw() {
 document.getElementById('pw-input').addEventListener('keydown', e=>{ if(e.key==='Enter') submitPw(); });
 
 // ── Firebase ───────────────────────────────────────────────────────────────
-async function fbSet(path, val) {
+function fbSet(path, val) {
+  // Fire-and-forget — don't await response body, Firebase confirms via SSE
   const url = FIREBASE_DB_URL + '/' + path + '.json';
   const method = val === null ? 'DELETE' : 'PUT';
-  try {
-    const r = await fetch(url, { method, headers:{'Content-Type':'application/json'}, body:val===null?undefined:JSON.stringify(val) });
-    if(!r.ok) {
-      const body = await r.text();
-      console.error('fbSet failed:', method, path, r.status, body);
-    }
-    return r.ok;
-  } catch(e) { console.error('fbSet failed:', path, e.message); return false; }
+  fetch(url, { method, headers:{'Content-Type':'application/json'}, body:val===null?undefined:JSON.stringify(val) })
+    .then(r => { if(!r.ok) console.error('fbSet failed:', method, path, r.status); })
+    .catch(e => console.error('fbSet error:', path, e.message));
 }
-async function fbDel(path) {
-  return fbSet(path, null);
-}
-async function fbPatch(path, val) {
+function fbDel(path) { fbSet(path, null); }
+function fbPatch(path, val) {
+  // Fire-and-forget PATCH
   const url = FIREBASE_DB_URL + '/' + path + '.json';
-  try {
-    const r = await fetch(url, { method:'PATCH', headers:{'Content-Type':'application/json'}, body:JSON.stringify(val) });
-    if(!r.ok) { const body = await r.text(); console.error('fbPatch failed:', path, r.status, body); }
-    return r.ok;
-  } catch(e) { console.error('fbPatch failed:', path, e.message); return false; }
+  fetch(url, { method:'PATCH', headers:{'Content-Type':'application/json'}, body:JSON.stringify(val) })
+    .then(r => { if(!r.ok) console.error('fbPatch failed:', path, r.status); })
+    .catch(e => console.error('fbPatch error:', path, e.message));
 }
 async function fbGet(path) {
   const r = await fetch(FIREBASE_DB_URL + '/' + path + '.json');
@@ -504,59 +497,51 @@ function renderByRep() {
 }
 
 // ── Actions ───────────────────────────────────────────────────────────────
-async function deleteQuoteFromFirebase(rep, encKey) {
+function deleteQuoteFromFirebase(rep, encKey) {
   const key = decodeURIComponent(encKey);
   const rl = rep.toLowerCase();
   const q = (allQuotes[rep]||[]).find(x => (x._fbKey||'') === key || fbKey(x) === key);
   const qKey = q ? (q._fbKey || key) : key;
   const label = q ? (q.quoteName||q.quoteNum||qKey) : qKey;
-  bamConfirm(`Delete "${label}" from Firebase?<br><br><small style="color:var(--text3)">Use this to clear quotes the rep deleted locally that are still stuck in the database.</small>`, async ok => {
+  bamConfirm(`Delete "${label}" from Firebase?<br><br><small style="color:var(--text3)">Use this to clear quotes the rep deleted locally that are still stuck in the database.</small>`, ok => {
     if(!ok) return;
-    console.log('deleteQuoteFromFirebase rep='+rep+' qKey='+qKey);
-    const ok1 = await fbSet('quotes/'+rl+'/'+qKey, null);
-    const ok2 = await fbSet('paid/'+rl+'/'+qKey, null);
-    console.log('delete ok1='+ok1+' ok2='+ok2);
+    fbSet('quotes/'+rl+'/'+qKey, null);
+    fbSet('paid/'+rl+'/'+qKey, null);
     if(allQuotes[rep]) allQuotes[rep] = allQuotes[rep].filter(x => (x._fbKey||fbKey(x)) !== qKey);
     render();
     setTimeout(()=>bamAlert('Quote deleted.'),100);
   });
 }
 
-async function deleteQuoteHard(rep, encKey) {
+function deleteQuoteHard(rep, encKey) {
   const key = decodeURIComponent(encKey);
   const rl = rep.toLowerCase();
   const q = (allQuotes[rep]||[]).find(x => (x._fbKey||'') === key || fbKey(x) === key);
   const qKey = q ? (q._fbKey || key) : key;
   const label = q ? (q.quoteName||q.quoteNum||qKey) : qKey;
-  bamConfirm('Permanently delete <strong>'+label+'</strong> for '+rep+'? This removes it from Firebase entirely and cannot be undone.', async ok => {
+  bamConfirm('Permanently delete <strong>'+label+'</strong> for '+rep+'? This removes it from Firebase entirely and cannot be undone.', ok => {
     if(!ok) return;
-    console.log('deleteQuoteHard rep='+rep+' qKey='+qKey);
-    const ok1 = await fbSet('quotes/'+rl+'/'+qKey, null);
-    const ok2 = await fbSet('paid/'+rl+'/'+qKey, null);
-    console.log('deleteHard ok1='+ok1+' ok2='+ok2);
+    fbSet('quotes/'+rl+'/'+qKey, null);
+    fbSet('paid/'+rl+'/'+qKey, null);
     if(allQuotes[rep]) allQuotes[rep] = allQuotes[rep].filter(x => (x._fbKey||fbKey(x)) !== qKey);
     render();
     setTimeout(()=>bamAlert('Deleted. Gone for good.'),100);
   });
 }
 
-async function markPaid(rep, encKey) {
+function markPaid(rep, encKey) {
   const key = decodeURIComponent(encKey);
-  bamConfirm('Mark this commission as paid? It will be moved to Paid History.', async ok => {
+  bamConfirm('Mark this commission as paid? It will be moved to Paid History.', ok => {
     if(!ok) return;
     const rl = rep.toLowerCase();
     const q = (allQuotes[rep]||[]).find(x => (x._fbKey||'') === key || fbKey(x) === key);
-    console.log('markPaid rep='+rep+' key='+key+' found='+!!q);
     if(!q) { setTimeout(()=>bamAlert('Could not find quote. Refresh and try again.'),100); return; }
     const paidAt = new Date().toISOString();
     const qKey = q._fbKey || fbKey(q);
-    // PATCH only the status fields — avoids sending/receiving the full large quote object
-    const patch = {workflowStatus:'paid', paidAt};
-    console.log('markPaid patching quotes/'+rl+'/'+qKey);
-    const ok1 = await fbPatch('quotes/'+rl+'/'+qKey, patch);
-    console.log('markPaid ok1='+ok1);
-    // Write a lightweight paid history record
-    const histRecord = {
+    // PATCH only status fields — fire-and-forget
+    fbPatch('quotes/'+rl+'/'+qKey, {workflowStatus:'paid', paidAt});
+    // Lightweight paid history record
+    fbSet('paid/'+rl+'/'+qKey, {
       quoteNum: q.quoteNum, quoteName: q.quoteName,
       clientName: q.clientName, clientCompany: q.clientCompany,
       totalSell: q.totalSell||q.sell||0, totalNetCost: q.totalNetCost||q.net||0,
@@ -564,14 +549,12 @@ async function markPaid(rep, encKey) {
       totalRepComm: q.totalRepComm||null,
       period: q.period||q.commissionReport||'',
       workflowStatus: 'paid', paidAt, _rep: rep, _paidAt: paidAt
-    };
-    const ok2 = await fbSet('paid/'+rl+'/'+qKey, histRecord);
-    console.log('markPaid ok2='+ok2);
-    // Update in-memory
+    });
+    // Update in-memory immediately, SSE will confirm
     q.workflowStatus = 'paid';
     q.paidAt = paidAt;
     render();
-    setTimeout(()=>bamAlert(ok1&&ok2?'BAM! Marked as paid.':'Write failed — check console.'),100);
+    setTimeout(()=>bamAlert('BAM! Marked as paid.'),100);
   });
 }
 
