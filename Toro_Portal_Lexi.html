@@ -174,7 +174,7 @@ const PW_KEY = 'toro_pw_lexi';
 const LOCK_KEY = 'toro_lock_lexi';
 const ATTEMPTS_KEY = 'toro_attempts_lexi';
 const DEFAULT_PW = 'Toro#Qd2fH';
-const PORTAL_VERSION = 'v2.19';
+const PORTAL_VERSION = 'v2.20';
 const FIREBASE_DB_URL = 'https://toro-commission-318b4-default-rtdb.firebaseio.com';
 const FB_PATH = 'quotes/' + REP_LOWER;
 
@@ -325,31 +325,29 @@ async function loadFromFirebase() {
   render();
 }
 
-async function saveQuote(q) {
+function saveQuote(q) {
   _saving = true;
   setSyncing(true);
   const key = fbKey(q);
   q._fbKey = key;
-  const statusAtSave = q.workflowStatus;
-  try {
-    const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), 20000);
-    const method = 'PUT';
-    const res = await fetch(FIREBASE_DB_URL+'/'+FB_PATH+'/'+key+'.json', {
-      method, headers:{'Content-Type':'application/json'},
-      body: JSON.stringify(q), signal: controller.signal
-    });
-    clearTimeout(timer);
-    // Don't treat timeout/abort as an error — Firebase likely got the write
-    const ok = res.ok;
-    if(!ok) {
-      console.error('saveQuote: fbSet returned false for key', key, '- check Firebase rules');
+  const url = FIREBASE_DB_URL+'/'+FB_PATH+'/'+key+'.json';
+  const xhr = new XMLHttpRequest();
+  xhr.open('PUT', url, true);
+  xhr.setRequestHeader('Content-Type','application/json');
+  xhr.onreadystatechange = () => {
+    if(xhr.readyState !== 4) return;
+    if(xhr.status < 200 || xhr.status >= 300) {
+      console.error('saveQuote failed:', xhr.status, key);
       const lbl = document.getElementById('sync-label');
       if(lbl) { lbl.textContent='Sync failed'; lbl.style.color='#ff6b6b'; }
     }
-  }
-  catch(e) { console.error('saveQuote error:',e); }
-  finally { setTimeout(()=>{_saving=false;setSyncing(false);},5000); }
+    setTimeout(()=>{_saving=false;setSyncing(false);},5000);
+  };
+  xhr.onerror = () => {
+    console.error('saveQuote network error:', key);
+    setTimeout(()=>{_saving=false;setSyncing(false);},5000);
+  };
+  xhr.send(JSON.stringify(q));
 }
 
 // ── File import ────────────────────────────────────────────────────────────
@@ -380,7 +378,7 @@ function processFile(file) {
       if(existing>=0) quotes[existing]=q; else quotes.push(q);
       render();
       localStorage.setItem(STORAGE_KEY, JSON.stringify(quotes));
-      await saveQuote(q);
+      saveQuote(q);
     } catch(ex) { bamAlert('Oof! I couldn\'t read that file: '+ex.message); }
   };
   r.readAsText(file);
@@ -544,7 +542,7 @@ async function toggleStatus(key, field, checked) {
   }
   render();
   localStorage.setItem(STORAGE_KEY,JSON.stringify(quotes));
-  await saveQuote(q);
+  saveQuote(q);
 }
 
 function submitForCommission(key) {
@@ -556,7 +554,7 @@ function submitForCommission(key) {
     q.submittedAt=new Date().toISOString();
     render();
     localStorage.setItem(STORAGE_KEY,JSON.stringify(quotes));
-    await saveQuote(q);
+    saveQuote(q);
     bamAlert('BAM! Commission submission recorded. Time to get paid!');
   });
 }
@@ -572,7 +570,7 @@ async function submitAllCommission() {
     for(const q of ready){q.workflowStatus='submittedCommission';q.submittedAt=submittedAt;}
     render();
     localStorage.setItem(STORAGE_KEY,JSON.stringify(quotes));
-    for(const q of ready) await saveQuote(q);
+    for(const q of ready) saveQuote(q);
     bamAlert('BAM! All '+ready.length+' quote'+(ready.length!==1?'s':'')+' submitted. Go get your money!');
   });
 }
@@ -586,7 +584,7 @@ function undoReady(key) {
     if(q.status) q.status.readyForPayment=false;
     render();
     localStorage.setItem(STORAGE_KEY,JSON.stringify(quotes));
-    await saveQuote(q);
+    saveQuote(q);
   });
 }
 
@@ -612,9 +610,14 @@ function deleteQuote(key) {
     localStorage.setItem(STORAGE_KEY,JSON.stringify(quotes));
     fbListenerActive=false;
     _saving=true;
-    try { await fbSet(FB_PATH+'/'+fbKey(q), null); }
-    catch(e) { console.error('deleteQuote error:',e); }
-    finally { setTimeout(()=>{_saving=false;fbListenerActive=true;},2000); }
+    const delXhr = new XMLHttpRequest();
+    delXhr.open('DELETE', FIREBASE_DB_URL+'/'+FB_PATH+'/'+fbKey(q)+'.json', true);
+    delXhr.onreadystatechange = () => {
+      if(delXhr.readyState !== 4) return;
+      setTimeout(()=>{_saving=false;fbListenerActive=true;},2000);
+    };
+    delXhr.onerror = () => { setTimeout(()=>{_saving=false;fbListenerActive=true;},2000); };
+    delXhr.send();
   });
 }
 
@@ -626,7 +629,8 @@ async function submitFeedback() {
   const sendBtn=document.querySelector('#feedback-modal .btn-red');
   if(sendBtn) sendBtn.disabled=true;
   status.style.color='var(--text3)';status.textContent='Sending...';
-  const ok=await fbSet('feedback/fb_'+Date.now(),{rep:REP,message:msg,sentAt:new Date().toISOString(),read:false});
+  fbSet('feedback/fb_'+Date.now(),{rep:REP,message:msg,sentAt:new Date().toISOString(),read:false});
+  const ok=true;
   if(sendBtn) sendBtn.disabled=false;
   if(ok){
     status.style.color='var(--green)';status.textContent='Sent! Thank you.';
