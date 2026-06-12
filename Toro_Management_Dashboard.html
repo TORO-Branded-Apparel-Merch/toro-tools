@@ -113,7 +113,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script>
 const DASH_PW = 'Toro#Mv3kG';
-const DASH_VERSION = 'v3.10';
+const DASH_VERSION = 'v3.11';
 const LOCK_KEY = 'toro_lock_dash';
 const ATTEMPTS_KEY = 'toro_attempts_dash';
 const FIREBASE_DB_URL = 'https://toro-commission-318b4-default-rtdb.firebaseio.com';
@@ -173,11 +173,10 @@ document.getElementById('pw-input').addEventListener('keydown', e=>{ if(e.key===
 
 // ── Firebase ───────────────────────────────────────────────────────────────
 function fbSet(path, val) {
-  // Fire-and-forget — don't await response body, Firebase confirms via SSE
   const url = FIREBASE_DB_URL + '/' + path + '.json';
   const method = val === null ? 'DELETE' : 'PUT';
   fetch(url, { method, headers:{'Content-Type':'application/json'}, body:val===null?undefined:JSON.stringify(val) })
-    .then(r => { if(!r.ok) console.error('fbSet failed:', method, path, r.status); })
+    .then(r => { console.log('fbSet',method,path,'->',r.status); if(!r.ok) r.text().then(t=>console.error('fbSet body:',t)); })
     .catch(e => console.error('fbSet error:', path, e.message));
 }
 function fbDel(path) { fbSet(path, null); }
