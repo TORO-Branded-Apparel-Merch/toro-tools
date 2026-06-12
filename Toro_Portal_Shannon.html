@@ -336,7 +336,7 @@ function processFile(file) {
   r.onload = async e => {
     try {
       const q = JSON.parse(e.target.result);
-      if(!q.quoteNum&&!q.quoteName&&!q.totalSell) { bamAlert('Whoa! That file doesn't look like a TORO quote. Double-check and try again.'); return; }
+      if(!q.quoteNum&&!q.quoteName&&!q.totalSell) { bamAlert('Whoa! That file doesn\'t look like a TORO quote. Double-check and try again.'); return; }
       if(q.rep && q.rep!==REP && q.rep.toLowerCase()!==REP_LOWER) {
         bamAlert('Hold up! This quote belongs to '+q.rep+', not '+REP+'. Please upload it to the correct portal.'); return;
       }
@@ -359,7 +359,7 @@ function processFile(file) {
       render();
       localStorage.setItem(STORAGE_KEY, JSON.stringify(quotes));
       await saveQuote(q);
-    } catch(ex) { bamAlert('Oof! I couldn't read that file: '+ex.message); }
+    } catch(ex) { bamAlert('Oof! I couldn\'t read that file: '+ex.message); }
   };
   r.readAsText(file);
 }
@@ -539,10 +539,10 @@ function submitForCommission(key) {
 
 async function submitAllCommission() {
   const ready=quotes.filter(q=>q.workflowStatus==='readyForSubmission');
-  if(!ready.length){ bamAlert('No quotes are marked Ready yet. Update a quote's status before submitting.'); return; }
+  if(!ready.length){ bamAlert('No quotes are marked Ready yet. Update a quote\'s status before submitting.'); return; }
   const totalComm=ready.reduce((a,q)=>a+quoteComm(q),0);
   const totalSell=ready.reduce((a,q)=>a+quoteTotal(q,'sell'),0);
-  bamConfirm('I'm ready to charge! Submit all '+ready.length+' quote'+(ready.length!==1?'s':'')+' for commission?<br><br>Total sell: '+fmt(totalSell)+'<br>Est. commission: '+fmt(totalComm)+'<br><br>They will be archived.', async ok=>{
+  bamConfirm('I\'m ready to charge! Submit all '+ready.length+' quote'+(ready.length!==1?'s':'')+' for commission?<br><br>Total sell: '+fmt(totalSell)+'<br>Est. commission: '+fmt(totalComm)+'<br><br>They will be archived.', async ok=>{
     if(!ok) return;
     const submittedAt=new Date().toISOString();
     for(const q of ready){q.workflowStatus='submittedCommission';q.submittedAt=submittedAt;}
@@ -579,7 +579,7 @@ function exportToBuilder(key) {
 
 function deleteQuote(key) {
   const q=quotes.find(x=>fbKey(x)===key);
-  if(!q) { bamAlert('I can't find that quote. Try refreshing the page.'); return; }
+  if(!q) { bamAlert('I can\'t find that quote. Try refreshing the page.'); return; }
   bamConfirm('Whoa! Permanently delete <strong>'+(q.quoteName||q.quoteNum||'this quote')+'</strong>? This cannot be undone.', async ok=>{
     if(!ok) return;
     const idx=quotes.indexOf(q);
@@ -671,7 +671,7 @@ function runReport() {
     quoteComm(q),parseFloat(q.totalHouseProfit)||0,
     q.workflowStatus||'active',q.paid?'Yes':'No'
   ])];
-  if(typeof XLSX==='undefined'){bamAlert('The Excel library isn't loaded. Give the page a refresh and try again.');return;}
+  if(typeof XLSX==='undefined'){bamAlert('The Excel library isn\'t loaded. Give the page a refresh and try again.');return;}
   const wb=XLSX.utils.book_new();
   const ws=XLSX.utils.aoa_to_sheet(rows);
   XLSX.utils.book_append_sheet(wb,ws,REP+' Quotes');
@@ -742,7 +742,7 @@ function toggleArchive(el){
 }
 
 function showForgotPw(){
-  bamAlert('Need a new password? Contact management and they'll get you set up.');
+  bamAlert('Need a new password? Contact management and they\'ll get you set up.');
 }
 
 // Auto-login if valid session exists
