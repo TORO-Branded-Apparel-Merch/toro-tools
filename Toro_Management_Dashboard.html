@@ -113,7 +113,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script>
 const DASH_PW = 'Toro#Mv3kG';
-const DASH_VERSION = 'v3.6';
+const DASH_VERSION = 'v3.7';
 const LOCK_KEY = 'toro_lock_dash';
 const ATTEMPTS_KEY = 'toro_attempts_dash';
 const FIREBASE_DB_URL = 'https://toro-commission-318b4-default-rtdb.firebaseio.com';
@@ -538,21 +538,21 @@ async function markPaid(rep, encKey) {
   const key = decodeURIComponent(encKey);
   bamConfirm('Mark this commission as paid? It will be moved to Paid History.', async ok => {
     if(!ok) return;
-    try {
-      const rl = rep.toLowerCase();
-      const q = (allQuotes[rep]||[]).find(x => (x._fbKey||'') === key || fbKey(x) === key);
-      console.log('markPaid rep='+rep+' key='+key+' found='+!!q, allQuotes[rep]||[]);
-      if(!q) { bamAlert('Could not find quote in memory. Try refreshing the page.'); return; }
-      const paidAt = new Date().toISOString();
-      q.workflowStatus = 'paid';
-      q.paidAt = paidAt;
-      const qKey = q._fbKey || fbKey(q);
-      const ok1 = await fbSet('quotes/'+rl+'/'+qKey, q);
-      const ok2 = await fbSet('paid/'+rl+'/'+qKey, Object.assign({}, q, {_rep:rep, _paidAt:paidAt}));
-      console.log('markPaid writes ok1='+ok1+' ok2='+ok2);
-      render();
-      bamAlert('BAM! Marked as paid and saved to history.');
-    } catch(e) { console.error('markPaid error:',e.message, e.stack); setTimeout(()=>bamAlert('Something went wrong: '+e.message),100); }
+    const rl = rep.toLowerCase();
+    const q = (allQuotes[rep]||[]).find(x => (x._fbKey||'') === key || fbKey(x) === key);
+    console.log('markPaid rep='+rep+' key='+key+' found='+!!q);
+    if(!q) { setTimeout(()=>bamAlert('Could not find quote. Refresh and try again.'),100); return; }
+    const paidAt = new Date().toISOString();
+    q.workflowStatus = 'paid';
+    q.paidAt = paidAt;
+    const qKey = q._fbKey || fbKey(q);
+    console.log('markPaid writing to quotes/'+rl+'/'+qKey);
+    const ok1 = await fbSet('quotes/'+rl+'/'+qKey, q);
+    console.log('markPaid ok1='+ok1);
+    const ok2 = await fbSet('paid/'+rl+'/'+qKey, Object.assign({}, q, {_rep:rep, _paidAt:paidAt}));
+    console.log('markPaid ok2='+ok2);
+    render();
+    setTimeout(()=>bamAlert(ok1&&ok2?'BAM! Marked as paid.':'Write failed — check console.'),100);
   });
 }
 
