@@ -174,7 +174,7 @@ const PW_KEY = 'toro_pw_debbie';
 const LOCK_KEY = 'toro_lock_lexi';
 const ATTEMPTS_KEY = 'toro_attempts_lexi';
 const DEFAULT_PW = 'Toro#Xp8sN';
-const PORTAL_VERSION = 'v2.12';
+const PORTAL_VERSION = 'v2.13';
 const FIREBASE_DB_URL = 'https://toro-commission-318b4-default-rtdb.firebaseio.com';
 const FB_PATH = 'quotes/' + REP_LOWER;
 
@@ -693,12 +693,16 @@ function startListeners() {
     if(first) { first = false; return; }
     if(_saving) return;
     if(ev.path && ev.path !== '/' && ev.data !== undefined) {
-      const key = ev.path.replace(/^\//, '').split('/')[0];
-      if(ev.data === null) {
+      const parts = ev.path.replace(/^\//, '').split('/');
+      const key = parts[0];
+      const field = parts[1];
+      if(ev.data === null && !field) {
         quotes = quotes.filter(q => fbKey(q) !== key);
       } else {
         const idx = quotes.findIndex(q => fbKey(q) === key);
-        if(typeof ev.data === 'object') {
+        if(field) {
+          if(idx >= 0) { quotes[idx][field] = ev.data; }
+        } else if(typeof ev.data === 'object') {
           const updated = {...ev.data, _fbKey: key};
           if(['needsApproval','waitingApproval'].includes(updated.workflowStatus)) updated.workflowStatus = 'active';
           if(idx >= 0) { if(!updated.workflowStatus) updated.workflowStatus = quotes[idx].workflowStatus; quotes[idx] = updated; }

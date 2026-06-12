@@ -113,7 +113,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script>
 const DASH_PW = 'Toro#Mv3kG';
-const DASH_VERSION = 'v3.11';
+const DASH_VERSION = 'v3.12';
 const LOCK_KEY = 'toro_lock_dash';
 const ATTEMPTS_KEY = 'toro_attempts_dash';
 const FIREBASE_DB_URL = 'https://toro-commission-318b4-default-rtdb.firebaseio.com';
@@ -237,14 +237,7 @@ async function init() {
   startListeners();
   render();
   setSyncing(false);
-  // Test Firebase write access
-  const _pingOk = await fbSet('_ping', {t: Date.now()});
-  if(_pingOk) {
-    await fbSet('_ping', null);
-    console.log('Firebase write access: OK');
-  } else {
-    console.error('Firebase write access: DENIED — check Realtime Database rules at console.firebase.google.com');
-  }
+
 }
 
 async function loadAll() {
