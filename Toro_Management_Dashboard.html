@@ -113,7 +113,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script>
 const DASH_PW = 'Toro#Mv3kG';
-const DASH_VERSION = 'v3.3';
+const DASH_VERSION = 'v3.4';
 const LOCK_KEY = 'toro_lock_dash';
 const ATTEMPTS_KEY = 'toro_attempts_dash';
 const FIREBASE_DB_URL = 'https://toro-commission-318b4-default-rtdb.firebaseio.com';
@@ -201,7 +201,8 @@ function fbListen(path, cb) {
   return es;
 }
 function fbKey(q) {
-  const raw = q._fbKey || q.quoteNum || ('idx_' + Date.now());
+  if(q._fbKey) return q._fbKey;
+  const raw = q.quoteNum || ('idx_' + Date.now());
   return raw.replace(/[.#$\/\[\]\s]/g, '_');
 }
 function quoteTotal(q, type) {
