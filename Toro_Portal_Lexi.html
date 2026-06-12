@@ -174,7 +174,7 @@ const PW_KEY = 'toro_pw_lexi';
 const LOCK_KEY = 'toro_lock_lexi';
 const ATTEMPTS_KEY = 'toro_attempts_lexi';
 const DEFAULT_PW = 'Toro#Qd2fH';
-const PORTAL_VERSION = 'v2.22';
+const PORTAL_VERSION = 'v2.23';
 const FIREBASE_DB_URL = 'https://toro-commission-318b4-default-rtdb.firebaseio.com';
 const FB_PATH = 'quotes/' + REP_LOWER;
 
@@ -436,6 +436,9 @@ function quoteCard(q, locked) {
     actionBtns+='<button class="btn btn-gray btn-sm" data-key="'+encKey+'" onclick="exportToBuilder(decodeURIComponent(this.dataset.key))">✏️ Edit</button>';
     actionBtns+='<button class="del-btn" data-key="'+encKey+'" onclick="deleteQuote(decodeURIComponent(this.dataset.key))">🗑</button>';
   } else {
+    if(q.workflowStatus==='submittedCommission') {
+      actionBtns+='<button class="btn btn-green btn-sm" data-key="'+encKey+'" onclick="markRepPaid(decodeURIComponent(this.dataset.key))">💰 Mark as Paid</button>';
+    }
     actionBtns+='<button class="del-btn" data-key="'+encKey+'" onclick="deleteQuote(decodeURIComponent(this.dataset.key))">🗑</button>';
   }
 
@@ -618,6 +621,22 @@ function deleteQuote(key) {
     };
     delXhr.onerror = () => { setTimeout(()=>{_saving=false;fbListenerActive=true;},2000); };
     delXhr.send();
+  });
+}
+
+function markRepPaid(key) {
+  const q = quotes.find(x => fbKey(x) === key);
+  if(!q) { bamAlert('Could not find quote. Try refreshing.'); return; }
+  bamConfirm('Mark <strong>'+(q.quoteName||q.quoteNum)+'</strong> as paid? This confirms you received your commission.', ok => {
+    if(!ok) return;
+    const paidAt = new Date().toISOString();
+    q.workflowStatus = 'paid';
+    q.paidAt = paidAt;
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(quotes));
+    fbSet(FB_PATH+'/'+key+'/workflowStatus', 'paid');
+    fbSet(FB_PATH+'/'+key+'/paidAt', paidAt);
+    render();
+    bamAlert('BAM! Marked as paid. 💰');
   });
 }
 
