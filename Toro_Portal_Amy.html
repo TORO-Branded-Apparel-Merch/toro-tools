@@ -174,7 +174,7 @@ const PW_KEY = 'toro_pw_amy';
 const LOCK_KEY = 'toro_lock_lexi';
 const ATTEMPTS_KEY = 'toro_attempts_lexi';
 const DEFAULT_PW = 'Toro#Jc6wT';
-const PORTAL_VERSION = 'v2.18';
+const PORTAL_VERSION = 'v2.19';
 const FIREBASE_DB_URL = 'https://toro-commission-318b4-default-rtdb.firebaseio.com';
 const FB_PATH = 'quotes/' + REP_LOWER;
 
@@ -330,8 +330,18 @@ async function saveQuote(q) {
   setSyncing(true);
   const key = fbKey(q);
   q._fbKey = key;
+  const statusAtSave = q.workflowStatus;
   try {
-    const ok = await fbSet(FB_PATH+'/'+key, q);
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 20000);
+    const method = 'PUT';
+    const res = await fetch(FIREBASE_DB_URL+'/'+FB_PATH+'/'+key+'.json', {
+      method, headers:{'Content-Type':'application/json'},
+      body: JSON.stringify(q), signal: controller.signal
+    });
+    clearTimeout(timer);
+    // Don't treat timeout/abort as an error — Firebase likely got the write
+    const ok = res.ok;
     if(!ok) {
       console.error('saveQuote: fbSet returned false for key', key, '- check Firebase rules');
       const lbl = document.getElementById('sync-label');
