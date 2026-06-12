@@ -113,7 +113,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script>
 const DASH_PW = 'Toro#Mv3kG';
-const DASH_VERSION = 'v3.12';
+const DASH_VERSION = 'v3.14';
 const LOCK_KEY = 'toro_lock_dash';
 const ATTEMPTS_KEY = 'toro_attempts_dash';
 const FIREBASE_DB_URL = 'https://toro-commission-318b4-default-rtdb.firebaseio.com';
@@ -187,10 +187,20 @@ function fbPatch(path, val) {
     .then(r => { if(!r.ok) console.error('fbPatch failed:', path, r.status); })
     .catch(e => console.error('fbPatch error:', path, e.message));
 }
-async function fbGet(path) {
-  const r = await fetch(FIREBASE_DB_URL + '/' + path + '.json');
-  if(!r.ok) throw new Error('HTTP ' + r.status);
-  return await r.json();
+function fbGet(path) {
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open('GET', FIREBASE_DB_URL+'/'+path+'.json', true);
+    xhr.onreadystatechange = () => {
+      if(xhr.readyState !== 4) return;
+      if(xhr.status === 200) {
+        try { resolve(JSON.parse(xhr.responseText)); }
+        catch(e) { reject(new Error('Parse error: '+e.message)); }
+      } else { reject(new Error('HTTP '+xhr.status)); }
+    };
+    xhr.onerror = () => reject(new Error('Network error'));
+    xhr.send();
+  });
 }
 function fbListen(path, cb) {
   const es = new EventSource(FIREBASE_DB_URL + '/' + path + '.json');
@@ -530,11 +540,21 @@ function markPaid(rep, encKey) {
     if(!q) { setTimeout(()=>bamAlert('Could not find quote. Refresh and try again.'),100); return; }
     const paidAt = new Date().toISOString();
     const qKey = q._fbKey || fbKey(q);
-    // Write status fields directly to their specific paths — most reliable Firebase approach
-    fbSet('quotes/'+rl+'/'+qKey+'/workflowStatus', 'paid');
-    fbSet('quotes/'+rl+'/'+qKey+'/paidAt', paidAt);
-    // Lightweight paid history record
-    fbSet('paid/'+rl+'/'+qKey, {
+    // Use XHR synchronous-style send — bypasses the fetch response-body hang issue
+    const statusUrl = FIREBASE_DB_URL+'/quotes/'+rl+'/'+qKey+'/workflowStatus.json';
+    const paidAtUrl = FIREBASE_DB_URL+'/quotes/'+rl+'/'+qKey+'/paidAt.json';
+    const xhr1 = new XMLHttpRequest();
+    xhr1.open('PUT', statusUrl, true);
+    xhr1.setRequestHeader('Content-Type','application/json');
+    xhr1.onreadystatechange = () => { if(xhr1.readyState===4) console.log('workflowStatus write:', xhr1.status); };
+    xhr1.send(JSON.stringify('paid'));
+    const xhr2 = new XMLHttpRequest();
+    xhr2.open('PUT', paidAtUrl, true);
+    xhr2.setRequestHeader('Content-Type','application/json');
+    xhr2.send(JSON.stringify(paidAt));
+    // Lightweight paid history record via XHR
+    const histUrl = FIREBASE_DB_URL+'/paid/'+rl+'/'+qKey+'.json';
+    const histRecord = {
       quoteNum: q.quoteNum, quoteName: q.quoteName,
       clientName: q.clientName, clientCompany: q.clientCompany,
       totalSell: q.totalSell||q.sell||0, totalNetCost: q.totalNetCost||q.net||0,
@@ -542,8 +562,13 @@ function markPaid(rep, encKey) {
       totalRepComm: q.totalRepComm||null,
       period: q.period||q.commissionReport||'',
       workflowStatus: 'paid', paidAt, _rep: rep, _paidAt: paidAt
-    });
-    // Update in-memory immediately, SSE will confirm
+    };
+    const xhr3 = new XMLHttpRequest();
+    xhr3.open('PUT', histUrl, true);
+    xhr3.setRequestHeader('Content-Type','application/json');
+    xhr3.onreadystatechange = () => { if(xhr3.readyState===4) console.log('paid history write:', xhr3.status); };
+    xhr3.send(JSON.stringify(histRecord));
+    // Update in-memory immediately
     q.workflowStatus = 'paid';
     q.paidAt = paidAt;
     render();
