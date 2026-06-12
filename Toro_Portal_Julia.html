@@ -174,7 +174,7 @@ const PW_KEY = 'toro_pw_julia';
 const LOCK_KEY = 'toro_lock_lexi';
 const ATTEMPTS_KEY = 'toro_attempts_lexi';
 const DEFAULT_PW = 'Toro#Zy7vL';
-const PORTAL_VERSION = 'v2.17';
+const PORTAL_VERSION = 'v2.18';
 const FIREBASE_DB_URL = 'https://toro-commission-318b4-default-rtdb.firebaseio.com';
 const FB_PATH = 'quotes/' + REP_LOWER;
 
@@ -267,8 +267,14 @@ async function fbSet(path, data) {
 }
 async function fbGet(path) {
   try {
-    const res = await fetch(FIREBASE_DB_URL+'/'+path+'.json');
-    return res.ok ? await res.json() : null;
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 20000);
+    const res = await fetch(FIREBASE_DB_URL+'/'+path+'.json', {signal: controller.signal});
+    clearTimeout(timer);
+    if(!res.ok) return null;
+    const text = await res.text();
+    clearTimeout(timer);
+    return text ? JSON.parse(text) : null;
   } catch(e) { console.warn('fbGet failed:',e.message); return null; }
 }
 let fbListenerActive = false;
@@ -307,8 +313,11 @@ async function loadFromFirebase() {
           if(['needsApproval','waitingApproval'].includes(q.workflowStatus)) q.workflowStatus = 'active';
           return q;
         });
-    } else {
-      quotes = [];
+    } else if(data === null) {
+      // Only wipe quotes if Firebase explicitly returns null (node deleted)
+      // If fetch timed out or failed, data is null too — don't wipe in that case
+      // We can't distinguish, so only wipe if quotes is currently empty anyway
+      if(quotes.length === 0) quotes = [];
     }
     localStorage.setItem(STORAGE_KEY, JSON.stringify(quotes));
   } catch(e) { console.error('loadFromFirebase error:', e); }
