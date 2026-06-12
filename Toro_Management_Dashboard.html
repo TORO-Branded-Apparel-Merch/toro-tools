@@ -113,7 +113,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script>
 const DASH_PW = 'Toro#Mv3kG';
-const DASH_VERSION = 'v2.7';
+const DASH_VERSION = 'v2.8';
 const LOCK_KEY = 'toro_lock_dash';
 const ATTEMPTS_KEY = 'toro_attempts_dash';
 const FIREBASE_DB_URL = 'https://toro-commission-318b4-default-rtdb.firebaseio.com';
@@ -245,10 +245,16 @@ async function loadAll() {
       const data = await fbGet('quotes/' + rep.toLowerCase());
       if(data && typeof data==='object') {
         allQuotes[rep] = Object.entries(data)
-          .filter(([k,v])=>v&&typeof v==='object')
-          .map(([k,v])=>{return {...v, _fbKey:k};});
+          .filter(([k,v])=>v&&typeof v==='object'&&v!==null)
+          .map(([k,v])=>{
+            const q={...v, _fbKey:k};
+            if(!q.workflowStatus) q.workflowStatus='active';
+            return q;
+          });
+        console.log('loadAll',rep,allQuotes[rep].length,'quotes');
       } else {
         allQuotes[rep] = [];
+        console.log('loadAll',rep,'no data');
       }
     } catch(e) { allQuotes[rep]=[]; console.error('loadAll error',rep,e); }
   }
@@ -267,6 +273,7 @@ function startListeners() {
         } else {
           const idx = allQuotes[rep].findIndex(q=>q._fbKey===key);
           const q = {...data.data, _fbKey:key};
+          if(!q.workflowStatus) q.workflowStatus='active';
           if(idx>=0) allQuotes[rep][idx]=q; else allQuotes[rep].push(q);
         }
       } else if(data.data && typeof data.data==='object') {
@@ -541,7 +548,12 @@ async function markPaid(rep, encKey) {
 async function loadFeedback() {
   try {
     const data = await fbGet('feedback');
-    feedbackData = data||{};
+    if(data && typeof data === 'object') {
+      // Filter out null values (keys deleted but not yet purged)
+      feedbackData = Object.fromEntries(Object.entries(data).filter(([,v])=>v!==null&&typeof v==='object'));
+    } else {
+      feedbackData = {};
+    }
     const unread = Object.values(feedbackData).filter(f=>!f.read).length;
     const badge = document.getElementById('feedback-badge');
     if(badge) { badge.style.display=unread?'':'none'; badge.textContent=unread; }
@@ -611,12 +623,14 @@ async function deleteFeedback(key) {
   bamConfirm('Permanently delete this feedback message? This cannot be undone.', async ok => {
     if(!ok) return;
     try {
+      // Remove from Firebase first, then update UI
+      const deleted = await fbDel('feedback/'+key);
+      if(!deleted) { bamAlert('Something went wrong while deleting. Check the console for details.'); return; }
       delete feedbackData[key];
       renderFeedback();
       const fbUnread=Object.values(feedbackData).filter(f=>!f.read).length;
       const fbBadge=document.getElementById('feedback-badge');
       if(fbBadge){fbBadge.style.display=fbUnread?'':'none';fbBadge.textContent=fbUnread;}
-      await fbDel('feedback/'+key);
       const unread=Object.values(feedbackData).filter(f=>!f.read).length;
       const badge=document.getElementById('feedback-badge');
       if(badge){badge.style.display=unread?'':'none';badge.textContent=unread;}
