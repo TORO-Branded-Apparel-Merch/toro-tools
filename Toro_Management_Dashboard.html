@@ -113,7 +113,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script>
 const DASH_PW = 'Toro#Mv3kG';
-const DASH_VERSION = 'v3.7';
+const DASH_VERSION = 'v3.8';
 const LOCK_KEY = 'toro_lock_dash';
 const ATTEMPTS_KEY = 'toro_attempts_dash';
 const FIREBASE_DB_URL = 'https://toro-commission-318b4-default-rtdb.firebaseio.com';
@@ -186,6 +186,14 @@ async function fbSet(path, val) {
 }
 async function fbDel(path) {
   return fbSet(path, null);
+}
+async function fbPatch(path, val) {
+  const url = FIREBASE_DB_URL + '/' + path + '.json';
+  try {
+    const r = await fetch(url, { method:'PATCH', headers:{'Content-Type':'application/json'}, body:JSON.stringify(val) });
+    if(!r.ok) { const body = await r.text(); console.error('fbPatch failed:', path, r.status, body); }
+    return r.ok;
+  } catch(e) { console.error('fbPatch failed:', path, e.message); return false; }
 }
 async function fbGet(path) {
   const r = await fetch(FIREBASE_DB_URL + '/' + path + '.json');
@@ -504,14 +512,13 @@ async function deleteQuoteFromFirebase(rep, encKey) {
   const label = q ? (q.quoteName||q.quoteNum||qKey) : qKey;
   bamConfirm(`Delete "${label}" from Firebase?<br><br><small style="color:var(--text3)">Use this to clear quotes the rep deleted locally that are still stuck in the database.</small>`, async ok => {
     if(!ok) return;
-    try {
-      console.log('deleteQuoteFromFirebase rep='+rep+' qKey='+qKey);
-      await fbSet('quotes/'+rl+'/'+qKey, null);
-      await fbSet('paid/'+rl+'/'+qKey, null);
-      if(allQuotes[rep]) allQuotes[rep] = allQuotes[rep].filter(x => (x._fbKey||fbKey(x)) !== qKey);
-      render();
-      bamAlert('Quote deleted.');
-    } catch(e) { console.error('deleteQuoteFromFirebase error:',e.message,e.stack); setTimeout(()=>bamAlert('Something went wrong: '+e.message),100); }
+    console.log('deleteQuoteFromFirebase rep='+rep+' qKey='+qKey);
+    const ok1 = await fbSet('quotes/'+rl+'/'+qKey, null);
+    const ok2 = await fbSet('paid/'+rl+'/'+qKey, null);
+    console.log('delete ok1='+ok1+' ok2='+ok2);
+    if(allQuotes[rep]) allQuotes[rep] = allQuotes[rep].filter(x => (x._fbKey||fbKey(x)) !== qKey);
+    render();
+    setTimeout(()=>bamAlert('Quote deleted.'),100);
   });
 }
 
@@ -523,14 +530,13 @@ async function deleteQuoteHard(rep, encKey) {
   const label = q ? (q.quoteName||q.quoteNum||qKey) : qKey;
   bamConfirm('Permanently delete <strong>'+label+'</strong> for '+rep+'? This removes it from Firebase entirely and cannot be undone.', async ok => {
     if(!ok) return;
-    try {
-      console.log('deleteQuoteHard rep='+rep+' qKey='+qKey);
-      await fbSet('quotes/'+rl+'/'+qKey, null);
-      await fbSet('paid/'+rl+'/'+qKey, null);
-      if(allQuotes[rep]) allQuotes[rep] = allQuotes[rep].filter(x => (x._fbKey||fbKey(x)) !== qKey);
-      render();
-      bamAlert('Deleted. Gone for good.');
-    } catch(e) { console.error('deleteQuoteHard error:',e.message,e.stack); setTimeout(()=>bamAlert('Something went wrong: '+e.message),100); }
+    console.log('deleteQuoteHard rep='+rep+' qKey='+qKey);
+    const ok1 = await fbSet('quotes/'+rl+'/'+qKey, null);
+    const ok2 = await fbSet('paid/'+rl+'/'+qKey, null);
+    console.log('deleteHard ok1='+ok1+' ok2='+ok2);
+    if(allQuotes[rep]) allQuotes[rep] = allQuotes[rep].filter(x => (x._fbKey||fbKey(x)) !== qKey);
+    render();
+    setTimeout(()=>bamAlert('Deleted. Gone for good.'),100);
   });
 }
 
@@ -543,14 +549,27 @@ async function markPaid(rep, encKey) {
     console.log('markPaid rep='+rep+' key='+key+' found='+!!q);
     if(!q) { setTimeout(()=>bamAlert('Could not find quote. Refresh and try again.'),100); return; }
     const paidAt = new Date().toISOString();
+    const qKey = q._fbKey || fbKey(q);
+    // PATCH only the status fields — avoids sending/receiving the full large quote object
+    const patch = {workflowStatus:'paid', paidAt};
+    console.log('markPaid patching quotes/'+rl+'/'+qKey);
+    const ok1 = await fbPatch('quotes/'+rl+'/'+qKey, patch);
+    console.log('markPaid ok1='+ok1);
+    // Write a lightweight paid history record
+    const histRecord = {
+      quoteNum: q.quoteNum, quoteName: q.quoteName,
+      clientName: q.clientName, clientCompany: q.clientCompany,
+      totalSell: q.totalSell||q.sell||0, totalNetCost: q.totalNetCost||q.net||0,
+      commissionSplit: q.commissionSplit||q.split||'standard',
+      totalRepComm: q.totalRepComm||null,
+      period: q.period||q.commissionReport||'',
+      workflowStatus: 'paid', paidAt, _rep: rep, _paidAt: paidAt
+    };
+    const ok2 = await fbSet('paid/'+rl+'/'+qKey, histRecord);
+    console.log('markPaid ok2='+ok2);
+    // Update in-memory
     q.workflowStatus = 'paid';
     q.paidAt = paidAt;
-    const qKey = q._fbKey || fbKey(q);
-    console.log('markPaid writing to quotes/'+rl+'/'+qKey);
-    const ok1 = await fbSet('quotes/'+rl+'/'+qKey, q);
-    console.log('markPaid ok1='+ok1);
-    const ok2 = await fbSet('paid/'+rl+'/'+qKey, Object.assign({}, q, {_rep:rep, _paidAt:paidAt}));
-    console.log('markPaid ok2='+ok2);
     render();
     setTimeout(()=>bamAlert(ok1&&ok2?'BAM! Marked as paid.':'Write failed — check console.'),100);
   });
