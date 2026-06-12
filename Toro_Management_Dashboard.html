@@ -113,7 +113,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script>
 const DASH_PW = 'Toro#Mv3kG';
-const DASH_VERSION = 'v3.15';
+const DASH_VERSION = 'v3.16';
 const LOCK_KEY = 'toro_lock_dash';
 const ATTEMPTS_KEY = 'toro_attempts_dash';
 const FIREBASE_DB_URL = 'https://toro-commission-318b4-default-rtdb.firebaseio.com';
@@ -537,21 +537,9 @@ function markPaid(rep, encKey) {
     if(!q) { setTimeout(()=>bamAlert('Could not find quote. Refresh and try again.'),100); return; }
     const paidAt = new Date().toISOString();
     const qKey = q._fbKey || fbKey(q);
-    // Use XHR synchronous-style send — bypasses the fetch response-body hang issue
-    const statusUrl = FIREBASE_DB_URL+'/quotes/'+rl+'/'+qKey+'/workflowStatus.json';
-    const paidAtUrl = FIREBASE_DB_URL+'/quotes/'+rl+'/'+qKey+'/paidAt.json';
-    const xhr1 = new XMLHttpRequest();
-    xhr1.open('PUT', statusUrl, true);
-    xhr1.setRequestHeader('Content-Type','application/json');
-    xhr1.onreadystatechange = () => { if(xhr1.readyState===4) console.log('workflowStatus write:', xhr1.status); };
-    xhr1.send(JSON.stringify('paid'));
-    const xhr2 = new XMLHttpRequest();
-    xhr2.open('PUT', paidAtUrl, true);
-    xhr2.setRequestHeader('Content-Type','application/json');
-    xhr2.send(JSON.stringify(paidAt));
-    // Lightweight paid history record via XHR
-    const histUrl = FIREBASE_DB_URL+'/paid/'+rl+'/'+qKey+'.json';
-    const histRecord = {
+    fbSet('quotes/'+rl+'/'+qKey+'/workflowStatus', 'paid');
+    fbSet('quotes/'+rl+'/'+qKey+'/paidAt', paidAt);
+    fbSet('paid/'+rl+'/'+qKey, {
       quoteNum: q.quoteNum, quoteName: q.quoteName,
       clientName: q.clientName, clientCompany: q.clientCompany,
       totalSell: q.totalSell||q.sell||0, totalNetCost: q.totalNetCost||q.net||0,
@@ -559,13 +547,7 @@ function markPaid(rep, encKey) {
       totalRepComm: q.totalRepComm||null,
       period: q.period||q.commissionReport||'',
       workflowStatus: 'paid', paidAt, _rep: rep, _paidAt: paidAt
-    };
-    const xhr3 = new XMLHttpRequest();
-    xhr3.open('PUT', histUrl, true);
-    xhr3.setRequestHeader('Content-Type','application/json');
-    xhr3.onreadystatechange = () => { if(xhr3.readyState===4) console.log('paid history write:', xhr3.status); };
-    xhr3.send(JSON.stringify(histRecord));
-    // Update in-memory immediately
+    });
     q.workflowStatus = 'paid';
     q.paidAt = paidAt;
     render();
@@ -626,25 +608,21 @@ function renderFeedback() {
   }
   document.getElementById('tab-content').innerHTML = html;
 }
-async function markFeedbackRead(key) {
-  try {
-    await fbSet('feedback/'+key+'/read', true);
-    if(feedbackData[key]) feedbackData[key].read=true;
-    renderFeedback();
-    const unread=Object.values(feedbackData).filter(f=>!f.read).length;
-    const badge=document.getElementById('feedback-badge');
-    if(badge){badge.style.display=unread?'':'none';badge.textContent=unread;}
-  } catch(e) { console.error('markFeedbackRead error:',e); }
+function markFeedbackRead(key) {
+  fbSet('feedback/'+key+'/read', true);
+  if(feedbackData[key]) feedbackData[key].read=true;
+  renderFeedback();
+  const unread=Object.values(feedbackData).filter(f=>!f.read).length;
+  const badge=document.getElementById('feedback-badge');
+  if(badge){badge.style.display=unread?'':'none';badge.textContent=unread;}
 }
 
-async function archiveFeedback(key) {
-  bamConfirm('Archive this feedback? It will be hidden from the main view but not deleted.', async ok => {
+function archiveFeedback(key) {
+  bamConfirm('Archive this feedback? It will be hidden from the main view but not deleted.', ok => {
     if(!ok) return;
-    try {
-      await fbSet('feedback/'+key+'/archived', true);
-      if(feedbackData[key]) feedbackData[key].archived=true;
-      renderFeedback();
-    } catch(e) { bamAlert('Something went wrong while archiving. Check the console for details.'); }
+    fbSet('feedback/'+key+'/archived', true);
+    if(feedbackData[key]) feedbackData[key].archived=true;
+    renderFeedback();
   });
 }
 
