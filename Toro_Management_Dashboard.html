@@ -113,7 +113,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script>
 const DASH_PW = 'Toro#Mv3kG';
-const DASH_VERSION = 'v2.6';
+const DASH_VERSION = 'v2.7';
 const LOCK_KEY = 'toro_lock_dash';
 const ATTEMPTS_KEY = 'toro_attempts_dash';
 const FIREBASE_DB_URL = 'https://toro-commission-318b4-default-rtdb.firebaseio.com';
@@ -280,14 +280,30 @@ function startListeners() {
     });
   }
   fbListen('feedback', data => {
-    if(data && data.data && typeof data.data==='object') {
-      // Filter out any null entries (deleted keys Firebase may still stream)
-      feedbackData = Object.fromEntries(Object.entries(data.data).filter(([,v])=>v!==null));
-      const unread=Object.values(feedbackData).filter(f=>!f.read).length;
-      const badge=document.getElementById('feedback-badge');
-      if(badge){badge.style.display=unread?'':'none';badge.textContent=unread;}
-      if(currentTab==='feedback') renderFeedback();
+    // data.data === null means the whole feedback node was deleted or is empty
+    if(data && data.data === null) {
+      feedbackData = {};
+    } else if(data && data.data && typeof data.data==='object') {
+      // Merge: keep local deletions by only updating keys that still exist in Firebase
+      // and filter out any nulls Firebase streams during propagation
+      const incoming = Object.fromEntries(Object.entries(data.data).filter(([,v])=>v!==null));
+      // Only add/update keys — never restore a key we already deleted locally
+      Object.keys(incoming).forEach(k => {
+        if(feedbackData[k] !== undefined || !feedbackData.hasOwnProperty) {
+          feedbackData[k] = incoming[k];
+        }
+      });
+      // Also ensure any keys not in incoming are removed
+      Object.keys(feedbackData).forEach(k => {
+        if(!incoming[k]) delete feedbackData[k];
+      });
+    } else {
+      return; // ignore malformed events
     }
+    const unread=Object.values(feedbackData).filter(f=>!f.read).length;
+    const badge=document.getElementById('feedback-badge');
+    if(badge){badge.style.display=unread?'':'none';badge.textContent=unread;}
+    if(currentTab==='feedback') renderFeedback();
   });
 }
 
@@ -595,9 +611,12 @@ async function deleteFeedback(key) {
   bamConfirm('Permanently delete this feedback message? This cannot be undone.', async ok => {
     if(!ok) return;
     try {
-      await fbDel('feedback/'+key);
       delete feedbackData[key];
       renderFeedback();
+      const fbUnread=Object.values(feedbackData).filter(f=>!f.read).length;
+      const fbBadge=document.getElementById('feedback-badge');
+      if(fbBadge){fbBadge.style.display=fbUnread?'':'none';fbBadge.textContent=fbUnread;}
+      await fbDel('feedback/'+key);
       const unread=Object.values(feedbackData).filter(f=>!f.read).length;
       const badge=document.getElementById('feedback-badge');
       if(badge){badge.style.display=unread?'':'none';badge.textContent=unread;}
