@@ -174,7 +174,7 @@ const PW_KEY = 'toro_pw_stephen';
 const LOCK_KEY = 'toro_lock_lexi';
 const ATTEMPTS_KEY = 'toro_attempts_lexi';
 const DEFAULT_PW = 'Toro#Bx4nR';
-const PORTAL_VERSION = 'v2.6';
+const PORTAL_VERSION = 'v2.9';
 const FIREBASE_DB_URL = 'https://toro-commission-318b4-default-rtdb.firebaseio.com';
 const FB_PATH = 'quotes/' + REP_LOWER;
 
@@ -257,16 +257,12 @@ async function fbSet(path, data) {
     const method = data === null ? 'DELETE' : 'PUT';
     const opts = { method, headers:{'Content-Type':'application/json'} };
     if(data !== null) opts.body = JSON.stringify(data);
-    const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), 8000);
-    try {
-      const res = await fetch(FIREBASE_DB_URL+'/'+path+'.json', {...opts, signal:controller.signal});
-      clearTimeout(timer);
-      return res.ok;
-    } catch(e) {
-      clearTimeout(timer);
-      throw e;
+    const res = await fetch(FIREBASE_DB_URL+'/'+path+'.json', opts);
+    if(!res.ok) {
+      const body = await res.text();
+      console.error('fbSet failed:', method, path, res.status, body);
     }
+    return res.ok;
   } catch(e) { console.warn('fbSet failed:',e.message); return false; }
 }
 async function fbGet(path) {
@@ -325,7 +321,14 @@ async function saveQuote(q) {
   setSyncing(true);
   const key = fbKey(q);
   q._fbKey = key;
-  try { await fbSet(FB_PATH+'/'+key, q); }
+  try {
+    const ok = await fbSet(FB_PATH+'/'+key, q);
+    if(!ok) {
+      console.error('saveQuote: fbSet returned false for key', key, '- check Firebase rules');
+      const lbl = document.getElementById('sync-label');
+      if(lbl) { lbl.textContent='Sync failed'; lbl.style.color='#ff6b6b'; }
+    }
+  }
   catch(e) { console.error('saveQuote error:',e); }
   finally { setTimeout(()=>{_saving=false;setSyncing(false);},1000); }
 }
@@ -736,6 +739,29 @@ async function init() {
   setupDrop();
   await loadFromFirebase();
   startListeners();
+  // Test Firebase write access with full response logging
+  try {
+    const _testUrl = FIREBASE_DB_URL + '/' + FB_PATH + '/_ping.json';
+    const _testRes = await fetch(_testUrl, {
+      method: 'PUT',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({t: Date.now()})
+    });
+    const _testBody = await _testRes.text();
+    console.log('Firebase write test:', _testRes.status, _testRes.ok, _testBody.substring(0, 100));
+    if(_testRes.ok) {
+      await fetch(_testUrl, {method: 'DELETE'});
+      console.log('Firebase write access: OK — quotes should save');
+      const lbl = document.getElementById('sync-label');
+      if(lbl) { lbl.style.color = ''; }
+    } else {
+      console.error('Firebase write FAILED:', _testRes.status, _testBody);
+      const lbl = document.getElementById('sync-label');
+      if(lbl) { lbl.textContent = 'Write failed: '+_testRes.status; lbl.style.color = '#ff6b6b'; }
+    }
+  } catch(e) {
+    console.error('Firebase write test error:', e.message);
+  }
 }
 
 function toggleArchive(el){

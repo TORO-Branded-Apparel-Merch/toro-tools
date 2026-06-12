@@ -113,7 +113,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script>
 const DASH_PW = 'Toro#Mv3kG';
-const DASH_VERSION = 'v2.9';
+const DASH_VERSION = 'v3.1';
 const LOCK_KEY = 'toro_lock_dash';
 const ATTEMPTS_KEY = 'toro_attempts_dash';
 const FIREBASE_DB_URL = 'https://toro-commission-318b4-default-rtdb.firebaseio.com';
@@ -176,13 +176,12 @@ async function fbSet(path, val) {
   const url = FIREBASE_DB_URL + '/' + path + '.json';
   const method = val === null ? 'DELETE' : 'PUT';
   try {
-    const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), 8000);
-    try {
-      const r = await fetch(url, { method, headers:{'Content-Type':'application/json'}, body:val===null?undefined:JSON.stringify(val), signal:controller.signal });
-      clearTimeout(timer);
-      return r.ok;
-    } catch(e) { clearTimeout(timer); throw e; }
+    const r = await fetch(url, { method, headers:{'Content-Type':'application/json'}, body:val===null?undefined:JSON.stringify(val) });
+    if(!r.ok) {
+      const body = await r.text();
+      console.error('fbSet failed:', method, path, r.status, body);
+    }
+    return r.ok;
   } catch(e) { console.error('fbSet failed:', path, e.message); return false; }
 }
 async function fbDel(path) {
@@ -237,6 +236,14 @@ async function init() {
   startListeners();
   render();
   setSyncing(false);
+  // Test Firebase write access
+  const _pingOk = await fbSet('_ping', {t: Date.now()});
+  if(_pingOk) {
+    await fbSet('_ping', null);
+    console.log('Firebase write access: OK');
+  } else {
+    console.error('Firebase write access: DENIED — check Realtime Database rules at console.firebase.google.com');
+  }
 }
 
 async function loadAll() {
