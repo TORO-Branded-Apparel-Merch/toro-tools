@@ -113,7 +113,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script>
 const DASH_PW = 'Toro#Mv3kG';
-const DASH_VERSION = 'v3.4';
+const DASH_VERSION = 'v3.5';
 const LOCK_KEY = 'toro_lock_dash';
 const ATTEMPTS_KEY = 'toro_attempts_dash';
 const FIREBASE_DB_URL = 'https://toro-commission-318b4-default-rtdb.firebaseio.com';
@@ -499,34 +499,38 @@ function renderByRep() {
 async function deleteQuoteFromFirebase(rep, encKey) {
   const key = decodeURIComponent(encKey);
   const rl = rep.toLowerCase();
-  const q = (allQuotes[rep]||[]).find(x=>fbKey(x)===key);
-  const label = q ? (q.quoteName||q.quoteNum||key) : key;
+  const q = (allQuotes[rep]||[]).find(x => (x._fbKey||'') === key || fbKey(x) === key);
+  const qKey = q ? (q._fbKey || key) : key;
+  const label = q ? (q.quoteName||q.quoteNum||qKey) : qKey;
   bamConfirm(`Delete "${label}" from Firebase?<br><br><small style="color:var(--text3)">Use this to clear quotes the rep deleted locally that are still stuck in the database.</small>`, async ok => {
     if(!ok) return;
     try {
-      await fbSet('quotes/'+rl+'/'+key, null);
-      await fbSet('paid/'+rl+'/'+key, null);
-      if(allQuotes[rep]) allQuotes[rep] = allQuotes[rep].filter(x=>fbKey(x)!==key);
+      console.log('deleteQuoteFromFirebase rep='+rep+' qKey='+qKey);
+      await fbSet('quotes/'+rl+'/'+qKey, null);
+      await fbSet('paid/'+rl+'/'+qKey, null);
+      if(allQuotes[rep]) allQuotes[rep] = allQuotes[rep].filter(x => (x._fbKey||fbKey(x)) !== qKey);
       render();
       bamAlert('Quote deleted.');
-    } catch(e) { console.error('deleteQuoteFromFirebase error:',e); bamAlert('Something went wrong while deleting. Check the console for details.'); }
+    } catch(e) { console.error('deleteQuoteFromFirebase error:',e); bamAlert('Something went wrong: '+e.message); }
   });
 }
 
 async function deleteQuoteHard(rep, encKey) {
   const key = decodeURIComponent(encKey);
   const rl = rep.toLowerCase();
-  const q = (allQuotes[rep]||[]).find(x=>fbKey(x)===key);
-  const label = q ? (q.quoteName||q.quoteNum||key) : key;
+  const q = (allQuotes[rep]||[]).find(x => (x._fbKey||'') === key || fbKey(x) === key);
+  const qKey = q ? (q._fbKey || key) : key;
+  const label = q ? (q.quoteName||q.quoteNum||qKey) : qKey;
   bamConfirm('Permanently delete <strong>'+label+'</strong> for '+rep+'? This removes it from Firebase entirely and cannot be undone.', async ok => {
     if(!ok) return;
     try {
-      await fbSet('quotes/'+rl+'/'+key, null);
-      await fbSet('paid/'+rl+'/'+key, null);
-      if(allQuotes[rep]) allQuotes[rep] = allQuotes[rep].filter(x=>fbKey(x)!==key);
+      console.log('deleteQuoteHard rep='+rep+' qKey='+qKey);
+      await fbSet('quotes/'+rl+'/'+qKey, null);
+      await fbSet('paid/'+rl+'/'+qKey, null);
+      if(allQuotes[rep]) allQuotes[rep] = allQuotes[rep].filter(x => (x._fbKey||fbKey(x)) !== qKey);
       render();
       bamAlert('Deleted. Gone for good.');
-    } catch(e) { console.error('deleteQuoteHard error:',e); bamAlert('Something went wrong while deleting. Check the console for details.'); }
+    } catch(e) { console.error('deleteQuoteHard error:',e); bamAlert('Something went wrong: '+e.message); }
   });
 }
 
@@ -536,20 +540,19 @@ async function markPaid(rep, encKey) {
     if(!ok) return;
     try {
       const rl = rep.toLowerCase();
-      const q = (allQuotes[rep]||[]).find(x=>fbKey(x)===key);
-      if(q) {
-        const paidAt = new Date().toISOString();
-        q.workflowStatus = 'paid';
-        q.paidAt = paidAt;
-        // Write updated status back to quotes node
-        await fbSet('quotes/'+rl+'/'+fbKey(q), q);
-        // Also write permanent copy to paid history node (reps can't touch this)
-        const histKey = fbKey(q) || ('paid_'+Date.now());
-        await fbSet('paid/'+rl+'/'+histKey, Object.assign({}, q, {_rep:rep, _paidAt:paidAt}));
-        render();
-        bamAlert('BAM! Marked as paid and saved to history.');
-      }
-    } catch(e) { console.error('markPaid error:',e); bamAlert('Something went wrong while marking paid. Check the console for details.'); }
+      const q = (allQuotes[rep]||[]).find(x => (x._fbKey||'') === key || fbKey(x) === key);
+      console.log('markPaid rep='+rep+' key='+key+' found='+!!q, allQuotes[rep]||[]);
+      if(!q) { bamAlert('Could not find quote in memory. Try refreshing the page.'); return; }
+      const paidAt = new Date().toISOString();
+      q.workflowStatus = 'paid';
+      q.paidAt = paidAt;
+      const qKey = q._fbKey || fbKey(q);
+      const ok1 = await fbSet('quotes/'+rl+'/'+qKey, q);
+      const ok2 = await fbSet('paid/'+rl+'/'+qKey, Object.assign({}, q, {_rep:rep, _paidAt:paidAt}));
+      console.log('markPaid writes ok1='+ok1+' ok2='+ok2);
+      render();
+      bamAlert('BAM! Marked as paid and saved to history.');
+    } catch(e) { console.error('markPaid error:',e); bamAlert('Something went wrong: '+e.message); }
   });
 }
 
