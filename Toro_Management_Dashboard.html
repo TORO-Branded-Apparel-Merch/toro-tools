@@ -113,7 +113,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script>
 const DASH_PW = 'Toro#Mv3kG';
-const DASH_VERSION = 'v3.2';
+const DASH_VERSION = 'v3.3';
 const LOCK_KEY = 'toro_lock_dash';
 const ATTEMPTS_KEY = 'toro_attempts_dash';
 const FIREBASE_DB_URL = 'https://toro-commission-318b4-default-rtdb.firebaseio.com';
@@ -286,7 +286,7 @@ function startListeners() {
       } else if(data.data && typeof data.data==='object') {
         allQuotes[rep] = Object.entries(data.data)
           .filter(([k,v])=>v&&typeof v==='object')
-          .map(([k,v])=>{return {...v, _fbKey:k};});
+          .map(([k,v])=>{ const q={...v, _fbKey:k}; if(!q.workflowStatus) q.workflowStatus='active'; return q; });
       } else if(data.data===null) {
         allQuotes[rep]=[];
       }
@@ -363,7 +363,7 @@ function renderCommission() {
   let grandNet=0, grandSell=0, grandComm=0;
   for(const rep of REPS) {
     // Only show pending (not yet paid) in main view
-    const qs = (allQuotes[rep]||[]).filter(q=>q.workflowStatus==='readyForSubmission'||q.workflowStatus==='submittedCommission');
+    const qs = (allQuotes[rep]||[]).filter(q=>q.workflowStatus==='readyForSubmission'||q.workflowStatus==='submittedCommission'||q.workflowStatus==='submitted');
     if(qs.length===0) continue;
     let repNet=0, repSell=0, repComm=0;
     qs.forEach(q=>{ repNet+=quoteTotal(q,'net'); repSell+=quoteTotal(q,'sell'); repComm+=quoteComm(q); });
