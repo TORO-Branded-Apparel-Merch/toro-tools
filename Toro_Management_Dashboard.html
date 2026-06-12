@@ -113,7 +113,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script>
 const DASH_PW = 'Toro#Mv3kG';
-const DASH_VERSION = 'v2.8';
+const DASH_VERSION = 'v2.9';
 const LOCK_KEY = 'toro_lock_dash';
 const ATTEMPTS_KEY = 'toro_attempts_dash';
 const FIREBASE_DB_URL = 'https://toro-commission-318b4-default-rtdb.firebaseio.com';
@@ -623,18 +623,24 @@ async function deleteFeedback(key) {
   bamConfirm('Permanently delete this feedback message? This cannot be undone.', async ok => {
     if(!ok) return;
     try {
-      // Remove from Firebase first, then update UI
-      const deleted = await fbDel('feedback/'+key);
-      if(!deleted) { bamAlert('Something went wrong while deleting. Check the console for details.'); return; }
+      const url = FIREBASE_DB_URL + '/feedback/' + key + '.json';
+      const r = await fetch(url, { method: 'DELETE' });
+      console.log('deleteFeedback', key, r.status, r.ok);
+      if(!r.ok) {
+        const body = await r.text();
+        console.error('deleteFeedback failed:', body);
+        bamAlert('Something went wrong while deleting. Check the console for details.');
+        return;
+      }
       delete feedbackData[key];
       renderFeedback();
       const fbUnread=Object.values(feedbackData).filter(f=>!f.read).length;
       const fbBadge=document.getElementById('feedback-badge');
       if(fbBadge){fbBadge.style.display=fbUnread?'':'none';fbBadge.textContent=fbUnread;}
-      const unread=Object.values(feedbackData).filter(f=>!f.read).length;
-      const badge=document.getElementById('feedback-badge');
-      if(badge){badge.style.display=unread?'':'none';badge.textContent=unread;}
-    } catch(e) { bamAlert('Something went wrong while deleting. Check the console for details.'); }
+    } catch(e) {
+      console.error('deleteFeedback error:', e);
+      bamAlert('Something went wrong while deleting. Check the console for details.');
+    }
   });
 }
 
