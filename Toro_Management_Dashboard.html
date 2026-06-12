@@ -113,7 +113,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script>
 const DASH_PW = 'Toro#Mv3kG';
-const DASH_VERSION = 'v3.18';
+const DASH_VERSION = 'v3.19';
 const LOCK_KEY = 'toro_lock_dash';
 const ATTEMPTS_KEY = 'toro_attempts_dash';
 const FIREBASE_DB_URL = 'https://toro-commission-318b4-default-rtdb.firebaseio.com';
@@ -195,10 +195,23 @@ function fbPatch(path, val) {
   xhr.onreadystatechange = () => { if(xhr.readyState===4 && xhr.status>=300) console.error('fbPatch failed:', path, xhr.status); };
   xhr.send(JSON.stringify(val));
 }
-async function fbGet(path) {
-  const r = await fetch(FIREBASE_DB_URL + '/' + path + '.json');
-  if(!r.ok) throw new Error('HTTP ' + r.status);
-  return await r.json();
+function fbGet(path) {
+  return new Promise((resolve) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open('GET', FIREBASE_DB_URL+'/'+path+'.json', true);
+    xhr.onreadystatechange = () => {
+      if(xhr.readyState !== 4) return;
+      if(xhr.status === 200) {
+        try { resolve(JSON.parse(xhr.responseText)); }
+        catch(e) { console.warn('fbGet parse error:',e.message); resolve(null); }
+      } else {
+        console.warn('fbGet failed:', xhr.status);
+        resolve(null);
+      }
+    };
+    xhr.onerror = () => { console.warn('fbGet network error'); resolve(null); };
+    xhr.send();
+  });
 }
 function fbListen(path, cb) {
   const es = new EventSource(FIREBASE_DB_URL + '/' + path + '.json');
