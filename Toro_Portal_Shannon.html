@@ -174,7 +174,7 @@ const PW_KEY = 'toro_pw_shannon';
 const LOCK_KEY = 'toro_lock_lexi';
 const ATTEMPTS_KEY = 'toro_attempts_lexi';
 const DEFAULT_PW = 'Toro#Kw9mP';
-const PORTAL_VERSION = 'v2.9';
+const PORTAL_VERSION = 'v2.11';
 const FIREBASE_DB_URL = 'https://toro-commission-318b4-default-rtdb.firebaseio.com';
 const FB_PATH = 'quotes/' + REP_LOWER;
 
@@ -330,7 +330,7 @@ async function saveQuote(q) {
     }
   }
   catch(e) { console.error('saveQuote error:',e); }
-  finally { setTimeout(()=>{_saving=false;setSyncing(false);},1000); }
+  finally { setTimeout(()=>{_saving=false;setSyncing(false);},5000); }
 }
 
 // ── File import ────────────────────────────────────────────────────────────
@@ -547,7 +547,7 @@ async function submitAllCommission() {
   if(!ready.length){ bamAlert('No quotes are marked Ready yet. Update a quote\'s status before submitting.'); return; }
   const totalComm=ready.reduce((a,q)=>a+quoteComm(q),0);
   const totalSell=ready.reduce((a,q)=>a+quoteTotal(q,'sell'),0);
-  bamConfirm('I\'m ready to charge! Submit all '+ready.length+' quote'+(ready.length!==1?'s':'')+' for commission?<br><br>Total sell: '+fmt(totalSell)+'<br>Est. commission: '+fmt(totalComm)+'<br><br>They will be archived.', async ok=>{
+  bamConfirm('I\'m ready to charge! Submit all '+ready.length+' quote'+(ready.length!==1?'s':'')+' for commission?<br><br>Total sell: '+fmt(totalSell)+'<br>Est. commission: '+fmt(totalComm)+'<br><br>They will be moved to your archive.', async ok=>{
     if(!ok) return;
     const submittedAt=new Date().toISOString();
     for(const q of ready){q.workflowStatus='submittedCommission';q.submittedAt=submittedAt;}
@@ -710,7 +710,8 @@ function startListeners() {
         if(['needsApproval','waitingApproval'].includes(v.workflowStatus)) v.workflowStatus='active';
         return {...v,_fbKey:k};
       });
-    } else if(ev.data === null) {
+    } else if(ev.data === null && (!ev.path || ev.path === '/')) {
+      // Only wipe quotes if the entire node was deleted, not a sub-path
       quotes = [];
     }
     localStorage.setItem(STORAGE_KEY, JSON.stringify(quotes));
@@ -739,29 +740,7 @@ async function init() {
   setupDrop();
   await loadFromFirebase();
   startListeners();
-  // Test Firebase write access with full response logging
-  try {
-    const _testUrl = FIREBASE_DB_URL + '/' + FB_PATH + '/_ping.json';
-    const _testRes = await fetch(_testUrl, {
-      method: 'PUT',
-      headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({t: Date.now()})
-    });
-    const _testBody = await _testRes.text();
-    console.log('Firebase write test:', _testRes.status, _testRes.ok, _testBody.substring(0, 100));
-    if(_testRes.ok) {
-      await fetch(_testUrl, {method: 'DELETE'});
-      console.log('Firebase write access: OK — quotes should save');
-      const lbl = document.getElementById('sync-label');
-      if(lbl) { lbl.style.color = ''; }
-    } else {
-      console.error('Firebase write FAILED:', _testRes.status, _testBody);
-      const lbl = document.getElementById('sync-label');
-      if(lbl) { lbl.textContent = 'Write failed: '+_testRes.status; lbl.style.color = '#ff6b6b'; }
-    }
-  } catch(e) {
-    console.error('Firebase write test error:', e.message);
-  }
+  // Firebase write access confirmed working
 }
 
 function toggleArchive(el){
