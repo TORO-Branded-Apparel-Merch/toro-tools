@@ -155,7 +155,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
     <div class="summary-cards" id="summary-cards"></div>
     <div id="action-bar" style="display:flex;gap:10px;margin-bottom:20px;flex-wrap:wrap;align-items:center;">
       <div class="drop-zone" id="drop-zone" style="flex:1;min-width:200px;padding:14px;" onclick="if(event.target.tagName!=='INPUT')document.getElementById('file-input').click()">
-        📂 Drop or click to upload a quote JSON
+        🐂 Drop or click to upload a quote JSON
       </div>
       <input type="file" id="file-input" accept=".json" multiple style="display:none;" onclick="event.stopPropagation()">
     </div>
@@ -243,7 +243,7 @@ function submitChangePw() {
   if(nw !== cf) { err.textContent='Passwords do not match.'; return; }
   localStorage.setItem(PW_KEY, nw);
   closeChangePw();
-  bamAlert('Password changed successfully!');
+  bamAlert('BAM! Password updated. Keep it safe!');
 }
 
 // ── Firebase ───────────────────────────────────────────────────────────────
@@ -336,9 +336,9 @@ function processFile(file) {
   r.onload = async e => {
     try {
       const q = JSON.parse(e.target.result);
-      if(!q.quoteNum&&!q.quoteName&&!q.totalSell) { bamAlert('This does not appear to be a valid TORO quote file.'); return; }
+      if(!q.quoteNum&&!q.quoteName&&!q.totalSell) { bamAlert('Whoa! That file doesn't look like a TORO quote. Double-check and try again.'); return; }
       if(q.rep && q.rep!==REP && q.rep.toLowerCase()!==REP_LOWER) {
-        bamAlert('This quote belongs to '+q.rep+', not '+REP+'. Please upload it to the correct portal.'); return;
+        bamAlert('Hold up! This quote belongs to '+q.rep+', not '+REP+'. Please upload it to the correct portal.'); return;
       }
       if(!q._fbKey) q._fbKey = fbKey(q);
       // Always start as active — no approval states
@@ -359,7 +359,7 @@ function processFile(file) {
       render();
       localStorage.setItem(STORAGE_KEY, JSON.stringify(quotes));
       await saveQuote(q);
-    } catch(ex) { bamAlert('Error reading file: '+ex.message); }
+    } catch(ex) { bamAlert('Oof! I couldn't read that file: '+ex.message); }
   };
   r.readAsText(file);
 }
@@ -492,7 +492,7 @@ function render() {
     sr.innerHTML='';
   }
   sac.innerHTML = '<div class="section-title">📋 Active Quotes <span class="badge">'+active.length+'</span></div>'+
-    (active.length?active.map(q=>quoteCard(q,false)).join(''):'<div style="color:var(--text3);font-size:14px;padding:20px 0;text-align:center;">No active quotes. Upload a quote JSON to get started.</div>');
+    (active.length?active.map(q=>quoteCard(q,false)).join(''):'<div style="color:var(--text3);font-size:14px;padding:20px 0;text-align:center;">No quotes here yet! Drop a JSON above to get started.</div>');
   sar.innerHTML = archived.length?
     '<div class="archive-toggle" onclick="toggleArchive(this)">▶ Archived / Submitted ('+archived.length+')</div>'+
     '<div style="display:none;">'+archived.map(q=>quoteCard(q,true)).join('')+'</div>' : '';
@@ -526,37 +526,37 @@ async function toggleStatus(key, field, checked) {
 function submitForCommission(key) {
   const q=quotes.find(x=>fbKey(x)===key);
   if(!q) return;
-  bamConfirm('Submit this quote for commission payment? It will be archived.', async ok=>{
+  bamConfirm('Ready to charge! Submit this quote for commission? It will be moved to your archive.', async ok=>{
     if(!ok) return;
     q.workflowStatus='submittedCommission';
     q.submittedAt=new Date().toISOString();
     render();
     localStorage.setItem(STORAGE_KEY,JSON.stringify(quotes));
     await saveQuote(q);
-    bamAlert('Commission submission recorded!');
+    bamAlert('BAM! Commission submission recorded. Time to get paid!');
   });
 }
 
 async function submitAllCommission() {
   const ready=quotes.filter(q=>q.workflowStatus==='readyForSubmission');
-  if(!ready.length){ bamAlert('No quotes ready for submission.'); return; }
+  if(!ready.length){ bamAlert('No quotes are marked Ready yet. Update a quote's status before submitting.'); return; }
   const totalComm=ready.reduce((a,q)=>a+quoteComm(q),0);
   const totalSell=ready.reduce((a,q)=>a+quoteTotal(q,'sell'),0);
-  bamConfirm('Submit all '+ready.length+' quote'+(ready.length!==1?'s':'')+' for commission?\n\nTotal sell: '+fmt(totalSell)+'\nEst. commission: '+fmt(totalComm)+'\n\nThey will be archived.', async ok=>{
+  bamConfirm('I'm ready to charge! Submit all '+ready.length+' quote'+(ready.length!==1?'s':'')+' for commission?<br><br>Total sell: '+fmt(totalSell)+'<br>Est. commission: '+fmt(totalComm)+'<br><br>They will be archived.', async ok=>{
     if(!ok) return;
     const submittedAt=new Date().toISOString();
     for(const q of ready){q.workflowStatus='submittedCommission';q.submittedAt=submittedAt;}
     render();
     localStorage.setItem(STORAGE_KEY,JSON.stringify(quotes));
     for(const q of ready) await saveQuote(q);
-    bamAlert('All '+ready.length+' quote'+(ready.length!==1?'s':'')+' submitted!');
+    bamAlert('BAM! All '+ready.length+' quote'+(ready.length!==1?'s':'')+' submitted. Go get your money!');
   });
 }
 
 function undoReady(key) {
   const q=quotes.find(x=>fbKey(x)===key);
   if(!q) return;
-  bamConfirm('Move this quote back to Active?', async ok=>{
+  bamConfirm('Bring this one back to the herd? This quote will be moved back to Active.', async ok=>{
     if(!ok) return;
     q.workflowStatus='active';
     if(q.status) q.status.readyForPayment=false;
@@ -574,13 +574,13 @@ function exportToBuilder(key) {
   a.href=URL.createObjectURL(blob);
   a.download='TORO_Edit_'+(q.quoteNum||'quote').replace(/[^a-zA-Z0-9]/g,'_')+'.json';
   a.click();
-  bamAlert('Quote exported! Use the re-import toggle in the Quote Builder to load it for editing.');
+  bamAlert('Quote exported! Use the re-import toggle in the Quote Builder to reload it for editing.');
 }
 
 function deleteQuote(key) {
   const q=quotes.find(x=>fbKey(x)===key);
-  if(!q) { bamAlert('Could not locate that quote. Please refresh and try again.'); return; }
-  bamConfirm('Permanently delete <strong>'+(q.quoteName||q.quoteNum||'this quote')+'</strong>? This cannot be undone.', async ok=>{
+  if(!q) { bamAlert('I can't find that quote. Try refreshing the page.'); return; }
+  bamConfirm('Whoa! Permanently delete <strong>'+(q.quoteName||q.quoteNum||'this quote')+'</strong>? This cannot be undone.', async ok=>{
     if(!ok) return;
     const idx=quotes.indexOf(q);
     if(idx>=0) quotes.splice(idx,1);
@@ -614,7 +614,7 @@ async function submitFeedback() {
 
 // ── Reporting ──────────────────────────────────────────────────────────────
 function downloadReport() {
-  if(!quotes.length){bamAlert('No quotes to export.');return;}
+  if(!quotes.length){bamAlert('Nothing to export yet. Upload some quotes first!');return;}
   const clients=[...new Set(quotes.map(q=>q.clientCompany||q.clientName||'').filter(Boolean))].sort();
   const modal=document.getElementById('report-modal');
   document.getElementById('report-filters').innerHTML=`
@@ -660,7 +660,7 @@ function runReport() {
     }
     return true;
   });
-  if(!filtered.length){bamAlert('No quotes match the selected filters.');return;}
+  if(!filtered.length){bamAlert('Nothing matches those filters. Try adjusting them.');return;}
   const HEADERS=['Quote #','Quote name','Client','Company','Rep','Quote date','IHD','Commission period','Split','Sell','Net cost','GP','Margin %','Rep payout','House profit','Status','Paid'];
   const rows=[HEADERS,...filtered.map(q=>[
     q.quoteNum||'',q.quoteName||'',q.clientName||'',q.clientCompany||'',
@@ -671,7 +671,7 @@ function runReport() {
     quoteComm(q),parseFloat(q.totalHouseProfit)||0,
     q.workflowStatus||'active',q.paid?'Yes':'No'
   ])];
-  if(typeof XLSX==='undefined'){bamAlert('Excel library not loaded. Please refresh and try again.');return;}
+  if(typeof XLSX==='undefined'){bamAlert('The Excel library isn't loaded. Give the page a refresh and try again.');return;}
   const wb=XLSX.utils.book_new();
   const ws=XLSX.utils.aoa_to_sheet(rows);
   XLSX.utils.book_append_sheet(wb,ws,REP+' Quotes');
@@ -742,7 +742,7 @@ function toggleArchive(el){
 }
 
 function showForgotPw(){
-  bamAlert('To reset your password, contact Shannon or Stephen at TORO.\nPasswords can be updated in the portal settings once logged in.');
+  bamAlert('Need a new password? Contact management and they'll get you set up.');
 }
 
 // Auto-login if valid session exists

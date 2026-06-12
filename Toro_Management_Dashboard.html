@@ -11,7 +11,7 @@
   --orange:#C46A1E;
   --bg:#F5F5F7;--surface:#fff;--border:#E2E3E6;
   --text:#1a1a1f;--text2:#444;--text3:#888;
-  --radius:10px;--radius-sm:6px;
+  --radius:10px;--radius-sm:6px;--border2:#ccc;--brown:#7B3F00;
 }
 *{box-sizing:border-box;margin:0;padding:0}
 body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;}
@@ -22,7 +22,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 .gate-box input:focus{outline:none;border-color:var(--red);}
 .gate-box button{width:100%;padding:11px;background:var(--red);color:#fff;border:none;border-radius:var(--radius-sm);font-size:15px;font-weight:600;cursor:pointer;}
 .gate-box .error{color:var(--red);font-size:13px;margin-top:8px;min-height:18px;}
-.header{background:linear-gradient(160deg,#BC112A 0%,#E9553A 100%);color:#fff;padding:14px 20px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100;box-shadow:0 2px 8px rgba(0,0,0,0.15);}
+.header{background:var(--red-gradient,linear-gradient(160deg,#BC112A 0%,#E9553A 100%));color:#fff;padding:14px 20px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100;box-shadow:0 2px 8px rgba(0,0,0,0.15);}
 .header .hdr-right{display:flex;gap:10px;align-items:center;}
 .hdr-btn{padding:6px 14px;border-radius:var(--radius-sm);font-size:13px;font-weight:600;cursor:pointer;border:none;}
 .tabs{background:#fff;border-bottom:1px solid var(--border);padding:0 20px;display:flex;gap:0;overflow-x:auto;}
@@ -471,14 +471,14 @@ async function deleteQuoteFromFirebase(rep, encKey) {
       await fbSet('quotes/'+rl+'/'+key, null);
       if(allQuotes[rep]) allQuotes[rep] = allQuotes[rep].filter(x=>fbKey(x)!==key);
       render();
-      bamAlert('Quote deleted from Firebase.');
-    } catch(e) { console.error('deleteQuoteFromFirebase error:',e); bamAlert('Error deleting. Check console.'); }
+      bamAlert('Quote deleted.');
+    } catch(e) { console.error('deleteQuoteFromFirebase error:',e); bamAlert('Something went wrong while deleting. Check the console for details.'); }
   });
 }
 
 async function markPaid(rep, encKey) {
   const key = decodeURIComponent(encKey);
-  bamConfirm('Mark this commission as paid? It will move to Paid History.', async ok => {
+  bamConfirm('Mark this commission as paid? It will be moved to Paid History.', async ok => {
     if(!ok) return;
     try {
       const rl = rep.toLowerCase();
@@ -493,9 +493,9 @@ async function markPaid(rep, encKey) {
         const histKey = fbKey(q) || ('paid_'+Date.now());
         await fbSet('paid/'+rl+'/'+histKey, Object.assign({}, q, {_rep:rep, _paidAt:paidAt}));
         render();
-        bamAlert('Marked as paid and saved to history!');
+        bamAlert('BAM! Marked as paid and saved to history.');
       }
-    } catch(e) { console.error('markPaid error:',e); bamAlert('Error marking paid.'); }
+    } catch(e) { console.error('markPaid error:',e); bamAlert('Something went wrong while marking paid. Check the console for details.'); }
   });
 }
 
@@ -510,9 +510,10 @@ async function loadFeedback() {
   } catch(e) { console.error('loadFeedback error:',e); }
 }
 function renderFeedback() {
-  const items = Object.entries(feedbackData).sort((a,b)=>b[1].sentAt>a[1].sentAt?1:-1);
+  const items = Object.entries(feedbackData).filter(([,f])=>!f.archived).sort((a,b)=>b[1].sentAt>a[1].sentAt?1:-1);
+  const archived = Object.entries(feedbackData).filter(([,f])=>f.archived).sort((a,b)=>b[1].sentAt>a[1].sentAt?1:-1);
   if(!items.length) {
-    document.getElementById('tab-content').innerHTML='<div class="card" style="color:var(--text3);text-align:center;padding:32px;">No feedback yet.</div>';
+    document.getElementById('tab-content').innerHTML='<div class="card" style="color:var(--text3);text-align:center;padding:32px;">No feedback yet. Quiet herd!</div>';
     return;
   }
   let html = '';
@@ -521,11 +522,29 @@ function renderFeedback() {
     html+=`<div class="card" style="${f.read?'opacity:.7':''}">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
         <div><strong>${f.rep||'Unknown'}</strong> <span style="font-size:11px;color:var(--text3);">${dt}</span></div>
-        ${!f.read?`<button class="btn btn-gray btn-sm" onclick="markFeedbackRead('${key}')">Mark read</button>`:'<span style="font-size:11px;color:var(--text3);">Read</span>'}
+        <div style="display:flex;gap:6px;align-items:center">
+          ${!f.read?`<button class="btn btn-gray btn-sm" onclick="markFeedbackRead('${key}')">Mark read</button>`:'<span style="font-size:11px;color:var(--text3);">✓ Read</span>'}
+          <button class="btn btn-sm" style="background:#f0f4ff;color:#333;border:1px solid #ccc;" onclick="archiveFeedback('${key}')">Archive</button>
+          <button class="btn btn-sm" style="background:#fff0f2;color:var(--red);border:1px solid #f5c2c7;" onclick="deleteFeedback('${key}')">Delete</button>
+        </div>
       </div>
       <div style="font-size:14px;">${f.message||''}</div>
     </div>`;
   });
+  if(archived.length) {
+    html += '<div style="margin-top:24px;border-top:1px solid var(--border);padding-top:16px"><div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--text3);margin-bottom:10px;">Archived</div>';
+    archived.forEach(([key,f])=>{
+      const dt=f.sentAt?new Date(f.sentAt).toLocaleString('en-US',{month:'short',day:'numeric',hour:'numeric',minute:'2-digit'}):'';
+      html+=`<div class="card" style="opacity:.5">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+          <div><strong>${f.rep||'Unknown'}</strong> <span style="font-size:11px;color:var(--text3);">${dt}</span></div>
+          <button class="btn btn-sm" style="background:#fff0f2;color:var(--red);border:1px solid #f5c2c7;" onclick="deleteFeedback('${key}')">Delete</button>
+        </div>
+        <div style="font-size:14px;">${f.message||''}</div>
+      </div>`;
+    });
+    html += '</div>';
+  }
   document.getElementById('tab-content').innerHTML = html;
 }
 async function markFeedbackRead(key) {
@@ -539,11 +558,36 @@ async function markFeedbackRead(key) {
   } catch(e) { console.error('markFeedbackRead error:',e); }
 }
 
+async function archiveFeedback(key) {
+  bamConfirm('Archive this feedback? It will be hidden from the main view but not deleted.', async ok => {
+    if(!ok) return;
+    try {
+      await fbSet('feedback/'+key+'/archived', true);
+      if(feedbackData[key]) feedbackData[key].archived=true;
+      renderFeedback();
+    } catch(e) { bamAlert('Something went wrong while archiving. Check the console for details.'); }
+  });
+}
+
+async function deleteFeedback(key) {
+  bamConfirm('Permanently delete this feedback message? This cannot be undone.', async ok => {
+    if(!ok) return;
+    try {
+      await fbDel('feedback/'+key);
+      delete feedbackData[key];
+      renderFeedback();
+      const unread=Object.values(feedbackData).filter(f=>!f.read).length;
+      const badge=document.getElementById('feedback-badge');
+      if(badge){badge.style.display=unread?'':'none';badge.textContent=unread;}
+    } catch(e) { bamAlert('Something went wrong while deleting. Check the console for details.'); }
+  });
+}
+
 // ── Export ─────────────────────────────────────────────────────────────────
 function downloadDashReport() {
   const allQ = [];
   for(const rep of REPS) (allQuotes[rep]||[]).forEach(q=>allQ.push({...q,_rep:rep}));
-  if(!allQ.length){bamAlert('No quotes loaded.');return;}
+  if(!allQ.length){bamAlert('No quotes loaded yet. Check your connection and try again.');return;}
   const clients=[...new Set(allQ.map(q=>q.clientCompany||q.clientName||'').filter(Boolean))].sort();
   let modal=document.getElementById('dash-report-modal');
   if(!modal){
@@ -574,8 +618,8 @@ function runDashReport() {
     if(clientFilter&&(q.clientCompany||q.clientName||'')!==clientFilter) return false;
     return true;
   });
-  if(!filtered.length){bamAlert('No quotes match the filters.');return;}
-  if(typeof XLSX==='undefined'){bamAlert('Excel library not loaded. Please refresh.');return;}
+  if(!filtered.length){bamAlert('Nothing matches those filters. Try adjusting them.');return;}
+  if(typeof XLSX==='undefined'){bamAlert('The Excel library isn\'t loaded. Give the page a refresh and try again.');return;}
   const HEADERS=['Quote #','Quote name','Client','Company','Rep','Quote date','IHD','Commission period','Split','Sell','Net','GP','Margin %','Rep payout','House profit','Status'];
   const rows=[HEADERS,...filtered.map(q=>{
     const sell=quoteTotal(q,'sell'),net=quoteTotal(q,'net'),comm=quoteComm(q);
