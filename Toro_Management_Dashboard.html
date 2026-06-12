@@ -113,7 +113,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script>
 const DASH_PW = 'Toro#Mv3kG';
-const DASH_VERSION = 'v3.5';
+const DASH_VERSION = 'v3.6';
 const LOCK_KEY = 'toro_lock_dash';
 const ATTEMPTS_KEY = 'toro_attempts_dash';
 const FIREBASE_DB_URL = 'https://toro-commission-318b4-default-rtdb.firebaseio.com';
@@ -130,7 +130,7 @@ function bamAlert(msg, cb) {
   const ok = document.createElement('button');
   ok.textContent = 'OK';
   ok.style.cssText = 'padding:8px 22px;background:#BC112A;color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:14px;font-weight:600;';
-  ok.onclick = () => { document.getElementById('bam-overlay').classList.remove('open'); if(cb) cb(true); };
+  ok.onclick = () => { document.getElementById('bam-overlay').classList.remove('open'); if(cb) Promise.resolve(cb(true)).catch(e=>{ console.error('Action error:',e); bamAlert('Error: '+e.message); }); };
   btns.appendChild(ok);
   document.getElementById('bam-overlay').classList.add('open');
 }
@@ -145,7 +145,7 @@ function bamConfirm(msg, cb) {
   const ok = document.createElement('button');
   ok.textContent = 'Yes, continue';
   ok.style.cssText = 'padding:8px 18px;background:#BC112A;color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:14px;font-weight:600;';
-  ok.onclick = () => { document.getElementById('bam-overlay').classList.remove('open'); if(cb) cb(true); };
+  ok.onclick = () => { document.getElementById('bam-overlay').classList.remove('open'); if(cb) Promise.resolve(cb(true)).catch(e=>{ console.error('Action error:',e); bamAlert('Error: '+e.message); }); };
   btns.appendChild(cancel);
   btns.appendChild(ok);
   document.getElementById('bam-overlay').classList.add('open');
@@ -511,7 +511,7 @@ async function deleteQuoteFromFirebase(rep, encKey) {
       if(allQuotes[rep]) allQuotes[rep] = allQuotes[rep].filter(x => (x._fbKey||fbKey(x)) !== qKey);
       render();
       bamAlert('Quote deleted.');
-    } catch(e) { console.error('deleteQuoteFromFirebase error:',e); bamAlert('Something went wrong: '+e.message); }
+    } catch(e) { console.error('deleteQuoteFromFirebase error:',e.message,e.stack); setTimeout(()=>bamAlert('Something went wrong: '+e.message),100); }
   });
 }
 
@@ -530,7 +530,7 @@ async function deleteQuoteHard(rep, encKey) {
       if(allQuotes[rep]) allQuotes[rep] = allQuotes[rep].filter(x => (x._fbKey||fbKey(x)) !== qKey);
       render();
       bamAlert('Deleted. Gone for good.');
-    } catch(e) { console.error('deleteQuoteHard error:',e); bamAlert('Something went wrong: '+e.message); }
+    } catch(e) { console.error('deleteQuoteHard error:',e.message,e.stack); setTimeout(()=>bamAlert('Something went wrong: '+e.message),100); }
   });
 }
 
@@ -552,7 +552,7 @@ async function markPaid(rep, encKey) {
       console.log('markPaid writes ok1='+ok1+' ok2='+ok2);
       render();
       bamAlert('BAM! Marked as paid and saved to history.');
-    } catch(e) { console.error('markPaid error:',e); bamAlert('Something went wrong: '+e.message); }
+    } catch(e) { console.error('markPaid error:',e.message, e.stack); setTimeout(()=>bamAlert('Something went wrong: '+e.message),100); }
   });
 }
 
