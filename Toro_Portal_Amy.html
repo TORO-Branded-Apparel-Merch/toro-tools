@@ -174,7 +174,7 @@ const PW_KEY = 'toro_pw_amy';
 const LOCK_KEY = 'toro_lock_lexi';
 const ATTEMPTS_KEY = 'toro_attempts_lexi';
 const DEFAULT_PW = 'Toro#Jc6wT';
-const PORTAL_VERSION = 'v2.13';
+const PORTAL_VERSION = 'v2.14';
 const FIREBASE_DB_URL = 'https://toro-commission-318b4-default-rtdb.firebaseio.com';
 const FB_PATH = 'quotes/' + REP_LOWER;
 
@@ -265,11 +265,23 @@ async function fbSet(path, data) {
     return res.ok;
   } catch(e) { console.warn('fbSet failed:',e.message); return false; }
 }
-async function fbGet(path) {
-  try {
-    const res = await fetch(FIREBASE_DB_URL+'/'+path+'.json');
-    return res.ok ? await res.json() : null;
-  } catch(e) { console.warn('fbGet failed:',e.message); return null; }
+function fbGet(path) {
+  return new Promise((resolve) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open('GET', FIREBASE_DB_URL+'/'+path+'.json', true);
+    xhr.onreadystatechange = () => {
+      if(xhr.readyState !== 4) return;
+      if(xhr.status === 200) {
+        try { resolve(JSON.parse(xhr.responseText)); }
+        catch(e) { console.warn('fbGet parse error:',e.message); resolve(null); }
+      } else {
+        console.warn('fbGet failed:', xhr.status);
+        resolve(null);
+      }
+    };
+    xhr.onerror = () => { console.warn('fbGet network error'); resolve(null); };
+    xhr.send();
+  });
 }
 let fbListenerActive = false;
 function fbListen(path, cb) {
