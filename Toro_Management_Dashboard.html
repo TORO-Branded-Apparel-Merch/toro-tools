@@ -113,7 +113,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script>
 const DASH_PW = 'Toro#Mv3kG';
-const DASH_VERSION = 'v3.9';
+const DASH_VERSION = 'v3.10';
 const LOCK_KEY = 'toro_lock_dash';
 const ATTEMPTS_KEY = 'toro_attempts_dash';
 const FIREBASE_DB_URL = 'https://toro-commission-318b4-default-rtdb.firebaseio.com';
@@ -538,8 +538,9 @@ function markPaid(rep, encKey) {
     if(!q) { setTimeout(()=>bamAlert('Could not find quote. Refresh and try again.'),100); return; }
     const paidAt = new Date().toISOString();
     const qKey = q._fbKey || fbKey(q);
-    // PATCH only status fields — fire-and-forget
-    fbPatch('quotes/'+rl+'/'+qKey, {workflowStatus:'paid', paidAt});
+    // Write status fields directly to their specific paths — most reliable Firebase approach
+    fbSet('quotes/'+rl+'/'+qKey+'/workflowStatus', 'paid');
+    fbSet('quotes/'+rl+'/'+qKey+'/paidAt', paidAt);
     // Lightweight paid history record
     fbSet('paid/'+rl+'/'+qKey, {
       quoteNum: q.quoteNum, quoteName: q.quoteName,
