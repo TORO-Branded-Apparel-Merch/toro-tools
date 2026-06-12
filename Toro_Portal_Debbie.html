@@ -174,7 +174,7 @@ const PW_KEY = 'toro_pw_debbie';
 const LOCK_KEY = 'toro_lock_lexi';
 const ATTEMPTS_KEY = 'toro_attempts_lexi';
 const DEFAULT_PW = 'Toro#Xp8sN';
-const PORTAL_VERSION = 'v2.20';
+const PORTAL_VERSION = 'v2.22';
 const FIREBASE_DB_URL = 'https://toro-commission-318b4-default-rtdb.firebaseio.com';
 const FB_PATH = 'quotes/' + REP_LOWER;
 
@@ -252,18 +252,18 @@ function fbKey(q) {
   if(q.quoteNum) return q.quoteNum.replace(/[.#$\/\[\]]/g,'_');
   return 'q_' + Date.now();
 }
-async function fbSet(path, data) {
-  try {
-    const method = data === null ? 'DELETE' : 'PUT';
-    const opts = { method, headers:{'Content-Type':'application/json'} };
-    if(data !== null) opts.body = JSON.stringify(data);
-    const res = await fetch(FIREBASE_DB_URL+'/'+path+'.json', opts);
-    if(!res.ok) {
-      const body = await res.text();
-      console.error('fbSet failed:', method, path, res.status, body);
-    }
-    return res.ok;
-  } catch(e) { console.warn('fbSet failed:',e.message); return false; }
+function fbSet(path, data) {
+  const url = FIREBASE_DB_URL+'/'+path+'.json';
+  const method = data === null ? 'DELETE' : 'PUT';
+  const xhr = new XMLHttpRequest();
+  xhr.open(method, url, true);
+  xhr.setRequestHeader('Content-Type','application/json');
+  xhr.onreadystatechange = () => {
+    if(xhr.readyState !== 4) return;
+    if(xhr.status < 200 || xhr.status >= 300) console.error('fbSet failed:', method, path, xhr.status);
+  };
+  xhr.onerror = () => console.error('fbSet network error:', path);
+  xhr.send(data === null ? null : JSON.stringify(data));
 }
 async function fbGet(path) {
   try {

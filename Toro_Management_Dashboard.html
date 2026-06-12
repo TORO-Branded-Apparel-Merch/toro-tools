@@ -113,7 +113,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script>
 const DASH_PW = 'Toro#Mv3kG';
-const DASH_VERSION = 'v3.17';
+const DASH_VERSION = 'v3.18';
 const LOCK_KEY = 'toro_lock_dash';
 const ATTEMPTS_KEY = 'toro_attempts_dash';
 const FIREBASE_DB_URL = 'https://toro-commission-318b4-default-rtdb.firebaseio.com';
@@ -188,11 +188,12 @@ function fbSet(path, val) {
 }
 function fbDel(path) { fbSet(path, null); }
 function fbPatch(path, val) {
-  // Fire-and-forget PATCH
   const url = FIREBASE_DB_URL + '/' + path + '.json';
-  fetch(url, { method:'PATCH', headers:{'Content-Type':'application/json'}, body:JSON.stringify(val) })
-    .then(r => { if(!r.ok) console.error('fbPatch failed:', path, r.status); })
-    .catch(e => console.error('fbPatch error:', path, e.message));
+  const xhr = new XMLHttpRequest();
+  xhr.open('PATCH', url, true);
+  xhr.setRequestHeader('Content-Type','application/json');
+  xhr.onreadystatechange = () => { if(xhr.readyState===4 && xhr.status>=300) console.error('fbPatch failed:', path, xhr.status); };
+  xhr.send(JSON.stringify(val));
 }
 async function fbGet(path) {
   const r = await fetch(FIREBASE_DB_URL + '/' + path + '.json');
@@ -631,11 +632,14 @@ async function deleteFeedback(key) {
     if(!ok) return;
     try {
       const url = FIREBASE_DB_URL + '/feedback/' + key + '.json';
-      const r = await fetch(url, { method: 'DELETE' });
-      console.log('deleteFeedback', key, r.status, r.ok);
+      const xhr = new XMLHttpRequest();
+      xhr.open('DELETE', url, true);
+      xhr.onreadystatechange = () => { if(xhr.readyState===4 && xhr.status>=300) console.error('deleteFeedback failed:', xhr.status); };
+      xhr.send();
+      const r = {ok: true};
+      console.log('deleteFeedback', key, 'sent');
       if(!r.ok) {
-        const body = await r.text();
-        console.error('deleteFeedback failed:', body);
+        console.error('deleteFeedback failed');
         bamAlert('Something went wrong while deleting. Check the console for details.');
         return;
       }
