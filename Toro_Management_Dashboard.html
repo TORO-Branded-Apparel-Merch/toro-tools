@@ -185,6 +185,9 @@ async function fbSet(path, val) {
     } catch(e) { clearTimeout(timer); throw e; }
   } catch(e) { console.error('fbSet failed:', path, e.message); return false; }
 }
+async function fbDel(path) {
+  return fbSet(path, null);
+}
 async function fbGet(path) {
   const r = await fetch(FIREBASE_DB_URL + '/' + path + '.json');
   if(!r.ok) throw new Error('HTTP ' + r.status);
