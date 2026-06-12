@@ -113,7 +113,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script>
 const DASH_PW = 'Toro#Mv3kG';
-const DASH_VERSION = 'v3.14';
+const DASH_VERSION = 'v3.15';
 const LOCK_KEY = 'toro_lock_dash';
 const ATTEMPTS_KEY = 'toro_attempts_dash';
 const FIREBASE_DB_URL = 'https://toro-commission-318b4-default-rtdb.firebaseio.com';
@@ -175,9 +175,16 @@ document.getElementById('pw-input').addEventListener('keydown', e=>{ if(e.key===
 function fbSet(path, val) {
   const url = FIREBASE_DB_URL + '/' + path + '.json';
   const method = val === null ? 'DELETE' : 'PUT';
-  fetch(url, { method, headers:{'Content-Type':'application/json'}, body:val===null?undefined:JSON.stringify(val) })
-    .then(r => { console.log('fbSet',method,path,'->',r.status); if(!r.ok) r.text().then(t=>console.error('fbSet body:',t)); })
-    .catch(e => console.error('fbSet error:', path, e.message));
+  const xhr = new XMLHttpRequest();
+  xhr.open(method, url, true);
+  xhr.setRequestHeader('Content-Type','application/json');
+  xhr.onreadystatechange = () => {
+    if(xhr.readyState !== 4) return;
+    console.log('fbSet',method,path,'->',xhr.status);
+    if(xhr.status < 200 || xhr.status >= 300) console.error('fbSet failed:', xhr.status, xhr.responseText);
+  };
+  xhr.onerror = () => console.error('fbSet network error:', path);
+  xhr.send(val === null ? null : JSON.stringify(val));
 }
 function fbDel(path) { fbSet(path, null); }
 function fbPatch(path, val) {
@@ -187,20 +194,10 @@ function fbPatch(path, val) {
     .then(r => { if(!r.ok) console.error('fbPatch failed:', path, r.status); })
     .catch(e => console.error('fbPatch error:', path, e.message));
 }
-function fbGet(path) {
-  return new Promise((resolve, reject) => {
-    const xhr = new XMLHttpRequest();
-    xhr.open('GET', FIREBASE_DB_URL+'/'+path+'.json', true);
-    xhr.onreadystatechange = () => {
-      if(xhr.readyState !== 4) return;
-      if(xhr.status === 200) {
-        try { resolve(JSON.parse(xhr.responseText)); }
-        catch(e) { reject(new Error('Parse error: '+e.message)); }
-      } else { reject(new Error('HTTP '+xhr.status)); }
-    };
-    xhr.onerror = () => reject(new Error('Network error'));
-    xhr.send();
-  });
+async function fbGet(path) {
+  const r = await fetch(FIREBASE_DB_URL + '/' + path + '.json');
+  if(!r.ok) throw new Error('HTTP ' + r.status);
+  return await r.json();
 }
 function fbListen(path, cb) {
   const es = new EventSource(FIREBASE_DB_URL + '/' + path + '.json');
