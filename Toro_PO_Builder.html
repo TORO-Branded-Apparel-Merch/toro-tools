@@ -205,6 +205,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
               <option value="">Select method</option>
               <option>Screen printing</option><option>Embroidery</option><option>DTF</option>
               <option>Heat press</option><option>Laser engraving</option>
+              <option>Deboss</option><option>Emboss</option>
               <option>Pad printing</option><option>Digital print</option><option>Other</option>
             </select>
           </div>
@@ -311,7 +312,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 
 <script>
 // ── State ──────────────────────────────────────────────────────────────────
-const PO_VERSION = 'v1.2';
+const PO_VERSION = 'v1.5';
 let quoteData = null;
 let currentType = null;
 let currentTypeLabel = '';
@@ -593,9 +594,26 @@ function autoFill() {
     const h = (q.hardGoods||[])[first.idx];
     if(!h) return;
     setVal('v-name', h.hg_vendor);
-    const hgDecMap = {'screen-print':'Screen printing','embroidery':'Embroidery','dtf':'DTF','laser':'Laser engraving','pad-print':'Pad printing','digital':'Digital print'};
+    // Map QB hg_dec values to PO Builder select options
+    const hgDecMap = {
+      'Screen printing':'Screen printing','screen-print':'Screen printing',
+      'Embroidery':'Embroidery','embroidery':'Embroidery',
+      'DTF':'DTF','dtf':'DTF',
+      'Heat press':'Heat press','heat':'Heat press',
+      'Laser Engrave':'Laser engraving','Laser engrave':'Laser engraving','laser':'Laser engraving',
+      'Deboss':'Deboss','deboss':'Deboss',
+      'Emboss':'Emboss','emboss':'Emboss',
+      'Pad printing':'Pad printing','pad-print':'Pad printing',
+      'Digital print':'Digital print','digital':'Digital print',
+    };
     const m = document.getElementById('d-method');
-    if(m && !m.value && hgDecMap[h.hg_dec]) m.value = hgDecMap[h.hg_dec];
+    if(m && h.hg_dec) {
+      const mapped = hgDecMap[h.hg_dec] || h.hg_dec;
+      // Try to match an existing option, else set directly
+      const opt = Array.from(m.options).find(o => o.value === mapped || o.text === mapped);
+      if(opt) m.value = opt.value; else m.value = mapped;
+    }
+    setVal('d-loc', h.hg_dec_loc || h.hg_dec_other || '');
     setVal('d-art', h.hg_design||h.hg_desc||'');
     setVal('d-colors', h.hg_colors||'');
   }
@@ -1053,7 +1071,7 @@ function openPrintTab(poNum, content) {
       *{box-sizing:border-box;margin:0;padding:0;}
       body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;color:#1a1a1f;}
       button[title="Remove row"]{display:none !important;}
-      .print-banner{background:#1a1a2e;color:#fff;padding:14px 20px;display:flex;align-items:center;justify-content:space-between;font-size:13px;}
+      .print-banner{background:linear-gradient(160deg,#BC112A 0%,#E9553A 100%);color:#fff;padding:14px 20px;display:flex;align-items:center;justify-content:space-between;font-size:13px;}
       .print-banner strong{font-size:15px;}
       .print-banner .steps{opacity:.85;}
       .print-banner button{padding:8px 18px;background:#BC112A;color:#fff;border:none;border-radius:6px;cursor:pointer;font-weight:700;font-size:13px;}
@@ -1343,28 +1361,29 @@ function applyQtyToData(d, splitQty, totalQty) {
 }
 
 function clearQuote() {
-  if(poQueue.length > 0) {
-    if(!confirm('This will clear the loaded quote and all POs in the queue. Continue?')) return;
+  function doReset() {
+    quoteData = null;
+    currentType = null;
+    selectedItems = [];
+    poQueue = [];
+    resetForm();
+    document.getElementById('builder').classList.add('hidden');
+    document.getElementById('drop-zone').style.display = '';
+    document.getElementById('quote-label').textContent = 'No quote loaded';
+    document.getElementById('clear-quote-btn').style.display = 'none';
+    document.getElementById('po-tabs').innerHTML = '';
+    document.getElementById('queue-empty').style.display = '';
+    document.getElementById('queue-count').textContent = '';
+    const exportBtn = document.getElementById('export-all-btn');
+    if(exportBtn) exportBtn.style.display = 'none';
+    const fi = document.getElementById('file-input');
+    if(fi) fi.value = '';
   }
-  // Reset all state
-  quoteData = null;
-  currentType = null;
-  selectedItems = [];
-  poQueue = [];
-  // Reset UI
-  resetForm();
-  document.getElementById('builder').classList.add('hidden');
-  document.getElementById('drop-zone').style.display = '';
-  document.getElementById('quote-label').textContent = 'No quote loaded';
-  document.getElementById('clear-quote-btn').style.display = 'none';
-  document.getElementById('po-tabs').innerHTML = '';
-  document.getElementById('queue-empty').style.display = '';
-  document.getElementById('queue-count').textContent = '';
-  const exportBtn = document.getElementById('export-all-btn');
-  if(exportBtn) exportBtn.style.display = 'none';
-  // Clear file input so same file can be re-selected
-  const fi = document.getElementById('file-input');
-  if(fi) fi.value = '';
+  if(poQueue.length > 0) {
+    bamConfirm('This will clear the loaded quote and all POs in the queue. Continue?', ok => { if(ok) doReset(); });
+  } else {
+    doReset();
+  }
 }
 
 function recalcPORow(input) {
