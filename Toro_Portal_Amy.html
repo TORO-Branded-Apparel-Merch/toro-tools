@@ -73,6 +73,9 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 #bam-overlay.open{display:flex;}
 .sync-dot{width:8px;height:8px;border-radius:50%;background:#1a7f4b;display:inline-block;margin-right:6px;}
 .sync-dot.syncing{background:#ffd54f;animation:pulse 1s infinite;}
+.pg-tab{padding:10px 16px;border:none;background:transparent;cursor:pointer;font-size:13px;font-weight:600;color:#6b7280;border-bottom:3px solid transparent;white-space:nowrap;font-family:inherit;transition:all .15s;}
+.pg-tab:hover{background:#f0f0f0;color:#374151;}
+.pg-tab.active{color:#BC112A;border-bottom-color:#BC112A;}
 @keyframes pulse{0%,100%{opacity:1}50%{opacity:0.3}}
 .feedback-modal{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:10000;align-items:center;justify-content:center;}
 .feedback-modal.open{display:flex;}
@@ -146,6 +149,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
       <span id="version-label" style="font-size:10px;opacity:.65;color:#fff;margin-right:4px;align-self:center;white-space:nowrap;"></span>
       <span class="sync-dot" id="sync-dot"></span>
       <span style="font-size:12px;opacity:0.8;" id="sync-label">Live</span>
+      <button class="hdr-btn btn-gray" onclick="openPortalGuide()" style="margin-right:4px;">❓ User Guide</button>
       <button class="hdr-btn btn-gray" onclick="document.getElementById('feedback-modal').classList.add('open');document.getElementById('feedback-text').value='';document.getElementById('feedback-status').textContent=''">💬 Feedback</button>
       <button class="hdr-btn btn-gray" onclick="downloadReport()">📊 Report</button>
       <button class="hdr-btn" style="background:rgba(255,255,255,0.2);color:#fff;" onclick="openChangePw()">🔑 Password</button>
@@ -174,7 +178,7 @@ const PW_KEY = 'toro_pw_amy';
 const LOCK_KEY = 'toro_lock_lexi';
 const ATTEMPTS_KEY = 'toro_attempts_lexi';
 const DEFAULT_PW = 'Toro#Jc6wT';
-const PORTAL_VERSION = 'v2.24';
+const PORTAL_VERSION = 'v2.25';
 const FIREBASE_DB_URL = 'https://toro-commission-318b4-default-rtdb.firebaseio.com';
 const FB_PATH = 'quotes/' + REP_LOWER;
 
@@ -822,6 +826,100 @@ function showForgotPw(){
     }
   } catch(e) { console.warn('Session check failed:', e); }
 })();
+</script>
+
+<!-- PORTAL USER GUIDE MODAL -->
+<div id="portal-guide-overlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:10000;align-items:flex-start;justify-content:center;overflow-y:auto;padding:40px 16px;">
+  <div style="background:#fff;border-radius:12px;max-width:680px;width:100%;box-shadow:0 8px 40px rgba(0,0,0,0.2);">
+    <div style="background:linear-gradient(160deg,#BC112A 0%,#E9553A 100%);color:#fff;padding:18px 24px;border-radius:12px 12px 0 0;display:flex;align-items:center;justify-content:space-between;">
+      <div>
+        <div style="font-size:18px;font-weight:700;">Rep Portal User Guide</div>
+        <div style="font-size:13px;opacity:.85;margin-top:2px;">Reference this anytime without losing your work</div>
+      </div>
+      <button onclick="closePortalGuide()" style="background:rgba(255,255,255,.2);border:none;color:#fff;font-size:20px;width:36px;height:36px;border-radius:50%;cursor:pointer;display:flex;align-items:center;justify-content:center;font-weight:700;">&times;</button>
+    </div>
+    <div style="display:flex;overflow-x:auto;border-bottom:1px solid #e5e7eb;background:#fafafa;">
+      <button class="pg-tab active" onclick="pgTab(this,'pg-overview')">Overview</button>
+      <button class="pg-tab" onclick="pgTab(this,'pg-login')">Logging In</button>
+      <button class="pg-tab" onclick="pgTab(this,'pg-upload')">Uploading</button>
+      <button class="pg-tab" onclick="pgTab(this,'pg-active')">Active Quotes</button>
+      <button class="pg-tab" onclick="pgTab(this,'pg-submit')">Submitting</button>
+      <button class="pg-tab" onclick="pgTab(this,'pg-archived')">Archived</button>
+      <button class="pg-tab" onclick="pgTab(this,'pg-other')">Report & Feedback</button>
+    </div>
+    <div style="padding:24px 28px;max-height:70vh;overflow-y:auto;">
+
+      <div id="pg-overview" class="pg-panel">
+        <h2 class="ug-h2">What This Tool Is</h2>
+        <p class="ug-p">Your rep portal is where you track quotes, manage order status, and submit for commission. Quotes come in from the Quote Builder as JSON files. Once submitted, management reviews them on the dashboard.</p>
+      </div>
+
+      <div id="pg-login" class="pg-panel" style="display:none;">
+        <h2 class="ug-h2">Logging In</h2>
+        <p class="ug-p">Enter your password to access the portal. Your session stays active for 4 hours, after that you will need to log back in.</p>
+        <p class="ug-p">If you need a new password, click the Password button in the top right and follow the prompt to contact management.</p>
+      </div>
+
+      <div id="pg-upload" class="pg-panel" style="display:none;">
+        <h2 class="ug-h2">Uploading a Quote</h2>
+        <p class="ug-p">Drag and drop the JSON file exported from the Quote Builder into the drop zone at the top of your portal. The quote will appear in your Active Quotes section. You can upload multiple quotes.</p>
+        <p class="ug-p">To remove a quote, use the delete button on the quote card.</p>
+        <div class="ug-tip">If you exported the quote from the Quote Builder and something looks off, go back to the Quote Builder, drag the same JSON in to reload it, make your changes, and export again. Then re-upload the new file here.</div>
+      </div>
+
+      <div id="pg-active" class="pg-panel" style="display:none;">
+        <h2 class="ug-h2">Active Quotes</h2>
+        <p class="ug-p">All quotes currently in progress live here. Each card shows the client name, quote number, in-hands date, sell total, margin, and estimated commission.</p>
+        <p class="ug-p">Expand a quote card by clicking the arrow to see its status checkboxes. Use these to track where each order stands.</p>
+        <div class="ug-field"><span class="ug-label">Quote Approved</span>Client has signed off on the quote.</div>
+        <div class="ug-field"><span class="ug-label">Order Completed</span>Order has been delivered.</div>
+        <div class="ug-field"><span class="ug-label">Paid by Client</span>Payment has been received.</div>
+        <div class="ug-field"><span class="ug-label">Ready for Payment</span>Marks the quote ready to submit for commission and moves it to the submission queue. Uncheck this if you need to pull it back before submitting.</div>
+      </div>
+
+      <div id="pg-submit" class="pg-panel" style="display:none;">
+        <h2 class="ug-h2">Submitting for Commission</h2>
+        <p class="ug-p">When one or more quotes are marked Ready for Payment, a submission section appears above Active Quotes showing your totals and estimated commission.</p>
+        <p class="ug-p">You can submit quotes individually using the Submit button on each card, or submit everything in the queue at once using the Submit All button. Once submitted, quotes move to your Archived section and management can see them on the dashboard.</p>
+        <div class="ug-tip">Use Submit All when you have multiple quotes ready at the same time. It sends everything in one shot and saves you from clicking through each one.</div>
+      </div>
+
+      <div id="pg-archived" class="pg-panel" style="display:none;">
+        <h2 class="ug-h2">Archived / Submitted</h2>
+        <p class="ug-p">Quotes that have been submitted for commission appear here and are locked from editing. A blue Submitted badge shows while commission is pending.</p>
+        <p class="ug-p">Once you receive your commission, click the Mark as Paid button on the quote card. The badge updates to a green Paid status.</p>
+      </div>
+
+      <div id="pg-other" class="pg-panel" style="display:none;">
+        <h2 class="ug-h2">Report</h2>
+        <p class="ug-p">Click the Report button in the top right to export an Excel file of your quotes. You can filter by date range and sort by quote date, in-hands date, or commission period.</p>
+        <h2 class="ug-h2" style="margin-top:24px;">Feedback</h2>
+        <p class="ug-p">Use the Feedback button to send a note to management directly from the portal. Use this for questions, issues, or anything you want them to see related to your quotes.</p>
+      </div>
+
+    </div>
+  </div>
+</div>
+<script>
+function openPortalGuide() {
+  const el = document.getElementById('portal-guide-overlay');
+  if(el) { el.style.display = 'flex'; document.body.style.overflow = 'hidden'; }
+}
+function closePortalGuide() {
+  const el = document.getElementById('portal-guide-overlay');
+  if(el) { el.style.display = 'none'; document.body.style.overflow = ''; }
+}
+function pgTab(btn, panelId) {
+  document.querySelectorAll('.pg-tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.pg-panel').forEach(p => p.style.display = 'none');
+  btn.classList.add('active');
+  const panel = document.getElementById(panelId);
+  if(panel) panel.style.display = '';
+}
+document.addEventListener('click', function(e) {
+  const overlay = document.getElementById('portal-guide-overlay');
+  if(e.target === overlay) closePortalGuide();
+});
 </script>
 </body>
 </html>
