@@ -117,7 +117,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script>
 const DASH_PW = 'Toro#Mv3kG';
-const DASH_VERSION = 'v3.25';
+const DASH_VERSION = 'v3.27';
 const LOCK_KEY = 'toro_lock_dash';
 const ATTEMPTS_KEY = 'toro_attempts_dash';
 const FIREBASE_DB_URL = 'https://toro-commission-318b4-default-rtdb.firebaseio.com';
@@ -239,11 +239,26 @@ function quoteTotal(q, type) {
   return 0;
 }
 function quoteComm(q) {
-  if(q.totalRepComm!=null) return parseFloat(q.totalRepComm)||0;
+  // Always recalculate from first principles -- don't trust stored totalRepComm
+  // (older quotes may have been calculated with incorrect HO/low-margin math)
   const sell=quoteTotal(q,'sell'), net=quoteTotal(q,'net'), gp=sell-net;
+  if(sell<=0||gp<=0) return 0;
+  const margin=(gp/sell)*100;
   const split=q.commissionSplit||q.split||'standard';
-  const repPct=split==='ho_75_25'?0.25:split==='ho_50_50'?0.50:split==='ho_25_75'?0.75:0.50;
-  return gp*repPct;
+  const repFrac=split==='ho_75_25'?0.25:split==='ho_50_50'?0.50:split==='ho_25_75'?0.75:1.0;
+  const hasAM=q.hasAM||false;
+  const AM_RATE=0.06;
+  if(margin<30) {
+    const houseFloor=sell*0.15;
+    const repBase=gp-houseFloor;
+    if(repBase<=0) return 0;
+    const amEarns=hasAM?repBase*AM_RATE:0;
+    return (repBase-amEarns)*repFrac;
+  } else {
+    const repOriginal=gp*0.50;
+    const amEarns=hasAM?repOriginal*AM_RATE:0;
+    return (repOriginal-amEarns)*repFrac;
+  }
 }
 function marginBadge(net, sell) {
   if(!sell) return '';
@@ -1074,8 +1089,9 @@ function openOrderSummary(rep, encKey) {
   const totalSell = q.totalSell||0, totalNet = q.totalNetCost||0;
   const gp = totalSell - totalNet;
   const avgMargin = totalSell>0?(gp/totalSell*100):0;
-  const repComm = q.totalRepComm||0;
-  const houseProfit = q.totalHouseProfit||0;
+  // Recalculate commission from first principles (stored values may be from old buggy calc)
+  const repComm = quoteComm(q);
+  const houseProfit = gp - repComm - (q.totalAM||0);
   html += `<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:20px;">
     ${[['Total Net','#374151',fmt(totalNet)],['Total Sell','#2255cc',fmt(totalSell)],['Gross Profit','#16a34a',fmt(gp)],['Avg Margin',avgMargin>=30?'#16a34a':'#dc2626',avgMargin.toFixed(1)+'%']].map(([lbl,col,val])=>`
     <div style="background:#f9fafb;border-radius:8px;padding:10px 12px;text-align:center;">
