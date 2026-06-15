@@ -178,7 +178,7 @@ const PW_KEY = 'toro_pw_lexi';
 const LOCK_KEY = 'toro_lock_lexi';
 const ATTEMPTS_KEY = 'toro_attempts_lexi';
 const DEFAULT_PW = 'Toro#Qd2fH';
-const PORTAL_VERSION = 'v2.27';
+const PORTAL_VERSION = 'v2.28';
 const FIREBASE_DB_URL = 'https://toro-commission-318b4-default-rtdb.firebaseio.com';
 const FB_PATH = 'quotes/' + REP_LOWER;
 
@@ -768,7 +768,26 @@ function startListeners() {
   let first = true;
   fbListen(FB_PATH, ev => {
     if(!ev) return;
-    if(first) { first = false; return; }
+    if(first) {
+      first = false;
+      // Use the first SSE event (full snapshot) as our initial load
+      // This replaces the GET which hangs on large quote objects
+      if(!_saving && ev.data && typeof ev.data === 'object' && !ev.path || ev.path === '/') {
+        quotes = Object.entries(ev.data)
+          .filter(([k,v]) => v && typeof v === 'object')
+          .map(([k,v]) => {
+            const q = {...v, _fbKey: k};
+            if(!q.workflowStatus) q.workflowStatus = 'active';
+            if(!q.status) q.status = {};
+            if(['needsApproval','waitingApproval'].includes(q.workflowStatus)) q.workflowStatus = 'active';
+            return q;
+          });
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(quotes));
+        setSyncing(false);
+        render();
+      }
+      return;
+    }
     if(_saving) return;
     if(ev.path && ev.path !== '/' && ev.data !== undefined) {
       const parts = ev.path.replace(/^\//, '').split('/');
@@ -822,13 +841,13 @@ function setupDrop() {
 
 async function init() {
   try { quotes = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]'); } catch(e) { quotes = []; }
-  // Clean up any lingering approval states from old data
   quotes.forEach(q => { if(['needsApproval','waitingApproval'].includes(q.workflowStatus)) q.workflowStatus='active'; });
   if(quotes.length) render();
   setupDrop();
-  await loadFromFirebase();
+  // Start SSE listener first — it will use the initial snapshot as our load
+  // loadFromFirebase (GET) runs in parallel but SSE is more reliable for large objects
   startListeners();
-  // Firebase write access confirmed working
+  loadFromFirebase(); // non-blocking — SSE handles it if GET times out
 }
 
 function toggleArchive(el){
