@@ -178,7 +178,7 @@ const PW_KEY = 'toro_pw_shannon';
 const LOCK_KEY = 'toro_lock_lexi';
 const ATTEMPTS_KEY = 'toro_attempts_lexi';
 const DEFAULT_PW = 'Toro#Kw9mP';
-const PORTAL_VERSION = 'v2.26';
+const PORTAL_VERSION = 'v2.27';
 const FIREBASE_DB_URL = 'https://toro-commission-318b4-default-rtdb.firebaseio.com';
 const FB_PATH = 'quotes/' + REP_LOWER;
 
@@ -272,7 +272,9 @@ function fbSet(path, data) {
 function fbGet(path) {
   return new Promise((resolve) => {
     const xhr = new XMLHttpRequest();
-    xhr.open('GET', FIREBASE_DB_URL+'/'+path+'.json', true);
+    // Use ?print=silent equivalent — add timeout to prevent hanging on large objects
+    xhr.open('GET', FIREBASE_DB_URL+'/'+path+'.json?timeout=10s', true);
+    xhr.timeout = 15000;
     xhr.onreadystatechange = () => {
       if(xhr.readyState !== 4) return;
       if(xhr.status === 200) {
@@ -284,6 +286,7 @@ function fbGet(path) {
       }
     };
     xhr.onerror = () => { console.warn('fbGet network error'); resolve(null); };
+    xhr.ontimeout = () => { console.warn('fbGet timeout'); resolve(null); };
     xhr.send();
   });
 }
@@ -324,10 +327,12 @@ async function loadFromFirebase() {
           return q;
         });
     } else if(data === null) {
-      // Only wipe quotes if Firebase explicitly returns null (node deleted)
-      // If fetch timed out or failed, data is null too — don't wipe in that case
-      // We can't distinguish, so only wipe if quotes is currently empty anyway
-      if(quotes.length === 0) quotes = [];
+      // GET timed out or failed — keep existing quotes, schedule a retry
+      console.warn('loadFromFirebase: GET returned null, will retry in 5s');
+      setTimeout(loadFromFirebase, 5000);
+      setSyncing(false);
+      render();
+      return;
     }
     localStorage.setItem(STORAGE_KEY, JSON.stringify(quotes));
   } catch(e) { console.error('loadFromFirebase error:', e); }
