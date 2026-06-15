@@ -113,7 +113,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script>
 const DASH_PW = 'Toro#Mv3kG';
-const DASH_VERSION = 'v3.19';
+const DASH_VERSION = 'v3.20';
 const LOCK_KEY = 'toro_lock_dash';
 const ATTEMPTS_KEY = 'toro_attempts_dash';
 const FIREBASE_DB_URL = 'https://toro-commission-318b4-default-rtdb.firebaseio.com';
@@ -122,6 +122,7 @@ const REPS = ['Shannon', 'Stephen', 'Julia', 'Lexi', 'Amy', 'Debbie'];
 let allQuotes = {};
 let feedbackData = {};
 let currentTab = 'commission';
+let commissionView = 'pending'; // 'pending' | 'approved' | 'issues'
 
 function bamAlert(msg, cb) {
   document.getElementById('bam-msg').innerHTML = msg;
@@ -373,16 +374,49 @@ function renderSummary() {
     `<div class="summary-card"><div class="sc-val">$${totalComm.toFixed(0)}</div><div class="sc-lbl">Est. Total Commission</div></div>`;
 }
 
+function switchCommView(view) {
+  commissionView = view;
+  renderCommission();
+}
+
 function renderCommission() {
-  let html = '';
+  const PENDING_STATUSES = ['readyForSubmission','submittedCommission','submitted'];
+  const APPROVED_STATUSES = ['approvedForPayment'];
+  const ISSUE_STATUSES = ['issue'];
+
+  const statusFilters = {
+    pending: q => PENDING_STATUSES.includes(q.workflowStatus),
+    approved: q => APPROVED_STATUSES.includes(q.workflowStatus),
+    issues: q => ISSUE_STATUSES.includes(q.workflowStatus),
+  };
+
+  const viewFilter = statusFilters[commissionView] ||
+    (q => PENDING_STATUSES.includes(q.workflowStatus) || ISSUE_STATUSES.includes(q.workflowStatus));
+
+  // Sub-nav
+  const views = [
+    {key:'pending', label:'⏳ Pending'},
+    {key:'approved', label:'✅ Approved'},
+    {key:'issues',  label:'⚠️ Issues'},
+  ];
+  const subNav = `<div style="display:flex;gap:6px;margin-bottom:16px;border-bottom:2px solid var(--border);padding-bottom:0;">
+    ${views.map(v=>`<button onclick="switchCommView('${v.key}')"
+      style="padding:8px 18px;border:none;cursor:pointer;font-size:13px;font-weight:700;font-family:inherit;
+        border-bottom:3px solid ${commissionView===v.key?'var(--red)':'transparent'};
+        color:${commissionView===v.key?'var(--red)':'var(--text3)'};background:transparent;margin-bottom:-2px;">
+      ${v.label}</button>`).join('')}
+  </div>`;
+
+  let html = subNav;
   let grandNet=0, grandSell=0, grandComm=0;
+
   for(const rep of REPS) {
-    // Only show pending (not yet paid) in main view
-    const qs = (allQuotes[rep]||[]).filter(q=>q.workflowStatus==='readyForSubmission'||q.workflowStatus==='submittedCommission'||q.workflowStatus==='submitted');
-    if(qs.length===0) continue;
+    const qs = (allQuotes[rep]||[]).filter(viewFilter);
+    if(!qs.length) continue;
     let repNet=0, repSell=0, repComm=0;
     qs.forEach(q=>{ repNet+=quoteTotal(q,'net'); repSell+=quoteTotal(q,'sell'); repComm+=quoteComm(q); });
     grandNet+=repNet; grandSell+=repSell; grandComm+=repComm;
+
     html += `<div class="rep-section">
       <div class="rep-header">
         <h3>${rep}</h3>
@@ -390,13 +424,34 @@ function renderCommission() {
       </div>
       <div class="rep-body">
         <div class="quote-row" style="border-bottom:2px solid var(--border);">
-          <div class="th">Quote</div><div class="th">Period</div><div class="th">Net</div><div class="th">Sell</div><div class="th">Margin</div><div class="th">Commission</div><div class="th">Status</div><div></div>
+          <div class="th">Quote</div><div class="th">Period</div><div class="th">Net</div><div class="th">Sell</div><div class="th">Margin</div><div class="th">Commission</div><div class="th">Actions</div><div></div>
         </div>`;
+
     qs.forEach(q => {
-      const net=quoteTotal(q,'net'), sell=quoteTotal(q,'sell');
-      const comm=quoteComm(q);
-      const isPaid = q.workflowStatus==='paid';
+      const net=quoteTotal(q,'net'), sell=quoteTotal(q,'sell'), comm=quoteComm(q);
       const encQKey = encodeURIComponent(fbKey(q));
+      const ws = q.workflowStatus;
+
+      // Action buttons per view
+      let actions = '';
+      if(commissionView === 'pending') {
+        actions = `<button class="btn btn-green btn-sm" onclick="approveForPayment('${rep}','${encQKey}')">✅ Approve</button>
+          <button class="btn btn-sm" style="background:#fff8e1;color:#7a5c00;border:1px solid #ffe082;margin-left:4px;" onclick="flagIssue('${rep}','${encQKey}')">⚠️ Issue</button>`;
+      } else if(commissionView === 'approved') {
+        actions = `<button class="btn btn-green btn-sm" onclick="markPaid('${rep}','${encQKey}')">💰 Mark Paid</button>
+          <button class="btn btn-sm" style="background:#fff8e1;color:#7a5c00;border:1px solid #ffe082;margin-left:4px;" onclick="flagIssue('${rep}','${encQKey}')">⚠️ Issue</button>`;
+      } else if(commissionView === 'issues') {
+        actions = `<button class="btn btn-green btn-sm" onclick="resolveIssue('${rep}','${encQKey}')">✅ Approve</button>
+          <button class="btn btn-sm" style="background:#f0f4ff;color:#2255cc;border:1px solid #c7d2fe;margin-left:4px;" onclick="returnToPending('${rep}','${encQKey}')">↩ Pending</button>`;
+      }
+
+      // Status badge
+      const statusBadge = ws==='issue'
+        ? '<span style="background:#fff8e1;color:#7a5c00;font-size:11px;font-weight:700;padding:2px 8px;border-radius:10px;border:1px solid #ffe082;">⚠️ Issue</span>'
+        : ws==='approvedForPayment'
+        ? '<span style="background:#f0fdf4;color:#166534;font-size:11px;font-weight:700;padding:2px 8px;border-radius:10px;border:1px solid #bbf7d0;">✅ Approved</span>'
+        : '<span style="background:#f0f4ff;color:#2255cc;font-size:11px;font-weight:700;padding:2px 8px;border-radius:10px;border:1px solid #c7d2fe;">⏳ Pending</span>';
+
       html += `<div class="quote-row">
         <div><strong>${q.quoteName||q.quoteNum||'—'}</strong><br><span style="font-size:11px;color:var(--text3);">#${q.quoteNum}</span></div>
         <div>${q.period||q.commissionReport||'—'}</div>
@@ -404,24 +459,31 @@ function renderCommission() {
         <div>$${sell.toFixed(2)}</div>
         <div>${marginBadge(net,sell)}</div>
         <div style="color:var(--green);font-weight:700;">$${comm.toFixed(2)}</div>
-        <div>${isPaid?'<span class="paid-indicator">Paid</span>':`<button class="btn btn-green btn-sm" onclick="markPaid('${rep}','${encQKey}')">Mark Paid</button>`}</div>
+        <div style="display:flex;align-items:center;gap:4px;flex-wrap:wrap;">${actions}</div>
         <div><button class="btn btn-sm" style="background:#fff0f2;color:var(--red);border:1px solid #f5c2c7;" onclick="deleteQuoteHard('${rep}','${encQKey}')">🗑</button></div>
       </div>`;
     });
+
     html += `<div class="totals-row">Rep Total Comm: <strong style="color:var(--green);">$${repComm.toFixed(2)}</strong></div>
       </div></div>`;
   }
-  if(!html) html = '<div class="card" style="color:var(--text3);text-align:center;padding:32px;">No quotes ready for commission.</div>';
+
+  const emptyMessages = {
+    pending: 'No quotes pending review.',
+    approved: 'No quotes approved for payment.',
+    issues: 'No issues flagged.',
+  };
+  if(html === subNav) html += `<div class="card" style="color:var(--text3);text-align:center;padding:32px;">${emptyMessages[commissionView]||'No quotes.'}</div>`;
   else html += `<div class="card" style="text-align:right;"><strong>Grand Total Commission Due: <span style="color:var(--green);font-size:18px;">$${grandComm.toFixed(2)}</span></strong></div>`;
 
-  // Paid History — collapsible section at the bottom
+  // Paid History — always shown at bottom regardless of sub-view
   const paidQuotes = [];
   for(const rep of REPS) {
     (allQuotes[rep]||[]).filter(q=>q.workflowStatus==='paid').forEach(q=>paidQuotes.push({...q,_rep:rep}));
   }
   if(paidQuotes.length) {
-    let paidSell=0, paidComm=0;
-    paidQuotes.forEach(q=>{ paidSell+=quoteTotal(q,'sell'); paidComm+=quoteComm(q); });
+    let paidComm=0;
+    paidQuotes.forEach(q=>{ paidComm+=quoteComm(q); });
     let paidHtml = `<details style="margin-top:16px;"><summary style="cursor:pointer;font-size:14px;font-weight:700;color:var(--text2);padding:10px 0;user-select:none;">🗂 Paid History (${paidQuotes.length} quote${paidQuotes.length!==1?'s':''}) — Total Paid Out: <span style="color:var(--green);">$${paidComm.toFixed(2)}</span></summary><div style="margin-top:8px;">`;
     paidQuotes.sort((a,b)=>(b.paidAt||'').localeCompare(a.paidAt||'')).forEach(q => {
       const net=quoteTotal(q,'net'), sell=quoteTotal(q,'sell'), comm=quoteComm(q);
@@ -542,31 +604,61 @@ function deleteQuoteHard(rep, encKey) {
   });
 }
 
-function markPaid(rep, encKey) {
+function setQuoteStatus(rep, encKey, newStatus, confirmMsg, successMsg) {
   const key = decodeURIComponent(encKey);
-  bamConfirm('Mark this commission as paid? It will be moved to Paid History.', ok => {
+  bamConfirm(confirmMsg, ok => {
     if(!ok) return;
     const rl = rep.toLowerCase();
     const q = (allQuotes[rep]||[]).find(x => (x._fbKey||'') === key || fbKey(x) === key);
     if(!q) { setTimeout(()=>bamAlert('Could not find quote. Refresh and try again.'),100); return; }
-    const paidAt = new Date().toISOString();
     const qKey = q._fbKey || fbKey(q);
-    fbSet('quotes/'+rl+'/'+qKey+'/workflowStatus', 'paid');
-    fbSet('quotes/'+rl+'/'+qKey+'/paidAt', paidAt);
-    fbSet('paid/'+rl+'/'+qKey, {
-      quoteNum: q.quoteNum, quoteName: q.quoteName,
-      clientName: q.clientName, clientCompany: q.clientCompany,
-      totalSell: q.totalSell||q.sell||0, totalNetCost: q.totalNetCost||q.net||0,
-      commissionSplit: q.commissionSplit||q.split||'standard',
-      totalRepComm: q.totalRepComm||null,
-      period: q.period||q.commissionReport||'',
-      workflowStatus: 'paid', paidAt, _rep: rep, _paidAt: paidAt
-    });
-    q.workflowStatus = 'paid';
-    q.paidAt = paidAt;
+    const updatedAt = new Date().toISOString();
+    fbSet('quotes/'+rl+'/'+qKey+'/workflowStatus', newStatus);
+    fbSet('quotes/'+rl+'/'+qKey+'/statusUpdatedAt', updatedAt);
+    q.workflowStatus = newStatus;
+    q.statusUpdatedAt = updatedAt;
+    if(newStatus === 'paid') {
+      fbSet('quotes/'+rl+'/'+qKey+'/paidAt', updatedAt);
+      fbSet('paid/'+rl+'/'+qKey, {
+        quoteNum: q.quoteNum, quoteName: q.quoteName,
+        clientName: q.clientName, clientCompany: q.clientCompany,
+        totalSell: q.totalSell||q.sell||0, totalNetCost: q.totalNetCost||q.net||0,
+        commissionSplit: q.commissionSplit||q.split||'standard',
+        totalRepComm: q.totalRepComm||null,
+        period: q.period||q.commissionReport||'',
+        workflowStatus: 'paid', paidAt: updatedAt, _rep: rep, _paidAt: updatedAt
+      });
+      q.paidAt = updatedAt;
+    }
     render();
-    setTimeout(()=>bamAlert('BAM! Marked as paid.'),100);
+    setTimeout(()=>bamAlert(successMsg),100);
   });
+}
+
+function markPaid(rep, encKey) {
+  setQuoteStatus(rep, encKey, 'paid',
+    'Mark this commission as paid? It will move to Paid History.',
+    'BAM! Marked as paid.');
+}
+function approveForPayment(rep, encKey) {
+  setQuoteStatus(rep, encKey, 'approvedForPayment',
+    'Approve this quote for payment? Socorro will be able to mark it paid.',
+    '✅ Approved for payment.');
+}
+function flagIssue(rep, encKey) {
+  setQuoteStatus(rep, encKey, 'issue',
+    'Flag this quote as an issue? It will appear in the Issues view.',
+    '⚠️ Flagged as issue.');
+}
+function resolveIssue(rep, encKey) {
+  setQuoteStatus(rep, encKey, 'approvedForPayment',
+    'Resolve this issue and move to Approved for Payment?',
+    '✅ Resolved and approved for payment.');
+}
+function returnToPending(rep, encKey) {
+  setQuoteStatus(rep, encKey, 'submittedCommission',
+    'Return this quote to Pending?',
+    'Returned to Pending.');
 }
 
 // ── Feedback ──────────────────────────────────────────────────────────────
