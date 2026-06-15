@@ -117,7 +117,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script>
 const DASH_PW = 'Toro#Mv3kG';
-const DASH_VERSION = 'v3.23';
+const DASH_VERSION = 'v3.25';
 const LOCK_KEY = 'toro_lock_dash';
 const ATTEMPTS_KEY = 'toro_attempts_dash';
 const FIREBASE_DB_URL = 'https://toro-commission-318b4-default-rtdb.firebaseio.com';
@@ -624,7 +624,7 @@ function renderCommission() {
 
       html += `<div class="quote-row" style="${rowBg}">
         <div><input type="checkbox" class="row-chk" data-key="${repKey}" ${isChecked?'checked':''} style="width:14px;height:14px;cursor:pointer;" onchange="toggleRowSelect('${repKey}')"></div>
-        <div><strong>${q.quoteName||q.quoteNum||'—'}</strong>${issueBadge}<br><span style="font-size:11px;color:var(--text3);">#${q.quoteNum}</span></div>
+        <div><strong><a href="#" onclick="event.preventDefault();openOrderSummary('${rep}','${encQKey}')" style="color:inherit;text-decoration:none;border-bottom:1px dashed #aaa;">${q.quoteName||q.quoteNum||'—'}</a></strong>${issueBadge}<br><span style="font-size:11px;color:var(--text3);">#${q.quoteNum}</span></div>
         <div>${q.period||q.commissionReport||'—'}</div>
         <div>$${net.toFixed(2)}</div>
         <div>$${sell.toFixed(2)}</div>
@@ -659,7 +659,7 @@ function renderCommission() {
     paidQuotes.sort((a,b)=>(b.paidAt||'').localeCompare(a.paidAt||'')).forEach(q => {
       const net=quoteTotal(q,'net'), sell=quoteTotal(q,'sell'), comm=quoteComm(q);
       const encPaidKey = encodeURIComponent(fbKey(q));
-      paidHtml += `<div class="quote-row" style="opacity:.85;"><div><strong>${q.quoteName||q.quoteNum||'—'}</strong><br><span style="font-size:11px;color:var(--text3);">${q._rep} · #${q.quoteNum||'?'}</span></div><div>${q.period||q.commissionReport||'—'}</div><div>$${net.toFixed(2)}</div><div>$${sell.toFixed(2)}</div><div>${marginBadge(net,sell)}</div><div style="color:var(--green);font-weight:700;">$${comm.toFixed(2)}</div><div><span class="paid-indicator">Paid</span></div><div><button class="btn btn-sm" style="background:#fff0f2;color:var(--red);border:1px solid #f5c2c7;" onclick="deleteQuoteHard('${q._rep}','${encPaidKey}')">🗑</button></div></div>`;
+      paidHtml += `<div class="quote-row" style="opacity:.85;"><div><div></div><strong><a href="#" onclick="event.preventDefault();openOrderSummary('${q._rep}','${encPaidKey}')" style="color:inherit;text-decoration:none;border-bottom:1px dashed #aaa;">${q.quoteName||q.quoteNum||'—'}</a></strong><br><span style="font-size:11px;color:var(--text3);">${q._rep} · #${q.quoteNum||'?'}</span></div><div>${q.period||q.commissionReport||'—'}</div><div>$${net.toFixed(2)}</div><div>$${sell.toFixed(2)}</div><div>${marginBadge(net,sell)}</div><div style="color:var(--green);font-weight:700;">$${comm.toFixed(2)}</div><div><span class="paid-indicator">Paid</span></div><div><button class="btn btn-sm" style="background:#fff0f2;color:var(--red);border:1px solid #f5c2c7;" onclick="deleteQuoteHard('${q._rep}','${encPaidKey}')">🗑</button></div></div>`;
     });
     paidHtml += `</div></details>`;
     html += paidHtml;
@@ -976,42 +976,258 @@ function downloadDashReport() {
     modal=document.createElement('div');
     modal.id='dash-report-modal';
     modal.style.cssText='display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:10000;align-items:center;justify-content:center';
-    modal.innerHTML='<div style="background:#fff;border-radius:12px;padding:24px;max-width:400px;width:92%;box-shadow:0 20px 60px rgba(0,0,0,.3)"><div style="font-size:15px;font-weight:700;margin-bottom:16px">Export report</div><div id="dash-rpt-filters"></div></div>';
+    modal.innerHTML='<div style="background:#fff;border-radius:12px;padding:24px;max-width:440px;width:92%;box-shadow:0 20px 60px rgba(0,0,0,.3)"><div style="font-size:15px;font-weight:700;margin-bottom:16px">Export Commission Reports</div><div id="dash-rpt-filters"></div></div>';
     document.body.appendChild(modal);
   }
   document.getElementById('dash-rpt-filters').innerHTML=`
     <div style="margin-bottom:12px"><label style="font-size:12px;font-weight:700;display:block;margin-bottom:4px">Filter by rep</label>
       <select id="drpt-rep" style="width:100%;padding:7px;border:1px solid #ccc;border-radius:4px;font-size:13px"><option value="">All reps</option>${REPS.map(r=>`<option>${r}</option>`).join('')}</select></div>
-    <div style="margin-bottom:12px"><label style="font-size:12px;font-weight:700;display:block;margin-bottom:4px">Filter by client</label>
+    <div style="margin-bottom:16px"><label style="font-size:12px;font-weight:700;display:block;margin-bottom:4px">Filter by client</label>
       <select id="drpt-client" style="width:100%;padding:7px;border:1px solid #ccc;border-radius:4px;font-size:13px"><option value="">All clients</option>${clients.map(c=>`<option value="${c}">${c}</option>`).join('')}</select></div>
-    <div style="display:flex;gap:8px">
-      <button onclick="runDashReport()" style="flex:1;padding:9px;background:#BC112A;color:#fff;font-weight:700;border:none;border-radius:6px;cursor:pointer;font-size:13px">Download Excel</button>
-      <button onclick="document.getElementById('dash-report-modal').style.display='none'" style="flex:1;padding:9px;background:#f0f0f0;font-weight:700;border:none;border-radius:6px;cursor:pointer;font-size:13px">Cancel</button>
-    </div>`;
+    <div style="font-size:12px;font-weight:700;color:#666;margin-bottom:8px;">DOWNLOAD BY STATUS</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px;">
+      <button onclick="runDashReport('pending')" style="padding:9px;background:#2255cc;color:#fff;font-weight:700;border:none;border-radius:6px;cursor:pointer;font-size:12px;">⏳ Pending</button>
+      <button onclick="runDashReport('approved')" style="padding:9px;background:#16a34a;color:#fff;font-weight:700;border:none;border-radius:6px;cursor:pointer;font-size:12px;">✅ Approved</button>
+      <button onclick="runDashReport('issues')" style="padding:9px;background:#854d0e;color:#fff;font-weight:700;border:none;border-radius:6px;cursor:pointer;font-size:12px;">⚠️ Issues</button>
+      <button onclick="runDashReport('paid')" style="padding:9px;background:#374151;color:#fff;font-weight:700;border:none;border-radius:6px;cursor:pointer;font-size:12px;">💰 Paid</button>
+    </div>
+    <button onclick="runDashReport('all')" style="width:100%;padding:9px;background:#BC112A;color:#fff;font-weight:700;border:none;border-radius:6px;cursor:pointer;font-size:13px;margin-bottom:8px;">📊 All Quotes</button>
+    <button onclick="document.getElementById('dash-report-modal').style.display='none'" style="width:100%;padding:9px;background:#f0f0f0;font-weight:700;border:none;border-radius:6px;cursor:pointer;font-size:13px">Cancel</button>`;
   modal.style.display='flex';
 }
-function runDashReport() {
+function runDashReport(reportType) {
+  if(typeof XLSX==='undefined'){bamAlert('The Excel library isn\'t loaded. Give the page a refresh and try again.');return;}
+  const PENDING_STATUSES = ['readyForSubmission','submittedCommission','submitted'];
   const allQ=[];
   for(const rep of REPS)(allQuotes[rep]||[]).forEach(q=>allQ.push({...q,_rep:rep}));
   const repFilter=document.getElementById('drpt-rep')?.value||'';
   const clientFilter=document.getElementById('drpt-client')?.value||'';
-  let filtered=allQ.filter(q=>{
+  const filterBase = q => {
     if(repFilter&&q._rep!==repFilter) return false;
     if(clientFilter&&(q.clientCompany||q.clientName||'')!==clientFilter) return false;
     return true;
-  });
-  if(!filtered.length){bamAlert('Nothing matches those filters. Try adjusting them.');return;}
-  if(typeof XLSX==='undefined'){bamAlert('The Excel library isn\'t loaded. Give the page a refresh and try again.');return;}
-  const HEADERS=['Quote #','Quote name','Client','Company','Rep','Quote date','IHD','Commission period','Split','Sell','Net','GP','Margin %','Rep payout','House profit','Status'];
+  };
+  const statusFilters = {
+    pending:  q => filterBase(q) && PENDING_STATUSES.includes(q.workflowStatus),
+    approved: q => filterBase(q) && q.workflowStatus==='approvedForPayment',
+    issues:   q => filterBase(q) && !!q.issueFlag,
+    paid:     q => filterBase(q) && q.workflowStatus==='paid',
+    all:      q => filterBase(q),
+  };
+  const sheetNames = {pending:'Pending',approved:'Approved',issues:'Issues',paid:'Paid History',all:'All Quotes'};
+  const fileNames = {pending:'Pending',approved:'Approved',issues:'Issues',paid:'Paid',all:'All'};
+  const filtered = allQ.filter(statusFilters[reportType]||filterBase);
+  if(!filtered.length){bamAlert('No quotes match this filter.');return;}
+  const HEADERS=['Quote #','Quote name','Client','Company','Rep','Quote date','IHD','Commission period','Split','Sell','Net','GP','Margin %','Rep payout','House profit','Status','Issue Flag'];
   const rows=[HEADERS,...filtered.map(q=>{
     const sell=quoteTotal(q,'sell'),net=quoteTotal(q,'net'),comm=quoteComm(q);
-    return[q.quoteNum||'',q.quoteName||'',q.clientName||'',q.clientCompany||'',q._rep,q.quoteDate||q.exportedAt||'',q.ihd||'',q.commissionReport||'',q.commissionSplit||'standard',sell,net,sell-net,sell>0?((sell-net)/sell*100).toFixed(1):0,comm,sell-net-comm,q.workflowStatus||'active'];
+    const statusLabel = q.workflowStatus==='approvedForPayment'?'Approved for Payment':
+      q.workflowStatus==='submittedCommission'||q.workflowStatus==='submitted'?'Pending':
+      q.workflowStatus==='paid'?'Paid':'Active';
+    return[q.quoteNum||'',q.quoteName||'',q.clientName||'',q.clientCompany||'',q._rep,
+      q.quoteDate||q.exportedAt||'',q.ihd||'',q.commissionReport||'',q.commissionSplit||'standard',
+      sell,net,sell-net,sell>0?((sell-net)/sell*100).toFixed(1):0,comm,sell-net-comm,
+      statusLabel, q.issueFlag?'Yes':''];
   })];
   const wb=XLSX.utils.book_new();
   const ws=XLSX.utils.aoa_to_sheet(rows);
-  XLSX.utils.book_append_sheet(wb,ws,'All Quotes');
-  XLSX.writeFile(wb,'TORO_Dashboard_Report_'+new Date().toLocaleDateString('en-US').replace(/\//g,'-')+'.xlsx');
+  // Column widths
+  ws['!cols']=[{wch:10},{wch:24},{wch:18},{wch:18},{wch:10},{wch:12},{wch:12},{wch:16},{wch:10},
+    {wch:10},{wch:10},{wch:10},{wch:10},{wch:12},{wch:12},{wch:20},{wch:10}];
+  XLSX.utils.book_append_sheet(wb,ws,sheetNames[reportType]||'Report');
+  const date=new Date().toLocaleDateString('en-US').replace(/\//g,'-');
+  XLSX.writeFile(wb,`TORO_Commission_${fileNames[reportType]||'Report'}_${date}.xlsx`);
   document.getElementById('dash-report-modal').style.display='none';
+}
+
+// ── Order Summary Modal ───────────────────────────────────────────────────
+function openOrderSummary(rep, encKey) {
+  const key = decodeURIComponent(encKey);
+  const q = (allQuotes[rep]||[]).find(x => (x._fbKey||fbKey(x)) === key);
+  if(!q) { bamAlert('Could not load quote data.'); return; }
+
+  const fmt = n => '$'+(parseFloat(n)||0).toFixed(2);
+  const pct = (n,d) => d>0?((n/d)*100).toFixed(1)+'%':'—';
+  const mgColor = m => m>=35?'color:#16a34a':m>=30?'color:#d97706':'color:#dc2626';
+
+  // Header info
+  const splitLabels = {standard:'Standard',ho_75_25:'H/O 75/25',ho_50_50:'H/O 50/50',ho_25_75:'H/O 25/75'};
+  const splitLabel = splitLabels[q.commissionSplit||q.split||'standard']||'Standard';
+  const wsLabel = q.workflowStatus==='approvedForPayment'?'✅ Approved for Payment':
+    q.workflowStatus==='paid'?'💰 Paid':
+    q.workflowStatus==='submittedCommission'||q.workflowStatus==='submitted'?'⏳ Pending':'Active';
+  const issueTag = q.issueFlag ? '<span style="background:#fff8e1;color:#7a5c00;font-size:11px;font-weight:700;padding:2px 8px;border-radius:10px;border:1px solid #ffe082;margin-left:8px;">⚠️ Issue</span>' : '';
+
+  let html = `
+  <div style="background:linear-gradient(160deg,#BC112A,#E9553A);color:#fff;padding:18px 24px;border-radius:12px 12px 0 0;display:flex;align-items:flex-start;justify-content:space-between;">
+    <div>
+      <div style="font-size:18px;font-weight:700;">${q.quoteName||q.quoteNum||'Quote'} ${issueTag}</div>
+      <div style="font-size:13px;opacity:.85;margin-top:4px;">#${q.quoteNum||'—'} · ${q.clientName||''} ${q.clientCompany?'· '+q.clientCompany:''} · Rep: ${rep}</div>
+      <div style="font-size:12px;opacity:.75;margin-top:2px;">IHD: ${q.ihd||'—'} · Period: ${q.commissionReport||'—'} · Split: ${splitLabel} · ${wsLabel}</div>
+    </div>
+    <button onclick="document.getElementById('order-summary-overlay').style.display='none';document.body.style.overflow='';"
+      style="background:rgba(255,255,255,.2);border:none;color:#fff;font-size:20px;width:36px;height:36px;border-radius:50%;cursor:pointer;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-weight:700;">&times;</button>
+  </div>
+  <div style="padding:20px 24px;overflow-y:auto;max-height:72vh;">`;
+
+  // Summary cards
+  const totalSell = q.totalSell||0, totalNet = q.totalNetCost||0;
+  const gp = totalSell - totalNet;
+  const avgMargin = totalSell>0?(gp/totalSell*100):0;
+  const repComm = q.totalRepComm||0;
+  const houseProfit = q.totalHouseProfit||0;
+  html += `<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:20px;">
+    ${[['Total Net','#374151',fmt(totalNet)],['Total Sell','#2255cc',fmt(totalSell)],['Gross Profit','#16a34a',fmt(gp)],['Avg Margin',avgMargin>=30?'#16a34a':'#dc2626',avgMargin.toFixed(1)+'%']].map(([lbl,col,val])=>`
+    <div style="background:#f9fafb;border-radius:8px;padding:10px 12px;text-align:center;">
+      <div style="font-size:18px;font-weight:800;color:${col};">${val}</div>
+      <div style="font-size:11px;color:#6b7280;font-weight:600;margin-top:2px;">${lbl}</div>
+    </div>`).join('')}
+  </div>`;
+
+  // Commission breakdown
+  html += `<div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;padding:12px 16px;margin-bottom:20px;display:flex;gap:24px;flex-wrap:wrap;">
+    <div><div style="font-size:13px;font-weight:700;color:#166534;">Rep Commission</div><div style="font-size:20px;font-weight:800;color:#16a34a;">${fmt(repComm)}</div></div>
+    <div><div style="font-size:13px;font-weight:700;color:#374151;">House Profit</div><div style="font-size:20px;font-weight:800;color:#374151;">${fmt(houseProfit)}</div></div>
+    ${q.totalAM>0?`<div><div style="font-size:13px;font-weight:700;color:#6b7280;">AM</div><div style="font-size:20px;font-weight:800;color:#6b7280;">${fmt(q.totalAM)}</div></div>`:''}
+  </div>`;
+
+  // Garments
+  if(q.garments&&q.garments.length) {
+    html += `<div style="font-size:13px;font-weight:700;color:#374151;text-transform:uppercase;letter-spacing:.05em;margin-bottom:10px;">Apparel & Decoration</div>`;
+    q.garments.forEach(g => {
+      const gSzRows = g.szRows||[];
+      const gQty = gSzRows.reduce((a,r)=>a+(r.qty||0),0);
+      html += `<div style="border:1px solid #e5e7eb;border-radius:8px;margin-bottom:12px;overflow:hidden;">
+        <div style="background:#f8fafc;padding:10px 14px;border-bottom:1px solid #e5e7eb;">
+          <div style="font-weight:700;font-size:14px;">${g.gdesign||g.gbrand||'Garment'}</div>
+          <div style="font-size:12px;color:#6b7280;margin-top:2px;">${g.gbrand||''} #${g.gsku||'—'} via ${g.gvendor||'—'} · ${g.gfit||''} · ${g.gcolor_name||''} · ${gQty} pcs</div>
+        </div>`;
+
+      // Size rows
+      if(gSzRows.length) {
+        html += `<div style="padding:8px 14px;">
+          <div style="display:grid;grid-template-columns:60px 60px 80px 60px;gap:6px;font-size:10px;font-weight:700;color:#9ca3af;text-transform:uppercase;padding-bottom:4px;border-bottom:1px solid #f3f4f6;margin-bottom:4px;">
+            <div>Size</div><div>Qty</div><div>Net cost</div><div>Group</div>
+          </div>`;
+        gSzRows.forEach(r => {
+          html += `<div style="display:grid;grid-template-columns:60px 60px 80px 60px;gap:6px;font-size:12px;padding:3px 0;">
+            <div style="font-weight:600;">${r.size}</div>
+            <div>${r.qty}</div>
+            <div>${fmt(r.cost)}</div>
+            <div style="color:#6b7280;">${r.grp||'—'}</div>
+          </div>`;
+        });
+        html += `</div>`;
+      }
+
+      // Imprints
+      const imps = g.imps||[];
+      if(imps.length) {
+        imps.forEach(imp => {
+          const typeLabel = (imp.type||'screen').charAt(0).toUpperCase()+(imp.type||'screen').slice(1);
+          let decoDetail = '';
+          if(imp.type==='screen'||!imp.type) {
+            decoDetail = `${imp.sp_col||1} color${(imp.sp_col||1)!==1?'s':''} · ${imp.sp_loc||imp.other_sp_loc||'—'} · ${imp.sp_setup==='reorder'?'Reorder':'New setup'}${imp.sp_ink_names?' · '+imp.sp_ink_names:''}`;
+            if(imp.imp_override) decoDetail += ` · <strong>Override: ${fmt(imp.imp_override_cost)}/item</strong>`;
+          } else if(imp.type==='embroidery') {
+            decoDetail = `${(imp.emb_st||0).toLocaleString()} st · ${imp.emb_loc||imp.other_emb_loc||'—'}`;
+          } else if(imp.type==='dtf') {
+            decoDetail = `${imp.dtf_sq||0} sq in · ${imp.dtf_loc||imp.other_dtf_loc||'—'}`;
+          } else if(imp.type==='heat') {
+            decoDetail = `${imp.heat_loc||imp.other_heat_loc||'—'}`;
+          } else if(imp.type==='vinyl') {
+            decoDetail = `${imp.vinyl_loc||imp.other_vinyl_loc||'—'}`;
+          }
+          const sharedNote = imp.imp_shared||imp.imp_share_with ? `<span style="font-size:10px;color:#2255cc;margin-left:6px;">Shared</span>` : '';
+          html += `<div style="background:#fafafa;border-top:1px solid #f3f4f6;padding:8px 14px;font-size:12px;">
+            <div style="font-weight:700;color:#374151;">${typeLabel}: ${imp.imp_name||'—'}${sharedNote}</div>
+            <div style="color:#6b7280;margin-top:2px;">${decoDetail}</div>
+            ${imp.sp_notes||imp.emb_notes||imp.dtf_notes?`<div style="color:#d97706;font-size:11px;margin-top:2px;">Note: ${imp.sp_notes||imp.emb_notes||imp.dtf_notes}</div>`:''}
+          </div>`;
+        });
+      }
+
+      // Misc fees
+      const miscFees = g.miscFees||g.g_misc_fees||[];
+      if(miscFees.length) {
+        miscFees.forEach(f => {
+          html += `<div style="background:#fffcf5;border-top:1px solid #fef3c7;padding:6px 14px;font-size:12px;color:#92400e;">
+            Misc fee: ${f.desc||'Fee'} · Net: ${fmt(f.net||0)} · Sell: ${fmt(f.sell||0)}
+          </div>`;
+        });
+      }
+
+      html += `</div>`;
+    });
+  }
+
+  // Hard Goods
+  if(q.hardGoods&&q.hardGoods.length) {
+    html += `<div style="font-size:13px;font-weight:700;color:#374151;text-transform:uppercase;letter-spacing:.05em;margin:16px 0 10px;">Hard Goods / Promo</div>`;
+    q.hardGoods.forEach(h => {
+      const itemNet = (h.hg_cost||0)*h.hg_qty + (h.hg_sc||0) + (h.hg_dc||0)*h.hg_qty;
+      html += `<div style="border:1px solid #e5e7eb;border-radius:8px;margin-bottom:10px;padding:12px 14px;">
+        <div style="font-weight:700;font-size:14px;">${h.hg_desc||'Item'}</div>
+        <div style="font-size:12px;color:#6b7280;margin-top:2px;">${h.hg_vendor||'—'} · #${h.hg_sku||'—'} · ${h.hg_item_color||''} · Qty: ${h.hg_qty||0}</div>
+        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:10px;">
+          ${[['Item cost',fmt(h.hg_cost||0)+'/ea'],['Run charge',fmt(h.hg_dc||0)+'/ea'],['Setup',fmt(h.hg_sc||0)],['Total net',fmt(itemNet)]].map(([lbl,val])=>`
+          <div style="background:#f9fafb;border-radius:6px;padding:6px 8px;">
+            <div style="font-size:10px;color:#9ca3af;font-weight:700;">${lbl}</div>
+            <div style="font-size:13px;font-weight:700;">${val}</div>
+          </div>`).join('')}
+        </div>
+        <div style="font-size:12px;color:#6b7280;margin-top:8px;">Deco: ${h.hg_dec||'—'} · Location: ${h.hg_dec_loc||h.hg_dec_other||'—'} · Design: ${h.hg_design||'—'} · Colors: ${h.hg_colors||'—'}</div>
+      </div>`;
+    });
+  }
+
+  // Line summary (from export)
+  if(q.lines&&q.lines.length) {
+    html += `<div style="font-size:13px;font-weight:700;color:#374151;text-transform:uppercase;letter-spacing:.05em;margin:16px 0 10px;">Line Summary</div>
+    <div style="border:1px solid #e5e7eb;border-radius:8px;overflow:hidden;">
+      <div style="display:grid;grid-template-columns:2fr 80px 80px 70px 80px 80px;gap:6px;padding:8px 12px;background:#f8fafc;font-size:10px;font-weight:700;color:#9ca3af;text-transform:uppercase;">
+        <div>Line</div><div>Net</div><div>Sell</div><div>Margin</div><div>Rep</div><div>House</div>
+      </div>`;
+    q.lines.forEach(l => {
+      const lm = l.sell>0?((l.sell-l.net)/l.sell*100):0;
+      html += `<div style="display:grid;grid-template-columns:2fr 80px 80px 70px 80px 80px;gap:6px;padding:8px 12px;border-top:1px solid #f3f4f6;font-size:12px;align-items:center;">
+        <div style="font-weight:600;">${l.name||'—'}</div>
+        <div>${fmt(l.net)}</div>
+        <div style="color:#2255cc;font-weight:700;">${fmt(l.sell)}</div>
+        <div style="${mgColor(lm)};font-weight:700;">${lm.toFixed(1)}%</div>
+        <div style="color:#16a34a;font-weight:700;">${fmt(l.rep)}</div>
+        <div>${fmt(l.house)}</div>
+      </div>`;
+    });
+    html += `</div>`;
+  }
+
+  // Notes
+  if(q.page1?.orderNotes) {
+    html += `<div style="background:#f8fafc;border:1px solid #e5e7eb;border-radius:8px;padding:12px 14px;margin-top:16px;">
+      <div style="font-size:11px;font-weight:700;color:#9ca3af;text-transform:uppercase;margin-bottom:4px;">Order Notes</div>
+      <div style="font-size:13px;color:#374151;">${q.page1.orderNotes}</div>
+    </div>`;
+  }
+
+  html += `</div>`; // end padding div
+
+  // Show modal
+  let overlay = document.getElementById('order-summary-overlay');
+  if(!overlay) {
+    overlay = document.createElement('div');
+    overlay.id = 'order-summary-overlay';
+    overlay.style.cssText = 'display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:10000;align-items:flex-start;justify-content:center;overflow-y:auto;padding:30px 16px;';
+    overlay.onclick = e => { if(e.target===overlay){overlay.style.display='none';document.body.style.overflow='';} };
+    document.body.appendChild(overlay);
+  }
+  const inner = document.createElement('div');
+  inner.style.cssText = 'background:#fff;border-radius:12px;max-width:820px;width:100%;box-shadow:0 20px 60px rgba(0,0,0,.3);margin:auto;';
+  inner.innerHTML = html;
+  overlay.innerHTML = '';
+  overlay.appendChild(inner);
+  overlay.style.display = 'flex';
+  document.body.style.overflow = 'hidden';
 }
 
 // Auto-login if valid session exists
