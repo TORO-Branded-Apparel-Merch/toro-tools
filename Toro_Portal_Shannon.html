@@ -178,7 +178,7 @@ const PW_KEY = 'toro_pw_shannon';
 const LOCK_KEY = 'toro_lock_lexi';
 const ATTEMPTS_KEY = 'toro_attempts_lexi';
 const DEFAULT_PW = 'Toro#Kw9mP';
-const PORTAL_VERSION = 'v2.25';
+const PORTAL_VERSION = 'v2.26';
 const FIREBASE_DB_URL = 'https://toro-commission-318b4-default-rtdb.firebaseio.com';
 const FB_PATH = 'quotes/' + REP_LOWER;
 
@@ -402,7 +402,28 @@ function quoteTotal(q, type) {
   if(type==='net') return parseFloat(q.totalNetCost)||parseFloat(q.net)||0;
   return 0;
 }
-function quoteComm(q) { return parseFloat(q.totalRepComm)||parseFloat(q.repComm)||0; }
+function quoteComm(q) {
+  const sell = parseFloat(q.totalSell)||parseFloat(q.sell)||0;
+  const net = parseFloat(q.totalNetCost)||parseFloat(q.net)||0;
+  const gp = sell - net;
+  if(sell<=0||gp<=0) return 0;
+  const margin = (gp/sell)*100;
+  const split = q.commissionSplit||q.split||'standard';
+  const repFrac = split==='ho_75_25'?0.25:split==='ho_50_50'?0.50:split==='ho_25_75'?0.75:1.0;
+  const hasAM = q.hasAM||false;
+  const AM_RATE = 0.06;
+  if(margin<30) {
+    const houseFloor = sell*0.15;
+    const repBase = gp - houseFloor;
+    if(repBase<=0) return 0;
+    const amEarns = hasAM?repBase*AM_RATE:0;
+    return (repBase-amEarns)*repFrac;
+  } else {
+    const repOriginal = gp*0.50;
+    const amEarns = hasAM?repOriginal*AM_RATE:0;
+    return (repOriginal-amEarns)*repFrac;
+  }
+}
 function quotePeriod(q) { return q.commissionReport||q.period||'N/A'; }
 function quoteMargin(q) {
   const sell = quoteTotal(q,'sell'), net = quoteTotal(q,'net');
