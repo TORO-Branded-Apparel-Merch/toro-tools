@@ -40,6 +40,8 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 .rep-header h3{font-size:16px;font-weight:700;}
 .rep-body{padding:12px 18px;}
 .quote-row{display:grid;grid-template-columns:28px 2fr 1fr 1fr 1fr 1fr 1fr 1fr 60px;gap:10px;align-items:center;padding:8px 0;border-bottom:1px solid #f5f5f5;font-size:13px;}
+.quote-row-plain{display:grid;grid-template-columns:2fr 1fr 1fr 1fr 1fr 1fr 1fr 60px;gap:10px;align-items:center;padding:8px 0;border-bottom:1px solid #f5f5f5;font-size:13px;}
+.quote-row-plain:last-child{border-bottom:none;}
 .bulk-bar{display:none;position:sticky;top:44px;z-index:90;background:#1e293b;color:#fff;padding:10px 16px;border-radius:8px;margin-bottom:12px;align-items:center;gap:10px;flex-wrap:wrap;}
 .bulk-bar.active{display:flex;}
 .bulk-bar-count{font-size:13px;font-weight:700;flex:1;}
@@ -117,7 +119,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script>
 const DASH_PW = 'Toro#Mv3kG';
-const DASH_VERSION = 'v3.27';
+const DASH_VERSION = 'v3.28';
 const LOCK_KEY = 'toro_lock_dash';
 const ATTEMPTS_KEY = 'toro_attempts_dash';
 const FIREBASE_DB_URL = 'https://toro-commission-318b4-default-rtdb.firebaseio.com';
@@ -691,7 +693,7 @@ function renderAll() {
     html += `<div class="rep-section">
       <div class="rep-header"><h3>${rep} <span style="font-size:13px;font-weight:400;color:var(--text3);">${qs.length} quote(s)</span></h3></div>
       <div class="rep-body">
-        <div class="quote-row" style="border-bottom:2px solid var(--border);">
+        <div class="quote-row-plain" style="border-bottom:2px solid var(--border);">
           <div class="th">Quote</div><div class="th">Period</div><div class="th">Net</div><div class="th">Sell</div><div class="th">Margin</div><div class="th">Est. Comm</div><div class="th">Status</div><div class="th"></div>
         </div>`;
     qs.forEach(q => {
@@ -702,8 +704,8 @@ function renderAll() {
       const statusLabel=statusLabels[q.workflowStatus]||'Active';
       const encQKey = encodeURIComponent(fbKey(q));
       const lowNote = margin>0&&margin<30 ? '<div class="low-margin-note">⚠️ Margin below 30% — management awareness required</div>' : '';
-      html += `<div class="quote-row">
-        <div>${lowNote}<strong>${q.quoteName||q.quoteNum||'—'}</strong><br><span style="font-size:11px;color:var(--text3);">#${q.quoteNum}</span></div>
+      html += `<div class="quote-row-plain">
+        <div>${lowNote}<strong><a href="#" onclick="event.preventDefault();openOrderSummary('${rep}','${encQKey}')" style="color:inherit;text-decoration:none;border-bottom:1px dashed #aaa;">${q.quoteName||q.quoteNum||'—'}</a></strong><br><span style="font-size:11px;color:var(--text3);">#${q.quoteNum}</span></div>
         <div>${q.period||q.commissionReport||'—'}</div>
         <div>$${net.toFixed(2)}</div>
         <div>$${sell.toFixed(2)}</div>
@@ -733,14 +735,14 @@ function renderByRep() {
       <div class="rep-body">`;
     if(!qs.length) { html += '<div style="color:var(--text3);font-size:13px;">No quotes yet.</div>'; }
     else {
-      html += `<div class="quote-row" style="border-bottom:2px solid var(--border);">
+      html += `<div class="quote-row-plain" style="border-bottom:2px solid var(--border);">
         <div class="th">Quote</div><div class="th">Client</div><div class="th">IHD</div><div class="th">Sell</div><div class="th">Margin</div><div class="th">Comm</div><div class="th">Status</div><div></div>
       </div>`;
       qs.forEach(q=>{
         const net=quoteTotal(q,'net'),sell=quoteTotal(q,'sell');
         const comm=quoteComm(q);
         const statusLabels={active:'Active',readyForSubmission:'Ready',submittedCommission:'Submitted',paid:'Paid'};
-        html += `<div class="quote-row">
+        html += `<div class="quote-row-plain">
           <div><strong>${q.quoteName||q.quoteNum||'—'}</strong><br><span style="font-size:11px;color:var(--text3);">#${q.quoteNum||'—'}</span></div>
           <div style="font-size:12px;">${[q.clientName,q.clientCompany].filter(Boolean).join(' — ')||'—'}</div>
           <div style="font-size:12px;">${q.ihd||'—'}</div>
