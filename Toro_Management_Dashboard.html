@@ -39,7 +39,11 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 .rep-header{padding:14px 18px;background:#f8f8fa;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;}
 .rep-header h3{font-size:16px;font-weight:700;}
 .rep-body{padding:12px 18px;}
-.quote-row{display:grid;grid-template-columns:2fr 1fr 1fr 1fr 1fr 1fr 1fr 60px;gap:10px;align-items:center;padding:8px 0;border-bottom:1px solid #f5f5f5;font-size:13px;}
+.quote-row{display:grid;grid-template-columns:28px 2fr 1fr 1fr 1fr 1fr 1fr 1fr 60px;gap:10px;align-items:center;padding:8px 0;border-bottom:1px solid #f5f5f5;font-size:13px;}
+.bulk-bar{display:none;position:sticky;top:44px;z-index:90;background:#1e293b;color:#fff;padding:10px 16px;border-radius:8px;margin-bottom:12px;align-items:center;gap:10px;flex-wrap:wrap;}
+.bulk-bar.active{display:flex;}
+.bulk-bar-count{font-size:13px;font-weight:700;flex:1;}
+.bulk-btn{padding:7px 14px;border:none;border-radius:6px;cursor:pointer;font-size:12px;font-weight:700;font-family:inherit;}
 .quote-row:last-child{border-bottom:none;}
 .th{font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;}
 .totals-row{padding:10px 0;font-size:13px;text-align:right;border-top:2px solid var(--border);margin-top:4px;}
@@ -113,7 +117,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script>
 const DASH_PW = 'Toro#Mv3kG';
-const DASH_VERSION = 'v3.22';
+const DASH_VERSION = 'v3.23';
 const LOCK_KEY = 'toro_lock_dash';
 const ATTEMPTS_KEY = 'toro_attempts_dash';
 const FIREBASE_DB_URL = 'https://toro-commission-318b4-default-rtdb.firebaseio.com';
@@ -123,6 +127,8 @@ let allQuotes = {};
 let feedbackData = {};
 let currentTab = 'commission';
 let commissionView = 'pending'; // 'pending' | 'approved' | 'issues'
+let selectedKeys = new Set(); // 'rep::key' strings for bulk selection
+let bulkSkipConfirm = false; // session opt-out for bulk confirm
 
 function bamAlert(msg, cb) {
   document.getElementById('bam-msg').innerHTML = msg;
@@ -376,7 +382,148 @@ function renderSummary() {
 
 function switchCommView(view) {
   commissionView = view;
+  selectedKeys.clear();
   renderCommission();
+}
+
+function toggleRowSelect(repKey) {
+  if(selectedKeys.has(repKey)) selectedKeys.delete(repKey);
+  else selectedKeys.add(repKey);
+  updateBulkBar();
+}
+
+function toggleSelectAll(checked) {
+  const checkboxes = document.querySelectorAll('.row-chk');
+  checkboxes.forEach(cb => {
+    cb.checked = checked;
+    if(checked) selectedKeys.add(cb.dataset.key);
+    else selectedKeys.delete(cb.dataset.key);
+  });
+  updateBulkBar();
+}
+
+function updateBulkBar() {
+  const bar = document.getElementById('bulk-bar');
+  const count = document.getElementById('bulk-count');
+  if(!bar) return;
+  if(selectedKeys.size > 0) {
+    bar.classList.add('active');
+    count.textContent = selectedKeys.size + ' selected';
+  } else {
+    bar.classList.remove('active');
+  }
+}
+
+function bulkConfirmThen(action, msg, fn) {
+  if(bulkSkipConfirm) { fn(); return; }
+  // Custom confirm with "don't ask again" option
+  const overlay = document.getElementById('bam-overlay');
+  document.getElementById('bam-msg').innerHTML = msg +
+    `<div style="margin-top:14px;"><label style="display:flex;align-items:center;gap:8px;font-size:12px;color:#888;cursor:pointer;">
+      <input type="checkbox" id="bulk-skip-chk" style="width:14px;height:14px;">
+      Don't ask me again this session
+    </label></div>`;
+  const btns = document.getElementById('bam-btns');
+  btns.innerHTML = '';
+  const cancel = document.createElement('button');
+  cancel.textContent = 'Cancel';
+  cancel.style.cssText = 'padding:8px 18px;background:#f0f0f0;color:#333;border:none;border-radius:6px;cursor:pointer;font-size:14px;';
+  cancel.onclick = () => { overlay.classList.remove('open'); };
+  const ok = document.createElement('button');
+  ok.textContent = 'Yes, continue';
+  ok.style.cssText = 'padding:8px 18px;background:#BC112A;color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:14px;font-weight:600;';
+  ok.onclick = () => {
+    if(document.getElementById('bulk-skip-chk')?.checked) bulkSkipConfirm = true;
+    overlay.classList.remove('open');
+    fn();
+  };
+  btns.appendChild(cancel);
+  btns.appendChild(ok);
+  overlay.classList.add('open');
+}
+
+function bulkApprove() {
+  if(!selectedKeys.size) return;
+  bulkConfirmThen('approve', `Approve <strong>${selectedKeys.size} quote${selectedKeys.size!==1?'s':''}</strong> for payment?`, () => {
+    selectedKeys.forEach(rk => {
+      const [rep, key] = rk.split('::');
+      const rl = rep.toLowerCase();
+      const q = (allQuotes[rep]||[]).find(x => (x._fbKey||fbKey(x)) === key);
+      if(!q) return;
+      const qKey = q._fbKey || fbKey(q);
+      fbSet('quotes/'+rl+'/'+qKey+'/workflowStatus', 'approvedForPayment');
+      fbSet('quotes/'+rl+'/'+qKey+'/issueFlag', false);
+      q.workflowStatus = 'approvedForPayment';
+      q.issueFlag = false;
+    });
+    selectedKeys.clear();
+    render();
+    setTimeout(()=>bamAlert('✅ Selected quotes approved for payment.'),100);
+  });
+}
+
+function bulkFlagIssue() {
+  if(!selectedKeys.size) return;
+  bulkConfirmThen('flag', `Flag <strong>${selectedKeys.size} quote${selectedKeys.size!==1?'s':''}</strong> as issues?`, () => {
+    selectedKeys.forEach(rk => {
+      const [rep, key] = rk.split('::');
+      const rl = rep.toLowerCase();
+      const q = (allQuotes[rep]||[]).find(x => (x._fbKey||fbKey(x)) === key);
+      if(!q) return;
+      const qKey = q._fbKey || fbKey(q);
+      fbSet('quotes/'+rl+'/'+qKey+'/issueFlag', true);
+      q.issueFlag = true;
+    });
+    selectedKeys.clear();
+    render();
+    setTimeout(()=>bamAlert('⚠️ Selected quotes flagged as issues.'),100);
+  });
+}
+
+function bulkMarkPaid() {
+  if(!selectedKeys.size) return;
+  bulkConfirmThen('pay', `Mark <strong>${selectedKeys.size} quote${selectedKeys.size!==1?'s':''}</strong> as paid?`, () => {
+    const paidAt = new Date().toISOString();
+    selectedKeys.forEach(rk => {
+      const [rep, key] = rk.split('::');
+      const rl = rep.toLowerCase();
+      const q = (allQuotes[rep]||[]).find(x => (x._fbKey||fbKey(x)) === key);
+      if(!q) return;
+      const qKey = q._fbKey || fbKey(q);
+      fbSet('quotes/'+rl+'/'+qKey+'/workflowStatus', 'paid');
+      fbSet('quotes/'+rl+'/'+qKey+'/paidAt', paidAt);
+      fbSet('quotes/'+rl+'/'+qKey+'/issueFlag', false);
+      fbSet('paid/'+rl+'/'+qKey, {
+        quoteNum:q.quoteNum,quoteName:q.quoteName,clientName:q.clientName,clientCompany:q.clientCompany,
+        totalSell:q.totalSell||0,totalNetCost:q.totalNetCost||0,commissionSplit:q.commissionSplit||'standard',
+        totalRepComm:q.totalRepComm||null,period:q.period||q.commissionReport||'',
+        workflowStatus:'paid',paidAt,_rep:rep,_paidAt:paidAt
+      });
+      q.workflowStatus = 'paid'; q.paidAt = paidAt; q.issueFlag = false;
+    });
+    selectedKeys.clear();
+    render();
+    setTimeout(()=>bamAlert('💰 Selected quotes marked as paid.'),100);
+  });
+}
+
+function bulkPending() {
+  if(!selectedKeys.size) return;
+  bulkConfirmThen('pending', `Return <strong>${selectedKeys.size} quote${selectedKeys.size!==1?'s':''}</strong> to Pending?`, () => {
+    selectedKeys.forEach(rk => {
+      const [rep, key] = rk.split('::');
+      const rl = rep.toLowerCase();
+      const q = (allQuotes[rep]||[]).find(x => (x._fbKey||fbKey(x)) === key);
+      if(!q) return;
+      const qKey = q._fbKey || fbKey(q);
+      fbSet('quotes/'+rl+'/'+qKey+'/workflowStatus', 'submittedCommission');
+      fbSet('quotes/'+rl+'/'+qKey+'/issueFlag', false);
+      q.workflowStatus = 'submittedCommission'; q.issueFlag = false;
+    });
+    selectedKeys.clear();
+    render();
+    setTimeout(()=>bamAlert('Returned to Pending.'),100);
+  });
 }
 
 function renderCommission() {
@@ -405,7 +552,24 @@ function renderCommission() {
       ${v.label}</button>`).join('')}
   </div>`;
 
-  let html = subNav;
+  // Bulk action bar — view-specific buttons
+  const bulkActions = {
+    pending: `<button class="bulk-btn" style="background:#16a34a;color:#fff;" onclick="bulkApprove()">✅ Approve Selected</button>
+              <button class="bulk-btn" style="background:#854d0e;color:#fff;margin-left:6px;" onclick="bulkFlagIssue()">⚠️ Flag Issue</button>`,
+    approved: `<button class="bulk-btn" style="background:#16a34a;color:#fff;" onclick="bulkMarkPaid()">💰 Mark Paid</button>
+               <button class="bulk-btn" style="background:#854d0e;color:#fff;margin-left:6px;" onclick="bulkFlagIssue()">⚠️ Flag Issue</button>
+               <button class="bulk-btn" style="background:#2255cc;color:#fff;margin-left:6px;" onclick="bulkPending()">↩ Pending</button>`,
+    issues:   `<button class="bulk-btn" style="background:#16a34a;color:#fff;" onclick="bulkApprove()">✅ Approve Selected</button>
+               <button class="bulk-btn" style="background:#2255cc;color:#fff;margin-left:6px;" onclick="bulkPending()">✕ Clear Issues</button>`,
+  };
+
+  const bulkBar = `<div class="bulk-bar" id="bulk-bar">
+    <span class="bulk-bar-count" id="bulk-count">0 selected</span>
+    ${bulkActions[commissionView]||''}
+    <button class="bulk-btn" style="background:#475569;color:#fff;margin-left:auto;" onclick="toggleSelectAll(false);selectedKeys.clear();updateBulkBar();">✕ Clear</button>
+  </div>`;
+
+  let html = subNav + bulkBar;
   let grandNet=0, grandSell=0, grandComm=0;
 
   for(const rep of REPS) {
@@ -422,6 +586,7 @@ function renderCommission() {
       </div>
       <div class="rep-body">
         <div class="quote-row" style="border-bottom:2px solid var(--border);">
+          <div><input type="checkbox" style="width:14px;height:14px;cursor:pointer;" onchange="toggleSelectAll(this.checked)" title="Select all"></div>
           <div class="th">Quote</div><div class="th">Period</div><div class="th">Net</div><div class="th">Sell</div><div class="th">Margin</div><div class="th">Commission</div><div class="th">Actions</div><div></div>
         </div>`;
 
@@ -454,8 +619,11 @@ function renderCommission() {
         : '';
 
       const rowBg = isIssue && commissionView==='pending' ? 'background:#fffdf0;' : '';
+      const repKey = rep+'::'+fbKey(q);
+      const isChecked = selectedKeys.has(repKey);
 
       html += `<div class="quote-row" style="${rowBg}">
+        <div><input type="checkbox" class="row-chk" data-key="${repKey}" ${isChecked?'checked':''} style="width:14px;height:14px;cursor:pointer;" onchange="toggleRowSelect('${repKey}')"></div>
         <div><strong>${q.quoteName||q.quoteNum||'—'}</strong>${issueBadge}<br><span style="font-size:11px;color:var(--text3);">#${q.quoteNum}</span></div>
         <div>${q.period||q.commissionReport||'—'}</div>
         <div>$${net.toFixed(2)}</div>
