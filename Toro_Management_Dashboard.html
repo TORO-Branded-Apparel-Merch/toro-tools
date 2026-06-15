@@ -113,7 +113,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script>
 const DASH_PW = 'Toro#Mv3kG';
-const DASH_VERSION = 'v3.20';
+const DASH_VERSION = 'v3.22';
 const LOCK_KEY = 'toro_lock_dash';
 const ATTEMPTS_KEY = 'toro_attempts_dash';
 const FIREBASE_DB_URL = 'https://toro-commission-318b4-default-rtdb.firebaseio.com';
@@ -382,16 +382,14 @@ function switchCommView(view) {
 function renderCommission() {
   const PENDING_STATUSES = ['readyForSubmission','submittedCommission','submitted'];
   const APPROVED_STATUSES = ['approvedForPayment'];
-  const ISSUE_STATUSES = ['issue'];
 
   const statusFilters = {
-    pending: q => PENDING_STATUSES.includes(q.workflowStatus),
+    pending: q => PENDING_STATUSES.includes(q.workflowStatus),  // includes issue-flagged ones
     approved: q => APPROVED_STATUSES.includes(q.workflowStatus),
-    issues: q => ISSUE_STATUSES.includes(q.workflowStatus),
+    issues: q => !!q.issueFlag,  // any quote with issue flag, regardless of workflowStatus
   };
 
-  const viewFilter = statusFilters[commissionView] ||
-    (q => PENDING_STATUSES.includes(q.workflowStatus) || ISSUE_STATUSES.includes(q.workflowStatus));
+  const viewFilter = statusFilters[commissionView] || statusFilters.pending;
 
   // Sub-nav
   const views = [
@@ -432,28 +430,33 @@ function renderCommission() {
       const encQKey = encodeURIComponent(fbKey(q));
       const ws = q.workflowStatus;
 
+      const isIssue = !!q.issueFlag;
+
       // Action buttons per view
       let actions = '';
       if(commissionView === 'pending') {
-        actions = `<button class="btn btn-green btn-sm" onclick="approveForPayment('${rep}','${encQKey}')">✅ Approve</button>
-          <button class="btn btn-sm" style="background:#fff8e1;color:#7a5c00;border:1px solid #ffe082;margin-left:4px;" onclick="flagIssue('${rep}','${encQKey}')">⚠️ Issue</button>`;
+        const issueBtn = isIssue
+          ? `<button class="btn btn-sm" style="background:#fff8e1;color:#7a5c00;border:1px solid #ffe082;margin-left:4px;" onclick="returnToPending('${rep}','${encQKey}')">✕ Clear Issue</button>`
+          : `<button class="btn btn-sm" style="background:#fff8e1;color:#7a5c00;border:1px solid #ffe082;margin-left:4px;" onclick="flagIssue('${rep}','${encQKey}')">⚠️ Issue</button>`;
+        actions = `<button class="btn btn-green btn-sm" onclick="approveForPayment('${rep}','${encQKey}')">✅ Approve</button>${issueBtn}`;
       } else if(commissionView === 'approved') {
         actions = `<button class="btn btn-green btn-sm" onclick="markPaid('${rep}','${encQKey}')">💰 Mark Paid</button>
-          <button class="btn btn-sm" style="background:#fff8e1;color:#7a5c00;border:1px solid #ffe082;margin-left:4px;" onclick="flagIssue('${rep}','${encQKey}')">⚠️ Issue</button>`;
+          <button class="btn btn-sm" style="background:#fff8e1;color:#7a5c00;border:1px solid #ffe082;margin-left:4px;" onclick="flagIssue('${rep}','${encQKey}')">⚠️ Issue</button>
+          <button class="btn btn-sm" style="background:#f0f4ff;color:#2255cc;border:1px solid #c7d2fe;margin-left:4px;" onclick="unapprove('${rep}','${encQKey}')">↩ Pending</button>`;
       } else if(commissionView === 'issues') {
         actions = `<button class="btn btn-green btn-sm" onclick="resolveIssue('${rep}','${encQKey}')">✅ Approve</button>
-          <button class="btn btn-sm" style="background:#f0f4ff;color:#2255cc;border:1px solid #c7d2fe;margin-left:4px;" onclick="returnToPending('${rep}','${encQKey}')">↩ Pending</button>`;
+          <button class="btn btn-sm" style="background:#f0f4ff;color:#2255cc;border:1px solid #c7d2fe;margin-left:4px;" onclick="returnToPending('${rep}','${encQKey}')">✕ Clear Issue</button>`;
       }
 
-      // Status badge
-      const statusBadge = ws==='issue'
-        ? '<span style="background:#fff8e1;color:#7a5c00;font-size:11px;font-weight:700;padding:2px 8px;border-radius:10px;border:1px solid #ffe082;">⚠️ Issue</span>'
-        : ws==='approvedForPayment'
-        ? '<span style="background:#f0fdf4;color:#166534;font-size:11px;font-weight:700;padding:2px 8px;border-radius:10px;border:1px solid #bbf7d0;">✅ Approved</span>'
-        : '<span style="background:#f0f4ff;color:#2255cc;font-size:11px;font-weight:700;padding:2px 8px;border-radius:10px;border:1px solid #c7d2fe;">⏳ Pending</span>';
+      // Issue badge for pending view
+      const issueBadge = isIssue
+        ? '<span style="background:#fff8e1;color:#7a5c00;font-size:11px;font-weight:700;padding:2px 8px;border-radius:10px;border:1px solid #ffe082;margin-left:6px;">⚠️ Issue</span>'
+        : '';
 
-      html += `<div class="quote-row">
-        <div><strong>${q.quoteName||q.quoteNum||'—'}</strong><br><span style="font-size:11px;color:var(--text3);">#${q.quoteNum}</span></div>
+      const rowBg = isIssue && commissionView==='pending' ? 'background:#fffdf0;' : '';
+
+      html += `<div class="quote-row" style="${rowBg}">
+        <div><strong>${q.quoteName||q.quoteNum||'—'}</strong>${issueBadge}<br><span style="font-size:11px;color:var(--text3);">#${q.quoteNum}</span></div>
         <div>${q.period||q.commissionReport||'—'}</div>
         <div>$${net.toFixed(2)}</div>
         <div>$${sell.toFixed(2)}</div>
@@ -604,7 +607,7 @@ function deleteQuoteHard(rep, encKey) {
   });
 }
 
-function setQuoteStatus(rep, encKey, newStatus, confirmMsg, successMsg) {
+function setQuoteWorkflow(rep, encKey, newStatus, clearIssue, confirmMsg, successMsg, extraFn) {
   const key = decodeURIComponent(encKey);
   bamConfirm(confirmMsg, ok => {
     if(!ok) return;
@@ -613,9 +616,17 @@ function setQuoteStatus(rep, encKey, newStatus, confirmMsg, successMsg) {
     if(!q) { setTimeout(()=>bamAlert('Could not find quote. Refresh and try again.'),100); return; }
     const qKey = q._fbKey || fbKey(q);
     const updatedAt = new Date().toISOString();
-    fbSet('quotes/'+rl+'/'+qKey+'/workflowStatus', newStatus);
+    if(newStatus) {
+      fbSet('quotes/'+rl+'/'+qKey+'/workflowStatus', newStatus);
+      q.workflowStatus = newStatus;
+    }
+    if(clearIssue) {
+      fbSet('quotes/'+rl+'/'+qKey+'/issueFlag', false);
+      fbSet('quotes/'+rl+'/'+qKey+'/issueNote', null);
+      q.issueFlag = false;
+      q.issueNote = null;
+    }
     fbSet('quotes/'+rl+'/'+qKey+'/statusUpdatedAt', updatedAt);
-    q.workflowStatus = newStatus;
     q.statusUpdatedAt = updatedAt;
     if(newStatus === 'paid') {
       fbSet('quotes/'+rl+'/'+qKey+'/paidAt', updatedAt);
@@ -630,35 +641,61 @@ function setQuoteStatus(rep, encKey, newStatus, confirmMsg, successMsg) {
       });
       q.paidAt = updatedAt;
     }
+    if(extraFn) extraFn(q, qKey, rl);
     render();
     setTimeout(()=>bamAlert(successMsg),100);
   });
 }
 
 function markPaid(rep, encKey) {
-  setQuoteStatus(rep, encKey, 'paid',
+  setQuoteWorkflow(rep, encKey, 'paid', true,
     'Mark this commission as paid? It will move to Paid History.',
     'BAM! Marked as paid.');
 }
 function approveForPayment(rep, encKey) {
-  setQuoteStatus(rep, encKey, 'approvedForPayment',
+  setQuoteWorkflow(rep, encKey, 'approvedForPayment', true,
     'Approve this quote for payment? Socorro will be able to mark it paid.',
     '✅ Approved for payment.');
 }
 function flagIssue(rep, encKey) {
-  setQuoteStatus(rep, encKey, 'issue',
-    'Flag this quote as an issue? It will appear in the Issues view.',
-    '⚠️ Flagged as issue.');
+  // Issue is a FLAG on top of existing workflowStatus — does not change commission status
+  const key = decodeURIComponent(encKey);
+  bamConfirm('Flag this quote as an issue? It will appear in the Issues view and be highlighted in Pending.', ok => {
+    if(!ok) return;
+    const rl = rep.toLowerCase();
+    const q = (allQuotes[rep]||[]).find(x => (x._fbKey||'') === key || fbKey(x) === key);
+    if(!q) { setTimeout(()=>bamAlert('Could not find quote. Refresh and try again.'),100); return; }
+    const qKey = q._fbKey || fbKey(q);
+    fbSet('quotes/'+rl+'/'+qKey+'/issueFlag', true);
+    q.issueFlag = true;
+    render();
+    setTimeout(()=>bamAlert('⚠️ Flagged as issue.'),100);
+  });
 }
 function resolveIssue(rep, encKey) {
-  setQuoteStatus(rep, encKey, 'approvedForPayment',
+  setQuoteWorkflow(rep, encKey, 'approvedForPayment', true,
     'Resolve this issue and move to Approved for Payment?',
     '✅ Resolved and approved for payment.');
 }
+function unapprove(rep, encKey) {
+  setQuoteWorkflow(rep, encKey, 'submittedCommission', true,
+    'Move this quote back to Pending?',
+    'Moved back to Pending.');
+}
 function returnToPending(rep, encKey) {
-  setQuoteStatus(rep, encKey, 'submittedCommission',
-    'Return this quote to Pending?',
-    'Returned to Pending.');
+  // Clear issue flag, keep workflowStatus as submittedCommission
+  const key = decodeURIComponent(encKey);
+  bamConfirm('Clear the issue flag and return this quote to Pending?', ok => {
+    if(!ok) return;
+    const rl = rep.toLowerCase();
+    const q = (allQuotes[rep]||[]).find(x => (x._fbKey||'') === key || fbKey(x) === key);
+    if(!q) { setTimeout(()=>bamAlert('Could not find quote. Refresh and try again.'),100); return; }
+    const qKey = q._fbKey || fbKey(q);
+    fbSet('quotes/'+rl+'/'+qKey+'/issueFlag', false);
+    q.issueFlag = false;
+    render();
+    setTimeout(()=>bamAlert('Issue cleared. Quote is back in Pending.'),100);
+  });
 }
 
 // ── Feedback ──────────────────────────────────────────────────────────────
