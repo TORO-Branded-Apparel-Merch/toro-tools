@@ -119,7 +119,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script>
 const DASH_PW = 'Toro#Mv3kG';
-const DASH_VERSION = 'v3.32';
+const DASH_VERSION = 'v3.33';
 const LOCK_KEY = 'toro_lock_dash';
 const ATTEMPTS_KEY = 'toro_attempts_dash';
 const FIREBASE_DB_URL = 'https://toro-commission-318b4-default-rtdb.firebaseio.com';
@@ -208,7 +208,8 @@ function fbPatch(path, val) {
 function fbGet(path) {
   return new Promise((resolve) => {
     const xhr = new XMLHttpRequest();
-    xhr.open('GET', FIREBASE_DB_URL+'/'+path+'.json', true);
+    xhr.open('GET', FIREBASE_DB_URL+'/'+path+'.json?timeout=10s', true);
+    xhr.timeout = 12000;
     xhr.onreadystatechange = () => {
       if(xhr.readyState !== 4) return;
       if(xhr.status === 200) {
@@ -220,6 +221,7 @@ function fbGet(path) {
       }
     };
     xhr.onerror = () => { console.warn('fbGet network error'); resolve(null); };
+    xhr.ontimeout = () => { console.warn('fbGet timeout'); resolve(null); };
     xhr.send();
   });
 }
@@ -326,16 +328,32 @@ function startListeners() {
       if(!data) return;
       if(_dashSaving) return; // ignore echo-back during active write
       if(data.path && data.path !== '/' && data.data !== undefined) {
-        const key = data.path.replace(/^\//, '').split('/')[0];
+        const parts = data.path.replace(/^\//, '').split('/');
+        const key = parts[0];
+        const field = parts[1];
         if(!allQuotes[rep]) allQuotes[rep] = [];
-        if(data.data === null) {
+        if(data.data === null && !field) {
           allQuotes[rep] = allQuotes[rep].filter(q=>q._fbKey!==key);
-        } else {
+        } else if(field) {
+          // Field-level update (e.g. workflowStatus, issueFlag)
+          const idx = allQuotes[rep].findIndex(q=>q._fbKey===key);
+          if(idx >= 0) {
+            const STATUS_RANK = {active:0,readyForSubmission:1,submittedCommission:2,submitted:2,approvedForPayment:3,paid:4};
+            // Only apply if not a downgrade
+            if(field === 'workflowStatus') {
+              const fbRank = STATUS_RANK[data.data]||0;
+              const localRank = STATUS_RANK[allQuotes[rep][idx].workflowStatus]||0;
+              if(fbRank >= localRank) allQuotes[rep][idx][field] = data.data;
+            } else {
+              allQuotes[rep][idx][field] = data.data;
+            }
+          }
+        } else if(data.data && typeof data.data === 'object') {
+          // Full quote object update
           const STATUS_RANK = {active:0,readyForSubmission:1,submittedCommission:2,submitted:2,approvedForPayment:3,paid:4};
           const idx = allQuotes[rep].findIndex(q=>q._fbKey===key);
           const q = {...data.data, _fbKey:key};
           if(!q.workflowStatus) q.workflowStatus='active';
-          // Never downgrade status from what dashboard set locally
           if(idx>=0) {
             const existing = allQuotes[rep][idx];
             const fbRank = STATUS_RANK[q.workflowStatus]||0;
