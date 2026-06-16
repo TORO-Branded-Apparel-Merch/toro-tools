@@ -119,7 +119,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script>
 const DASH_PW = 'Toro#Mv3kG';
-const DASH_VERSION = 'v3.34';
+const DASH_VERSION = 'v3.35';
 const LOCK_KEY = 'toro_lock_dash';
 const ATTEMPTS_KEY = 'toro_attempts_dash';
 const FIREBASE_DB_URL = 'https://toro-commission-318b4-default-rtdb.firebaseio.com';
@@ -326,8 +326,10 @@ function startListeners() {
     const rl = rep.toLowerCase();
     fbListen('quotes/'+rl, data => {
       if(!data) return;
-      console.log('DASH SSE ['+rep+']:', JSON.stringify({path:data.path, dataType:typeof data.data, saving:_dashSaving}));
-      if(_dashSaving) { console.log('DASH SSE: skipped (saving)'); return; } // ignore echo-back during active write
+      const _wsList = data.data && typeof data.data === 'object' && data.path === '/' ?
+        Object.entries(data.data).slice(0,5).map(([k,v])=>k+':'+v?.workflowStatus).join(', ') : '';
+      console.log('DASH SSE ['+rep+']:', JSON.stringify({path:data.path, saving:_dashSaving}), _wsList ? '| statuses: '+_wsList : '');
+      if(_dashSaving) { console.log('DASH SSE: skipped (saving)'); return; }
       if(data.path && data.path !== '/' && data.data !== undefined) {
         const parts = data.path.replace(/^\//, '').split('/');
         const key = parts[0];
