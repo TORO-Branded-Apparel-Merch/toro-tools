@@ -119,7 +119,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script>
 const DASH_PW = 'Toro#Mv3kG';
-const DASH_VERSION = 'v3.28';
+const DASH_VERSION = 'v3.30';
 const LOCK_KEY = 'toro_lock_dash';
 const ATTEMPTS_KEY = 'toro_attempts_dash';
 const FIREBASE_DB_URL = 'https://toro-commission-318b4-default-rtdb.firebaseio.com';
@@ -128,6 +128,7 @@ const REPS = ['Shannon', 'Stephen', 'Julia', 'Lexi', 'Amy', 'Debbie'];
 let allQuotes = {};
 let feedbackData = {};
 let currentTab = 'commission';
+let _dashSaving = false; // true for 5s after a status write to prevent SSE echo-back
 let commissionView = 'pending'; // 'pending' | 'approved' | 'issues'
 let selectedKeys = new Set(); // 'rep::key' strings for bulk selection
 let bulkSkipConfirm = false; // session opt-out for bulk confirm
@@ -311,6 +312,7 @@ function startListeners() {
     const rl = rep.toLowerCase();
     fbListen('quotes/'+rl, data => {
       if(!data) return;
+      if(_dashSaving) return; // ignore echo-back during active write
       if(data.path && data.path !== '/' && data.data !== undefined) {
         const key = data.path.replace(/^\//, '').split('/')[0];
         if(!allQuotes[rep]) allQuotes[rep] = [];
@@ -323,6 +325,7 @@ function startListeners() {
           if(idx>=0) allQuotes[rep][idx]=q; else allQuotes[rep].push(q);
         }
       } else if(data.data && typeof data.data==='object') {
+        // Trust Firebase on full snapshot — it has the authoritative state
         allQuotes[rep] = Object.entries(data.data)
           .filter(([k,v])=>v&&typeof v==='object')
           .map(([k,v])=>{ const q={...v, _fbKey:k}; if(!q.workflowStatus) q.workflowStatus='active'; return q; });
@@ -801,6 +804,8 @@ function setQuoteWorkflow(rep, encKey, newStatus, clearIssue, confirmMsg, succes
     if(!q) { setTimeout(()=>bamAlert('Could not find quote. Refresh and try again.'),100); return; }
     const qKey = q._fbKey || fbKey(q);
     const updatedAt = new Date().toISOString();
+    // Set saving flag to prevent SSE echo-back from overwriting our change
+    _dashSaving = true; setTimeout(()=>{ _dashSaving = false; }, 5000);
     if(newStatus) {
       fbSet('quotes/'+rl+'/'+qKey+'/workflowStatus', newStatus);
       q.workflowStatus = newStatus;
@@ -851,6 +856,7 @@ function flagIssue(rep, encKey) {
     const q = (allQuotes[rep]||[]).find(x => (x._fbKey||'') === key || fbKey(x) === key);
     if(!q) { setTimeout(()=>bamAlert('Could not find quote. Refresh and try again.'),100); return; }
     const qKey = q._fbKey || fbKey(q);
+    _dashSaving = true; setTimeout(()=>{ _dashSaving = false; }, 5000);
     fbSet('quotes/'+rl+'/'+qKey+'/issueFlag', true);
     q.issueFlag = true;
     render();
