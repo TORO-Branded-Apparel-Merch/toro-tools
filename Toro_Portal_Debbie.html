@@ -178,7 +178,7 @@ const PW_KEY = 'toro_pw_debbie';
 const LOCK_KEY = 'toro_lock_lexi';
 const ATTEMPTS_KEY = 'toro_attempts_lexi';
 const DEFAULT_PW = 'Toro#Xp8sN';
-const PORTAL_VERSION = 'v2.30';
+const PORTAL_VERSION = 'v2.31';
 const FIREBASE_DB_URL = 'https://toro-commission-318b4-default-rtdb.firebaseio.com';
 const FB_PATH = 'quotes/' + REP_LOWER;
 
@@ -317,16 +317,25 @@ async function loadFromFirebase() {
   try {
     const data = await fbGet(FB_PATH);
     if(data && typeof data === 'object') {
-      quotes = Object.entries(data)
+      const STATUS_RANK = {active:0,readyForSubmission:1,submittedCommission:2,submitted:2,approvedForPayment:3,paid:4};
+      const incoming = Object.entries(data)
         .filter(([k,v]) => v && typeof v === 'object')
         .map(([k,v]) => {
           const q = {...v, _fbKey: k};
           if(!q.workflowStatus) q.workflowStatus = 'active';
           if(!q.status) q.status = {};
-          // Strip any leftover approval states
           if(['needsApproval','waitingApproval'].includes(q.workflowStatus)) q.workflowStatus = 'active';
+          // Only keep localStorage status if it is HIGHER than what Firebase returned
+          // (protects against stale Firebase data, but allows dashboard upgrades through)
+          const existing = quotes.find(eq => (eq._fbKey||fbKey(eq)) === k);
+          if(existing) {
+            const fbRank = STATUS_RANK[q.workflowStatus]||0;
+            const localRank = STATUS_RANK[existing.workflowStatus]||0;
+            if(localRank > fbRank) q.workflowStatus = existing.workflowStatus;
+          }
           return q;
         });
+      quotes = incoming;
     } else if(data === null) {
       // GET timed out or failed — keep existing quotes, schedule a retry
       if(_sseLoaded) {
@@ -787,13 +796,15 @@ function startListeners() {
             if(['needsApproval','waitingApproval'].includes(q.workflowStatus)) q.workflowStatus = 'active';
             return q;
           });
-        // Merge with existing quotes — never downgrade submitted/paid status from localStorage
-        const PROTECTED = ['submittedCommission','submitted','approvedForPayment','paid'];
+        // Merge: keep localStorage status only if it is HIGHER than Firebase
+        // This protects local writes while allowing dashboard upgrades through
+        const STATUS_RANK = {active:0,readyForSubmission:1,submittedCommission:2,submitted:2,approvedForPayment:3,paid:4};
         incoming.forEach(iq => {
           const existing = quotes.find(q => fbKey(q) === fbKey(iq));
-          if(existing && PROTECTED.includes(existing.workflowStatus) && !PROTECTED.includes(iq.workflowStatus)) {
-            // Keep the higher status from localStorage
-            iq.workflowStatus = existing.workflowStatus;
+          if(existing) {
+            const fbRank = STATUS_RANK[iq.workflowStatus]||0;
+            const localRank = STATUS_RANK[existing.workflowStatus]||0;
+            if(localRank > fbRank) iq.workflowStatus = existing.workflowStatus;
           }
         });
         quotes = incoming;
