@@ -119,7 +119,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script>
 const DASH_PW = 'Toro#Mv3kG';
-const DASH_VERSION = 'v3.31';
+const DASH_VERSION = 'v3.32';
 const LOCK_KEY = 'toro_lock_dash';
 const ATTEMPTS_KEY = 'toro_attempts_dash';
 const FIREBASE_DB_URL = 'https://toro-commission-318b4-default-rtdb.firebaseio.com';
@@ -278,33 +278,45 @@ function setSyncing(on) {
 // ── Load & Listeners ──────────────────────────────────────────────────────
 async function init() {
   setSyncing(true);
-  await loadAll();
+  startListeners(); // start SSE first — it delivers initial data
+  loadAll();        // non-blocking GET as backup
   await loadFeedback();
-  startListeners();
   render();
   setSyncing(false);
-
 }
 
 async function loadAll() {
+  const STATUS_RANK = {active:0,readyForSubmission:1,submittedCommission:2,submitted:2,approvedForPayment:3,paid:4};
   for(const rep of REPS) {
     try {
       const data = await fbGet('quotes/' + rep.toLowerCase());
       if(data && typeof data==='object') {
-        allQuotes[rep] = Object.entries(data)
+        const incoming = Object.entries(data)
           .filter(([k,v])=>v&&typeof v==='object'&&v!==null)
           .map(([k,v])=>{
             const q={...v, _fbKey:k};
             if(!q.workflowStatus) q.workflowStatus='active';
             return q;
           });
+        // Never downgrade status already set by SSE or dashboard action
+        incoming.forEach(iq => {
+          const existing = (allQuotes[rep]||[]).find(q=>q._fbKey===iq._fbKey);
+          if(existing) {
+            const fbRank = STATUS_RANK[iq.workflowStatus]||0;
+            const localRank = STATUS_RANK[existing.workflowStatus]||0;
+            if(localRank > fbRank) iq.workflowStatus = existing.workflowStatus;
+            if(existing.issueFlag && !iq.issueFlag) iq.issueFlag = existing.issueFlag;
+          }
+        });
+        allQuotes[rep] = incoming;
         console.log('loadAll',rep,allQuotes[rep].length,'quotes');
       } else {
-        allQuotes[rep] = [];
-        console.log('loadAll',rep,'no data');
+        if(!allQuotes[rep]) allQuotes[rep] = [];
+        console.log('loadAll',rep,'no data or timeout');
       }
-    } catch(e) { allQuotes[rep]=[]; console.error('loadAll error',rep,e); }
+    } catch(e) { if(!allQuotes[rep]) allQuotes[rep]=[]; console.error('loadAll error',rep,e); }
   }
+  render();
 }
 
 function startListeners() {
