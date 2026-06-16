@@ -178,7 +178,7 @@ const PW_KEY = 'toro_pw_amy';
 const LOCK_KEY = 'toro_lock_lexi';
 const ATTEMPTS_KEY = 'toro_attempts_lexi';
 const DEFAULT_PW = 'Toro#Jc6wT';
-const PORTAL_VERSION = 'v2.33';
+const PORTAL_VERSION = 'v2.34';
 const FIREBASE_DB_URL = 'https://toro-commission-318b4-default-rtdb.firebaseio.com';
 const FB_PATH = 'quotes/' + REP_LOWER;
 
@@ -477,8 +477,13 @@ function quoteCard(q, locked) {
     actionBtns+='<button class="btn btn-gray btn-sm" data-key="'+encKey+'" onclick="exportToBuilder(decodeURIComponent(this.dataset.key))">✏️ Edit</button>';
     actionBtns+='<button class="del-btn" data-key="'+encKey+'" onclick="deleteQuote(decodeURIComponent(this.dataset.key))">🗑</button>';
   } else {
-    if(q.workflowStatus==='submittedCommission') {
+    if(q.workflowStatus==='paid') {
+      actionBtns+='<span style="display:inline-block;background:#16a34a;color:#fff;font-size:11px;font-weight:700;padding:4px 10px;border-radius:10px;">✓ Paid</span>';
+    } else if(q.workflowStatus==='approvedForPayment') {
+      actionBtns+='<span style="display:inline-block;background:#16a34a;color:#fff;font-size:11px;font-weight:700;padding:4px 10px;border-radius:10px;">✅ Approved</span>';
+    } else if(q.workflowStatus==='submittedCommission'||q.workflowStatus==='submitted') {
       actionBtns+='<button class="btn btn-green btn-sm" data-key="'+encKey+'" onclick="markRepPaid(decodeURIComponent(this.dataset.key))">💰 Mark as Paid</button>';
+      actionBtns+='<span style="display:inline-block;background:#6366f1;color:#fff;font-size:11px;font-weight:700;padding:4px 10px;border-radius:10px;margin-left:6px;">Submitted</span>';
     }
     actionBtns+='<button class="del-btn" data-key="'+encKey+'" onclick="deleteQuote(decodeURIComponent(this.dataset.key))">🗑</button>';
   }
@@ -492,7 +497,7 @@ function quoteCard(q, locked) {
       '<div class="qc-toggle" onclick="toggleCard(this.closest(\'.quote-card\'))" style="cursor:pointer;padding:4px 6px;font-size:11px;color:var(--text3);user-select:none;flex-shrink:0;" title="Open/close">▶</div>'+
       '<div class="qc-meta">'+
         clientLine+
-        '<div class="qc-title">'+(q.quoteName||q.quoteNum||'Untitled')+' <span style="font-size:12px;color:var(--text3);font-weight:400;">#'+(q.quoteNum||'?')+'</span>'+(q.workflowStatus==='paid'?'<span style="display:inline-block;background:#16a34a;color:#fff;font-size:11px;font-weight:700;padding:2px 8px;border-radius:10px;margin-left:8px;vertical-align:middle;">✓ Paid</span>':q.workflowStatus==='approvedForPayment'?'<span style="display:inline-block;background:#16a34a;color:#fff;font-size:11px;font-weight:700;padding:2px 8px;border-radius:10px;margin-left:8px;vertical-align:middle;">✅ Approved</span>':locked&&(q.workflowStatus==='submittedCommission'||q.workflowStatus==='submitted')?'<span style="display:inline-block;background:#6366f1;color:#fff;font-size:11px;font-weight:700;padding:2px 8px;border-radius:10px;margin-left:8px;vertical-align:middle;">Submitted</span>':'')+'</div>'+
+        '<div class="qc-title">'+(q.quoteName||q.quoteNum||'Untitled')+' <span style="font-size:12px;color:var(--text3);font-weight:400;">#'+(q.quoteNum||'?')+'</span>'+'</div>'+
         '<div class="qc-sub">'+quotePeriod(q)+' · '+(q.ihd||'No IHD')+(q.ihdFirm?' 🔒':'')+' · '+fmt(sell)+' · <span style="'+mgColor+'">'+pct(margin)+'</span> · Est. '+fmt(comm)+'</div>'+
       '</div>'+
       '<div class="qc-actions" onclick="event.stopPropagation()">'+actionBtns+'</div>'+
