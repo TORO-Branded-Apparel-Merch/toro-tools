@@ -178,7 +178,7 @@ const PW_KEY = 'toro_pw_amy';
 const LOCK_KEY = 'toro_lock_lexi';
 const ATTEMPTS_KEY = 'toro_attempts_lexi';
 const DEFAULT_PW = 'Toro#Jc6wT';
-const PORTAL_VERSION = 'v2.34';
+const PORTAL_VERSION = 'v2.35';
 const FIREBASE_DB_URL = 'https://toro-commission-318b4-default-rtdb.firebaseio.com';
 const FB_PATH = 'quotes/' + REP_LOWER;
 
@@ -367,7 +367,14 @@ function saveQuote(q) {
     console.error('saveQuote network error:', key);
     setTimeout(()=>{_saving=false;setSyncing(false);},5000);
   };
-  xhr.send(JSON.stringify(q));
+  // Strip fields that are managed by the dashboard — never let portal overwrite them
+  const DASHBOARD_FIELDS = ['workflowStatus','issueFlag','statusUpdatedAt','submittedAt','paidAt'];
+  const payload = {...q};
+  DASHBOARD_FIELDS.forEach(f => delete payload[f]);
+  // But DO preserve workflowStatus if it's a portal-owned status
+  const PORTAL_STATUSES = ['active','readyForSubmission'];
+  if(PORTAL_STATUSES.includes(q.workflowStatus)) payload.workflowStatus = q.workflowStatus;
+  xhr.send(JSON.stringify(payload));
 }
 
 // ── File import ────────────────────────────────────────────────────────────
