@@ -119,7 +119,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script>
 const DASH_PW = 'Toro#Mv3kG';
-const DASH_VERSION = 'v3.40';
+const DASH_VERSION = 'v3.41';
 const LOCK_KEY = 'toro_lock_dash';
 const ATTEMPTS_KEY = 'toro_attempts_dash';
 const FIREBASE_DB_URL = 'https://toro-commission-318b4-default-rtdb.firebaseio.com';
@@ -187,7 +187,8 @@ function fbSet(path, val, _retry) {
   const method = val === null ? 'DELETE' : 'PUT';
   const xhr = new XMLHttpRequest();
   xhr.open(method, url, true);
-  xhr.setRequestHeader('Content-Type','application/json');
+  // Use text/plain to avoid CORS preflight (OPTIONS) which gets blocked on some networks
+  xhr.setRequestHeader('Content-Type','text/plain');
   xhr.timeout = 15000;
   xhr.onreadystatechange = () => {
     if(xhr.readyState !== 4) return;
@@ -209,7 +210,7 @@ function fbPatch(path, val) {
   const url = FIREBASE_DB_URL + '/' + path + '.json';
   const xhr = new XMLHttpRequest();
   xhr.open('PATCH', url, true);
-  xhr.setRequestHeader('Content-Type','application/json');
+  xhr.setRequestHeader('Content-Type','text/plain');
   xhr.onreadystatechange = () => { if(xhr.readyState===4 && xhr.status>=300) console.error('fbPatch failed:', path, xhr.status); };
   xhr.send(JSON.stringify(val));
 }
