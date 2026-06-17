@@ -119,7 +119,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script>
 const DASH_PW = 'Toro#Mv3kG';
-const DASH_VERSION = 'v3.39';
+const DASH_VERSION = 'v3.40';
 const LOCK_KEY = 'toro_lock_dash';
 const ATTEMPTS_KEY = 'toro_attempts_dash';
 const FIREBASE_DB_URL = 'https://toro-commission-318b4-default-rtdb.firebaseio.com';
@@ -182,18 +182,26 @@ function submitPw() {
 document.getElementById('pw-input').addEventListener('keydown', e=>{ if(e.key==='Enter') submitPw(); });
 
 // ── Firebase ───────────────────────────────────────────────────────────────
-function fbSet(path, val) {
+function fbSet(path, val, _retry) {
   const url = FIREBASE_DB_URL + '/' + path + '.json';
   const method = val === null ? 'DELETE' : 'PUT';
   const xhr = new XMLHttpRequest();
   xhr.open(method, url, true);
   xhr.setRequestHeader('Content-Type','application/json');
+  xhr.timeout = 15000;
   xhr.onreadystatechange = () => {
     if(xhr.readyState !== 4) return;
     console.log('fbSet',method,path,'->',xhr.status);
     if(xhr.status < 200 || xhr.status >= 300) console.error('fbSet failed:', xhr.status, xhr.responseText);
   };
-  xhr.onerror = () => console.error('fbSet network error:', path);
+  xhr.onerror = () => {
+    console.error('fbSet network error:', path);
+    if(!_retry) { console.log('fbSet retrying:', path); setTimeout(()=>fbSet(path, val, true), 1000); }
+  };
+  xhr.ontimeout = () => {
+    console.error('fbSet TIMEOUT:', path);
+    if(!_retry) { console.log('fbSet retrying after timeout:', path); setTimeout(()=>fbSet(path, val, true), 1000); }
+  };
   xhr.send(val === null ? null : JSON.stringify(val));
 }
 function fbDel(path) { fbSet(path, null); }
