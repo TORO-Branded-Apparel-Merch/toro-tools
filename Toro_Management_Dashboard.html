@@ -119,7 +119,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script>
 const DASH_PW = 'Toro#Mv3kG';
-const DASH_VERSION = 'v3.35';
+const DASH_VERSION = 'v3.36';
 const LOCK_KEY = 'toro_lock_dash';
 const ATTEMPTS_KEY = 'toro_attempts_dash';
 const FIREBASE_DB_URL = 'https://toro-commission-318b4-default-rtdb.firebaseio.com';
@@ -326,10 +326,7 @@ function startListeners() {
     const rl = rep.toLowerCase();
     fbListen('quotes/'+rl, data => {
       if(!data) return;
-      const _wsList = data.data && typeof data.data === 'object' && data.path === '/' ?
-        Object.entries(data.data).slice(0,5).map(([k,v])=>k+':'+v?.workflowStatus).join(', ') : '';
-      console.log('DASH SSE ['+rep+']:', JSON.stringify({path:data.path, saving:_dashSaving}), _wsList ? '| statuses: '+_wsList : '');
-      if(_dashSaving) { console.log('DASH SSE: skipped (saving)'); return; }
+      if(_dashSaving) return;
       if(data.path && data.path !== '/' && data.data !== undefined) {
         const parts = data.path.replace(/^\//, '').split('/');
         const key = parts[0];
@@ -384,6 +381,19 @@ function startListeners() {
           }
         });
         allQuotes[rep] = incoming;
+        // Verify workflowStatus for each quote via individual GET to catch stale SSE cache
+        setTimeout(async () => {
+          let changed = false;
+          for(const q of allQuotes[rep]||[]) {
+            const key = q._fbKey;
+            const fresh = await fbGet('quotes/'+rl+'/'+key+'/workflowStatus');
+            if(fresh && fresh !== q.workflowStatus) {
+              q.workflowStatus = fresh;
+              changed = true;
+            }
+          }
+          if(changed) render();
+        }, 1000);
       } else if(data.data===null) {
         allQuotes[rep]=[];
       }
@@ -873,6 +883,20 @@ function setQuoteWorkflow(rep, encKey, newStatus, clearIssue, confirmMsg, succes
     }
     fbSet('quotes/'+rl+'/'+qKey+'/statusUpdatedAt', updatedAt);
     q.statusUpdatedAt = updatedAt;
+    // Re-fetch this quote after 2s to correct any stale SSE cache
+    if(newStatus) {
+      setTimeout(async () => {
+        const fresh = await fbGet('quotes/'+rl+'/'+qKey);
+        if(fresh && fresh.workflowStatus) {
+          const idx = (allQuotes[rep]||[]).findIndex(x=>x._fbKey===qKey);
+          if(idx>=0) {
+            allQuotes[rep][idx].workflowStatus = fresh.workflowStatus;
+            allQuotes[rep][idx].issueFlag = fresh.issueFlag||false;
+            render();
+          }
+        }
+      }, 2000);
+    }
     if(newStatus === 'paid') {
       fbSet('quotes/'+rl+'/'+qKey+'/paidAt', updatedAt);
       fbSet('paid/'+rl+'/'+qKey, {
