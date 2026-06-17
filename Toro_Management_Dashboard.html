@@ -119,7 +119,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script>
 const DASH_PW = 'Toro#Mv3kG';
-const DASH_VERSION = 'v3.38';
+const DASH_VERSION = 'v3.39';
 const LOCK_KEY = 'toro_lock_dash';
 const ATTEMPTS_KEY = 'toro_attempts_dash';
 const FIREBASE_DB_URL = 'https://toro-commission-318b4-default-rtdb.firebaseio.com';
@@ -226,7 +226,10 @@ function fbGet(path) {
   });
 }
 function fbListen(path, cb) {
-  const es = new EventSource(FIREBASE_DB_URL + '/' + path + '.json');
+  // Append a cache-busting timestamp so Firebase serves a fresh snapshot,
+  // not a stale cached one (RTDB SSE can serve cached data on reconnect)
+  const cacheBust = '?_cb=' + Date.now();
+  const es = new EventSource(FIREBASE_DB_URL + '/' + path + '.json' + cacheBust);
   const handler = e => { try { cb(JSON.parse(e.data)); } catch(err) { console.error('fbListen parse error', err); } };
   es.addEventListener('put', handler);
   es.addEventListener('patch', handler);
