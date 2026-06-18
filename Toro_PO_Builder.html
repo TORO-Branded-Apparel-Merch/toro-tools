@@ -316,7 +316,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 
 <script>
 // ── State ──────────────────────────────────────────────────────────────────
-const PO_VERSION = 'v1.7';
+const PO_VERSION = 'v1.8';
 
 // Map a Quote Builder hard-good decoration value to a vendor-facing label.
 // Covers all QB hard-good deco options plus legacy lowercase keys.
@@ -918,20 +918,21 @@ function buildPOHTML(poNum, d) {
         const h = item.data;
         if(!h) return;
         const itemTitle = h.hg_desc||'Hard good';
-        const art = h.hg_design||h.hg_desc||'';
+        const baseArt = h.hg_design||h.hg_desc||'';
         // Build the full imprint list: primary decoration + each additional area.
         const hgImprints = [];
         if(h.hg_dec && h.hg_dec !== 'none' && h.hg_dec !== 'Blank') {
           hgImprints.push({
             method: hgDecoLabel(h.hg_dec, h.hg_dec_other),
             loc: h.hg_dec_loc || '',
+            art: baseArt,
             colors: h.hg_colors || ''
           });
         }
         (h.hg_imp_areas||[]).forEach(a => {
           const am = hgDecoLabel(a.dec, a.dec_other);
-          if(a.dec === 'Blank' && !a.loc && !a.colors) return; // skip empty area
-          hgImprints.push({ method: am, loc: a.loc||'', colors: a.colors||'' });
+          if(a.dec === 'Blank' && !a.loc && !a.colors && !a.design) return; // skip empty area
+          hgImprints.push({ method: am, loc: a.loc||'', art: a.design||baseArt, colors: a.colors||'' });
         });
         if(!hgImprints.length) return;
         const multi = hgImprints.length > 1;
@@ -943,7 +944,7 @@ function buildPOHTML(poNum, d) {
               <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;font-size:11px;">
                 <div><span style="font-size:10px;font-weight:700;text-transform:uppercase;color:#888;display:block;margin-bottom:3px;">Method</span><input class="po-field-edit" style="font-size:13px;font-weight:700;" value="${imp.method||''}"></div>
                 <div><span style="font-size:10px;font-weight:700;text-transform:uppercase;color:#888;display:block;margin-bottom:3px;">Location(s)</span><input class="po-field-edit" style="font-size:13px;font-weight:700;" value="${imp.loc||''}"></div>
-                <div><span style="font-size:10px;font-weight:700;text-transform:uppercase;color:#888;display:block;margin-bottom:3px;">Art / design name</span><input class="po-field-edit" style="font-size:13px;font-weight:700;" value="${art}"></div>
+                <div><span style="font-size:10px;font-weight:700;text-transform:uppercase;color:#888;display:block;margin-bottom:3px;">Art / design name</span><input class="po-field-edit" style="font-size:13px;font-weight:700;" value="${imp.art||''}"></div>
                 <div style="grid-column:span 3;"><span style="font-size:10px;font-weight:700;text-transform:uppercase;color:#888;display:block;margin-bottom:3px;">Imprint colors <span style="color:#BC112A">&#9733;</span></span><input class="po-field-edit" style="font-size:14px;font-weight:800;color:#BC112A;" value="${imp.colors||''}"></div>
               </div>
             </div>`;
