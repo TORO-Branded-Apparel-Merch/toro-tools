@@ -316,7 +316,29 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 
 <script>
 // ── State ──────────────────────────────────────────────────────────────────
-const PO_VERSION = 'v1.6';
+const PO_VERSION = 'v1.7';
+
+// Map a Quote Builder hard-good decoration value to a vendor-facing label.
+// Covers all QB hard-good deco options plus legacy lowercase keys.
+const HG_DECO_MAP = {
+  'Blank':'Blank','blank':'Blank',
+  'Pad Print':'Pad printing','pad-print':'Pad printing','Pad printing':'Pad printing',
+  'Silkscreen':'Silkscreen','silkscreen':'Silkscreen','Screen printing':'Screen printing','screen-print':'Screen printing','screen':'Screen printing',
+  'Laser Engrave':'Laser engraving','Laser engrave':'Laser engraving','laser':'Laser engraving','Laser engraving':'Laser engraving',
+  'Deboss':'Deboss','deboss':'Deboss',
+  'Emboss':'Emboss','emboss':'Emboss',
+  'Embroidery':'Embroidery','embroidery':'Embroidery',
+  'Full Color Digital':'Full color digital','Digital print':'Digital print','digital':'Digital print','dtf':'DTF','DTF':'DTF',
+  'Foil Stamp':'Foil stamp','foil':'Foil stamp',
+  'Heat press':'Heat press','heat':'Heat press','vinyl':'Vinyl',
+};
+// decRaw is the stored value; otherText is the free-text used when decRaw==='Other'
+function hgDecoLabel(decRaw, otherText){
+  if(!decRaw) return '';
+  if(decRaw === 'Other') return (otherText||'Other');
+  return HG_DECO_MAP[decRaw] || decRaw;
+}
+
 let quoteData = null;
 let currentType = null;
 let currentTypeLabel = '';
@@ -483,7 +505,9 @@ function buildItemsRef() {
       html += '<div style="display:flex;justify-content:space-between;gap:12px;">';
       html += '<div style="flex:1;">';
       html += '<div style="font-weight:700;font-size:14px;margin-bottom:4px;">'+(h.hg_desc||'Hard good '+(i+1))+'</div>';
-      const meta = [h.hg_vendor?'Vendor: '+h.hg_vendor:'',h.hg_sku?'SKU: '+h.hg_sku:'',h.hg_item_color?'Color: '+h.hg_item_color:'',h.hg_dec&&h.hg_dec!=='Blank'?'Deco: '+h.hg_dec:'',h.hg_colors?'Colors: '+h.hg_colors:'',h.hg_promo?'Promo: '+h.hg_promo:''].filter(Boolean);
+      const _areaN = (h.hg_imp_areas||[]).filter(a=>a&&(a.dec!=='Blank'||a.loc||a.colors)).length;
+      const _decoStr = (h.hg_dec&&h.hg_dec!=='Blank') ? 'Deco: '+hgDecoLabel(h.hg_dec,h.hg_dec_other)+(_areaN?' (+'+_areaN+' more imprint'+(_areaN>1?'s':'')+')':'') : (_areaN?_areaN+' imprint area'+(_areaN>1?'s':''):'');
+      const meta = [h.hg_vendor?'Vendor: '+h.hg_vendor:'',h.hg_sku?'SKU: '+h.hg_sku:'',h.hg_item_color?'Color: '+h.hg_item_color:'',_decoStr||'',h.hg_colors?'Colors: '+h.hg_colors:'',h.hg_promo?'Promo: '+h.hg_promo:''].filter(Boolean);
       if(meta.length) html += '<div style="font-size:11px;color:var(--text3);">'+meta.join(' · ')+'</div>';
       html += '</div>';
       html += '<div style="text-align:right;white-space:nowrap;font-size:12px;">';
@@ -598,22 +622,9 @@ function autoFill() {
     const h = (q.hardGoods||[])[first.idx];
     if(!h) return;
     setVal('v-name', h.hg_vendor);
-    // Map QB hg_dec values to PO Builder select options
-    const hgDecMap = {
-      'Screen printing':'Screen printing','screen-print':'Screen printing',
-      'Embroidery':'Embroidery','embroidery':'Embroidery',
-      'DTF':'DTF','dtf':'DTF',
-      'Heat press':'Heat press','heat':'Heat press',
-      'Laser Engrave':'Laser engraving','Laser engrave':'Laser engraving','laser':'Laser engraving',
-      'Deboss':'Deboss','deboss':'Deboss',
-      'Emboss':'Emboss','emboss':'Emboss',
-      'Pad printing':'Pad printing','pad-print':'Pad printing',
-      'Digital print':'Digital print','digital':'Digital print',
-    };
     const m = document.getElementById('d-method');
     if(m && h.hg_dec) {
-      const mapped = hgDecMap[h.hg_dec] || h.hg_dec;
-      // Try to match an existing option, else set directly
+      const mapped = hgDecoLabel(h.hg_dec, h.hg_dec_other);
       const opt = Array.from(m.options).find(o => o.value === mapped || o.text === mapped);
       if(opt) m.value = opt.value; else m.value = mapped;
     }
@@ -855,7 +866,6 @@ function buildPOHTML(poNum, d) {
 
   // Build per-item imprint sections from actual quote data
   const methodMap = {screen:'Screen printing',embroidery:'Embroidery',dtf:'DTF',heat:'Heat press',vinyl:'Vinyl'};
-  const hgDecMap = {'screen-print':'Screen printing','embroidery':'Embroidery','dtf':'DTF','laser':'Laser engraving','pad-print':'Pad printing','digital':'Digital print'};
   const inkLabels = {'0.55':'Metallic/glitter/fluorescent/neon ink (+$0.55/item)','1.05':'Reflective/glow-in-dark ink (+$1.05/item)'};
 
   let perItemDecoHTML = '';
@@ -906,18 +916,38 @@ function buildPOHTML(poNum, d) {
         }
       } else if(item.type === 'hg') {
         const h = item.data;
-        if(!h || !h.hg_dec || h.hg_dec === 'none') return;
+        if(!h) return;
         const itemTitle = h.hg_desc||'Hard good';
-        const method = hgDecMap[h.hg_dec]||h.hg_dec||'';
-        perItemDecoHTML += `
-          <div style="margin-bottom:8px;padding:8px 10px;background:#f8f8fa;border-radius:5px;border-left:3px solid #BC112A;">
-            <div style="font-size:11px;font-weight:800;color:#BC112A;margin-bottom:6px;">${itemTitle}</div>
-            <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;font-size:11px;">
-              <div><span style="font-size:10px;font-weight:700;text-transform:uppercase;color:#888;display:block;margin-bottom:3px;">Method</span><input class="po-field-edit" style="font-size:13px;font-weight:700;" value="${method}"></div>
-              <div><span style="font-size:10px;font-weight:700;text-transform:uppercase;color:#888;display:block;margin-bottom:3px;">Art / design name</span><input class="po-field-edit" style="font-size:13px;font-weight:700;" value="${h.hg_design||h.hg_desc||''}"></div>
-              <div><span style="font-size:10px;font-weight:700;text-transform:uppercase;color:#888;display:block;margin-bottom:3px;">Imprint colors <span style="color:#BC112A">&#9733;</span></span><input class="po-field-edit" style="font-size:14px;font-weight:800;color:#BC112A;" value="${h.hg_colors||''}"></div>
-            </div>
-          </div>`;
+        const art = h.hg_design||h.hg_desc||'';
+        // Build the full imprint list: primary decoration + each additional area.
+        const hgImprints = [];
+        if(h.hg_dec && h.hg_dec !== 'none' && h.hg_dec !== 'Blank') {
+          hgImprints.push({
+            method: hgDecoLabel(h.hg_dec, h.hg_dec_other),
+            loc: h.hg_dec_loc || '',
+            colors: h.hg_colors || ''
+          });
+        }
+        (h.hg_imp_areas||[]).forEach(a => {
+          const am = hgDecoLabel(a.dec, a.dec_other);
+          if(a.dec === 'Blank' && !a.loc && !a.colors) return; // skip empty area
+          hgImprints.push({ method: am, loc: a.loc||'', colors: a.colors||'' });
+        });
+        if(!hgImprints.length) return;
+        const multi = hgImprints.length > 1;
+        hgImprints.forEach((imp, ii) => {
+          const impLabel = multi ? ` — Imprint ${ii+1}` : '';
+          perItemDecoHTML += `
+            <div style="margin-bottom:8px;padding:8px 10px;background:#f8f8fa;border-radius:5px;border-left:3px solid #BC112A;">
+              <div style="font-size:11px;font-weight:800;color:#BC112A;margin-bottom:6px;">${itemTitle}${impLabel}</div>
+              <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;font-size:11px;">
+                <div><span style="font-size:10px;font-weight:700;text-transform:uppercase;color:#888;display:block;margin-bottom:3px;">Method</span><input class="po-field-edit" style="font-size:13px;font-weight:700;" value="${imp.method||''}"></div>
+                <div><span style="font-size:10px;font-weight:700;text-transform:uppercase;color:#888;display:block;margin-bottom:3px;">Location(s)</span><input class="po-field-edit" style="font-size:13px;font-weight:700;" value="${imp.loc||''}"></div>
+                <div><span style="font-size:10px;font-weight:700;text-transform:uppercase;color:#888;display:block;margin-bottom:3px;">Art / design name</span><input class="po-field-edit" style="font-size:13px;font-weight:700;" value="${art}"></div>
+                <div style="grid-column:span 3;"><span style="font-size:10px;font-weight:700;text-transform:uppercase;color:#888;display:block;margin-bottom:3px;">Imprint colors <span style="color:#BC112A">&#9733;</span></span><input class="po-field-edit" style="font-size:14px;font-weight:800;color:#BC112A;" value="${imp.colors||''}"></div>
+              </div>
+            </div>`;
+        });
       }
     });
   }
