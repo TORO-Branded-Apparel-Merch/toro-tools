@@ -1802,6 +1802,61 @@ function toggleHGShare(id){
   }
   calcAll();
 }
+function _buildHGProjectGroups(hgList) {
+  // Mirrors the apparel project grouping: hard goods linked by a shared imprint
+  // (hg_share_chk_/hg_share_with_) OR by matching invoice group label are
+  // treated as one project, instead of being split into separate rows.
+  const _adj = {};
+  const addEdge = (a, b) => {
+    if(!_adj[a]) _adj[a] = new Set();
+    if(!_adj[b]) _adj[b] = new Set();
+    _adj[a].add(b); _adj[b].add(a);
+  };
+  hgList.forEach(h => {
+    const hid = String(h.hid);
+    const chk = document.getElementById('hg_share_chk_' + hid);
+    if(chk && chk.checked) {
+      const sel = document.getElementById('hg_share_with_' + hid);
+      if(sel && sel.value) addEdge(hid, String(sel.value));
+    }
+  });
+  const _invGrpMap = {};
+  hgList.forEach(h => {
+    const grp = (h.hginvgrp || (document.getElementById('hginvgrp_' + h.hid)||{}).value || '').trim();
+    if(!grp) return;
+    if(!_invGrpMap[grp]) _invGrpMap[grp] = [];
+    _invGrpMap[grp].push(String(h.hid));
+  });
+  Object.values(_invGrpMap).forEach(ids => {
+    ids.forEach(a => ids.forEach(b => { if(a!==b) addEdge(a,b); }));
+  });
+  const _visited = new Set();
+  const keyByHid = {};
+  hgList.forEach(h => {
+    const hid = String(h.hid);
+    if(_visited.has(hid)) return;
+    const group = [];
+    const stack = [hid];
+    while(stack.length) {
+      const n = stack.pop();
+      if(_visited.has(n)) continue;
+      _visited.add(n); group.push(n);
+      (_adj[n]||new Set()).forEach(nb => { if(!_visited.has(nb)) stack.push(nb); });
+    }
+    const groupKey = group.slice().sort().join('|');
+    const labels = group.map(g => {
+      const item = hgList.find(x => String(x.hid)===g);
+      return (item?.hginvgrp || (document.getElementById('hginvgrp_'+g)||{}).value || '').trim();
+    }).filter(Boolean);
+    const invGrpLabel = labels.length===group.length && new Set(labels).size===1 ? labels[0] : '';
+    const fallbackName = group.length>1
+      ? group.map(g => { const item = hgList.find(x=>String(x.hid)===g); return item?.desc||''; }).filter(Boolean).join(' + ')
+      : '';
+    group.forEach(g => { keyByHid[g] = { key: groupKey, isShared: group.length>1, invGrpLabel, fallbackName }; });
+  });
+  return keyByHid;
+}
+
 function populateHGShareDropdown(id){
   const sel=$c('hg_share_with_'+id); if(!sel) return;
   const cur=sel.value;
@@ -2932,14 +2987,16 @@ function calcAll(){
   // ── Hard goods section ────────────────────────────────────────────────
   if(hgSecs.length>0){
     html+=`<div class="cs-section-header" style="margin-top:28px">Hard goods &amp; promo items</div>`;
-    // Group HG cards by invoice group
+    // Group HG cards by project: shared-imprint links OR matching invoice group
+    const _hgProjKeys = _buildHGProjectGroups(hgSecs);
     const _hgRenderGroups = [];
     const _hgGroupMap = {};
     hgSecs.forEach(h => {
-      const grp = (h.hginvgrp || '').trim();
-      const key = grp || '__solo_' + h.hid;
+      const proj = _hgProjKeys[String(h.hid)] || {key:'__solo_'+h.hid, isShared:false, invGrpLabel:'', fallbackName:''};
+      const key = proj.key;
+      const grp = proj.invGrpLabel;
       if (!_hgGroupMap[key]) {
-        const g = {key, label: grp, items: []};
+        const g = {key, label: grp, isShared: proj.isShared, fallbackName: proj.fallbackName, items: []};
         _hgGroupMap[key] = g;
         _hgRenderGroups.push(g);
       }
@@ -2947,9 +3004,10 @@ function calcAll(){
     });
 
     _hgRenderGroups.forEach(grp => {
-      const isGroup = grp.label && grp.items.length > 1;
+      const isGroup = grp.items.length > 1;
       if (isGroup) {
-        html += `<div style="margin:12px 0 4px;padding:6px 10px;background:var(--gray2);border-radius:var(--radius-sm);font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--text3)">Invoice group: ${grp.label}</div>`;
+        const headerLabel = grp.label ? `Invoice group: ${grp.label}` : `Project: ${grp.fallbackName}`;
+        html += `<div style="margin:12px 0 4px;padding:6px 10px;background:var(--gray2);border-radius:var(--radius-sm);font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--text3)">${headerLabel}</div>`;
       }
       let _grpNet=0, _grpSell=0;
       grp.items.forEach(h => {
@@ -3648,12 +3706,13 @@ function buildSummary(){
     _projCommLines.push({name:projName, net:projNet, sell:projSell, gp:projGP, mg:projMg, isGarment:true, invGroup:projInvGrp});
   });
 
-  // HG projects — group by invoice group, each unique group (or solo HG) is one row
+  // HG projects — group by shared imprint links OR matching invoice group, mirroring apparel
   const _hgGroups={};
+  const _hgProjKeys2 = _buildHGProjectGroups(d.hgSecs||[]);
   (d.hgSecs||[]).forEach(h=>{
-    const hInvGrp=(h.hginvgrp||(vs('hginvgrp_'+h.hid)||'')).trim();
-    const key=hInvGrp||('__hg_solo_'+h.hid);
-    if(!_hgGroups[key]) _hgGroups[key]={name:'',net:0,sell:0,invGroup:hInvGrp,items:[]};
+    const proj = _hgProjKeys2[String(h.hid)] || {key:'__hg_solo_'+h.hid, invGrpLabel:'', fallbackName:''};
+    const key=proj.key;
+    if(!_hgGroups[key]) _hgGroups[key]={name:proj.fallbackName,net:0,sell:0,invGroup:proj.invGrpLabel,items:[]};
     _hgGroups[key].items.push(h);
     const hNet=h.lt;
     let hSell=0;
