@@ -117,12 +117,29 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 </div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script type="module">
+  // ── Firestore loader ──
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+  import { getFirestore, doc, getDoc, setDoc, deleteDoc, collection, query, where, onSnapshot, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+  const firebaseConfig = {
+    apiKey: "AIzaSyDEyTsbpo-E5Io5B_nop39jyk4gwInWCqQ",
+    authDomain: "toro-commission-318b4.firebaseapp.com",
+    projectId: "toro-commission-318b4",
+    storageBucket: "toro-commission-318b4.firebasestorage.app",
+    messagingSenderId: "764588278523",
+    appId: "1:764588278523:web:5ccbfb3354f492b7e1265e"
+  };
+  const app = initializeApp(firebaseConfig);
+  window._fsdb = getFirestore(app);
+  window._fs = { doc, getDoc, setDoc, deleteDoc, collection, query, where, onSnapshot, serverTimestamp };
+  window._fsReady = true;
+  window.dispatchEvent(new Event('fsready'));
+</script>
 <script>
 const DASH_PW = 'Toro#Mv3kG';
 const DASH_VERSION = 'v3.41';
 const LOCK_KEY = 'toro_lock_dash';
 const ATTEMPTS_KEY = 'toro_attempts_dash';
-const FIREBASE_DB_URL = 'https://toro-commission-318b4-default-rtdb.firebaseio.com';
 const REPS = ['Shannon', 'Stephen', 'Julia', 'Lexi', 'Amy', 'Debbie'];
 
 let allQuotes = {};
@@ -181,69 +198,111 @@ function submitPw() {
 }
 document.getElementById('pw-input').addEventListener('keydown', e=>{ if(e.key==='Enter') submitPw(); });
 
-// ── Firebase ───────────────────────────────────────────────────────────────
-function fbSet(path, val, _retry) {
-  const url = FIREBASE_DB_URL + '/' + path + '.json';
-  const method = val === null ? 'DELETE' : 'PUT';
-  const xhr = new XMLHttpRequest();
-  xhr.open(method, url, true);
-  // Use text/plain to avoid CORS preflight (OPTIONS) which gets blocked on some networks
-  xhr.setRequestHeader('Content-Type','text/plain');
-  xhr.timeout = 15000;
-  xhr.onreadystatechange = () => {
-    if(xhr.readyState !== 4) return;
-    console.log('fbSet',method,path,'->',xhr.status);
-    if(xhr.status < 200 || xhr.status >= 300) console.error('fbSet failed:', xhr.status, xhr.responseText);
-  };
-  xhr.onerror = () => {
-    console.error('fbSet network error:', path);
-    if(!_retry) { console.log('fbSet retrying:', path); setTimeout(()=>fbSet(path, val, true), 1000); }
-  };
-  xhr.ontimeout = () => {
-    console.error('fbSet TIMEOUT:', path);
-    if(!_retry) { console.log('fbSet retrying after timeout:', path); setTimeout(()=>fbSet(path, val, true), 1000); }
-  };
-  xhr.send(val === null ? null : JSON.stringify(val));
+// ── Firestore ──────────────────────────────────────────────────────────────
+// These functions keep the exact same call signatures (fbSet('quotes/lexi/123/workflowStatus', val))
+// that the rest of this file already uses — only the storage backend underneath changed.
+async function _fsWait() { if(!window._fsReady) await new Promise(res => window.addEventListener('fsready', res, {once:true})); }
+function _fsParse(path) {
+  const parts = path.split('/');
+  const top = parts[0]; // 'quotes' | 'paid' | 'feedback'
+  if(top === 'quotes' || top === 'paid') {
+    const rep = parts[1], qKey = parts[2], field = parts[3] || null;
+    return { collection: top, docId: rep + '__' + qKey, field, rep };
+  }
+  // feedback/fb_12345 or feedback/fb_12345/field
+  const key = parts[1], field = parts[2] || null;
+  return { collection: 'feedback', docId: key, field };
 }
-function fbDel(path) { fbSet(path, null); }
+async function fbSet(path, val) {
+  await _fsWait();
+  const { collection: colName, docId, field, rep } = _fsParse(path);
+  const ref = window._fs.doc(window._fsdb, colName, docId);
+  try {
+    if(field) {
+      await window._fs.setDoc(ref, { [field]: val, ...(rep ? {rep} : {}) }, { merge: true });
+    } else if(val === null) {
+      await window._fs.deleteDoc(ref);
+    } else {
+      await window._fs.setDoc(ref, { ...val, ...(rep ? {rep} : {}) }, { merge: true });
+    }
+    console.log('fbSet OK', path);
+  } catch(err) {
+    console.error('fbSet FAILED', path, err.message);
+  }
+}
+function fbDel(path) { return fbSet(path, null); }
 function fbPatch(path, val) {
-  const url = FIREBASE_DB_URL + '/' + path + '.json';
-  const xhr = new XMLHttpRequest();
-  xhr.open('PATCH', url, true);
-  xhr.setRequestHeader('Content-Type','text/plain');
-  xhr.onreadystatechange = () => { if(xhr.readyState===4 && xhr.status>=300) console.error('fbPatch failed:', path, xhr.status); };
-  xhr.send(JSON.stringify(val));
-}
-function fbGet(path) {
-  return new Promise((resolve) => {
-    const xhr = new XMLHttpRequest();
-    xhr.open('GET', FIREBASE_DB_URL+'/'+path+'.json?timeout=10s', true);
-    xhr.timeout = 12000;
-    xhr.onreadystatechange = () => {
-      if(xhr.readyState !== 4) return;
-      if(xhr.status === 200) {
-        try { resolve(JSON.parse(xhr.responseText)); }
-        catch(e) { console.warn('fbGet parse error:',e.message); resolve(null); }
-      } else {
-        console.warn('fbGet failed:', xhr.status);
-        resolve(null);
-      }
-    };
-    xhr.onerror = () => { console.warn('fbGet network error'); resolve(null); };
-    xhr.ontimeout = () => { console.warn('fbGet timeout'); resolve(null); };
-    xhr.send();
+  return _fsWait().then(() => {
+    const { collection: colName, docId } = _fsParse(path);
+    const ref = window._fs.doc(window._fsdb, colName, docId);
+    return window._fs.setDoc(ref, val, { merge: true })
+      .then(() => console.log('fbPatch OK', path))
+      .catch(err => console.error('fbPatch FAILED', path, err.message));
   });
 }
+async function fbGet(path) {
+  await _fsWait();
+  const parts = path.split('/');
+  if(parts[0]==='feedback' && parts.length===1) {
+    try {
+      const snap = await new Promise((resolve,reject)=>{
+        const unsub = window._fs.onSnapshot(window._fs.collection(window._fsdb, 'feedback'), s => { unsub(); resolve(s); }, reject);
+      });
+      const out = {};
+      snap.docs.forEach(d => out[d.id] = d.data());
+      return out;
+    } catch(err) { console.warn('fbGet failed:', path, err.message); return null; }
+  }
+  if((parts[0]==='quotes'||parts[0]==='paid') && parts.length===2) {
+    // Rep-level get-all, e.g. fbGet('quotes/lexi') -> {qKey: quoteObj, ...}
+    const rep = parts[1];
+    const colName = parts[0];
+    try {
+      const q = window._fs.query(window._fs.collection(window._fsdb, colName), window._fs.where('rep','==',rep));
+      const snap = await new Promise((resolve,reject)=>{
+        const unsub = window._fs.onSnapshot(q, s => { unsub(); resolve(s); }, reject);
+      });
+      const out = {};
+      snap.docs.forEach(d => { const qKey = d.id.split('__').slice(1).join('__'); const {rep:_r, ...rest} = d.data(); out[qKey] = rest; });
+      return out;
+    } catch(err) { console.warn('fbGet failed:', path, err.message); return null; }
+  }
+  const { collection: colName, docId, field } = _fsParse(path);
+  try {
+    const snap = await window._fs.getDoc(window._fs.doc(window._fsdb, colName, docId));
+    if(!snap.exists()) return null;
+    const data = snap.data();
+    return field ? (data[field] !== undefined ? data[field] : null) : data;
+  } catch(err) { console.warn('fbGet failed:', path, err.message); return null; }
+}
 function fbListen(path, cb) {
-  // Append a cache-busting timestamp so Firebase serves a fresh snapshot,
-  // not a stale cached one (RTDB SSE can serve cached data on reconnect)
-  const cacheBust = '?_cb=' + Date.now();
-  const es = new EventSource(FIREBASE_DB_URL + '/' + path + '.json' + cacheBust);
-  const handler = e => { try { cb(JSON.parse(e.data)); } catch(err) { console.error('fbListen parse error', err); } };
-  es.addEventListener('put', handler);
-  es.addEventListener('patch', handler);
-  es.onerror = err => console.error('fbListen error', path, err);
-  return es;
+  _fsWait().then(() => {
+    const parts = path.split('/');
+    if(parts[0] === 'feedback') {
+      window._fs.onSnapshot(window._fs.collection(window._fsdb, 'feedback'), snapshot => {
+        const obj = {};
+        snapshot.docs.forEach(d => obj[d.id] = d.data());
+        cb({ data: obj });
+      }, err => console.error('fbListen error', path, err));
+      return;
+    }
+    // quotes/<rep> or paid/<rep>
+    const colName = parts[0];
+    const rep = parts[1];
+    const q = window._fs.query(window._fs.collection(window._fsdb, colName), window._fs.where('rep','==',rep));
+    window._fs.onSnapshot(q, snapshot => {
+      snapshot.docChanges().forEach(change => {
+        const qKey = change.doc.id.split('__').slice(1).join('__');
+        if(change.type === 'removed') {
+          cb({ path: '/' + qKey, data: null });
+        } else {
+          const { rep: _r, ...rest } = change.doc.data();
+          cb({ path: '/' + qKey, data: rest });
+        }
+      });
+    }, err => console.error('fbListen error', path, err));
+  });
+  return { close(){} }; // shape-compatible no-op (Firestore listeners don't need manual close here)
 }
 function fbKey(q) {
   if(q._fbKey) return q._fbKey;
@@ -535,6 +594,7 @@ function bulkApprove() {
       const rl = rep.toLowerCase();
       const q = (allQuotes[rep]||[]).find(x => (x._fbKey||fbKey(x)) === key);
       if(!q) return;
+      if(q.workflowStatus !== 'submittedCommission' && q.workflowStatus !== 'submitted' && !q.issueFlag) return; // skip not-yet-submitted quotes
       const qKey = q._fbKey || fbKey(q);
       fbSet('quotes/'+rl+'/'+qKey+'/workflowStatus', 'approvedForPayment');
       fbSet('quotes/'+rl+'/'+qKey+'/issueFlag', false);
@@ -688,7 +748,12 @@ function renderCommission() {
         const issueBtn = isIssue
           ? `<button class="btn btn-sm" style="background:#fff8e1;color:#7a5c00;border:1px solid #ffe082;margin-left:4px;" onclick="returnToPending('${rep}','${encQKey}')">✕ Clear Issue</button>`
           : `<button class="btn btn-sm" style="background:#fff8e1;color:#7a5c00;border:1px solid #ffe082;margin-left:4px;" onclick="flagIssue('${rep}','${encQKey}')">⚠️ Issue</button>`;
-        actions = `<button class="btn btn-green btn-sm" onclick="approveForPayment('${rep}','${encQKey}')">✅ Approve</button>${issueBtn}`;
+        if(ws === 'submittedCommission' || ws === 'submitted') {
+          actions = `<button class="btn btn-green btn-sm" onclick="approveForPayment('${rep}','${encQKey}')">✅ Approve</button>${issueBtn}`;
+        } else {
+          // Rep has only marked it Ready — not yet actually submitted. Nothing to approve yet.
+          actions = `<span style="font-size:11px;color:var(--text3);font-style:italic;">Awaiting rep submission</span>${issueBtn}`;
+        }
       } else if(commissionView === 'approved') {
         actions = `<button class="btn btn-green btn-sm" onclick="markPaid('${rep}','${encQKey}')">💰 Mark Paid</button>
           <button class="btn btn-sm" style="background:#fff8e1;color:#7a5c00;border:1px solid #ffe082;margin-left:4px;" onclick="flagIssue('${rep}','${encQKey}')">⚠️ Issue</button>
@@ -922,6 +987,12 @@ function markPaid(rep, encKey) {
     'BAM! Marked as paid.');
 }
 function approveForPayment(rep, encKey) {
+  const key = decodeURIComponent(encKey);
+  const q = (allQuotes[rep]||[]).find(x => (x._fbKey||'') === key || fbKey(x) === key);
+  if(q && q.workflowStatus !== 'submittedCommission' && q.workflowStatus !== 'submitted') {
+    bamAlert('This quote hasn\'t been submitted by the rep yet — nothing to approve.');
+    return;
+  }
   setQuoteWorkflow(rep, encKey, 'approvedForPayment', true,
     'Approve this quote for payment? Socorro will be able to mark it paid.',
     '✅ Approved for payment.');
@@ -1043,18 +1114,8 @@ async function deleteFeedback(key) {
   bamConfirm('Permanently delete this feedback message? This cannot be undone.', async ok => {
     if(!ok) return;
     try {
-      const url = FIREBASE_DB_URL + '/feedback/' + key + '.json';
-      const xhr = new XMLHttpRequest();
-      xhr.open('DELETE', url, true);
-      xhr.onreadystatechange = () => { if(xhr.readyState===4 && xhr.status>=300) console.error('deleteFeedback failed:', xhr.status); };
-      xhr.send();
-      const r = {ok: true};
+      await fbDel('feedback/'+key);
       console.log('deleteFeedback', key, 'sent');
-      if(!r.ok) {
-        console.error('deleteFeedback failed');
-        bamAlert('Something went wrong while deleting. Check the console for details.');
-        return;
-      }
       delete feedbackData[key];
       renderFeedback();
       const fbUnread=Object.values(feedbackData).filter(f=>!f.read).length;

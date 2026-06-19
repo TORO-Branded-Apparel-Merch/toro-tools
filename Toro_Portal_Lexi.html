@@ -170,6 +170,24 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 </div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script type="module">
+  // ── Firestore loader ──
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+  import { getFirestore, doc, getDoc, setDoc, deleteDoc, collection, query, where, onSnapshot, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+  const firebaseConfig = {
+    apiKey: "AIzaSyDEyTsbpo-E5Io5B_nop39jyk4gwInWCqQ",
+    authDomain: "toro-commission-318b4.firebaseapp.com",
+    projectId: "toro-commission-318b4",
+    storageBucket: "toro-commission-318b4.firebasestorage.app",
+    messagingSenderId: "764588278523",
+    appId: "1:764588278523:web:5ccbfb3354f492b7e1265e"
+  };
+  const app = initializeApp(firebaseConfig);
+  window._fsdb = getFirestore(app);
+  window._fs = { doc, getDoc, setDoc, deleteDoc, collection, query, where, onSnapshot, serverTimestamp };
+  window._fsReady = true;
+  window.dispatchEvent(new Event('fsready'));
+</script>
 <script>
 const REP = 'Lexi';
 const REP_LOWER = 'lexi';
@@ -179,7 +197,6 @@ const LOCK_KEY = 'toro_lock_lexi';
 const ATTEMPTS_KEY = 'toro_attempts_lexi';
 const DEFAULT_PW = 'Toro#Qd2fH';
 const PORTAL_VERSION = 'v2.35';
-const FIREBASE_DB_URL = 'https://toro-commission-318b4-default-rtdb.firebaseio.com';
 const FB_PATH = 'quotes/' + REP_LOWER;
 
 function bamAlert(msg, cb) {
@@ -250,59 +267,72 @@ function submitChangePw() {
   bamAlert('BAM! Password updated. Keep it safe!');
 }
 
-// ── Firebase ───────────────────────────────────────────────────────────────
+// ── Firestore ──────────────────────────────────────────────────────────────
 function fbKey(q) {
   if(q._fbKey) return q._fbKey;
   if(q.quoteNum) return q.quoteNum.replace(/[.#$\/\[\]]/g,'_');
   return 'q_' + Date.now();
 }
-function fbSet(path, data) {
-  const url = FIREBASE_DB_URL+'/'+path+'.json';
-  const method = data === null ? 'DELETE' : 'PUT';
-  const xhr = new XMLHttpRequest();
-  xhr.open(method, url, true);
-  xhr.setRequestHeader('Content-Type','application/json');
-  xhr.onreadystatechange = () => {
-    if(xhr.readyState !== 4) return;
-    if(xhr.status < 200 || xhr.status >= 300) console.error('fbSet failed:', method, path, xhr.status);
-  };
-  xhr.onerror = () => console.error('fbSet network error:', path);
-  xhr.send(data === null ? null : JSON.stringify(data));
+async function _fsWait() { if(!window._fsReady) await new Promise(res => window.addEventListener('fsready', res, {once:true})); }
+function _fsDocRef(path) {
+  // path like 'quotes/lexi/<qKey>' or 'quotes/lexi/<qKey>/<field>'
+  const parts = path.split('/');
+  const rep = parts[1], qKey = parts[2], field = parts[3] || null;
+  return { ref: window._fs.doc(window._fsdb, 'quotes', rep + '__' + qKey), field, rep };
 }
-function fbGet(path) {
-  return new Promise((resolve) => {
-    const xhr = new XMLHttpRequest();
-    // Use ?print=silent equivalent — add timeout to prevent hanging on large objects
-    xhr.open('GET', FIREBASE_DB_URL+'/'+path+'.json?timeout=10s', true);
-    xhr.timeout = 15000;
-    xhr.onreadystatechange = () => {
-      if(xhr.readyState !== 4) return;
-      if(xhr.status === 200) {
-        try { resolve(JSON.parse(xhr.responseText)); }
-        catch(e) { console.warn('fbGet parse error:',e.message); resolve(null); }
-      } else {
-        console.warn('fbGet failed:', xhr.status);
-        resolve(null);
-      }
-    };
-    xhr.onerror = () => { console.warn('fbGet network error'); resolve(null); };
-    xhr.ontimeout = () => { console.warn('fbGet timeout'); resolve(null); };
-    xhr.send();
-  });
+async function fbSet(path, data) {
+  await _fsWait();
+  const { ref, field, rep } = _fsDocRef(path);
+  try {
+    if(field) {
+      await window._fs.setDoc(ref, { [field]: data, rep }, { merge: true });
+    } else if(data === null) {
+      await window._fs.deleteDoc(ref);
+    } else {
+      await window._fs.setDoc(ref, { ...data, rep }, { merge: true });
+    }
+    console.log('fbSet OK', path);
+  } catch(err) { console.error('fbSet failed:', path, err.message); }
+}
+function fbDel(path) { return fbSet(path, null); }
+async function fbGet(path) {
+  await _fsWait();
+  const parts = path.split('/'); // 'quotes/lexi'
+  const rep = parts[1];
+  try {
+    const q = window._fs.query(window._fs.collection(window._fsdb, 'quotes'), window._fs.where('rep','==',rep));
+    const snap = await new Promise((resolve, reject) => {
+      const unsub = window._fs.onSnapshot(q, s => { unsub(); resolve(s); }, reject);
+    });
+    const out = {};
+    snap.docs.forEach(d => {
+      const qKey = d.id.split('__').slice(1).join('__');
+      const { rep: _r, ...rest } = d.data();
+      out[qKey] = rest;
+    });
+    return out;
+  } catch(err) { console.warn('fbGet failed:', path, err.message); return null; }
 }
 let fbListenerActive = false;
-let _sseLoaded = false; // true once SSE has successfully loaded data
+let _sseLoaded = false; // true once Firestore listener has successfully loaded data
 function fbListen(path, cb) {
-  const url = FIREBASE_DB_URL+'/'+path+'.json?timeout=55s';
-  let retry = 1000;
-  function connect() {
-    if(!fbListenerActive) return;
-    const es = new EventSource(url);
-    es.addEventListener('put', e => { try { cb(JSON.parse(e.data)); } catch(ex) {} });
-    es.addEventListener('patch', e => { try { cb(JSON.parse(e.data)); } catch(ex) {} });
-    es.onerror = () => { es.close(); if(fbListenerActive) setTimeout(connect, retry = Math.min(retry*2,30000)); };
-  }
-  connect();
+  _fsWait().then(() => {
+    const parts = path.split('/'); // 'quotes/lexi'
+    const rep = parts[1];
+    const q = window._fs.query(window._fs.collection(window._fsdb, 'quotes'), window._fs.where('rep','==',rep));
+    window._fs.onSnapshot(q, snapshot => {
+      if(!fbListenerActive) return;
+      snapshot.docChanges().forEach(change => {
+        const qKey = change.doc.id.split('__').slice(1).join('__');
+        if(change.type === 'removed') {
+          cb({ path: '/' + qKey, data: null });
+        } else {
+          const { rep: _r, ...rest } = change.doc.data();
+          cb({ path: '/' + qKey, data: rest });
+        }
+      });
+    }, err => console.error('fbListen error', path, err));
+  });
 }
 function setSyncing(v) {
   const dot = document.getElementById('sync-dot');
@@ -350,23 +380,6 @@ function saveQuote(q) {
   setSyncing(true);
   const key = fbKey(q);
   q._fbKey = key;
-  const url = FIREBASE_DB_URL+'/'+FB_PATH+'/'+key+'.json';
-  const xhr = new XMLHttpRequest();
-  xhr.open('PUT', url, true);
-  xhr.setRequestHeader('Content-Type','application/json');
-  xhr.onreadystatechange = () => {
-    if(xhr.readyState !== 4) return;
-    if(xhr.status < 200 || xhr.status >= 300) {
-      console.error('saveQuote failed:', xhr.status, key);
-      const lbl = document.getElementById('sync-label');
-      if(lbl) { lbl.textContent='Sync failed'; lbl.style.color='#ff6b6b'; }
-    }
-    setTimeout(()=>{_saving=false;setSyncing(false);},5000);
-  };
-  xhr.onerror = () => {
-    console.error('saveQuote network error:', key);
-    setTimeout(()=>{_saving=false;setSyncing(false);},5000);
-  };
   // Strip fields that are managed by the dashboard — never let portal overwrite them
   const DASHBOARD_FIELDS = ['workflowStatus','issueFlag','statusUpdatedAt','submittedAt','paidAt'];
   const payload = {...q};
@@ -374,7 +387,13 @@ function saveQuote(q) {
   // But DO preserve workflowStatus if it's a portal-owned status
   const PORTAL_STATUSES = ['active','readyForSubmission'];
   if(PORTAL_STATUSES.includes(q.workflowStatus)) payload.workflowStatus = q.workflowStatus;
-  xhr.send(JSON.stringify(payload));
+  fbSet(FB_PATH+'/'+key, payload).then(() => {
+    setTimeout(()=>{_saving=false;setSyncing(false);},2000);
+  }).catch(() => {
+    const lbl = document.getElementById('sync-label');
+    if(lbl) { lbl.textContent='Sync failed'; lbl.style.color='#ff6b6b'; }
+    setTimeout(()=>{_saving=false;setSyncing(false);},2000);
+  });
 }
 
 // ── File import ────────────────────────────────────────────────────────────
@@ -606,11 +625,14 @@ function submitForCommission(key) {
   if(!q) return;
   bamConfirm('Ready to charge! Submit this quote for commission? It will be moved to your archive.', async ok=>{
     if(!ok) return;
+    const submittedAt = new Date().toISOString();
     q.workflowStatus='submittedCommission';
-    q.submittedAt=new Date().toISOString();
+    q.submittedAt=submittedAt;
     render();
     localStorage.setItem(STORAGE_KEY,JSON.stringify(quotes));
-    saveQuote(q);
+    saveQuote(q); // saves the rest of the quote fields
+    fbSet(FB_PATH+'/'+key+'/workflowStatus', 'submittedCommission'); // explicit status push — saveQuote intentionally won't carry this
+    fbSet(FB_PATH+'/'+key+'/submittedAt', submittedAt);
     bamAlert('BAM! Commission submission recorded. Time to get paid!');
   });
 }
@@ -626,7 +648,12 @@ async function submitAllCommission() {
     for(const q of ready){q.workflowStatus='submittedCommission';q.submittedAt=submittedAt;}
     render();
     localStorage.setItem(STORAGE_KEY,JSON.stringify(quotes));
-    for(const q of ready) saveQuote(q);
+    for(const q of ready) {
+      saveQuote(q);
+      const key = fbKey(q);
+      fbSet(FB_PATH+'/'+key+'/workflowStatus', 'submittedCommission');
+      fbSet(FB_PATH+'/'+key+'/submittedAt', submittedAt);
+    }
     bamAlert('BAM! All '+ready.length+' quote'+(ready.length!==1?'s':'')+' submitted. Go get your money!');
   });
 }
@@ -666,14 +693,11 @@ function deleteQuote(key) {
     localStorage.setItem(STORAGE_KEY,JSON.stringify(quotes));
     fbListenerActive=false;
     _saving=true;
-    const delXhr = new XMLHttpRequest();
-    delXhr.open('DELETE', FIREBASE_DB_URL+'/'+FB_PATH+'/'+fbKey(q)+'.json', true);
-    delXhr.onreadystatechange = () => {
-      if(delXhr.readyState !== 4) return;
+    fbDel(FB_PATH+'/'+fbKey(q)).then(() => {
       setTimeout(()=>{_saving=false;fbListenerActive=true;},2000);
-    };
-    delXhr.onerror = () => { setTimeout(()=>{_saving=false;fbListenerActive=true;},2000); };
-    delXhr.send();
+    }).catch(() => {
+      setTimeout(()=>{_saving=false;fbListenerActive=true;},2000);
+    });
   });
 }
 
@@ -782,31 +806,8 @@ function runReport() {
 // ── Listeners & Init ──────────────────────────────────────────────────────
 function startListeners() {
   fbListenerActive = true;
-  let first = true;
   fbListen(FB_PATH, ev => {
     if(!ev) return;
-    if(first) {
-      first = false;
-      // Use the first SSE event (full snapshot) as our initial load
-      if(ev.data && typeof ev.data === 'object' && (!ev.path || ev.path === '/')) {
-        const incoming = Object.entries(ev.data)
-          .filter(([k,v]) => v && typeof v === 'object')
-          .map(([k,v]) => {
-            const q = {...v, _fbKey: k};
-            if(!q.workflowStatus) q.workflowStatus = 'active';
-            if(!q.status) q.status = {};
-            if(['needsApproval','waitingApproval'].includes(q.workflowStatus)) q.workflowStatus = 'active';
-            return q;
-          });
-        // Trust Firebase - it has the authoritative state
-        quotes = incoming;
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(quotes));
-        _sseLoaded = true;
-        setSyncing(false);
-        render();
-      }
-      return;
-    }
     if(_saving) return;
     if(ev.path && ev.path !== '/' && ev.data !== undefined) {
       const parts = ev.path.replace(/^\//, '').split('/');
@@ -830,7 +831,6 @@ function startListeners() {
         }
       }
     } else if(ev.data && typeof ev.data === 'object') {
-      // Full node replace — only fires on initial connect (skipped by 'first') or full rewrites
       quotes = Object.entries(ev.data)
         .filter(([k,v]) => v && typeof v === 'object')
         .map(([k,v]) => {
@@ -841,6 +841,8 @@ function startListeners() {
       quotes = [];
     }
     localStorage.setItem(STORAGE_KEY, JSON.stringify(quotes));
+    _sseLoaded = true;
+    setSyncing(false);
     render();
   });
 }
