@@ -203,14 +203,28 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
       <div id="deco-wrap" class="hidden">
         <div style="border-top:1px solid var(--border);margin:16px 0;"></div>
         <div style="font-size:13px;font-weight:700;color:var(--text2);margin-bottom:12px;">Decoration</div>
+        <div id="deco-single">
         <div class="row3">
           <div class="field"><label>Method <span class="req">*</span></label>
             <select id="d-method">
               <option value="">Select method</option>
-              <option>Screen printing</option><option>Embroidery</option><option>DTF</option>
-              <option>Heat press</option><option>Laser engraving</option>
-              <option>Deboss</option><option>Emboss</option>
-              <option>Pad printing</option><option>Digital print</option><option>Other</option>
+              <optgroup label="Apparel / accessories">
+                <option>Screen printing</option>
+                <option>Embroidery</option>
+                <option>DTF</option>
+                <option>Heat press</option>
+                <option>Vinyl</option>
+              </optgroup>
+              <optgroup label="Hard goods">
+                <option>Pad print</option>
+                <option>Silkscreen</option>
+                <option>Laser engrave</option>
+                <option>Deboss</option>
+                <option>Embroidery</option>
+                <option>Full color digital</option>
+                <option>Foil stamp</option>
+              </optgroup>
+              <option>Other</option>
             </select>
           </div>
           <div class="field"><label>Location(s) <span class="req">*</span></label><input type="text" id="d-loc" placeholder=""></div>
@@ -220,6 +234,12 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
           <div class="field"><label>Imprint colors <span class="req">*</span></label><input type="text" id="d-colors" placeholder="e.g. Red, White, PMS 286 C"></div>
           <div class="field"><label>Design details</label><input type="text" id="d-count" placeholder="e.g. 2 colors, 7,500 stitches"></div>
           <div class="field"><label>Special deco instructions</label><input type="text" id="d-notes" placeholder="Any special notes"></div>
+        </div>
+        </div>
+        <!-- Per-imprint editable blocks for hard goods (populated on selection) -->
+        <div id="deco-hg" class="hidden">
+          <div style="font-size:11px;color:var(--text3);margin-bottom:10px;">Each imprint below will appear as its own line on the PO. Edit here and the changes carry straight onto the PO.</div>
+          <div id="deco-hg-list"></div>
         </div>
       </div>
 
@@ -316,21 +336,26 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 
 <script>
 // ── State ──────────────────────────────────────────────────────────────────
-const PO_VERSION = 'v1.8';
+const PO_VERSION = 'v2.1';
 
-// Map a Quote Builder hard-good decoration value to a vendor-facing label.
-// Covers all QB hard-good deco options plus legacy lowercase keys.
+// Map a Quote Builder decoration value to the matching dropdown label.
+// Keys are the values the Quote Builder actually serializes; labels match the
+// d-method dropdown wording exactly so prefill and PO output line up.
 const HG_DECO_MAP = {
-  'Blank':'Blank','blank':'Blank',
-  'Pad Print':'Pad printing','pad-print':'Pad printing','Pad printing':'Pad printing',
-  'Silkscreen':'Silkscreen','silkscreen':'Silkscreen','Screen printing':'Screen printing','screen-print':'Screen printing','screen':'Screen printing',
-  'Laser Engrave':'Laser engraving','Laser engrave':'Laser engraving','laser':'Laser engraving','Laser engraving':'Laser engraving',
+  // Hard goods (QB hard-good deco select)
+  'Blank':'Blank',
+  'Pad Print':'Pad print','Pad print':'Pad print','pad-print':'Pad print','Pad printing':'Pad print',
+  'Silkscreen':'Silkscreen','silkscreen':'Silkscreen',
+  'Laser Engrave':'Laser engrave','Laser engrave':'Laser engrave','laser':'Laser engrave','Laser engraving':'Laser engrave',
   'Deboss':'Deboss','deboss':'Deboss',
-  'Emboss':'Emboss','emboss':'Emboss',
   'Embroidery':'Embroidery','embroidery':'Embroidery',
-  'Full Color Digital':'Full color digital','Digital print':'Digital print','digital':'Digital print','dtf':'DTF','DTF':'DTF',
-  'Foil Stamp':'Foil stamp','foil':'Foil stamp',
-  'Heat press':'Heat press','heat':'Heat press','vinyl':'Vinyl',
+  'Full Color Digital':'Full color digital','Full color digital':'Full color digital','digital':'Full color digital','Digital print':'Full color digital',
+  'Foil Stamp':'Foil stamp','Foil stamp':'Foil stamp','foil':'Foil stamp',
+  // Apparel imprint types (QB pills: screen/embroidery/dtf/heat/vinyl)
+  'screen':'Screen printing','Screen printing':'Screen printing','screen-print':'Screen printing','Screen print':'Screen printing',
+  'dtf':'DTF','DTF':'DTF',
+  'heat':'Heat press','Heat press':'Heat press',
+  'vinyl':'Vinyl','Vinyl':'Vinyl',
 };
 // decRaw is the stored value; otherText is the free-text used when decRaw==='Other'
 function hgDecoLabel(decRaw, otherText){
@@ -536,6 +561,7 @@ function selectType(type, label, btn) {
   document.getElementById('proof-wrap').classList.toggle('hidden', type==='blank');
   buildItemList(type);
   clearAutoFills();
+  renderHGImprints();
 }
 
 function buildItemList(type) {
@@ -549,7 +575,10 @@ function buildItemList(type) {
     if(!hgs.length) { list.innerHTML = '<p style="color:var(--text3);font-size:13px;">No hard goods in this quote.</p>'; return; }
     hgs.forEach((h,i) => {
       const qty = parseInt(h.hg_qty)||0;
-      list.appendChild(makeCheck('hg_'+i, (h.hg_desc||'Hard good'), [h.hg_vendor?'Vendor: '+h.hg_vendor:'',h.hg_sku?'SKU: '+h.hg_sku:'',h.hg_item_color?'Color: '+h.hg_item_color:'','Qty: '+qty].filter(Boolean).join(' · '), 'hg', i));
+      const shareNote = (h.hg_imp_shared && h.hg_imp_share_with)
+        ? (()=>{ const t=hgs.find(x=>String(x.id)===String(h.hg_imp_share_with)); return t ? 'Shares imprint with: '+(t.hg_item_color||t.hg_desc||'') : ''; })()
+        : '';
+      list.appendChild(makeCheck('hg_'+i, (h.hg_desc||'Hard good'), [h.hg_vendor?'Vendor: '+h.hg_vendor:'',h.hg_sku?'SKU: '+h.hg_sku:'',h.hg_item_color?'Color: '+h.hg_item_color:'','Qty: '+qty,shareNote].filter(Boolean).join(' · '), 'hg', i));
     });
   } else {
     if(!garments.length) { list.innerHTML = '<p style="color:var(--text3);font-size:13px;">No apparel items in this quote.</p>'; return; }
@@ -575,6 +604,7 @@ function toggleItem(chk, type, idx) {
   if(chk.checked) { selectedItems.push({type,idx,key}); chk.closest('.item-check').classList.add('selected'); }
   else { selectedItems = selectedItems.filter(i=>i.key!==key); chk.closest('.item-check').classList.remove('selected'); }
   autoFill();
+  renderHGImprints();
 }
 
 function setVal(id, val) { const el=document.getElementById(id); if(el&&val&&!el.value) el.value=val; }
@@ -634,6 +664,81 @@ function autoFill() {
   }
 }
 
+function escAttr(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/"/g,'&quot;'); }
+function setSelectValue(sel, val){
+  if(!sel) return;
+  if(!val){ sel.value=''; return; }
+  const o = Array.from(sel.options).find(o=>o.value===val||o.text===val);
+  if(o){ sel.value=o.value; }
+  else { const opt=document.createElement('option'); opt.text=val; opt.value=val; sel.appendChild(opt); sel.value=val; }
+}
+
+// Build the editable per-imprint blocks for selected hard goods.
+// Group selected hard goods by shared imprint. Cards that share an imprint
+// with another hard good are merged under that hard good's id ("root").
+// Returns [{rootId, rootH, members:[{h,idx}], qtyTotal}]
+function getHGImprintGroups(){
+  const q = quoteData;
+  const hgs = q.hardGoods||[];
+  const hgItems = selectedItems.filter(i=>i.type==='hg');
+  const groups = {};
+  hgItems.forEach(it=>{
+    const h = hgs[it.idx]; if(!h) return;
+    const rootId = (h.hg_imp_shared && h.hg_imp_share_with) ? String(h.hg_imp_share_with) : String(h.id);
+    if(!groups[rootId]) groups[rootId] = {rootId, members:[]};
+    groups[rootId].members.push({h, idx:it.idx});
+  });
+  return Object.values(groups).map(g=>{
+    const rootH = hgs.find(x=>String(x.id)===g.rootId) || g.members[0].h;
+    const qtyTotal = g.members.reduce((s,m)=>s+(parseInt(m.h.hg_qty)||0),0);
+    return {rootId:g.rootId, rootH, members:g.members, qtyTotal};
+  });
+}
+
+function renderHGImprints(){
+  const wrap = document.getElementById('deco-hg');
+  const single = document.getElementById('deco-single');
+  const list = document.getElementById('deco-hg-list');
+  if(!wrap||!single||!list) return;
+  if(currentType !== 'hg'){ wrap.classList.add('hidden'); single.classList.remove('hidden'); list.innerHTML=''; return; }
+  single.classList.add('hidden');
+  wrap.classList.remove('hidden');
+  const groups = getHGImprintGroups();
+  if(!groups.length){ list.innerHTML='<p style="color:var(--text3);font-size:13px;">Select a hard good above to set its imprint(s).</p>'; return; }
+  const optsHTML = document.getElementById('d-method').innerHTML;
+  let html='';
+  groups.forEach(grp=>{
+    const h = grp.rootH;
+    const title = h.hg_desc||'Hard good';
+    const memberLabel = grp.members.length>1
+      ? grp.members.map(m=>(m.h.hg_item_color||m.h.hg_desc)+' ('+(parseInt(m.h.hg_qty)||0)+')').join(', ')
+      : '';
+    const imps=[{loc:h.hg_dec_loc||'', design:h.hg_design||h.hg_desc||'', colors:h.hg_colors||''}];
+    (h.hg_imp_areas||[]).forEach(a=>imps.push({loc:a.loc||'', design:a.design||h.hg_design||'', colors:a.colors||''}));
+    imps.forEach((imp,ii)=>{
+      const base='hgi_g'+grp.rootId+'_'+ii;
+      html+=`<div class="hgi-block" data-root="${grp.rootId}" data-imp="${ii}" style="border:1px solid var(--border);border-radius:6px;padding:10px 12px;margin-bottom:8px;background:#fafafb;">
+        <div style="font-size:11px;font-weight:800;color:var(--red);margin-bottom:4px;">${title} — Imprint ${ii+1} <span style="color:var(--text3);font-weight:600;">· Total qty: ${grp.qtyTotal}</span></div>
+        ${memberLabel?`<div style="font-size:10px;color:var(--text3);margin-bottom:8px;">Includes: ${memberLabel}</div>`:''}
+        <div class="row3">
+          <div class="field"><label>Method <span class="req">*</span></label><select id="${base}_method">${optsHTML}</select></div>
+          <div class="field"><label>Location(s)</label><input type="text" id="${base}_loc" value="${escAttr(imp.loc)}" placeholder="e.g. Front, Back"></div>
+          <div class="field"><label>Design / art name</label><input type="text" id="${base}_design" value="${escAttr(imp.design)}"></div>
+        </div>
+        <div class="row3">
+          <div class="field"><label>Imprint colors</label><input type="text" id="${base}_colors" value="${escAttr(imp.colors)}" placeholder="e.g. Red, White"></div>
+        </div>
+      </div>`;
+    });
+  });
+  list.innerHTML=html;
+  groups.forEach(grp=>{
+    const h = grp.rootH;
+    const methods=[hgDecoLabel(h.hg_dec,h.hg_dec_other)].concat((h.hg_imp_areas||[]).map(a=>hgDecoLabel(a.dec,a.dec_other)));
+    methods.forEach((mv,ii)=>setSelectValue(document.getElementById('hgi_g'+grp.rootId+'_'+ii+'_method'), mv));
+  });
+}
+
 function clearAutoFills() {
   ['v-name','v-email','v-phone','v-acct','d-method','d-loc','d-art','d-colors','d-count','d-notes','rep-name','rep-email','order-notes','proof-notes','ship-name','ship-company','ship-addr1','ship-addr2','ship-city','ship-state','ship-zip'].forEach(id=>{
     const el=document.getElementById(id); if(el&&el.tagName!=='SELECT') el.value=''; else if(el) el.value='';
@@ -646,11 +751,20 @@ function clearAutoFills() {
 function validate() {
   if(!selectedItems.length) { bamAlert('Please select at least one item.'); return false; }
   const req = [['v-name','Vendor name'],['v-email','Vendor email'],['rep-name','Rep name'],['rep-email','Rep email']];
-  if(currentType !== 'blank') req.push(['d-method','Decoration method'],['d-loc','Imprint location'],['d-art','Design / art name'],['d-colors','Imprint colors']);
+  if(currentType === 'decorated') req.push(['d-method','Decoration method'],['d-loc','Imprint location'],['d-art','Design / art name'],['d-colors','Imprint colors']);
   for(const [id,label] of req) {
     const el=document.getElementById(id);
     if(!el||!el.value.trim()) { if(el){el.style.borderColor='var(--red)';el.focus();} bamAlert('Please fill in: <strong>'+label+'</strong> (and any other highlighted fields)'); return false; }
     el.style.borderColor='';
+  }
+  if(currentType === 'hg') {
+    const blocks = document.querySelectorAll('#deco-hg-list .hgi-block');
+    if(!blocks.length) { bamAlert('No imprints found for the selected hard good(s).'); return false; }
+    for(const b of blocks) {
+      const sel=document.getElementById('hgi_g'+b.dataset.root+'_'+b.dataset.imp+'_method');
+      if(!sel||!sel.value.trim()) { if(sel){sel.style.borderColor='var(--red)';sel.focus();} bamAlert('Please choose a method for every imprint.'); return false; }
+      if(sel) sel.style.borderColor='';
+    }
   }
   if(currentType !== 'blank') {
     if(!document.querySelector('input[name="proof"]:checked')) { bamAlert('Please select a proof requirement.'); return false; }
@@ -738,8 +852,36 @@ function captureFormData() {
     type: currentType, typeLabel: currentTypeLabel,
     items: selectedItems.map(item => {
       if(item.type==='g') return {type:'g', data:(q.garments||[])[item.idx]};
-      if(item.type==='hg') return {type:'hg', data:(q.hardGoods||[])[item.idx]};
-    }).filter(Boolean)
+      if(item.type==='hg') {
+        const orig=(q.hardGoods||[])[item.idx];
+        if(!orig) return null;
+        return {type:'hg', data:JSON.parse(JSON.stringify(orig))}; // clone so we don't mutate the quote
+      }
+    }).filter(Boolean),
+    // Decoration groups for hard goods: one entry per shared-imprint group,
+    // capturing whatever the rep edited in the builder's per-imprint blocks.
+    hgGroups: (currentType==='hg' ? getHGImprintGroups() : []).map(grp=>{
+      const h = grp.rootH;
+      const baseArt = h.hg_design||h.hg_desc||'';
+      const impCount = 1 + (h.hg_imp_areas||[]).length;
+      const imps = [];
+      for(let ii=0; ii<impCount; ii++){
+        const base='hgi_g'+grp.rootId+'_'+ii;
+        const fallbackArt = ii===0 ? baseArt : ((h.hg_imp_areas||[])[ii-1]?.design || baseArt);
+        imps.push({
+          method: document.getElementById(base+'_method')?.value||'',
+          loc: document.getElementById(base+'_loc')?.value||'',
+          art: document.getElementById(base+'_design')?.value||fallbackArt,
+          colors: document.getElementById(base+'_colors')?.value||''
+        });
+      }
+      return {
+        title: h.hg_desc||'Hard good',
+        qtyTotal: grp.qtyTotal,
+        members: grp.members.map(m=>({label:(m.h.hg_item_color||m.h.hg_desc||''), qty:parseInt(m.h.hg_qty)||0})),
+        imps
+      };
+    })
   };
 }
 
@@ -915,41 +1057,29 @@ function buildPOHTML(poNum, d) {
           });
         }
       } else if(item.type === 'hg') {
-        const h = item.data;
-        if(!h) return;
-        const itemTitle = h.hg_desc||'Hard good';
-        const baseArt = h.hg_design||h.hg_desc||'';
-        // Build the full imprint list: primary decoration + each additional area.
-        const hgImprints = [];
-        if(h.hg_dec && h.hg_dec !== 'none' && h.hg_dec !== 'Blank') {
-          hgImprints.push({
-            method: hgDecoLabel(h.hg_dec, h.hg_dec_other),
-            loc: h.hg_dec_loc || '',
-            art: baseArt,
-            colors: h.hg_colors || ''
-          });
-        }
-        (h.hg_imp_areas||[]).forEach(a => {
-          const am = hgDecoLabel(a.dec, a.dec_other);
-          if(a.dec === 'Blank' && !a.loc && !a.colors && !a.design) return; // skip empty area
-          hgImprints.push({ method: am, loc: a.loc||'', art: a.design||baseArt, colors: a.colors||'' });
-        });
-        if(!hgImprints.length) return;
-        const multi = hgImprints.length > 1;
-        hgImprints.forEach((imp, ii) => {
-          const impLabel = multi ? ` — Imprint ${ii+1}` : '';
-          perItemDecoHTML += `
-            <div style="margin-bottom:8px;padding:8px 10px;background:#f8f8fa;border-radius:5px;border-left:3px solid #BC112A;">
-              <div style="font-size:11px;font-weight:800;color:#BC112A;margin-bottom:6px;">${itemTitle}${impLabel}</div>
-              <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;font-size:11px;">
-                <div><span style="font-size:10px;font-weight:700;text-transform:uppercase;color:#888;display:block;margin-bottom:3px;">Method</span><input class="po-field-edit" style="font-size:13px;font-weight:700;" value="${imp.method||''}"></div>
-                <div><span style="font-size:10px;font-weight:700;text-transform:uppercase;color:#888;display:block;margin-bottom:3px;">Location(s)</span><input class="po-field-edit" style="font-size:13px;font-weight:700;" value="${imp.loc||''}"></div>
-                <div><span style="font-size:10px;font-weight:700;text-transform:uppercase;color:#888;display:block;margin-bottom:3px;">Art / design name</span><input class="po-field-edit" style="font-size:13px;font-weight:700;" value="${imp.art||''}"></div>
-                <div style="grid-column:span 3;"><span style="font-size:10px;font-weight:700;text-transform:uppercase;color:#888;display:block;margin-bottom:3px;">Imprint colors <span style="color:#BC112A">&#9733;</span></span><input class="po-field-edit" style="font-size:14px;font-weight:800;color:#BC112A;" value="${imp.colors||''}"></div>
-              </div>
-            </div>`;
-        });
+        return; // hard-good decoration is rendered once per shared-imprint group below, not per item
       }
+    });
+    // Hard-good imprints — one block per shared-imprint group (pooled quantity)
+    (d.hgGroups||[]).forEach(grp => {
+      const multi = grp.imps.length > 1;
+      const memberLabel = grp.members.length > 1
+        ? grp.members.map(m=>m.label+' ('+m.qty+')').join(', ')
+        : '';
+      grp.imps.forEach((imp, ii) => {
+        const impLabel = multi ? ` — Imprint ${ii+1}` : '';
+        perItemDecoHTML += `
+          <div style="margin-bottom:8px;padding:8px 10px;background:#f8f8fa;border-radius:5px;border-left:3px solid #BC112A;">
+            <div style="font-size:11px;font-weight:800;color:#BC112A;margin-bottom:2px;">${grp.title}${impLabel} <span style="color:#999;font-weight:600;">· Qty ${grp.qtyTotal}</span></div>
+            ${memberLabel?`<div style="font-size:10px;color:#999;margin-bottom:6px;">Includes: ${memberLabel}</div>`:''}
+            <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;font-size:11px;">
+              <div><span style="font-size:10px;font-weight:700;text-transform:uppercase;color:#888;display:block;margin-bottom:3px;">Method</span><input class="po-field-edit" style="font-size:13px;font-weight:700;" value="${imp.method||''}"></div>
+              <div><span style="font-size:10px;font-weight:700;text-transform:uppercase;color:#888;display:block;margin-bottom:3px;">Location(s)</span><input class="po-field-edit" style="font-size:13px;font-weight:700;" value="${imp.loc||''}"></div>
+              <div><span style="font-size:10px;font-weight:700;text-transform:uppercase;color:#888;display:block;margin-bottom:3px;">Art / design name</span><input class="po-field-edit" style="font-size:13px;font-weight:700;" value="${imp.art||''}"></div>
+              <div style="grid-column:span 3;"><span style="font-size:10px;font-weight:700;text-transform:uppercase;color:#888;display:block;margin-bottom:3px;">Imprint colors <span style="color:#BC112A">&#9733;</span></span><input class="po-field-edit" style="font-size:14px;font-weight:800;color:#BC112A;" value="${imp.colors||''}"></div>
+            </div>
+          </div>`;
+      });
     });
   }
 
@@ -1175,6 +1305,9 @@ function resetForm() {
   document.getElementById('step2').classList.add('hidden');
   document.getElementById('step3').classList.add('hidden');
   clearAutoFills();
+  const _l=document.getElementById('deco-hg-list'); if(_l)_l.innerHTML='';
+  const _hg=document.getElementById('deco-hg'); if(_hg)_hg.classList.add('hidden');
+  const _sg=document.getElementById('deco-single'); if(_sg)_sg.classList.remove('hidden');
 }
 
 // ── Split PO ───────────────────────────────────────────────────────────────
