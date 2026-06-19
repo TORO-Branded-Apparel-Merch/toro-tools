@@ -506,10 +506,10 @@ function quoteCard(q, locked) {
     if(q.workflowStatus==='paid') {
       actionBtns+='<span style="display:inline-block;background:#16a34a;color:#fff;font-size:11px;font-weight:700;padding:4px 10px;border-radius:10px;">✓ Paid</span>';
     } else if(q.workflowStatus==='approvedForPayment') {
-      actionBtns+='<span style="display:inline-block;background:#16a34a;color:#fff;font-size:11px;font-weight:700;padding:4px 10px;border-radius:10px;">✅ Approved</span>';
-    } else if(q.workflowStatus==='submittedCommission'||q.workflowStatus==='submitted') {
       actionBtns+='<button class="btn btn-green btn-sm" data-key="'+encKey+'" onclick="markRepPaid(decodeURIComponent(this.dataset.key))">💰 Mark as Paid</button>';
-      actionBtns+='<span style="display:inline-block;background:#6366f1;color:#fff;font-size:11px;font-weight:700;padding:4px 10px;border-radius:10px;margin-left:6px;">Submitted</span>';
+      actionBtns+='<span style="display:inline-block;background:#16a34a;color:#fff;font-size:11px;font-weight:700;padding:4px 10px;border-radius:10px;margin-left:6px;">✅ Approved</span>';
+    } else if(q.workflowStatus==='submittedCommission'||q.workflowStatus==='submitted') {
+      actionBtns+='<span style="display:inline-block;background:#6366f1;color:#fff;font-size:11px;font-weight:700;padding:4px 10px;border-radius:10px;">Submitted — awaiting approval</span>';
     }
     actionBtns+='<button class="del-btn" data-key="'+encKey+'" onclick="deleteQuote(decodeURIComponent(this.dataset.key))">🗑</button>';
   }
@@ -704,6 +704,10 @@ function deleteQuote(key) {
 function markRepPaid(key) {
   const q = quotes.find(x => fbKey(x) === key);
   if(!q) { bamAlert('Could not find quote. Try refreshing.'); return; }
+  if(q.workflowStatus !== 'approvedForPayment') {
+    bamAlert('This quote hasn\'t been approved by management yet — nothing to mark paid.');
+    return;
+  }
   bamConfirm('Mark <strong>'+(q.quoteName||q.quoteNum)+'</strong> as paid? This confirms you received your commission.', ok => {
     if(!ok) return;
     const paidAt = new Date().toISOString();
