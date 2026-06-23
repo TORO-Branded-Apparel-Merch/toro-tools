@@ -336,7 +336,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 
 <script>
 // ── State ──────────────────────────────────────────────────────────────────
-const PO_VERSION = 'v2.1';
+const PO_VERSION = 'v2.2';
 
 // Map a Quote Builder decoration value to the matching dropdown label.
 // Keys are the values the Quote Builder actually serializes; labels match the
@@ -924,13 +924,13 @@ function buildPOHTML(poNum, d) {
                 <td><input class="po-field-edit po-calc" data-role="qty" value="${r.qty}" style="width:60px;text-align:center;" oninput="recalcPORow(this)"></td>
                 <td><input class="po-field-edit po-calc" data-role="cost" value="${fmt(r.cost)}" style="width:80px;" oninput="recalcPORow(this)"></td>
                 <td style="font-weight:600;" class="po-line-total">${fmt(r.qty*(r.cost||0))}</td>
-                <td><button onclick="this.closest('tr').remove();recalcPOTable(this)" style="border:none;background:none;cursor:pointer;color:#bbb;font-size:13px;padding:2px 4px;" title="Remove row">✕</button></td>
+                <td><button onclick="const _tb=this.closest('tbody');this.closest('tr').remove();recalcPOTable(_tb);syncCurrentPOEdits();" style="border:none;background:none;cursor:pointer;color:#bbb;font-size:13px;padding:2px 4px;" title="Remove row">✕</button></td>
               </tr>`).join('')}
               ${(g.g_misc_fees||[]).map((f,fi)=>`<tr id="po-row-gf-${poNum.replace(/[^a-z0-9]/gi,'_')}-${fi}">
                 <td colspan="2"><input class="po-field-edit" value="${f.desc||'Misc fee'}" style="font-style:italic;"></td>
                 <td></td>
                 <td class="po-line-total"><input class="po-field-edit po-calc" data-role="flat" value="${fmt(f.net)}" style="width:80px;" oninput="recalcPOTable(this)"></td>
-                <td><button onclick="this.closest('tr').remove();recalcPOTable(this)" style="border:none;background:none;cursor:pointer;color:#bbb;font-size:13px;padding:2px 4px;" title="Remove row">✕</button></td>
+                <td><button onclick="const _tb=this.closest('tbody');this.closest('tr').remove();recalcPOTable(_tb);syncCurrentPOEdits();" style="border:none;background:none;cursor:pointer;color:#bbb;font-size:13px;padding:2px 4px;" title="Remove row">✕</button></td>
               </tr>`).join('')}
               <tr class="po-total-row" style="background:#f5f5f7;font-weight:700;">
                 <td colspan="3">Total</td>
@@ -965,35 +965,35 @@ function buildPOHTML(poNum, d) {
                 <td><input class="po-field-edit po-calc" data-role="qty" value="${qty}" style="width:60px;text-align:center;" oninput="recalcPORow(this)"></td>
                 <td><input class="po-field-edit po-calc" data-role="cost" value="${fmt(cost)}" style="width:80px;" oninput="recalcPORow(this)"></td>
                 <td class="po-line-total">${fmt(qty*cost)}</td>
-                <td><button onclick="this.closest('tr').remove();recalcPOTable(this)" style="border:none;background:none;cursor:pointer;color:#bbb;font-size:13px;padding:2px 4px;" title="Remove row">✕</button></td>
+                <td><button onclick="const _tb=this.closest('tbody');this.closest('tr').remove();recalcPOTable(_tb);syncCurrentPOEdits();" style="border:none;background:none;cursor:pointer;color:#bbb;font-size:13px;padding:2px 4px;" title="Remove row">✕</button></td>
               </tr>
               ${run>0?`<tr>
                 <td>Run charge</td>
                 <td><input class="po-field-edit po-calc" data-role="qty" value="${qty}" style="width:60px;text-align:center;" oninput="recalcPORow(this)"></td>
                 <td><input class="po-field-edit po-calc" data-role="cost" value="${fmt(run)}" style="width:80px;" oninput="recalcPORow(this)"></td>
                 <td class="po-line-total">${fmt(qty*run)}</td>
-                <td><button onclick="this.closest('tr').remove();recalcPOTable(this)" style="border:none;background:none;cursor:pointer;color:#bbb;font-size:13px;padding:2px 4px;" title="Remove row">✕</button></td>
+                <td><button onclick="const _tb=this.closest('tbody');this.closest('tr').remove();recalcPOTable(_tb);syncCurrentPOEdits();" style="border:none;background:none;cursor:pointer;color:#bbb;font-size:13px;padding:2px 4px;" title="Remove row">✕</button></td>
               </tr>`:''}
               ${setup>0?`<tr>
                 <td>Setup / die charge</td>
                 <td>1</td>
                 <td><input class="po-field-edit po-calc" data-role="flat" value="${fmt(setup)}" style="width:80px;" oninput="recalcPOTable(this)"></td>
                 <td class="po-line-total">${fmt(setup)}</td>
-                <td><button onclick="this.closest('tr').remove();recalcPOTable(this)" style="border:none;background:none;cursor:pointer;color:#bbb;font-size:13px;padding:2px 4px;" title="Remove row">✕</button></td>
+                <td><button onclick="const _tb=this.closest('tbody');this.closest('tr').remove();recalcPOTable(_tb);syncCurrentPOEdits();" style="border:none;background:none;cursor:pointer;color:#bbb;font-size:13px;padding:2px 4px;" title="Remove row">✕</button></td>
               </tr>`:''}
               ${rush>0?`<tr>
                 <td>Rush / extra fees</td>
                 <td>1</td>
                 <td><input class="po-field-edit po-calc" data-role="flat" value="${fmt(rush)}" style="width:80px;" oninput="recalcPOTable(this)"></td>
                 <td class="po-line-total">${fmt(rush)}</td>
-                <td><button onclick="this.closest('tr').remove();recalcPOTable(this)" style="border:none;background:none;cursor:pointer;color:#bbb;font-size:13px;padding:2px 4px;" title="Remove row">✕</button></td>
+                <td><button onclick="const _tb=this.closest('tbody');this.closest('tr').remove();recalcPOTable(_tb);syncCurrentPOEdits();" style="border:none;background:none;cursor:pointer;color:#bbb;font-size:13px;padding:2px 4px;" title="Remove row">✕</button></td>
               </tr>`:''}
               ${(h.hg_misc_fees||[]).map(f=>`<tr>
                 <td><input class="po-field-edit" value="${f.desc||'Misc fee'}" style="font-style:italic;"></td>
                 <td>1</td>
                 <td><input class="po-field-edit po-calc" data-role="flat" value="${fmt(f.net)}" style="width:80px;" oninput="recalcPOTable(this)"></td>
                 <td class="po-line-total">${fmt(f.net)}</td>
-                <td><button onclick="this.closest('tr').remove();recalcPOTable(this)" style="border:none;background:none;cursor:pointer;color:#bbb;font-size:13px;padding:2px 4px;" title="Remove row">✕</button></td>
+                <td><button onclick="const _tb=this.closest('tbody');this.closest('tr').remove();recalcPOTable(_tb);syncCurrentPOEdits();" style="border:none;background:none;cursor:pointer;color:#bbb;font-size:13px;padding:2px 4px;" title="Remove row">✕</button></td>
               </tr>`).join('')}
               <tr class="po-total-row" style="background:#f5f5f7;font-weight:700;">
                 <td colspan="3">Total</td>
@@ -1190,7 +1190,7 @@ function updateQueueUI() {
     tab.className = 'po-tab';
     tab.id = 'tab-'+i;
     tab.innerHTML = po.poNum+'<span class="tab-del" onclick="event.stopPropagation();removePO('+i+')" title="Remove">✕</span>';
-    tab.onclick = () => openPO(i);
+    tab.onclick = () => { syncCurrentPOEdits(); openPO(i); };
     tabs.appendChild(tab);
   });
 }
@@ -1204,6 +1204,30 @@ function removePO(idx) {
   });
 }
 
+// Keep the queued PO's stored HTML in sync with whatever's actually on
+// screen in the modal right now. Editing a field or deleting a row only
+// changes the live DOM — without this, printing or exporting later reopens
+// the original unedited snapshot and silently discards every change made.
+//
+// innerHTML serializes an <input>/<textarea>'s "value" ATTRIBUTE, not its
+// live ".value" PROPERTY — typing into a field never touches the attribute,
+// so a naive innerHTML read would silently drop every text edit (it would
+// still catch row deletions, since those are real structural DOM changes,
+// which is why that part appeared to work in isolation). Stamping the live
+// value onto the attribute first makes the snapshot actually match the screen.
+function syncCurrentPOEdits() {
+  if(currentModalPO===null) return;
+  const c = document.getElementById('po-modal-content');
+  if(!c || !poQueue[currentModalPO]) return;
+  c.querySelectorAll('input').forEach(el => el.setAttribute('value', el.value));
+  c.querySelectorAll('textarea').forEach(el => { el.textContent = el.value; });
+  c.querySelectorAll('select').forEach(el => {
+    el.querySelectorAll('option').forEach(o => o.removeAttribute('selected'));
+    if(el.selectedOptions[0]) el.selectedOptions[0].setAttribute('selected','');
+  });
+  poQueue[currentModalPO].html = c.innerHTML;
+}
+
 function openPO(idx) {
   const po = poQueue[idx];
   if(!po) return;
@@ -1215,6 +1239,7 @@ function openPO(idx) {
 }
 
 function closeModal() {
+  syncCurrentPOEdits();
   document.getElementById('po-modal').style.display = 'none';
   currentModalPO = null;
   document.querySelectorAll('.po-tab').forEach(t=>t.classList.remove('active'));
@@ -1222,6 +1247,7 @@ function closeModal() {
 
 function printCurrentPO() {
   if(currentModalPO===null) return;
+  syncCurrentPOEdits();
   const po = poQueue[currentModalPO];
   openPrintTab(po.poNum, po.html);
 }
@@ -1569,7 +1595,9 @@ function recalcPORow(input) {
 }
 
 function recalcPOTable(input) {
-  const tbody = input.closest('tbody');
+  // input may be the tbody itself (passed after the row was already removed)
+  // or an element still inside it (legacy callers) — handle both.
+  const tbody = (input && input.tagName === 'TBODY') ? input : input?.closest?.('tbody');
   if(!tbody) return;
   const grandEl = tbody.querySelector('.po-grand-total');
   if(!grandEl) return;
