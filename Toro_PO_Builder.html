@@ -210,7 +210,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
         <div id="deco-single">
         <div class="row3">
           <div class="field"><label>Method <span class="req">*</span></label>
-            <select id="d-method">
+            <select id="d-method" onchange="toggleDecoMethodOther(this.value)">
               <option value="">Select method</option>
               <optgroup label="Apparel / accessories">
                 <option>Screen printing</option>
@@ -230,6 +230,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
               </optgroup>
               <option>Other</option>
             </select>
+            <input type="text" id="d-method-other" placeholder="Describe decoration method" style="display:none;margin-top:6px;width:100%;padding:8px 11px;border:1px solid var(--border2);border-radius:var(--radius-sm);font-size:14px;">
           </div>
           <div class="field"><label>Location(s) <span class="req">*</span></label><input type="text" id="d-loc" placeholder=""></div>
           <div class="field"><label>Design / art name <span class="req">*</span></label><input type="text" id="d-art" required placeholder="Pre-fills from quote"></div>
@@ -345,7 +346,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 
 <script>
 // ── State ──────────────────────────────────────────────────────────────────
-const PO_VERSION = 'v2.4';
+const PO_VERSION = 'v2.5';
 
 const HG_DECO_MAP = {
   'Blank':'Blank',
@@ -755,7 +756,10 @@ function clearAutoFills() {
       };
     }
   }
-  ['v-name','v-email','v-phone','v-acct','d-method','d-loc','d-art','d-colors','d-count','d-notes','rep-name','rep-email','order-notes','proof-notes','ship-name','ship-company','ship-addr1','ship-addr2','ship-city','ship-state','ship-zip'].forEach(id=>{
+  // Hide the Other method text field since d-method is being reset
+  const _otherEl = document.getElementById('d-method-other');
+  if(_otherEl){ _otherEl.style.display='none'; _otherEl.value=''; }
+  ['v-name','v-email','v-phone','v-acct','d-method','d-method-other','d-loc','d-art','d-colors','d-count','d-notes','rep-name','rep-email','order-notes','proof-notes','ship-name','ship-company','ship-addr1','ship-addr2','ship-city','ship-state','ship-zip'].forEach(id=>{
     const el=document.getElementById(id); if(el&&el.tagName!=='SELECT') el.value=''; else if(el) el.value='';
   });
   document.querySelectorAll('input[name="proof"]').forEach(r=>r.checked=false);
@@ -816,7 +820,13 @@ function captureFormData() {
     vendorPhone: document.getElementById('v-phone').value,
     vendorAcct: document.getElementById('v-acct').value,
     poDate: document.getElementById('po-date').value,
-    decoMethod: document.getElementById('d-method').value,
+    decoMethod: (()=>{
+      const sel = document.getElementById('d-method').value;
+      if(sel === 'Other') {
+        return document.getElementById('d-method-other').value || 'Other';
+      }
+      return sel;
+    })(),
     decoLoc: document.getElementById('d-loc').value,
     decoArt: document.getElementById('d-art').value,
     decoColors: document.getElementById('d-colors').value,
@@ -1041,21 +1051,29 @@ function buildPOHTML(poNum, d) {
               <div style="font-size:11px;font-weight:800;color:#BC112A;margin-bottom:6px;">${itemTitle}</div>
               <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;font-size:11px;">
                 <div><span style="font-size:10px;font-weight:700;text-transform:uppercase;color:#888;display:block;margin-bottom:3px;">Method</span><input class="po-field-edit" style="font-size:13px;font-weight:700;" value="${d.decoMethod||''}"></div>
-                <div><span style="font-size:10px;font-weight:700;text-transform:uppercase;color:#888;display:block;margin-bottom:3px;">Location(s)</span><input class="po-field-edit" style="font-size:13px;font-weight:700;" value=""></div>
-                <div><span style="font-size:10px;font-weight:700;text-transform:uppercase;color:#888;display:block;margin-bottom:3px;">Art / design name</span><input class="po-field-edit" style="font-size:13px;font-weight:700;" value="${g.gdesign||''}"></div>
-                <div style="grid-column:span 3;"><span style="font-size:10px;font-weight:700;text-transform:uppercase;color:#888;display:block;margin-bottom:3px;">Imprint colors <span style="color:#BC112A">&#9733;</span></span><input class="po-field-edit" style="font-size:14px;font-weight:800;color:#BC112A;" value=""></div>
+                <div><span style="font-size:10px;font-weight:700;text-transform:uppercase;color:#888;display:block;margin-bottom:3px;">Location(s)</span><input class="po-field-edit" style="font-size:13px;font-weight:700;" value="${d.decoLoc||''}"></div>
+                <div><span style="font-size:10px;font-weight:700;text-transform:uppercase;color:#888;display:block;margin-bottom:3px;">Art / design name</span><input class="po-field-edit" style="font-size:13px;font-weight:700;" value="${d.decoArt||g.gdesign||''}"></div>
+                <div style="grid-column:span 3;"><span style="font-size:10px;font-weight:700;text-transform:uppercase;color:#888;display:block;margin-bottom:3px;">Imprint colors <span style="color:#BC112A">&#9733;</span></span><input class="po-field-edit" style="font-size:14px;font-weight:800;color:#BC112A;" value="${d.decoColors||''}"></div>
+                ${d.decoCount?`<div><span style="font-size:10px;font-weight:700;text-transform:uppercase;color:#888;display:block;margin-bottom:3px;">Design details</span><input class="po-field-edit" style="font-size:13px;font-weight:700;" value="${d.decoCount}"></div>`:''}
+                ${d.decoNotes?`<div><span style="font-size:10px;font-weight:700;text-transform:uppercase;color:#888;display:block;margin-bottom:3px;">Special instructions</span><input class="po-field-edit" style="font-size:13px;" value="${d.decoNotes}"></div>`:''}
               </div>
             </div>`;
         } else {
           imps.forEach((imp, ii) => {
-            const method = methodMap[imp.type]||imp.type||d.decoMethod||'';
-            const loc = imp.sp_loc||imp.emb_loc||imp.dtf_loc||imp.heat_loc||imp.vinyl_loc||'';
-            const art = g.gdesign||'';
-            let colors = imp.sp_ink_names||imp.emb_thread_names||imp.dtf_colors||imp.heat_colors||imp.vinyl_colors||'';
-            if(imp.type==='embroidery' && imp.emb_thread_names) colors = imp.emb_thread_names;
+            // For method: use the form's captured value for the first imprint
+            // (rep may have corrected it), fall back to quote data for others.
+            const rawMethod = methodMap[imp.type]||imp.type||'';
+            const method = (ii===0 && d.decoMethod) ? d.decoMethod : rawMethod;
+            const loc = (ii===0 && d.decoLoc) ? d.decoLoc : (imp.sp_loc||imp.emb_loc||imp.dtf_loc||imp.heat_loc||imp.vinyl_loc||'');
+            const art = (ii===0 && d.decoArt) ? d.decoArt : (g.gdesign||'');
+            // Colors: prefer form value for first imprint; fall back to quote data
+            let colorsFromQuote = imp.sp_ink_names||imp.emb_thread_names||imp.dtf_colors||imp.heat_colors||imp.vinyl_colors||'';
+            if(imp.type==='embroidery' && imp.emb_thread_names) colorsFromQuote = imp.emb_thread_names;
             const pmsStr = (imp.sp_pms_colors||[]).join(', ');
-            if(pmsStr) colors = colors ? colors+', '+pmsStr : pmsStr;
-            const count = imp.sp_col ? imp.sp_col+' color(s)' : imp.emb_st ? imp.emb_st+' stitches' : '';
+            if(pmsStr) colorsFromQuote = colorsFromQuote ? colorsFromQuote+', '+pmsStr : pmsStr;
+            const colors = (ii===0 && d.decoColors) ? d.decoColors : colorsFromQuote;
+            const countFromQuote = imp.sp_col ? imp.sp_col+' color(s)' : imp.emb_st ? imp.emb_st+' stitches' : '';
+            const count = (ii===0 && d.decoCount) ? d.decoCount : countFromQuote;
             const specialtyInk = (imp.sp_ink && imp.sp_ink!=='0') ? (inkLabels[String(imp.sp_ink)]||'Specialty ink') : '';
             const impLabel = imps.length > 1 ? ` — Imprint ${ii+1}` : '';
             perItemDecoHTML += `
@@ -1709,6 +1727,13 @@ function autoProofNotes(radio) {
       notes.value = '';
     }
   }
+}
+
+function toggleDecoMethodOther(val) {
+  const el = document.getElementById('d-method-other');
+  if(!el) return;
+  el.style.display = val === 'Other' ? '' : 'none';
+  if(val !== 'Other') el.value = '';
 }
 
 function toggleShipTo(val) {
