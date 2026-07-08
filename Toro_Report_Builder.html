@@ -362,6 +362,7 @@ tbody tr:hover { background: #fafafa; }
           <label>Client Name</label>
           <input type="text" id="c-client" placeholder="search...">
         </div>
+        <div class="filter-group" id="sf-c" style="position:relative;"></div>
         <div style="display:flex;gap:6px;">
           <button onclick="applyClientFilters()">Apply</button>
           <button class="secondary" onclick="clearClientFilters()">Clear</button>
@@ -403,6 +404,7 @@ tbody tr:hover { background: #fafafa; }
           <label>Rep</label>
           <select id="r-rep"><option value="">All Reps</option></select>
         </div>
+        <div class="filter-group" id="sf-r" style="position:relative;"></div>
         <div style="display:flex;gap:6px;">
           <button onclick="applyRepFilters()">Apply</button>
           <button class="secondary" onclick="clearRepFilters()">Clear</button>
@@ -455,6 +457,7 @@ tbody tr:hover { background: #fafafa; }
             Only compare same date range in both years
           </label>
         </div>
+        <div class="filter-group" id="sf-gl" style="position:relative;"></div>
         <div style="display:flex;gap:6px;align-items:flex-end;">
           <button onclick="applyGainLoss()">Run Report</button>
           <button class="secondary" onclick="exportGainLoss()">💾 Export All</button>
@@ -494,6 +497,7 @@ tbody tr:hover { background: #fafafa; }
             <option value="quarter">Quarter</option>
           </select>
         </div>
+        <div class="filter-group" id="sf-s" style="position:relative;"></div>
         <div style="display:flex;gap:6px;">
           <button onclick="applySeasonalFilters()">Apply</button>
           <button class="secondary" onclick="exportTable('seasonalTable','monthly_summary')">💾 Export</button>
@@ -539,7 +543,8 @@ tbody tr:hover { background: #fafafa; }
         Use Client Groups
       </label>
     </div>
-    <div style="display:flex;gap:6px;">
+    <div class="filter-group" id="sf-rd" style="position:relative;"></div>
+        <div style="display:flex;gap:6px;">
       <button onclick="applyRepDash()">Run</button>
       <button class="secondary" onclick="exportRepDash()">💾 Export</button>
     </div>
@@ -571,7 +576,8 @@ tbody tr:hover { background: #fafafa; }
         Use Client Groups
       </label>
     </div>
-    <div style="display:flex;gap:6px;">
+    <div class="filter-group" id="sf-co" style="position:relative;"></div>
+        <div style="display:flex;gap:6px;">
       <button onclick="applyCompanyDash()">Run</button>
       <button class="secondary" onclick="exportCompanyDash()">💾 Export</button>
     </div>
@@ -663,6 +669,115 @@ function toggleStatusDD(e) {
   e.stopPropagation();
   const d = document.getElementById('o-status-dd');
   d.style.display = d.style.display === 'none' ? 'block' : 'none';
+}
+
+// ─── PER-TAB "STATUSES COUNTED" FILTER ───────────────────────────────────────
+// Each aggregate tab can choose which statuses count toward its numbers.
+// Defaults to the completed statuses so reports match final-revenue rules.
+const SF_PREFIXES = ['c','r','gl','s','rd','co'];
+const STATUS_FILTERS = {};
+
+function sfSelected(p) {
+  if (!STATUS_FILTERS[p]) STATUS_FILTERS[p] = new Set([...COMPLETE_STATUSES]);
+  return STATUS_FILTERS[p];
+}
+function sfOk(p, r) { return sfSelected(p).has(r.status); }
+
+function sfIsDefault(p) {
+  const sel = sfSelected(p);
+  const completedAvail = allStatusList.filter(s => COMPLETE_STATUSES.has(s));
+  return sel.size === completedAvail.length && completedAvail.every(s => sel.has(s));
+}
+
+function sfNote(p) {
+  if (sfIsDefault(p)) return 'Completed orders only';
+  const sel = sfSelected(p);
+  if (sel.size === allStatusList.length) return 'All statuses counted';
+  return `${sel.size} of ${allStatusList.length} statuses counted`;
+}
+
+function sfInit() {
+  SF_PREFIXES.forEach(p => {
+    const host = document.getElementById('sf-' + p);
+    if (!host) return;
+    // Keep existing selection across re-uploads; drop statuses no longer present
+    const sel = sfSelected(p);
+    [...sel].forEach(s => { if (!allStatusList.includes(s)) sel.delete(s); });
+    if (!sel.size) STATUS_FILTERS[p] = new Set(allStatusList.filter(s => COMPLETE_STATUSES.has(s)));
+    host.innerHTML = `
+      <label>Statuses Counted</label>
+      <button type="button" id="sf-${p}-btn" class="secondary" onclick="sfToggleDD('${p}',event)" style="min-width:150px;text-align:left;">Completed only ▾</button>
+      <div id="sf-${p}-dd" class="sf-dd" onclick="event.stopPropagation()" style="display:none;position:absolute;top:100%;left:0;z-index:50;background:white;border:1px solid #ccc;border-radius:4px;box-shadow:0 4px 12px rgba(0,0,0,.15);max-height:300px;overflow-y:auto;min-width:340px;padding:6px;">
+        <div style="display:flex;gap:6px;padding:4px;border-bottom:1px solid #eee;margin-bottom:4px;flex-wrap:wrap;">
+          <button type="button" class="secondary" onclick="sfPreset('${p}','completed')">Completed Only</button>
+          <button type="button" class="secondary" onclick="sfPreset('${p}','all')">Check All</button>
+          <button type="button" class="secondary" onclick="sfPreset('${p}','none')">Clear All</button>
+        </div>
+        <div id="sf-${p}-list"></div>
+      </div>`;
+    sfRenderList(p);
+    sfUpdateBtn(p);
+  });
+}
+
+function sfRenderList(p) {
+  const sel = sfSelected(p);
+  document.getElementById(`sf-${p}-list`).innerHTML = allStatusList.map(s => `
+    <label style="display:flex;align-items:center;gap:6px;font-size:12px;padding:3px 4px;cursor:pointer;font-weight:normal;">
+      <input type="checkbox" data-status="${encodeURIComponent(s)}" ${sel.has(s) ? 'checked' : ''}
+        onchange="sfToggleItem('${p}',this)" style="width:auto;min-width:unset;">
+      <span>${COMPLETE_STATUSES.has(s) ? '<strong>' + s + '</strong>' : s}</span>
+    </label>`).join('');
+}
+
+function sfToggleItem(p, el) {
+  const s = decodeURIComponent(el.dataset.status);
+  const sel = sfSelected(p);
+  el.checked ? sel.add(s) : sel.delete(s);
+  sfUpdateBtn(p);
+  sfRerun(p);
+}
+
+function sfPreset(p, mode) {
+  STATUS_FILTERS[p] =
+    mode === 'all' ? new Set(allStatusList) :
+    mode === 'none' ? new Set() :
+    new Set(allStatusList.filter(s => COMPLETE_STATUSES.has(s)));
+  sfRenderList(p);
+  sfUpdateBtn(p);
+  sfRerun(p);
+}
+
+function sfUpdateBtn(p) {
+  const b = document.getElementById(`sf-${p}-btn`);
+  if (!b) return;
+  const sel = sfSelected(p);
+  b.textContent = sfIsDefault(p) ? 'Completed only ▾'
+    : sel.size === allStatusList.length ? 'All statuses ▾'
+    : sel.size === 0 ? 'None ▾'
+    : `${sel.size} of ${allStatusList.length} ▾`;
+}
+
+function sfToggleDD(p, e) {
+  e.stopPropagation();
+  document.querySelectorAll('.sf-dd').forEach(d => { if (d.id !== `sf-${p}-dd`) d.style.display = 'none'; });
+  const d = document.getElementById(`sf-${p}-dd`);
+  d.style.display = d.style.display === 'none' ? 'block' : 'none';
+}
+
+function sfRerun(p) {
+  if (p === 'c') applyClientFilters();
+  else if (p === 'r') applyRepFilters();
+  else if (p === 's') applySeasonalFilters();
+  else if (p === 'gl') {
+    if (document.getElementById('gl-year1').value && document.getElementById('gl-year2').value) applyGainLoss();
+  }
+  else if (p === 'rd') {
+    if (document.getElementById('rd-rep').value && document.getElementById('rd-year').value) applyRepDash();
+  }
+  else if (p === 'co') {
+    if (document.getElementById('co-year').value) applyCompanyDash();
+  }
 }
 
 const ORDER_COLS = [
@@ -998,6 +1113,7 @@ function populateFilters() {
     el.innerHTML = '<option value="">All Reps</option>' + repOpts;
   });
   buildStatusDropdown();
+  sfInit();
 
   const states = [...new Set(allData.map(r => r.ship_state).filter(Boolean))].sort();
   document.getElementById('o-state').innerHTML = '<option value="">All States</option>' +
@@ -1149,8 +1265,8 @@ function applyClientFilters() {
   const min   = parseFloat(document.getElementById('c-min').value) || 0;
   const search= document.getElementById('c-client').value.toLowerCase();
 
-  let base = (year ? allData.filter(r => r.year == year) : allData).filter(isComplete);
-  let comp = (year2 ? allData.filter(r => r.year == year2) : []).filter(isComplete);
+  let base = (year ? allData.filter(r => r.year == year) : allData).filter(r => sfOk('c', r));
+  let comp = (year2 ? allData.filter(r => r.year == year2) : []).filter(r => sfOk('c', r));
 
   // YTD: cap the older year's data at the newer year's latest date
   const ytdOn = document.getElementById('c-ytd')?.checked;
@@ -1209,7 +1325,7 @@ function renderClientsTable(data, showComp) {
     <div class="stat"><span class="stat-val">${$c0(total)}</span><span class="stat-lbl">Total Revenue</span></div>
     <div class="stat"><span class="stat-val">${$c0(total/data.length||0)}</span><span class="stat-lbl">Avg per Client</span></div>
     <div class="stat"><span class="stat-val">${data.reduce((s,r)=>s+r.orders,0)}</span><span class="stat-lbl">Total Orders</span></div>
-    <div style="margin-left:auto;font-size:10px;color:#aaa;align-self:center;">Completed orders only</div>
+    <div style="margin-left:auto;font-size:10px;color:#aaa;align-self:center;">${sfNote('c')}</div>
   `;
 
   const cols = [
@@ -1258,8 +1374,8 @@ function applyRepFilters() {
   const year2 = document.getElementById('r-year2').value;
   const rep   = document.getElementById('r-rep').value;
 
-  let base = (year ? allData.filter(r => r.year == year) : allData).filter(isComplete);
-  let comp = (year2 ? allData.filter(r => r.year == year2) : []).filter(isComplete);
+  let base = (year ? allData.filter(r => r.year == year) : allData).filter(r => sfOk('r', r));
+  let comp = (year2 ? allData.filter(r => r.year == year2) : []).filter(r => sfOk('r', r));
 
   // YTD: cap the older year's data at the newer year's latest date
   const rYtdOn = document.getElementById('r-ytd')?.checked;
@@ -1309,7 +1425,7 @@ function renderRepsTable(data, showComp) {
     <div class="stat"><span class="stat-val">${$c0(total)}</span><span class="stat-lbl">Total Revenue</span></div>
     <div class="stat"><span class="stat-val">${data.reduce((s,r)=>s+r.orders,0)}</span><span class="stat-lbl">Total Orders</span></div>
     <div class="stat"><span class="stat-val">${data.reduce((s,r)=>s+r.client_count,0)}</span><span class="stat-lbl">Total Clients</span></div>
-    <div style="margin-left:auto;font-size:10px;color:#aaa;align-self:center;">Completed orders only</div>
+    <div style="margin-left:auto;font-size:10px;color:#aaa;align-self:center;">${sfNote('r')}</div>
   `;
 
   const cols = [
@@ -1384,7 +1500,7 @@ function applyGainLoss() {
     const key = groupOf(r.client_name, glUseGroups);
     if (!meta[key]) meta[key] = { contact: r.client_full_name || '', rep: r.rep };
     if (r.client_full_name) meta[key].contact = r.client_full_name;
-    if (!isComplete(r)) return;
+    if (!sfOk('gl', r)) return;
 
     if (r.year === y1) {
       if (ytdCutoffY1 && r.invoice_date > ytdCutoffY1) return; // cut off y1 at same point
@@ -1539,8 +1655,8 @@ function applySeasonalFilters() {
     const yNew = Math.max(+year, +year2);
     const yOld = Math.min(+year, +year2);
 
-    let dNew = allData.filter(r => r.year === yNew && isComplete(r) && (!rep || r.rep === rep));
-    let dOld = allData.filter(r => r.year === yOld && isComplete(r) && (!rep || r.rep === rep));
+    let dNew = allData.filter(r => r.year === yNew && sfOk('s', r) && (!rep || r.rep === rep));
+    let dOld = allData.filter(r => r.year === yOld && sfOk('s', r) && (!rep || r.rep === rep));
 
     let ytdNote = '';
     if (ytdOn) {
@@ -1576,7 +1692,7 @@ function applySeasonalFilters() {
       <div class="stat"><span class="stat-val">${$c0(newSum)}</span><span class="stat-lbl">${yNew} Total${ytdNote}</span></div>
       <div class="stat"><span class="stat-val ${pctClass(newSum,oldSum)}">${newSum >= oldSum ? '+' : ''}${$c0(newSum-oldSum)}</span><span class="stat-lbl">Change</span></div>
       <div class="stat"><span class="stat-val ${pctClass(newSum,oldSum)}">${pct(newSum,oldSum)}</span><span class="stat-lbl">Growth</span></div>
-      <div style="margin-left:auto;font-size:10px;color:#aaa;align-self:center;">Completed orders only</div>
+      <div style="margin-left:auto;font-size:10px;color:#aaa;align-self:center;">${sfNote('s')}</div>
     `;
 
     renderSeasonalCompareTable(yOld, yNew);
@@ -1585,7 +1701,7 @@ function applySeasonalFilters() {
     let data = allData.filter(r => {
       if (year && r.year != year) return false;
       if (rep && r.rep !== rep) return false;
-      if (!isComplete(r)) return false;
+      if (!sfOk('s', r)) return false;
       return true;
     });
 
@@ -1607,7 +1723,7 @@ function applySeasonalFilters() {
       <div class="stat"><span class="stat-val">${filteredSeasonal.length}</span><span class="stat-lbl">Periods</span></div>
       <div class="stat"><span class="stat-val">${$c0(grandTotal)}</span><span class="stat-lbl">Total Revenue</span></div>
       <div class="stat"><span class="stat-val">${$c0(grandTotal/filteredSeasonal.length||0)}</span><span class="stat-lbl">Avg per Period</span></div>
-      <div style="margin-left:auto;font-size:10px;color:#aaa;align-self:center;">Completed orders only</div>
+      <div style="margin-left:auto;font-size:10px;color:#aaa;align-self:center;">${sfNote('s')}</div>
     `;
 
     renderSeasonalSingleTable();
@@ -2020,26 +2136,16 @@ function getMostRecentDate() {
   return allData.reduce((max, r) => r.invoice_date > max ? r.invoice_date : max, allData[0].invoice_date);
 }
 
-// Build month-by-month revenue map for a dataset
-function monthlyMap(data) {
-  const map = {};
-  data.filter(isComplete).forEach(r => {
-    const key = `${r.year}-${String(r.month+1).padStart(2,'0')}`;
-    map[key] = (map[key] || 0) + r.total;
-  });
-  return map;
-}
-
 // Detect new/reactive accounts
 // New = first order ever in this dataset period
 // Reactive = had orders before, then 180+ day gap, then ordered again in this period
-function getNewReactive(data, year, gn = n => n) {
-  const periodData = data.filter(r => r.year == year && isComplete(r));
+function getNewReactive(data, year, gn = n => n, statusOk = isComplete) {
+  const periodData = data.filter(r => r.year == year && statusOk(r));
   const periodClients = new Set(periodData.map(r => gn(r.client_name)));
 
   // All-time order history per client (completed only)
   const history = {};
-  allData.filter(isComplete).forEach(r => {
+  allData.filter(statusOk).forEach(r => {
     const key = gn(r.client_name);
     if (!history[key]) history[key] = [];
     history[key].push(r.invoice_date);
@@ -2148,8 +2254,8 @@ function applyRepDash() {
   if (!y1)  { alert('Please select a primary year'); return; }
 
   const repData  = allData.filter(r => r.rep === rep);
-  let y1data   = repData.filter(r => r.year === y1 && isComplete(r));
-  let y2data   = y2 ? repData.filter(r => r.year === y2 && isComplete(r)) : [];
+  let y1data   = repData.filter(r => r.year === y1 && sfOk('rd', r));
+  let y2data   = y2 ? repData.filter(r => r.year === y2 && sfOk('rd', r)) : [];
 
   // YTD: cap the older year at the newer year's latest data date
   const rdYtd = document.getElementById('rd-ytd')?.checked;
@@ -2184,13 +2290,10 @@ function applyRepDash() {
   );
 
   // 2. YoY Growth by Month
-  const m1 = monthlyMap(y1data.map(r=>({...r,year:y1}))); // already y1
-  const m2 = monthlyMap(y2data.map(r=>({...r,year:y2})));
   const monthYoYRows = MONTHS.map((name, idx) => {
-    const k1 = `${y1}-${String(idx+1).padStart(2,'0')}`;
     const k2 = y2 ? `${y2}-${String(idx+1).padStart(2,'0')}` : null;
-    const v1 = y1data.filter(r=>r.month===idx).filter(isComplete).reduce((s,r)=>s+r.total,0);
-    const v2 = k2 ? y2data.filter(r=>r.month===idx).filter(isComplete).reduce((s,r)=>s+r.total,0) : 0;
+    const v1 = y1data.filter(r=>r.month===idx).reduce((s,r)=>s+r.total,0);
+    const v2 = k2 ? y2data.filter(r=>r.month===idx).reduce((s,r)=>s+r.total,0) : 0;
     return [name, y2 ? $c(v2):'-', $c(v1),
       `<span class="${pctClass(v1,v2)}">${$c(v1-v2)}</span>`,
       `<span class="${pctClass(v1,v2)}">${v2 > 0 ? pct(v1,v2) : '-'}</span>`];
@@ -2199,8 +2302,8 @@ function applyRepDash() {
 
   // 3. MoM Growth (within y1)
   const momRows = MONTHS.map((name, idx) => {
-    const curr = y1data.filter(r=>r.month===idx).filter(isComplete).reduce((s,r)=>s+r.total,0);
-    const prev = idx > 0 ? y1data.filter(r=>r.month===idx-1).filter(isComplete).reduce((s,r)=>s+r.total,0) : null;
+    const curr = y1data.filter(r=>r.month===idx).reduce((s,r)=>s+r.total,0);
+    const prev = idx > 0 ? y1data.filter(r=>r.month===idx-1).reduce((s,r)=>s+r.total,0) : null;
     return [name, $c(curr),
       prev !== null ? $c(prev) : '-',
       prev !== null ? `<span class="${pctClass(curr,prev)}">${$c(curr-prev)}</span>` : '-',
@@ -2210,7 +2313,7 @@ function applyRepDash() {
 
   // 4. Average Sales by Month
   const avgRows = MONTHS.map((name, idx) => {
-    const orders = y1data.filter(r=>r.month===idx).filter(isComplete);
+    const orders = y1data.filter(r=>r.month===idx);
     if (!orders.length) return null;
     const total = orders.reduce((s,r)=>s+r.total,0);
     return [name, orders.length, $c(total), $c(total/orders.length)];
@@ -2221,7 +2324,7 @@ function applyRepDash() {
   const rdUseGroups = document.getElementById('rd-groups')?.checked;
   const rdGn = n => groupOf(n, rdUseGroups);
   const newBizClients = new Set(y1data.map(r=>rdGn(r.client_name)));
-  const priorClients = new Set(allData.filter(r=>r.rep===rep && r.year < y1 && isComplete(r)).map(r=>rdGn(r.client_name)));
+  const priorClients = new Set(allData.filter(r=>r.rep===rep && r.year < y1 && sfOk('rd', r)).map(r=>rdGn(r.client_name)));
   const trulyNew = [...newBizClients].filter(c=>!priorClients.has(c));
   const newBizRows = trulyNew.map(c => {
     const orders = y1data.filter(r=>rdGn(r.client_name)===c);
@@ -2232,7 +2335,7 @@ function applyRepDash() {
   const newBizHtml = simpleTable(['Company','Contact','Orders',`${y1} Spend`], newBizRows, 'No new clients this year');
 
   // 6. New/Reactive Accounts
-  const { newAccts, reactiveAccts } = getNewReactive(repData, y1, rdGn);
+  const { newAccts, reactiveAccts } = getNewReactive(repData, y1, rdGn, r => sfOk('rd', r));
   const newAcctRows = newAccts.map(c => {
     const orders = y1data.filter(r=>rdGn(r.client_name)===c);
     const contact = orders.find(r=>r.client_full_name)?.client_full_name || '-';
@@ -2241,7 +2344,7 @@ function applyRepDash() {
   const reactRows = reactiveAccts.map(c => {
     const orders = y1data.filter(r=>rdGn(r.client_name)===c);
     const contact = orders.find(r=>r.client_full_name)?.client_full_name || '-';
-    const lastPrior = allData.filter(r=>rdGn(r.client_name)===c && r.year<y1 && isComplete(r))
+    const lastPrior = allData.filter(r=>rdGn(r.client_name)===c && r.year<y1 && sfOk('rd', r))
       .map(r=>r.invoice_date).sort((a,b)=>b-a)[0];
     return [`<span class="bold">${c}</span>`, contact, lastPrior ? fdate(lastPrior) : '-', orders.length, $c(orders.reduce((s,r)=>s+r.total,0))];
   });
@@ -2296,8 +2399,8 @@ function applyCompanyDash() {
 
   if (!y1) { alert('Please select a primary year'); return; }
 
-  let y1data = allData.filter(r => r.year === y1 && isComplete(r));
-  let y2data = y2 ? allData.filter(r => r.year === y2 && isComplete(r)) : [];
+  let y1data = allData.filter(r => r.year === y1 && sfOk('co', r));
+  let y2data = y2 ? allData.filter(r => r.year === y2 && sfOk('co', r)) : [];
 
   // YTD: cap the older year at the newer year's latest data date
   const coYtd = document.getElementById('co-ytd')?.checked;
@@ -2365,7 +2468,7 @@ function applyCompanyDash() {
   // 5. New/Reactive Accounts (company wide)
   const coUseGroups = document.getElementById('co-groups')?.checked;
   const coGn = n => groupOf(n, coUseGroups);
-  const { newAccts, reactiveAccts } = getNewReactive(allData, y1, coGn);
+  const { newAccts, reactiveAccts } = getNewReactive(allData, y1, coGn, r => sfOk('co', r));
   const newAcctRows = newAccts.map(c => {
     const orders = y1data.filter(r=>coGn(r.client_name)===c);
     const rep = orders[0]?.rep || '-';
@@ -2376,7 +2479,7 @@ function applyCompanyDash() {
     const orders = y1data.filter(r=>coGn(r.client_name)===c);
     const rep = orders[0]?.rep || '-';
     const contact = orders.find(r=>r.client_full_name)?.client_full_name || '-';
-    const lastPrior = allData.filter(r=>coGn(r.client_name)===c && r.year<y1 && isComplete(r))
+    const lastPrior = allData.filter(r=>coGn(r.client_name)===c && r.year<y1 && sfOk('co', r))
       .map(r=>r.invoice_date).sort((a,b)=>b-a)[0];
     return [`<span class="bold">${c}</span>`, contact, rep, lastPrior ? fdate(lastPrior) : '-', orders.length, $c(orders.reduce((s,r)=>s+r.total,0))];
   }).sort((a,b) => parseFloat(b[5].replace(/[$,]/g,'')) - parseFloat(a[5].replace(/[$,]/g,'')));
@@ -2441,10 +2544,11 @@ document.addEventListener('DOMContentLoaded', () => {
   initFirebase();
   if (cloudEnabled()) loadFromCloud();
 
-  // Close status dropdown when clicking elsewhere
+  // Close status dropdowns when clicking elsewhere
   document.addEventListener('click', () => {
     const d = document.getElementById('o-status-dd');
     if (d) d.style.display = 'none';
+    document.querySelectorAll('.sf-dd').forEach(el => el.style.display = 'none');
   });
 
   // Upload
