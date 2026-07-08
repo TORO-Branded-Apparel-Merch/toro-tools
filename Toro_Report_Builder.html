@@ -189,7 +189,7 @@ tbody tr:hover { background: #fafafa; }
 <body>
 
 <div class="header">
-  <h1>📊 Sales Report Builder</h1>
+  <h1>📊 Sales Report Builder <span style="font-size:10px;color:#888;font-weight:normal;">v2.1</span></h1>
   <span id="statusBar">Upload a CSV to begin</span>
 </div>
 
@@ -249,9 +249,16 @@ tbody tr:hover { background: #fafafa; }
           <label>Rep</label>
           <select id="o-rep"><option value="">All Reps</option></select>
         </div>
-        <div class="filter-group">
+        <div class="filter-group" style="position:relative;">
           <label>Status</label>
-          <select id="o-status"><option value="">All Statuses</option></select>
+          <button type="button" id="o-status-btn" class="secondary" onclick="toggleStatusDD(event)" style="min-width:160px;text-align:left;">All Statuses ▾</button>
+          <div id="o-status-dd" onclick="event.stopPropagation()" style="display:none;position:absolute;top:100%;left:0;z-index:50;background:white;border:1px solid #ccc;border-radius:4px;box-shadow:0 4px 12px rgba(0,0,0,.15);max-height:300px;overflow-y:auto;min-width:340px;padding:6px;">
+            <div style="display:flex;gap:6px;padding:4px;border-bottom:1px solid #eee;margin-bottom:4px;">
+              <button type="button" class="secondary" onclick="setAllStatuses(true)">Check All</button>
+              <button type="button" class="secondary" onclick="setAllStatuses(false)">Clear All</button>
+            </div>
+            <div id="o-status-list"></div>
+          </div>
         </div>
         <div class="filter-group">
           <label>Paid</label>
@@ -503,10 +510,7 @@ tbody tr:hover { background: #fafafa; }
       </div>
     </div>
 
-  </div><!-- /mainUI -->
-</div>
 
-<!-- REP DASHBOARD & COMPANY DASHBOARD panels injected by JS -->
 <div id="panel-repdash" class="report-panel" style="display:none;">
   <div class="filter-bar">
     <div class="filter-group">
@@ -575,6 +579,10 @@ tbody tr:hover { background: #fafafa; }
   <div id="coResults"></div>
 </div>
 
+  </div><!-- /mainUI -->
+</div>
+
+
 <!-- Firebase (compat) SDK -->
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
@@ -609,6 +617,54 @@ let uniqueStatuses = [];
 const sortStates = {};
 
 // Column config for Order Detail
+// ─── STATUS MULTI-SELECT (Order Detail) ─────────────────────────────────────
+let allStatusList = [];
+let statusSelection = new Set();
+
+function buildStatusDropdown() {
+  allStatusList = [...new Set(allData.map(r => r.status))].sort();
+  statusSelection = new Set(allStatusList); // default: all checked
+  renderStatusList();
+  updateStatusBtn();
+}
+
+function renderStatusList() {
+  document.getElementById('o-status-list').innerHTML = allStatusList.map(s => `
+    <label style="display:flex;align-items:center;gap:6px;font-size:12px;padding:3px 4px;cursor:pointer;font-weight:normal;">
+      <input type="checkbox" data-status="${encodeURIComponent(s)}" ${statusSelection.has(s) ? 'checked' : ''}
+        onchange="toggleStatusItem(this)" style="width:auto;min-width:unset;">
+      <span>${s}</span>
+    </label>`).join('');
+}
+
+function toggleStatusItem(el) {
+  const s = decodeURIComponent(el.dataset.status);
+  el.checked ? statusSelection.add(s) : statusSelection.delete(s);
+  updateStatusBtn();
+  applyOrderFilters();
+}
+
+function setAllStatuses(on) {
+  statusSelection = on ? new Set(allStatusList) : new Set();
+  renderStatusList();
+  updateStatusBtn();
+  applyOrderFilters();
+}
+
+function updateStatusBtn() {
+  const b = document.getElementById('o-status-btn');
+  if (!b) return;
+  b.textContent = statusSelection.size === allStatusList.length ? 'All Statuses ▾'
+    : statusSelection.size === 0 ? 'None selected ▾'
+    : `${statusSelection.size} of ${allStatusList.length} statuses ▾`;
+}
+
+function toggleStatusDD(e) {
+  e.stopPropagation();
+  const d = document.getElementById('o-status-dd');
+  d.style.display = d.style.display === 'none' ? 'block' : 'none';
+}
+
 const ORDER_COLS = [
   { id:'invoice_date', label:'Date', type:'date', default:true },
   { id:'invoice_number', label:'Invoice #', type:'text', default:true },
@@ -701,7 +757,10 @@ function parseCSV(text) {
 // Dates may arrive as "YYYY-MM-DD HH:MM:SS" strings, JS Dates (from xlsx), or
 // Excel serial numbers.
 function toDate(v) {
-  if (v instanceof Date && !isNaN(v)) return new Date(v.getFullYear(), v.getMonth(), v.getDate());
+  // Duck-typed Date check (robust across JS contexts)
+  if (v && typeof v === 'object' && typeof v.getFullYear === 'function' && !isNaN(v.getTime())) {
+    return new Date(v.getFullYear(), v.getMonth(), v.getDate());
+  }
   if (typeof v === 'number' && v > 20000 && v < 60000) {
     // Excel serial date (days since 1899-12-30)
     const d = new Date(Math.round((v - 25569) * 86400 * 1000));
@@ -926,7 +985,6 @@ function populateFilters() {
 
   const yearOpts = uniqueYears.map(y => `<option value="${y}">${y}</option>`).join('');
   const repOpts = uniqueReps.map(r => `<option value="${r}">${r}</option>`).join('');
-  const statusOpts = uniqueStatuses.map(s => `<option value="${s}">${s}</option>`).join('');
 
   ['o-year','c-year','c-year2','r-year','r-year2','gl-year1','gl-year2','s-year','s-year2','rd-year','rd-year2','co-year','co-year2'].forEach(id => {
     const el = document.getElementById(id);
@@ -939,7 +997,7 @@ function populateFilters() {
     if (!el) return;
     el.innerHTML = '<option value="">All Reps</option>' + repOpts;
   });
-  document.getElementById('o-status').innerHTML = '<option value="">All Statuses</option>' + statusOpts;
+  buildStatusDropdown();
 
   const states = [...new Set(allData.map(r => r.ship_state).filter(Boolean))].sort();
   document.getElementById('o-state').innerHTML = '<option value="">All States</option>' +
@@ -1003,7 +1061,6 @@ function headerClass(tableId, colId) {
 function applyOrderFilters() {
   const year   = document.getElementById('o-year').value;
   const rep    = document.getElementById('o-rep').value;
-  const status = document.getElementById('o-status').value;
   const paidF  = document.getElementById('o-paid').value;
   const stateF = document.getElementById('o-state').value;
   const delivF = document.getElementById('o-delivery').value;
@@ -1015,10 +1072,12 @@ function applyOrderFilters() {
   const dFrom  = document.getElementById('o-date-from').value ? new Date(document.getElementById('o-date-from').value) : null;
   const dTo    = document.getElementById('o-date-to').value ? new Date(document.getElementById('o-date-to').value) : null;
 
+  const statusFilterActive = statusSelection.size < allStatusList.length;
+
   filteredOrders = allData.filter(r => {
     if (year && r.year != year) return false;
     if (rep && r.rep !== rep) return false;
-    if (status && r.status !== status) return false;
+    if (statusFilterActive && !statusSelection.has(r.status)) return false;
     if (paidF === 'yes' && r.paid !== true) return false;
     if (paidF === 'no' && r.paid !== false) return false;
     if (stateF && r.ship_state !== stateF) return false;
@@ -1036,7 +1095,10 @@ function applyOrderFilters() {
 }
 
 function clearOrderFilters() {
-  ['o-year','o-rep','o-status','o-paid','o-state','o-delivery'].forEach(id => document.getElementById(id).value = '');
+  ['o-year','o-rep','o-paid','o-state','o-delivery'].forEach(id => document.getElementById(id).value = '');
+  statusSelection = new Set(allStatusList);
+  renderStatusList();
+  updateStatusBtn();
   ['o-client','o-product','o-invoice','o-min','o-max','o-date-from','o-date-to'].forEach(id => document.getElementById(id).value = '');
   applyOrderFilters();
 }
@@ -2378,6 +2440,12 @@ document.addEventListener('DOMContentLoaded', () => {
   // Cloud: connect and auto-load shared data
   initFirebase();
   if (cloudEnabled()) loadFromCloud();
+
+  // Close status dropdown when clicking elsewhere
+  document.addEventListener('click', () => {
+    const d = document.getElementById('o-status-dd');
+    if (d) d.style.display = 'none';
+  });
 
   // Upload
   const zone = document.getElementById('uploadZone');
