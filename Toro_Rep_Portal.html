@@ -20,7 +20,14 @@ body { font-family:'Segoe UI', Arial, sans-serif; background:#f5f5f5; color:#1a1
 .kpi .cmp { font-size:11px; margin-top:4px; }
 .green { color:#1a7f4b; } .red { color:#c0392b; } .orange { color:#c87f1d; } .muted { color:#999; }
 .card { background:white; border:1px solid #ddd; border-radius:6px; margin-bottom:18px; overflow:hidden; }
-.card-head { padding:10px 14px; background:#f0f0f0; border-left:4px solid #1a1a1a; font-weight:700; font-size:13px; display:flex; justify-content:space-between; align-items:center; }
+.card-head { padding:10px 14px; background:#f0f0f0; border-left:4px solid #1a1a1a; font-weight:700; font-size:13px; display:flex; justify-content:space-between; align-items:center; cursor:pointer; user-select:none; }
+.card-head .arrow { color:#888; font-size:11px; margin-right:8px; }
+.card.collapsed .card-body, .card.collapsed .filters { display:none; }
+.goal-bar-wrap { background:#eee; border-radius:6px; height:22px; position:relative; overflow:hidden; margin:8px 0 4px; }
+.goal-bar { height:100%; border-radius:6px; background:#1a7f4b; transition:width .4s; min-width:2px; }
+.goal-bar.behind { background:#c87f1d; }
+.goal-pace { position:absolute; top:0; bottom:0; width:2px; background:#1a1a1a; opacity:.45; }
+.goal-bar-label { position:absolute; left:50%; top:50%; transform:translate(-50%,-50%); font-size:11px; font-weight:700; color:#1a1a1a; text-shadow:0 0 3px white; }
 .card-body { padding:0; }
 table { width:100%; border-collapse:collapse; font-size:12px; }
 th { text-align:left; padding:8px 12px; background:#fafafa; border-bottom:2px solid #ddd; font-size:10px; text-transform:uppercase; letter-spacing:.4px; color:#666; cursor:pointer; user-select:none; }
@@ -84,23 +91,29 @@ a { color:#2f6fb2; text-decoration:none; }
 
     <div class="print-only" id="printHeader"></div>
 
+    <div class="card" id="card-goal">
+      <div class="card-head" onclick="toggleCard('card-goal')"><span><span class="arrow">▼</span>🎯 My Goal - <span id="goalMonthLabel"></span></span>
+        <span onclick="event.stopPropagation()"><button class="secondary" id="goalEditBtn" onclick="editGoal()" style="display:none;">✎ Edit Goal</button></span></div>
+      <div class="card-body"><div id="goalBody" style="padding:14px;"></div></div>
+    </div>
+
     <div class="card" id="card-monthly">
-      <div class="card-head"><span>📅 My Monthly Performance</span>
-        <span><button class="secondary" onclick="printSection('card-monthly')">🖨️ Print</button>
+      <div class="card-head" onclick="toggleCard('card-monthly')"><span><span class="arrow">▼</span>📅 My Monthly Performance</span>
+        <span onclick="event.stopPropagation()"><button class="secondary" onclick="printSection('card-monthly')">🖨️ Print</button>
         <button class="secondary" onclick="exportMonthly()">💾 Export</button></span></div>
       <div class="card-body"><div id="monthlyTable"></div></div>
     </div>
 
     <div class="card" id="card-clients">
-      <div class="card-head"><span>👥 My Clients</span>
-        <span><button class="secondary" onclick="printSection('card-clients')">🖨️ Print</button>
+      <div class="card-head" onclick="toggleCard('card-clients')"><span><span class="arrow">▼</span>👥 My Clients</span>
+        <span onclick="event.stopPropagation()"><button class="secondary" onclick="printSection('card-clients')">🖨️ Print</button>
         <button class="secondary" onclick="exportClients()">💾 Export</button></span></div>
       <div class="card-body"><div id="clientsTable"></div></div>
     </div>
 
     <div class="card" id="card-orders">
-      <div class="card-head"><span>📋 My Orders</span>
-        <span><button class="secondary" onclick="printSection('card-orders')">🖨️ Print</button>
+      <div class="card-head" onclick="toggleCard('card-orders')"><span><span class="arrow">▼</span>📋 My Orders</span>
+        <span onclick="event.stopPropagation()"><button class="secondary" onclick="printSection('card-orders')">🖨️ Print</button>
         <button class="secondary" onclick="exportOrders()">💾 Export</button></span></div>
       <div class="filters">
         <div class="fg"><label>Date From</label><input type="date" id="f-from"></div>
@@ -496,6 +509,7 @@ async function loadData() {
   }
   allData = result.data;
   cloudMeta = result.meta;
+  await loadGoals();
   document.getElementById('headerSub').textContent = 'Data updated ' + new Date(cloudMeta.updatedAt).toLocaleDateString();
   setCloudStatus(`${allData.length.toLocaleString()} orders loaded - updated ${new Date(cloudMeta.updatedAt).toLocaleString()} (managed from the management dashboard)`);
   if (myRep) startDash(); else showPicker();
@@ -535,7 +549,127 @@ function startDash() {
 
 function curYear() { return parseInt(document.getElementById('yearSel').value); }
 
-function renderAll() { renderKPIs(); renderMonthly(); renderClients(); renderOrders(); updatePrintHeader(); }
+function renderAll() { renderKPIs(); renderMonthly(); renderClients(); renderOrders(); renderGoal(); updatePrintHeader(); }
+
+// ─── COLLAPSIBLE CARDS ───────────────────────────────────────────────────────
+function toggleCard(id) {
+  const card = document.getElementById(id);
+  card.classList.toggle('collapsed');
+  const arrow = card.querySelector('.arrow');
+  if (arrow) arrow.textContent = card.classList.contains('collapsed') ? '▶' : '▼';
+}
+
+// ─── MY GOAL ─────────────────────────────────────────────────────────────────
+let goalsCache = {};   // full goals doc: { repName: { "YYYY-MM": number } }
+let goalEditing = false;
+
+function goalMonthKey() {
+  const latest = allData.reduce((m,r) => r.invoice_date > m ? r.invoice_date : m, allData[0].invoice_date);
+  return { key: `${latest.getFullYear()}-${String(latest.getMonth()+1).padStart(2,'0')}`, latest };
+}
+
+async function loadGoals() {
+  if (!cloudEnabled()) return;
+  try {
+    const doc = await db.collection(CLOUD_COLLECTION).doc('goals').get();
+    if (doc.exists) goalsCache = doc.data() || {};
+  } catch (e) { console.error('Goals load failed:', e); }
+}
+
+async function saveGoal(amount) {
+  const { key } = goalMonthKey();
+  if (!goalsCache[myRep]) goalsCache[myRep] = {};
+  goalsCache[myRep][key] = amount;
+  goalEditing = false;
+  renderGoal();
+  if (!cloudEnabled()) return;
+  try {
+    await db.collection(CLOUD_COLLECTION).doc('goals').set({ [myRep]: goalsCache[myRep] }, { merge: true });
+  } catch (e) {
+    console.error('Goal save failed:', e);
+    setCloudStatus('Could not save goal to cloud: ' + e.message, true);
+  }
+}
+
+function submitGoal() {
+  const v = parseFloat(document.getElementById('goalInput').value.replace(/[$,]/g, ''));
+  if (!v || v <= 0) { alert('Please enter a dollar amount'); return; }
+  saveGoal(Math.round(v));
+}
+
+function editGoal() { goalEditing = true; renderGoal(); }
+
+function goalSuggestion(latest) {
+  const m = latest.getMonth(), y = latest.getFullYear();
+  // Same month last year
+  const lySame = myData.filter(r => r.year === y-1 && r.month === m && isComplete(r)).reduce((s,r) => s+r.total, 0);
+  if (lySame > 0) return { amount: Math.round(lySame), why: `${MONTHS[m]} ${y-1} you did ${$c0(lySame)}` };
+  // Else 3-month average (previous 3 calendar months)
+  let sum = 0, months = 0;
+  for (let i = 1; i <= 3; i++) {
+    const d = new Date(y, m - i, 1);
+    const rev = myData.filter(r => r.year === d.getFullYear() && r.month === d.getMonth() && isComplete(r)).reduce((s,r) => s+r.total, 0);
+    if (rev > 0) { sum += rev; months++; }
+  }
+  if (months > 0) return { amount: Math.round(sum/months), why: `your ${months}-month average is ${$c0(sum/months)}` };
+  return { amount: '', why: '' };
+}
+
+function renderGoal() {
+  const { key, latest } = goalMonthKey();
+  const m = latest.getMonth(), y = latest.getFullYear();
+  document.getElementById('goalMonthLabel').textContent = `${MONTHS[m]} ${y}`;
+  const myGoals = goalsCache[myRep] || {};
+  const goal = myGoals[key];
+  const body = document.getElementById('goalBody');
+  const editBtn = document.getElementById('goalEditBtn');
+
+  if (!goal || goalEditing) {
+    // Setter view
+    editBtn.style.display = 'none';
+    const sug = goalSuggestion(latest);
+    const prevKey = `${m === 0 ? y-1 : y}-${String((m === 0 ? 12 : m)).padStart(2,'0')}`;
+    const prevGoal = myGoals[prevKey];
+    body.innerHTML = `
+      <div style="font-size:13px;margin-bottom:8px;">${goal ? 'Update your' : 'Set your own'} revenue goal for ${MONTHS[m]} - it's yours to choose and change anytime.</div>
+      ${sug.why ? `<div style="font-size:11px;color:#888;margin-bottom:8px;">For reference: ${sug.why}.</div>` : ''}
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+        <span style="font-size:15px;font-weight:700;">$</span>
+        <input type="text" id="goalInput" value="${goalEditing && goal ? goal : sug.amount}" style="width:120px;font-size:15px;font-weight:700;" placeholder="0">
+        <button onclick="submitGoal()">Save Goal</button>
+        ${prevGoal && !goal ? `<button class="secondary" onclick="saveGoal(${prevGoal})">Keep last month's (${$c0(prevGoal)})</button>` : ''}
+        ${goalEditing && goal ? `<button class="secondary" onclick="goalEditing=false;renderGoal()">Cancel</button>` : ''}
+      </div>`;
+    return;
+  }
+
+  // Progress view
+  editBtn.style.display = 'inline-block';
+  const done = myData.filter(r => r.year === y && r.month === m && isComplete(r)).reduce((s,r) => s+r.total, 0);
+  const pipeline = myData.filter(r => r.year === y && r.month === m && !isComplete(r)).reduce((s,r) => s+r.total, 0);
+  const pct = Math.min(done/goal*100, 100);
+  const rawPct = done/goal*100;
+  const daysInMonth = new Date(y, m+1, 0).getDate();
+  const elapsed = latest.getDate()/daysInMonth*100;
+  const ahead = rawPct >= elapsed;
+  const paceMsg = ahead
+    ? `▲ Ahead of pace - ${Math.round(elapsed)}% of the month gone, ${rawPct.toFixed(0)}% of goal done`
+    : `${rawPct >= elapsed*0.75 ? '● Close to pace' : '▼ Behind pace'} - ${Math.round(elapsed)}% of the month gone, ${rawPct.toFixed(0)}% of goal done`;
+
+  body.innerHTML = `
+    <div style="display:flex;justify-content:space-between;font-size:13px;">
+      <span><strong>${$c0(done)}</strong> of <strong>${$c0(goal)}</strong> goal</span>
+      <span class="${ahead ? 'green' : 'orange'} bold">${rawPct.toFixed(0)}%</span>
+    </div>
+    <div class="goal-bar-wrap">
+      <div class="goal-bar ${ahead ? '' : 'behind'}" style="width:${pct}%;"></div>
+      <div class="goal-pace" style="left:${Math.min(elapsed,100)}%;" title="Where today sits in the month"></div>
+      <div class="goal-bar-label">${rawPct.toFixed(0)}%</div>
+    </div>
+    <div style="font-size:11px;" class="${ahead ? 'green' : 'orange'}">${paceMsg}</div>
+    ${pipeline > 0 ? `<div style="font-size:11px;color:#888;margin-top:4px;">Plus ${$c0(pipeline)} in open pipeline this month (quotes and in-progress orders - not counted until complete).</div>` : ''}
+  `;
+}
 
 function updatePrintHeader() {
   document.getElementById('printHeader').innerHTML =

@@ -1816,8 +1816,18 @@ function downloadCSV(csv, name) {
 }
 
 // ─── PANEL 0: OVERVIEW (management landing page) ────────────────────────────
-function renderOverview() {
+async function renderOverview() {
   if (!allData.length) return;
+
+  // Rep goals (self-set on rep portals) - shared cloud doc
+  let goals = {};
+  if (cloudEnabled()) {
+    try {
+      const gdoc = await db.collection(CLOUD_COLLECTION).doc('goals').get();
+      if (gdoc.exists) goals = gdoc.data() || {};
+    } catch (e) { console.error('Goals load failed:', e); }
+  }
+
   const years = [...new Set(allData.map(r => r.year))].sort((a,b) => b-a);
   const y = years[0], ly = y - 1;
   const info = getYtdCutoff(y, ly);
@@ -1848,7 +1858,11 @@ function renderOverview() {
   const lastWeekOrders = cur.filter(r => r.invoice_date >= weekAgo);
   const lwRev = lastWeekOrders.reduce((s,r) => s+r.total, 0);
 
-  // Rep leaderboard rows
+  // Rep leaderboard rows (sorted by revenue - goal progress is information, not ranking)
+  const goalKey = `${latest.getFullYear()}-${String(latest.getMonth()+1).padStart(2,'0')}`;
+  const daysInMo = new Date(latest.getFullYear(), latest.getMonth()+1, 0).getDate();
+  const elapsedPct = latest.getDate()/daysInMo*100;
+
   const lbRows = VALID_REPS.map(rep => {
     const rCur = cur.filter(r => r.rep === rep);
     const rPrior = prior.filter(r => r.rep === rep);
@@ -1859,19 +1873,25 @@ function renderOverview() {
     const yoy = rLy > 0 ? (rRev-rLy)/rLy*100 : null;
     const momR = rLastMo > 0 ? (rMtd-rLastMo)/rLastMo*100 : null;
     const rAr = unpaid.filter(r => r.rep === rep).reduce((s,r) => s+r.outstanding, 0);
-    return { rep, rRev, rLy, yoy, rMtd, momR, rAr, clients: new Set(rCur.map(x=>x.client_name)).size };
+    const goal = goals[rep] ? goals[rep][goalKey] : null;
+    return { rep, rRev, rLy, yoy, rMtd, momR, rAr, goal, clients: new Set(rCur.map(x=>x.client_name)).size };
   }).filter(r => r.rRev > 0 || r.rLy > 0).sort((a,b) => b.rRev - a.rRev)
-    .map(r => [
+    .map(r => {
+      const gp = r.goal ? r.rMtd/r.goal*100 : null;
+      return [
       `<span class="bold">${r.rep}</span>`,
       `<span class="r bold">${$c(r.rRev)}</span>`,
       `<span class="r muted">${$c(r.rLy)}</span>`,
       `<span class="r ${r.yoy === null ? 'muted' : r.yoy >= 0 ? 'green' : 'red'}">${r.yoy === null ? '-' : (r.yoy >= 0 ? '+' : '') + r.yoy.toFixed(1) + '%'}</span>`,
       `<span class="r">${$c(r.rMtd)}</span>`,
       `<span class="r ${r.momR === null ? 'muted' : r.momR >= 0 ? 'green' : 'red'}">${r.momR === null ? '-' : (r.momR >= 0 ? '+' : '') + r.momR.toFixed(1) + '%'}</span>`,
+      `<span class="r ${r.goal ? '' : 'muted'}">${r.goal ? $c0(r.goal) : '-'}</span>`,
+      gp === null ? '<span class="r muted">-</span>' :
+        `<span class="r bold ${gp >= elapsedPct ? 'green' : gp >= elapsedPct*0.75 ? 'orange' : 'red'}">${gp.toFixed(0)}%</span>`,
       `<span class="r">${r.clients}</span>`,
       `<span class="r ${r.rAr > 0 ? 'orange' : ''}">${$c(r.rAr)}</span>`,
       `<a href="Toro_Rep_Portal.html?rep=${encodeURIComponent(r.rep)}" target="_blank">Portal →</a>`,
-    ]);
+    ];});
 
   // Monthly trend rows
   const priorFull = allData.filter(r => r.year === ly && isComplete(r));
@@ -1923,7 +1943,8 @@ function renderOverview() {
       <div class="stat"><span class="stat-val red">${$c0(ar90)}</span><span class="stat-lbl">AR 90+ Past Due</span></div>
     </div>
     ${dashSection(`🏆 Rep Leaderboard - ${y} YTD${info ? ` (through ${MONTHS[info.latest.getMonth()]} ${info.latest.getDate()})` : ''}`,
-      simpleTable(['Rep', `${y} YTD`, `${ly} YTD`, 'YoY', `${MONTHS[thisMonth]}`, 'MoM', 'Clients', 'Open AR', 'Portal'], lbRows))}
+      simpleTable(['Rep', `${y} YTD`, `${ly} YTD`, 'YoY', `${MONTHS[thisMonth]}`, 'MoM', `${MONTHS[thisMonth]} Goal`, 'Progress', 'Clients', 'Open AR', 'Portal'], lbRows) +
+      `<div style="padding:6px 12px;font-size:11px;color:#999;">Goals are self-set by each rep on their portal. Progress is completed revenue vs goal, colored by pace (${Math.round(elapsedPct)}% of the month has elapsed).</div>`)}
     ${dashSection(`📅 Company Monthly - ${y} vs ${ly}`, simpleTable(['Month', `${y}`, `${ly}`, 'Change'], moRows))}
     ${dashSection(`💳 AR Aging Summary`, simpleTable(['Bucket', 'Invoices', 'Outstanding'], arRows) +
       `<div style="padding:8px 12px;font-size:11px;color:#999;">Full detail with Printavo links: Company Dashboard tab.</div>`)}
