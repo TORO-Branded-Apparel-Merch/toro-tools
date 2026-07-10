@@ -208,7 +208,8 @@ tbody tr:hover { background: #fafafa; }
   <div id="mainUI" style="display:none;">
 
     <div class="report-nav">
-      <button class="report-tab active" data-panel="orders">📋 Order Detail</button>
+      <button class="report-tab active" data-panel="overview">🏠 Overview</button>
+      <button class="report-tab" data-panel="orders">📋 Order Detail</button>
       <button class="report-tab" data-panel="clients">👥 Client Summary</button>
       <button class="report-tab" data-panel="reps">🏆 Rep Performance</button>
       <button class="report-tab" data-panel="gainloss">📈 Gain / Loss</button>
@@ -238,7 +239,11 @@ tbody tr:hover { background: #fafafa; }
     <!-- ============================================================ -->
     <!-- PANEL 1: ORDER DETAIL                                         -->
     <!-- ============================================================ -->
-    <div id="panel-orders" class="report-panel active">
+    <div id="panel-overview" class="report-panel active">
+      <div id="overviewContent"><div class="empty" style="padding:24px;text-align:center;color:#999;">Loading overview...</div></div>
+    </div>
+
+    <div id="panel-orders" class="report-panel">
 
       <div class="filter-bar" id="ordersFilters">
         <div class="filter-group">
@@ -1537,7 +1542,6 @@ function applyGainLoss() {
   const netChange   = newRevenue + growthGain + atRiskDrop - lostRevenue;
 
   // Sortable gain/loss table
-  stableId = 0;
   const glCols = (extra) => [
     { h:'Company' }, { h:'Contact' }, { h:'Rep' }, ...extra
   ];
@@ -1811,6 +1815,128 @@ function downloadCSV(csv, name) {
   a.click();
 }
 
+// ─── PANEL 0: OVERVIEW (management landing page) ────────────────────────────
+function renderOverview() {
+  if (!allData.length) return;
+  const years = [...new Set(allData.map(r => r.year))].sort((a,b) => b-a);
+  const y = years[0], ly = y - 1;
+  const info = getYtdCutoff(y, ly);
+  const cutoff = info ? info.cutoff : null;
+  const latest = getMostRecentDate();
+
+  const cur = allData.filter(r => r.year === y && isComplete(r));
+  const prior = allData.filter(r => r.year === ly && isComplete(r) && (!cutoff || r.invoice_date <= cutoff));
+
+  const rev = cur.reduce((s,r) => s+r.total, 0);
+  const lyRev = prior.reduce((s,r) => s+r.total, 0);
+  const chg = lyRev > 0 ? (rev-lyRev)/lyRev*100 : null;
+
+  const thisMonth = latest.getMonth();
+  const mtd = cur.filter(r => r.month === thisMonth).reduce((s,r) => s+r.total, 0);
+  const lastMo = cur.filter(r => r.month === thisMonth-1).reduce((s,r) => s+r.total, 0);
+  const mom = lastMo > 0 ? (mtd-lastMo)/lastMo*100 : null;
+
+  const unpaid = allData.filter(r => r.paid === false && r.outstanding > 0);
+  const arTotal = unpaid.reduce((s,r) => s+r.outstanding, 0);
+  const aged = unpaid.map(r => {
+    const due = new Date(r.invoice_date); due.setDate(due.getDate() + (r.term_days || 0));
+    return { ...r, overdue: Math.floor((latest - due)/(1000*60*60*24)) };
+  });
+  const ar90 = aged.filter(r => r.overdue > 90).reduce((s,r) => s+r.outstanding, 0);
+
+  const weekAgo = new Date(latest); weekAgo.setDate(weekAgo.getDate() - 7);
+  const lastWeekOrders = cur.filter(r => r.invoice_date >= weekAgo);
+  const lwRev = lastWeekOrders.reduce((s,r) => s+r.total, 0);
+
+  // Rep leaderboard rows
+  const lbRows = VALID_REPS.map(rep => {
+    const rCur = cur.filter(r => r.rep === rep);
+    const rPrior = prior.filter(r => r.rep === rep);
+    const rRev = rCur.reduce((s,r) => s+r.total, 0);
+    const rLy = rPrior.reduce((s,r) => s+r.total, 0);
+    const rMtd = rCur.filter(r => r.month === thisMonth).reduce((s,r) => s+r.total, 0);
+    const rLastMo = rCur.filter(r => r.month === thisMonth-1).reduce((s,r) => s+r.total, 0);
+    const yoy = rLy > 0 ? (rRev-rLy)/rLy*100 : null;
+    const momR = rLastMo > 0 ? (rMtd-rLastMo)/rLastMo*100 : null;
+    const rAr = unpaid.filter(r => r.rep === rep).reduce((s,r) => s+r.outstanding, 0);
+    return { rep, rRev, rLy, yoy, rMtd, momR, rAr, clients: new Set(rCur.map(x=>x.client_name)).size };
+  }).filter(r => r.rRev > 0 || r.rLy > 0).sort((a,b) => b.rRev - a.rRev)
+    .map(r => [
+      `<span class="bold">${r.rep}</span>`,
+      `<span class="r bold">${$c(r.rRev)}</span>`,
+      `<span class="r muted">${$c(r.rLy)}</span>`,
+      `<span class="r ${r.yoy === null ? 'muted' : r.yoy >= 0 ? 'green' : 'red'}">${r.yoy === null ? '-' : (r.yoy >= 0 ? '+' : '') + r.yoy.toFixed(1) + '%'}</span>`,
+      `<span class="r">${$c(r.rMtd)}</span>`,
+      `<span class="r ${r.momR === null ? 'muted' : r.momR >= 0 ? 'green' : 'red'}">${r.momR === null ? '-' : (r.momR >= 0 ? '+' : '') + r.momR.toFixed(1) + '%'}</span>`,
+      `<span class="r">${r.clients}</span>`,
+      `<span class="r ${r.rAr > 0 ? 'orange' : ''}">${$c(r.rAr)}</span>`,
+      `<a href="Toro_Rep_Portal.html?rep=${encodeURIComponent(r.rep)}" target="_blank">Portal →</a>`,
+    ]);
+
+  // Monthly trend rows
+  const priorFull = allData.filter(r => r.year === ly && isComplete(r));
+  const moRows = [];
+  for (let m = 0; m < 12; m++) {
+    const c = cur.filter(r => r.month === m).reduce((s,r) => s+r.total, 0);
+    const p = priorFull.filter(r => r.month === m).reduce((s,r) => s+r.total, 0);
+    if (!c && !p) continue;
+    const d = p > 0 ? (c-p)/p*100 : null;
+    moRows.push([MONTHS[m], `<span class="r">${$c(c)}</span>`, `<span class="r muted">${$c(p)}</span>`,
+      `<span class="r ${d === null ? 'muted' : d >= 0 ? 'green' : 'red'}">${d === null ? '-' : (d >= 0 ? '+' : '') + d.toFixed(1) + '%'}</span>`]);
+  }
+
+  // AR buckets
+  const buckets = [
+    { label:'Not yet due', test: d => d < 0, cls:'' },
+    { label:'1-30 past due', test: d => d >= 0 && d <= 30, cls:'' },
+    { label:'31-60 past due', test: d => d >= 31 && d <= 60, cls:'orange' },
+    { label:'61-90 past due', test: d => d >= 61 && d <= 90, cls:'orange' },
+    { label:'90+ past due', test: d => d > 90, cls:'red' },
+  ];
+  const arRows = buckets.map(b => {
+    const rows = aged.filter(r => b.test(r.overdue));
+    return [`<span class="${b.cls}">${b.label}</span>`, `<span class="r">${rows.length}</span>`,
+      `<span class="r bold ${b.cls}">${$c(rows.reduce((s,r) => s+r.outstanding, 0))}</span>`];
+  });
+
+  // Last week rows
+  const lwRows = lastWeekOrders.sort((a,b) => b.invoice_date - a.invoice_date)
+    .map(r => [fdate(r.invoice_date), pvLink(r), `<span class="bold">${r.client_name}</span>`, r.rep, `<span class="r bold">${$c(r.total)}</span>`]);
+
+  // At-risk top 10 (YTD-matched)
+  const byClient = {};
+  cur.forEach(r => { byClient[r.client_name] = byClient[r.client_name] || { cur:0, prior:0, rep:r.rep }; byClient[r.client_name].cur += r.total; });
+  prior.forEach(r => { byClient[r.client_name] = byClient[r.client_name] || { cur:0, prior:0, rep:r.rep }; byClient[r.client_name].prior += r.total; });
+  const riskRows = Object.entries(byClient)
+    .map(([name,v]) => ({ name, ...v, drop: v.cur - v.prior }))
+    .filter(r => r.prior > 0 && r.drop < 0)
+    .sort((a,b) => a.drop - b.drop).slice(0, 10)
+    .map(r => [`<span class="bold">${r.name}</span>`, r.rep, `<span class="r muted">${$c(r.prior)}</span>`,
+      `<span class="r">${$c(r.cur)}</span>`, `<span class="r red bold">${$c(r.drop)}</span>`]);
+
+  document.getElementById('overviewContent').innerHTML = `
+    <div class="summary-bar" style="margin-bottom:16px;flex-wrap:wrap;">
+      <div class="stat"><span class="stat-val">${$c0(rev)}</span><span class="stat-lbl">${y} Revenue YTD${chg !== null ? ` <span class="${chg >= 0 ? 'green' : 'red'}">(${chg >= 0 ? '+' : ''}${chg.toFixed(1)}% vs ${ly})</span>` : ''}</span></div>
+      <div class="stat"><span class="stat-val">${$c0(mtd)}</span><span class="stat-lbl">${MONTHS[thisMonth]} MTD${mom !== null ? ` <span class="${mom >= 0 ? 'green' : 'red'}">(${mom >= 0 ? '+' : ''}${mom.toFixed(1)}% MoM)</span>` : ''}</span></div>
+      <div class="stat"><span class="stat-val">${$c0(lwRev)}</span><span class="stat-lbl">Last 7 Days (${lastWeekOrders.length} orders)</span></div>
+      <div class="stat"><span class="stat-val orange">${$c0(arTotal)}</span><span class="stat-lbl">Open AR (${unpaid.length} invoices)</span></div>
+      <div class="stat"><span class="stat-val red">${$c0(ar90)}</span><span class="stat-lbl">AR 90+ Past Due</span></div>
+    </div>
+    ${dashSection(`🏆 Rep Leaderboard - ${y} YTD${info ? ` (through ${MONTHS[info.latest.getMonth()]} ${info.latest.getDate()})` : ''}`,
+      simpleTable(['Rep', `${y} YTD`, `${ly} YTD`, 'YoY', `${MONTHS[thisMonth]}`, 'MoM', 'Clients', 'Open AR', 'Portal'], lbRows))}
+    ${dashSection(`📅 Company Monthly - ${y} vs ${ly}`, simpleTable(['Month', `${y}`, `${ly}`, 'Change'], moRows))}
+    ${dashSection(`💳 AR Aging Summary`, simpleTable(['Bucket', 'Invoices', 'Outstanding'], arRows) +
+      `<div style="padding:8px 12px;font-size:11px;color:#999;">Full detail with Printavo links: Company Dashboard tab.</div>`)}
+    ${dashSection(`📬 New Business - Last 7 Days (${fdate(weekAgo)} - ${fdate(latest)})`,
+      simpleTable(['Date','Invoice','Company','Rep','Amount'], lwRows, 'No completed orders in the window'))}
+    ${dashSection(`⚠️ Top At-Risk Clients (${y} vs ${ly} YTD decline)`,
+      simpleTable(['Client','Rep',`${ly} YTD`,`${y} YTD`,'Decline'], riskRows, 'No declining clients 🎉'))}
+    ${dashSection(`👤 Rep Portal Links`,
+      `<div style="padding:12px 14px;font-size:12px;line-height:2.2;">${VALID_REPS.map(r =>
+        `<a href="Toro_Rep_Portal.html?rep=${encodeURIComponent(r)}" target="_blank">👤 ${r}'s Portal</a>`).join(' &nbsp;|&nbsp; ')}</div>`)}
+  `;
+}
+
 // ─── FILE LOAD ───────────────────────────────────────────────────────────────
 function renderAllPanels() {
   populateFilters();
@@ -1822,6 +1948,7 @@ function renderAllPanels() {
   applyClientFilters();
   applyRepFilters();
   applySeasonalFilters();
+  renderOverview();
 
   // Pre-select sensible defaults for dashboards
   if (uniqueYears[0]) {
@@ -2245,7 +2372,6 @@ function sortSimpleTable(tid, colIdx) {
 
 // ─── PANEL 6: REP DASHBOARD ──────────────────────────────────────────────────
 function applyRepDash() {
-  dashSectionId = 0; stableId = 0;
   const rep  = document.getElementById('rd-rep').value;
   const y1   = parseInt(document.getElementById('rd-year').value);
   const y2   = parseInt(document.getElementById('rd-year2').value);
@@ -2393,7 +2519,6 @@ function exportRepDash() {
 
 // ─── PANEL 7: COMPANY DASHBOARD ──────────────────────────────────────────────
 function applyCompanyDash() {
-  dashSectionId = 0; stableId = 0;
   const y1 = parseInt(document.getElementById('co-year').value);
   const y2 = parseInt(document.getElementById('co-year2').value);
 

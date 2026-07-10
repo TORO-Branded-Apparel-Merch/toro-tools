@@ -38,6 +38,20 @@ a { color:#2f6fb2; text-decoration:none; }
 .rep-picker { max-width:420px; margin:60px auto; background:white; border:1px solid #ddd; border-radius:8px; padding:28px; text-align:center; }
 .rep-picker button { display:block; width:100%; margin:6px 0; padding:11px; background:white; color:#1a1a1a; border:1px solid #ccc; font-size:13px; }
 .rep-picker button:hover { background:#1a1a1a; color:white; opacity:1; }
+.print-only { display:none; }
+@media print {
+  body { background:white; font-size:11px; }
+  .header, .cloud-note, .filters, button, select, input, #ytdNote, .kpis { display:none !important; }
+  .container { max-width:none; padding:0; }
+  .card { border:none; margin:0; box-shadow:none; }
+  .card-head { background:none; border-left:none; padding:4px 0; font-size:15px; }
+  body[data-print] .card { display:none; }
+  body[data-print] .card.print-target { display:block; }
+  .print-only { display:block; font-size:11px; color:#555; margin-bottom:10px; }
+  td, th { padding:4px 8px; }
+  a { color:#1a1a1a; text-decoration:none; }
+  tr { page-break-inside:avoid; }
+}
 </style>
 </head>
 <body>
@@ -68,13 +82,26 @@ a { color:#2f6fb2; text-decoration:none; }
 
     <div class="kpis" id="kpiRow"></div>
 
-    <div class="card">
-      <div class="card-head"><span>📅 My Monthly Performance</span><button class="secondary" onclick="exportMonthly()">💾 Export</button></div>
+    <div class="print-only" id="printHeader"></div>
+
+    <div class="card" id="card-monthly">
+      <div class="card-head"><span>📅 My Monthly Performance</span>
+        <span><button class="secondary" onclick="printSection('card-monthly')">🖨️ Print</button>
+        <button class="secondary" onclick="exportMonthly()">💾 Export</button></span></div>
       <div class="card-body"><div id="monthlyTable"></div></div>
     </div>
 
-    <div class="card">
-      <div class="card-head"><span>📋 My Orders</span><button class="secondary" onclick="exportOrders()">💾 Export</button></div>
+    <div class="card" id="card-clients">
+      <div class="card-head"><span>👥 My Clients</span>
+        <span><button class="secondary" onclick="printSection('card-clients')">🖨️ Print</button>
+        <button class="secondary" onclick="exportClients()">💾 Export</button></span></div>
+      <div class="card-body"><div id="clientsTable"></div></div>
+    </div>
+
+    <div class="card" id="card-orders">
+      <div class="card-head"><span>📋 My Orders</span>
+        <span><button class="secondary" onclick="printSection('card-orders')">🖨️ Print</button>
+        <button class="secondary" onclick="exportOrders()">💾 Export</button></span></div>
       <div class="filters">
         <div class="fg"><label>Date From</label><input type="date" id="f-from"></div>
         <div class="fg"><label>Date To</label><input type="date" id="f-to"></div>
@@ -508,7 +535,57 @@ function startDash() {
 
 function curYear() { return parseInt(document.getElementById('yearSel').value); }
 
-function renderAll() { renderKPIs(); renderMonthly(); renderOrders(); }
+function renderAll() { renderKPIs(); renderMonthly(); renderClients(); renderOrders(); updatePrintHeader(); }
+
+function updatePrintHeader() {
+  document.getElementById('printHeader').innerHTML =
+    `<strong>TORO - ${myRep}</strong> &nbsp;|&nbsp; ${curYear()} &nbsp;|&nbsp; printed ${new Date().toLocaleDateString()}` +
+    (cloudMeta ? ` &nbsp;|&nbsp; data updated ${new Date(cloudMeta.updatedAt).toLocaleDateString()}` : '');
+}
+
+function renderClients() {
+  const y = curYear();
+  const agg = {};
+  myData.filter(isComplete).forEach(r => {
+    if (!agg[r.client_name]) agg[r.client_name] = { name: r.client_name, contact: '', yr: 0, yrOrders: 0, life: 0, last: null };
+    const a = agg[r.client_name];
+    a.life += r.total;
+    if (r.client_full_name) a.contact = r.client_full_name;
+    if (!a.last || r.invoice_date > a.last) a.last = r.invoice_date;
+    if (r.year === y) { a.yr += r.total; a.yrOrders++; }
+  });
+  const rows = Object.values(agg).sort((a,b) => b.yr - a.yr || b.life - a.life);
+  const yrTotal = rows.reduce((s,r) => s+r.yr, 0);
+
+  document.getElementById('clientsTable').innerHTML = `
+    <div style="padding:8px 14px;font-size:11px;color:#666;background:#fafafa;border-bottom:1px solid #eee;">
+      <strong>${rows.length}</strong> clients (completed orders) - <strong>${$c(yrTotal)}</strong> in ${y}
+    </div>
+    <table>
+    <thead><tr><th>Company</th><th>Contact</th><th class="r">${y} Spend</th><th class="r">${y} Orders</th><th class="r">Lifetime Spend</th><th>Last Order</th></tr></thead>
+    <tbody>${rows.map(r => `<tr>
+      <td class="bold">${r.name}</td>
+      <td class="muted">${r.contact || '-'}</td>
+      <td class="r bold">${r.yr > 0 ? $c(r.yr) : '<span class="muted">-</span>'}</td>
+      <td class="r">${r.yrOrders || '<span class="muted">-</span>'}</td>
+      <td class="r">${$c(r.life)}</td>
+      <td>${fdate(r.last)}</td>
+    </tr>`).join('') || '<tr><td colspan="6" class="empty">No clients yet</td></tr>'}</tbody>
+  </table>`;
+}
+
+function printSection(cardId) {
+  updatePrintHeader();
+  document.getElementById(cardId).classList.add('print-target');
+  document.body.setAttribute('data-print', '1');
+  window.print();
+  setTimeout(() => {
+    document.body.removeAttribute('data-print');
+    document.getElementById(cardId).classList.remove('print-target');
+  }, 500);
+}
+
+function exportClients() { dl(tableToCSV('clientsTable'), 'clients'); }
 
 function renderKPIs() {
   const y = curYear(), ly = y - 1;
