@@ -1,0 +1,679 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TORO Rep Portal</title>
+<style>
+* { margin:0; padding:0; box-sizing:border-box; }
+body { font-family:'Segoe UI', Arial, sans-serif; background:#f5f5f5; color:#1a1a1a; font-size:13px; }
+.header { background:#1a1a1a; color:white; padding:14px 24px; display:flex; align-items:center; justify-content:space-between; }
+.header h1 { font-size:16px; font-weight:bold; }
+.header .sub { font-size:11px; color:#aaa; }
+.container { max-width:1100px; margin:0 auto; padding:16px 24px; }
+.cloud-note { font-size:11px; color:#666; background:#eef6ff; border:1px solid #b8d4f0; border-radius:4px; padding:7px 12px; margin-bottom:14px; }
+.cloud-note.err { background:#fff3f3; border-color:#fcc; }
+.kpis { display:grid; grid-template-columns:repeat(auto-fit,minmax(170px,1fr)); gap:10px; margin-bottom:18px; }
+.kpi { background:white; border:1px solid #ddd; border-radius:6px; padding:14px; }
+.kpi .val { font-size:22px; font-weight:bold; }
+.kpi .lbl { font-size:10px; color:#888; text-transform:uppercase; letter-spacing:.5px; margin-top:2px; }
+.kpi .cmp { font-size:11px; margin-top:4px; }
+.green { color:#1a7f4b; } .red { color:#c0392b; } .orange { color:#c87f1d; } .muted { color:#999; }
+.card { background:white; border:1px solid #ddd; border-radius:6px; margin-bottom:18px; overflow:hidden; }
+.card-head { padding:10px 14px; background:#f0f0f0; border-left:4px solid #1a1a1a; font-weight:700; font-size:13px; display:flex; justify-content:space-between; align-items:center; }
+.card-body { padding:0; }
+table { width:100%; border-collapse:collapse; font-size:12px; }
+th { text-align:left; padding:8px 12px; background:#fafafa; border-bottom:2px solid #ddd; font-size:10px; text-transform:uppercase; letter-spacing:.4px; color:#666; cursor:pointer; user-select:none; }
+td { padding:8px 12px; border-bottom:1px solid #eee; }
+tr:hover td { background:#fafcff; }
+.r { text-align:right; } .bold { font-weight:600; }
+.empty { padding:24px; text-align:center; color:#999; }
+.filters { display:flex; gap:10px; flex-wrap:wrap; padding:12px 14px; background:#fafafa; border-bottom:1px solid #eee; align-items:flex-end; }
+.fg label { display:block; font-size:10px; text-transform:uppercase; color:#888; margin-bottom:3px; letter-spacing:.4px; }
+input, select { padding:6px 8px; border:1px solid #ccc; border-radius:3px; font-size:12px; }
+button { padding:7px 14px; background:#1a1a1a; color:white; border:none; border-radius:3px; font-size:12px; cursor:pointer; font-weight:600; }
+button.secondary { background:white; color:#1a1a1a; border:1px solid #ccc; }
+button:hover { opacity:.85; }
+a { color:#2f6fb2; text-decoration:none; }
+.rep-picker { max-width:420px; margin:60px auto; background:white; border:1px solid #ddd; border-radius:8px; padding:28px; text-align:center; }
+.rep-picker button { display:block; width:100%; margin:6px 0; padding:11px; background:white; color:#1a1a1a; border:1px solid #ccc; font-size:13px; }
+.rep-picker button:hover { background:#1a1a1a; color:white; opacity:1; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>📊 TORO Rep Portal <span id="repName" style="color:#6fcf97;"></span></h1>
+  <div class="sub" id="headerSub">Loading...</div>
+</div>
+
+<div class="container">
+  <div class="cloud-note" id="cloudStatus" style="display:none;">☁️ <span id="cloudStatusText"></span></div>
+
+  <div id="pickerView" style="display:none;">
+    <div class="rep-picker">
+      <div style="font-weight:700;font-size:15px;margin-bottom:4px;">Who's checking in?</div>
+      <div style="font-size:11px;color:#888;margin-bottom:14px;">Pick your name - then bookmark the page for one-click access next time.</div>
+      <div id="repButtons"></div>
+    </div>
+  </div>
+
+  <div id="dashView" style="display:none;">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+      <div style="font-size:12px;color:#666;">Year:
+        <select id="yearSel" onchange="renderAll()"></select>
+      </div>
+      <div style="font-size:11px;color:#999;" id="ytdNote"></div>
+    </div>
+
+    <div class="kpis" id="kpiRow"></div>
+
+    <div class="card">
+      <div class="card-head"><span>📅 My Monthly Performance</span><button class="secondary" onclick="exportMonthly()">💾 Export</button></div>
+      <div class="card-body"><div id="monthlyTable"></div></div>
+    </div>
+
+    <div class="card">
+      <div class="card-head"><span>📋 My Orders</span><button class="secondary" onclick="exportOrders()">💾 Export</button></div>
+      <div class="filters">
+        <div class="fg"><label>Date From</label><input type="date" id="f-from"></div>
+        <div class="fg"><label>Date To</label><input type="date" id="f-to"></div>
+        <div class="fg"><label>Invoice #</label><input type="text" id="f-inv" placeholder="search..." style="width:100px;"></div>
+        <div class="fg"><label>Client</label><input type="text" id="f-client" placeholder="search..." style="width:140px;"></div>
+        <div class="fg"><label>&nbsp;</label><label style="display:flex;align-items:center;gap:5px;font-size:12px;text-transform:none;color:#1a1a1a;cursor:pointer;"><input type="checkbox" id="f-completed" style="width:auto;"> Completed only</label></div>
+        <button onclick="renderOrders()">Run Report</button>
+        <button class="secondary" onclick="clearFilters()">Clear</button>
+      </div>
+      <div class="card-body"><div id="ordersTable"></div></div>
+    </div>
+  </div>
+</div>
+
+<!-- Firebase (compat) SDK -->
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+
+<script>
+
+// ─── FIREBASE CONFIG ─────────────────────────────────────────────────────────
+// Paste your Firebase project config here (Firebase Console > Project Settings
+// > Your apps > SDK setup and configuration > Config)
+const FIREBASE_CONFIG = {
+  apiKey: "AIzaSyDdbNqY9froCM2tyNwQLXnYG2xWIZrzF48",
+  authDomain: "toro-reports.firebaseapp.com",
+  projectId: "toro-reports",
+  storageBucket: "toro-reports.firebasestorage.app",
+  messagingSenderId: "48927798049",
+  appId: "1:48927798049:web:38ec29dab6dee780d98460"
+};
+
+
+const VALID_REPS = ['Abby Mendez','Amy Smith','Debra Guerra','Julia Howorth','Kimberly Black','Lexi Martinez','Shannon Bull','Stephen Rios'];
+// Completed = either the current status or the 2022-era legacy status
+const COMPLETE_STATUSES = new Set(['ORDER COMPLETE - SYNC', 'Order Complete$$ - Closed - DO NOT USE']);
+const isComplete = r => COMPLETE_STATUSES.has(r.status);
+const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+
+let allData = [];
+let uniqueYears = [];
+let uniqueReps = [];
+let uniqueStatuses = [];
+
+// Sort state per table
+const sortStates = {};
+
+// Column config for Order Detail
+
+// ─── CSV PARSING ────────────────────────────────────────────────────────────
+// Reverse cp1252 mapping for the 0x80-0x9F range (chars that map above U+00FF)
+const CP1252_REV = {'\u20AC':0x80,'\u201A':0x82,'\u0192':0x83,'\u201E':0x84,'\u2026':0x85,'\u2020':0x86,'\u2021':0x87,'\u02C6':0x88,'\u2030':0x89,'\u0160':0x8A,'\u2039':0x8B,'\u0152':0x8C,'\u017D':0x8E,'\u2018':0x91,'\u2019':0x92,'\u201C':0x93,'\u201D':0x94,'\u2022':0x95,'\u2013':0x96,'\u2014':0x97,'\u02DC':0x98,'\u2122':0x99,'\u0161':0x9A,'\u203A':0x9B,'\u0153':0x9C,'\u017E':0x9E,'\u0178':0x9F};
+
+function fixMojibake(text) {
+  if (!text || typeof text !== 'string') return text;
+  // Only attempt when the string looks like cp1252-mangled UTF-8
+  if (!/[\u00C2-\u00F4\u0152-\u0192\u2013-\u2122]/.test(text)) return text;
+  try {
+    const bytes = new Uint8Array(text.length);
+    for (let i = 0; i < text.length; i++) {
+      const ch = text[i], code = text.charCodeAt(i);
+      bytes[i] = CP1252_REV[ch] !== undefined ? CP1252_REV[ch] : (code & 0xff);
+    }
+    const decoded = new TextDecoder('utf-8', { fatal: true }).decode(bytes);
+    return decoded;
+  } catch (e) { return text; }
+}
+
+function parseCSVLine(line) {
+  const result = [];
+  let cur = '';
+  let inQ = false;
+  for (let i = 0; i < line.length; i++) {
+    const c = line[i];
+    if (c === '"') {
+      if (inQ && line[i+1] === '"') { cur += '"'; i++; }
+      else inQ = !inQ;
+    } else if (c === ',' && !inQ) { result.push(cur); cur = ''; }
+    else cur += c;
+  }
+  result.push(cur);
+  return result;
+}
+
+function parseCSV(text) {
+  text = text.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+  const rawLines = text.split('\n');
+  const lines = [];
+  let buf = '';
+  for (const line of rawLines) {
+    buf += (buf ? '\n' : '') + line;
+    if ((buf.match(/"/g) || []).length % 2 === 0) { lines.push(buf); buf = ''; }
+  }
+  if (buf) lines.push(buf);
+  if (!lines.length) return [];
+  const headers = parseCSVLine(lines[0]).map(h => h.trim());
+  const data = [];
+  for (let i = 1; i < lines.length; i++) {
+    if (!lines[i].trim()) continue;
+    const vals = parseCSVLine(lines[i]);
+    const obj = {};
+    headers.forEach((h, idx) => { obj[h] = fixMojibake((vals[idx] || '').trim()); });
+    data.push(obj);
+  }
+  return data;
+}
+
+// ─── DATA CLEANING ──────────────────────────────────────────────────────────
+// Handles both the old 9-column export and the new master list (24 columns).
+// Dates may arrive as "YYYY-MM-DD HH:MM:SS" strings, JS Dates (from xlsx), or
+// Excel serial numbers.
+function toDate(v) {
+  // Duck-typed Date check (robust across JS contexts)
+  if (v && typeof v === 'object' && typeof v.getFullYear === 'function' && !isNaN(v.getTime())) {
+    return new Date(v.getFullYear(), v.getMonth(), v.getDate());
+  }
+  if (typeof v === 'number' && v > 20000 && v < 60000) {
+    // Excel serial date (days since 1899-12-30)
+    const d = new Date(Math.round((v - 25569) * 86400 * 1000));
+    return new Date(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate());
+  }
+  if (typeof v === 'string' && v) {
+    const parts = v.split(' ')[0].split('-');
+    if (parts.length === 3) return new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]));
+  }
+  return null;
+}
+
+function toBool(v) {
+  if (typeof v === 'boolean') return v;
+  return String(v).trim().toUpperCase() === 'TRUE';
+}
+
+// Extract the numeric Printavo invoice id from the Invoice URL
+function printavoId(url) {
+  const m = String(url || '').match(/invoices\/(\d+)/);
+  return m ? m[1] : '';
+}
+
+function cleanAndNormalize(rawData) {
+  return rawData
+    .filter(row => {
+      const status = String(row['Invoice Status'] || '').trim();
+      if (/archiv/i.test(status)) return false; // Archived Quotes, Merch Store archives
+      if (!VALID_REPS.includes(String(row['Owner'] || '').trim())) return false;
+      if (!row['Customer Company'] || !String(row['Customer Company']).trim()) return false;
+      const amt = parseFloat(row['Total'] || 0);
+      if (isNaN(amt) || amt <= 0) return false;
+      return true;
+    })
+    .map(row => {
+      const date = toDate(row['Invoice Date']);
+      if (!date) return null;
+      const year = date.getFullYear(), month = date.getMonth();
+      if (year < 2020 || year > 2030) return null;
+      return {
+        invoice_date: date,
+        invoice_number: String(row['Invoice #'] ?? ''),
+        client_name: String(row['Customer Company']).trim(),
+        client_full_name: row['Customer Full Name'] ? String(row['Customer Full Name']).trim() : '',
+        client_email: String(row['Customer Email'] || ''),
+        rep: String(row['Owner']).trim(),
+        total: parseFloat(row['Total']),
+        product: String(row['Nickname'] || '(none)'),
+        status: String(row['Invoice Status'] || '').trim(),
+        year, month, quarter: Math.floor(month / 3) + 1,
+        // New master-list fields (blank/defaults when loading the old export)
+        customer_id: String(row['Customer Id'] || ''),
+        paid: 'Paid?' in row ? toBool(row['Paid?']) : null,   // null = unknown (old export)
+        outstanding: parseFloat(row['Amount Outstanding'] || 0) || 0,
+        term_days: parseInt(row['Payment Term Days']) || 0,
+        payment_term: String(row['Payment Term'] || '').trim(),
+        delivery: String(row['Delivery Method'] || '').trim(),
+        po: String(row['PO #'] || '').trim(),
+        pv_id: printavoId(row['Invoice URL']),
+        ship_city: String(row['Shipping City'] || '').trim(),
+        ship_state: String(row['Shipping State'] || '').trim(),
+      };
+    })
+    .filter(Boolean);
+}
+
+// Printavo link for an order (empty string if no URL available)
+function pvLink(r) {
+  if (!r.pv_id) return r.invoice_number ? `#${r.invoice_number}` : '';
+  return `<a href="https://www.printavo.com/invoices/${r.pv_id}" target="_blank" style="color:#2f6fb2;text-decoration:none;">#${r.invoice_number} ↗</a>`;
+}
+
+// ─── FORMAT HELPERS ──────────────────────────────────────────────────────────
+const $c = n => new Intl.NumberFormat('en-US',{style:'currency',currency:'USD',minimumFractionDigits:2}).format(n);
+const $c0 = n => new Intl.NumberFormat('en-US',{style:'currency',currency:'USD',minimumFractionDigits:0}).format(n);
+const $n = n => n.toLocaleString();
+const fdate = d => d ? `${d.getMonth()+1}/${d.getDate()}/${d.getFullYear()}` : '';
+const pct = (a, b) => b === 0 ? '-' : ((a-b)/b*100).toFixed(1) + '%';
+const pctClass = (a, b) => a > b ? 'green' : a < b ? 'red' : '';
+
+// YTD helper: given the newer year, find its latest data date, and return
+// a cutoff Date for the older year at the same month/day
+function getYtdCutoff(newerYear, olderYear) {
+  const dates = allData.filter(r => r.year === newerYear).map(r => r.invoice_date).filter(Boolean);
+  if (!dates.length) return null;
+  const latest = new Date(Math.max(...dates));
+  return { cutoff: new Date(olderYear, latest.getMonth(), latest.getDate(), 23, 59, 59), latest };
+}
+
+function ytdLabel(latest) {
+  return latest ? `Jan-${MONTHS[latest.getMonth()]} ${latest.getDate()}` : '';
+}
+
+// ─── CLOUD SYNC (FIRESTORE) ──────────────────────────────────────────────────
+let db = null;
+const CLOUD_COLLECTION = 'report_builder';
+const CHUNK_LIMIT = 800 * 1024; // stay under Firestore's 1MB doc limit
+
+function cloudEnabled() { return db !== null; }
+
+function setCloudStatus(msg, isError) {
+  const bar = document.getElementById('cloudStatus');
+  const txt = document.getElementById('cloudStatusText');
+  if (!bar) return;
+  bar.style.display = 'block';
+  bar.style.background = isError ? '#fff3f3' : '#eef6ff';
+  bar.style.borderColor = isError ? '#fcc' : '#b8d4f0';
+  txt.textContent = msg;
+}
+
+function initFirebase() {
+  try {
+    if (typeof firebase === 'undefined') return; // SDK blocked/offline
+    if (!FIREBASE_CONFIG.projectId || FIREBASE_CONFIG.projectId.startsWith('PASTE_')) {
+      // Config not set - run in local-only mode silently
+      return;
+    }
+    firebase.initializeApp(FIREBASE_CONFIG);
+    db = firebase.firestore();
+  } catch (e) {
+    console.error('Firebase init failed:', e);
+    db = null;
+  }
+}
+
+// Merge key: Printavo invoice id (globally unique). Falls back to
+// invoice # + date + total for old-format records without URLs.
+function recordKey(r) {
+  if (r.pv_id) return 'pv:' + r.pv_id;
+  return `${r.invoice_number}|${r.invoice_date ? r.invoice_date.getTime() : ''}|${r.total}`;
+}
+
+function mergeData(existing, incoming) {
+  // If the incoming file is the new format but existing cloud data is the old
+  // format (no Printavo ids), replace wholesale to avoid duplicate orders
+  const incHasIds = incoming.length && incoming.filter(r => r.pv_id).length / incoming.length > 0.5;
+  const exHasIds  = existing.length && existing.filter(r => r.pv_id).length / existing.length > 0.5;
+  if (incHasIds && !exHasIds && existing.length) return [...incoming];
+
+  const map = new Map();
+  existing.forEach(r => map.set(recordKey(r), r));
+  incoming.forEach(r => map.set(recordKey(r), r)); // new data wins on same key
+  return [...map.values()];
+}
+
+// Compact serialization: array-of-arrays with date as yyyy-mm-dd string
+function serializeData(data) {
+  return data.map(r => [
+    r.invoice_date ? `${r.invoice_date.getFullYear()}-${String(r.invoice_date.getMonth()+1).padStart(2,'0')}-${String(r.invoice_date.getDate()).padStart(2,'0')}` : '',
+    r.invoice_number, r.client_name, r.client_full_name, r.client_email,
+    r.rep, r.total, r.product, r.status,
+    r.customer_id || '', r.paid === null ? '' : (r.paid ? 1 : 0), r.outstanding || 0,
+    r.term_days || 0, r.payment_term || '', r.delivery || '', r.po || '',
+    r.pv_id || '', r.ship_city || '', r.ship_state || ''
+  ]);
+}
+
+function deserializeData(rows) {
+  return rows.map(a => {
+    const parts = (a[0] || '').split('-');
+    let date = null, year = 0, month = 0, quarter = 0;
+    if (parts.length === 3) {
+      year = parseInt(parts[0]); month = parseInt(parts[1]) - 1;
+      date = new Date(year, month, parseInt(parts[2]));
+      quarter = Math.floor(month / 3) + 1;
+    }
+    return {
+      invoice_date: date, invoice_number: a[1], client_name: a[2],
+      client_full_name: a[3], client_email: a[4], rep: a[5],
+      total: a[6], product: a[7], status: a[8],
+      customer_id: a[9] || '',
+      paid: a[10] === '' || a[10] === undefined ? null : !!a[10],
+      outstanding: a[11] || 0,
+      term_days: a[12] || 0, payment_term: a[13] || '',
+      delivery: a[14] || '', po: a[15] || '',
+      pv_id: a[16] || '', ship_city: a[17] || '', ship_state: a[18] || '',
+      year, month, quarter,
+    };
+  }).filter(r => r.year >= 2020 && r.year <= 2030);
+}
+
+async function saveToCloud() {
+  if (!cloudEnabled()) return;
+  try {
+    const rows = serializeData(allData);
+    // Chunk rows so each doc's JSON stays under the limit
+    const chunks = [];
+    let current = [], size = 2;
+    for (const row of rows) {
+      const rowSize = JSON.stringify(row).length + 1;
+      if (size + rowSize > CHUNK_LIMIT && current.length) {
+        chunks.push(current); current = []; size = 2;
+      }
+      current.push(row); size += rowSize;
+    }
+    if (current.length) chunks.push(current);
+
+    const batchWrites = [];
+    chunks.forEach((chunk, i) => {
+      batchWrites.push(db.collection(CLOUD_COLLECTION).doc('chunk_' + i).set({ rows: JSON.stringify(chunk) }));
+    });
+    await Promise.all(batchWrites);
+
+    // Clean up any leftover chunks from a previous larger dataset
+    const meta = await db.collection(CLOUD_COLLECTION).doc('meta').get();
+    const oldCount = meta.exists ? (meta.data().chunkCount || 0) : 0;
+    for (let i = chunks.length; i < oldCount; i++) {
+      await db.collection(CLOUD_COLLECTION).doc('chunk_' + i).delete();
+    }
+
+    await db.collection(CLOUD_COLLECTION).doc('meta').set({
+      chunkCount: chunks.length,
+      recordCount: allData.length,
+      updatedAt: new Date().toISOString(),
+    });
+    setCloudStatus(`Synced ${allData.length.toLocaleString()} orders to cloud (updated ${new Date().toLocaleString()})`);
+  } catch (e) {
+    console.error('Cloud save failed:', e);
+    setCloudStatus('Cloud sync failed: ' + e.message + ' (data still works locally)', true);
+  }
+}
+
+// Push group selections to the shared settings doc so the whole team gets them
+async function saveGroupsToCloud() {
+  if (!cloudEnabled()) return;
+  try {
+    await db.collection(CLOUD_COLLECTION).doc('settings').set({
+      groupKeys: [...activeGroupKeys],
+      updatedAt: new Date().toISOString(),
+    }, { merge: true });
+  } catch (e) { console.error('Group sync failed:', e); }
+}
+
+// UI-agnostic cloud loader: returns { data, meta } or null
+async function loadCloudData() {
+  if (!cloudEnabled()) return null;
+  try {
+    const meta = await db.collection(CLOUD_COLLECTION).doc('meta').get();
+    if (!meta.exists) return null;
+    const { chunkCount, recordCount, updatedAt } = meta.data();
+    const reads = [];
+    for (let i = 0; i < chunkCount; i++) reads.push(db.collection(CLOUD_COLLECTION).doc('chunk_' + i).get());
+    const docs = await Promise.all(reads);
+    let rows = [];
+    docs.forEach(d => { if (d.exists) rows = rows.concat(JSON.parse(d.data().rows)); });
+    return { data: deserializeData(rows), meta: { recordCount, updatedAt } };
+  } catch (e) {
+    console.error('Cloud load failed:', e);
+    setCloudStatus('Could not load from cloud: ' + e.message, true);
+    return null;
+  }
+}
+
+
+// ─── REP PORTAL ──────────────────────────────────────────────────────────────
+
+let myData = [];
+let myRep = '';
+let cloudMeta = null;
+let orderSort = { col: 'invoice_date', dir: 'desc' };
+
+function init() {
+  initFirebase();
+  const params = new URLSearchParams(location.search);
+  const repParam = params.get('rep');
+  if (repParam && VALID_REPS.includes(repParam)) myRep = repParam;
+  loadData();
+}
+
+async function loadData() {
+  setCloudStatus('Loading data...');
+  const result = await loadCloudData();
+  if (!result || !result.data.length) {
+    setCloudStatus('No data available yet. Ask management to upload the latest export on the management dashboard.', true);
+    return;
+  }
+  allData = result.data;
+  cloudMeta = result.meta;
+  document.getElementById('headerSub').textContent = 'Data updated ' + new Date(cloudMeta.updatedAt).toLocaleDateString();
+  setCloudStatus(`${allData.length.toLocaleString()} orders loaded - updated ${new Date(cloudMeta.updatedAt).toLocaleString()} (managed from the management dashboard)`);
+  if (myRep) startDash(); else showPicker();
+}
+
+function showPicker() {
+  document.getElementById('pickerView').style.display = 'block';
+  document.getElementById('repButtons').innerHTML = VALID_REPS.map(r =>
+    `<button onclick="pickRep('${r}')">${r}</button>`).join('');
+}
+
+function pickRep(r) {
+  myRep = r;
+  const url = new URL(location);
+  url.searchParams.set('rep', r);
+  history.replaceState(null, '', url);
+  document.getElementById('pickerView').style.display = 'none';
+  startDash();
+}
+
+function startDash() {
+  myData = allData.filter(r => r.rep === myRep);
+  document.getElementById('repName').textContent = '- ' + myRep;
+  document.getElementById('dashView').style.display = 'block';
+
+  const years = [...new Set(myData.map(r => r.year))].sort((a,b) => b-a);
+  document.getElementById('yearSel').innerHTML = years.map(y => `<option value="${y}">${y}</option>`).join('');
+
+  // Default order date range: Jan 1 of current year to latest data date
+  const latest = allData.reduce((m,r) => r.invoice_date > m ? r.invoice_date : m, allData[0].invoice_date);
+  const y = years[0];
+  document.getElementById('f-from').value = `${y}-01-01`;
+  document.getElementById('f-to').value = latest.toISOString().slice(0,10);
+
+  renderAll();
+}
+
+function curYear() { return parseInt(document.getElementById('yearSel').value); }
+
+function renderAll() { renderKPIs(); renderMonthly(); renderOrders(); }
+
+function renderKPIs() {
+  const y = curYear(), ly = y - 1;
+  const info = getYtdCutoff(y, ly);
+  const cutoff = info ? info.cutoff : null;
+
+  const cur = myData.filter(r => r.year === y && isComplete(r));
+  const prior = myData.filter(r => r.year === ly && isComplete(r) && (!cutoff || r.invoice_date <= cutoff));
+
+  const rev = cur.reduce((s,r) => s+r.total, 0);
+  const lyRev = prior.reduce((s,r) => s+r.total, 0);
+  const orders = cur.length;
+  const clients = new Set(cur.map(r => r.client_name)).size;
+  const avg = orders ? rev/orders : 0;
+  const ar = myData.filter(r => r.paid === false && r.outstanding > 0);
+  const arTotal = ar.reduce((s,r) => s+r.outstanding, 0);
+
+  const chg = lyRev > 0 ? ((rev-lyRev)/lyRev*100) : null;
+  const chgHtml = chg === null ? '' :
+    `<div class="cmp ${chg >= 0 ? 'green' : 'red'}">${chg >= 0 ? '▲' : '▼'} ${Math.abs(chg).toFixed(1)}% vs ${ly}${info ? ' YTD' : ''}</div>`;
+
+  document.getElementById('ytdNote').textContent = info ? `Comparisons use Jan 1 - ${MONTHS[info.latest.getMonth()]} ${info.latest.getDate()} of both years` : '';
+
+  document.getElementById('kpiRow').innerHTML = `
+    <div class="kpi"><div class="val">${$c0(rev)}</div><div class="lbl">${y} Revenue (completed)</div>${chgHtml}</div>
+    <div class="kpi"><div class="val">${orders}</div><div class="lbl">Orders</div><div class="cmp muted">${prior.length} in ${ly}${info ? ' YTD' : ''}</div></div>
+    <div class="kpi"><div class="val">${clients}</div><div class="lbl">Clients</div></div>
+    <div class="kpi"><div class="val">${$c0(avg)}</div><div class="lbl">Avg Order</div></div>
+    <div class="kpi"><div class="val ${arTotal > 0 ? 'orange' : 'green'}">${$c0(arTotal)}</div><div class="lbl">My Open AR</div><div class="cmp muted">${ar.length} unpaid invoice${ar.length === 1 ? '' : 's'}</div></div>
+  `;
+}
+
+function renderMonthly() {
+  const y = curYear(), ly = y - 1;
+  const cur = myData.filter(r => r.year === y && isComplete(r));
+  const prior = myData.filter(r => r.year === ly && isComplete(r));
+
+  const rows = [];
+  let prevRev = null;
+  for (let m = 0; m < 12; m++) {
+    const mo = cur.filter(r => r.month === m);
+    const lyMo = prior.filter(r => r.month === m);
+    const rev = mo.reduce((s,r) => s+r.total, 0);
+    const lyRev = lyMo.reduce((s,r) => s+r.total, 0);
+    if (!mo.length && !lyMo.length) { prevRev = mo.length ? rev : prevRev; continue; }
+
+    const yoy = lyRev > 0 ? (rev-lyRev)/lyRev*100 : null;
+    const mom = (prevRev !== null && prevRev > 0) ? (rev-prevRev)/prevRev*100 : null;
+    rows.push(`<tr>
+      <td class="bold">${MONTHS[m]}</td>
+      <td class="r bold">${$c(rev)}</td>
+      <td class="r">${mo.length}</td>
+      <td class="r muted">${$c(lyRev)}</td>
+      <td class="r ${yoy === null ? 'muted' : yoy >= 0 ? 'green' : 'red'}">${yoy === null ? '-' : (yoy >= 0 ? '+' : '') + yoy.toFixed(1) + '%'}</td>
+      <td class="r ${mom === null ? 'muted' : mom >= 0 ? 'green' : 'red'}">${mom === null ? '-' : (mom >= 0 ? '+' : '') + mom.toFixed(1) + '%'}</td>
+    </tr>`);
+    prevRev = rev;
+  }
+  const totRev = cur.reduce((s,r) => s+r.total, 0);
+  document.getElementById('monthlyTable').innerHTML = `<table>
+    <thead><tr><th>Month</th><th class="r">${y} Revenue</th><th class="r">Orders</th><th class="r">${ly} Same Month</th><th class="r">vs ${ly} (YoY)</th><th class="r">vs Prior Month (MoM)</th></tr></thead>
+    <tbody>${rows.join('') || '<tr><td colspan="6" class="empty">No completed orders yet this year</td></tr>'}</tbody>
+    ${rows.length ? `<tfoot><tr style="background:#fafafa;font-weight:700;"><td>Total</td><td class="r">${$c(totRev)}</td><td class="r">${cur.length}</td><td colspan="3"></td></tr></tfoot>` : ''}
+  </table>`;
+}
+
+let currentOrders = [];
+
+function renderOrders() {
+  const from = document.getElementById('f-from').value ? new Date(document.getElementById('f-from').value) : null;
+  const to = document.getElementById('f-to').value ? new Date(document.getElementById('f-to').value + 'T23:59:59') : null;
+  const inv = document.getElementById('f-inv').value.toLowerCase().trim();
+  const client = document.getElementById('f-client').value.toLowerCase().trim();
+  const completedOnly = document.getElementById('f-completed').checked;
+
+  currentOrders = myData.filter(r => {
+    if (from && r.invoice_date < from) return false;
+    if (to && r.invoice_date > to) return false;
+    if (inv && !String(r.invoice_number).toLowerCase().includes(inv)) return false;
+    if (client && !r.client_name.toLowerCase().includes(client)) return false;
+    if (completedOnly && !isComplete(r)) return false;
+    return true;
+  });
+
+  sortAndDrawOrders();
+}
+
+function sortOrders(col, type) {
+  if (orderSort.col === col) orderSort.dir = orderSort.dir === 'asc' ? 'desc' : 'asc';
+  else { orderSort.col = col; orderSort.dir = type === 'text' ? 'asc' : 'desc'; }
+  sortAndDrawOrders();
+}
+
+function sortAndDrawOrders() {
+  const { col, dir } = orderSort;
+  const mult = dir === 'asc' ? 1 : -1;
+  currentOrders.sort((a,b) => {
+    let av = a[col], bv = b[col];
+    if (av instanceof Date) return (av - bv) * mult;
+    if (typeof av === 'number' && typeof bv === 'number') return (av - bv) * mult;
+    return String(av ?? '').localeCompare(String(bv ?? '')) * mult;
+  });
+
+  const arrow = c => orderSort.col === c ? (orderSort.dir === 'asc' ? ' ↑' : ' ↓') : '';
+  const total = currentOrders.reduce((s,r) => s+r.total, 0);
+
+  document.getElementById('ordersTable').innerHTML = `
+    <div style="padding:8px 14px;font-size:11px;color:#666;background:#fafafa;border-bottom:1px solid #eee;">
+      <strong>${currentOrders.length}</strong> orders, <strong>${$c(total)}</strong> total - invoice numbers open in Printavo
+    </div>
+    <table>
+    <thead><tr>
+      <th onclick="sortOrders('invoice_date','date')">Date${arrow('invoice_date')}</th>
+      <th onclick="sortOrders('invoice_number','text')">Invoice #${arrow('invoice_number')}</th>
+      <th onclick="sortOrders('client_name','text')">Company${arrow('client_name')}</th>
+      <th onclick="sortOrders('client_full_name','text')">Contact${arrow('client_full_name')}</th>
+      <th class="r" onclick="sortOrders('total','num')">Amount${arrow('total')}</th>
+      <th onclick="sortOrders('paid','num')">Paid${arrow('paid')}</th>
+      <th onclick="sortOrders('status','text')">Status${arrow('status')}</th>
+    </tr></thead>
+    <tbody>${currentOrders.map(r => `<tr>
+      <td>${fdate(r.invoice_date)}</td>
+      <td>${pvLink(r)}</td>
+      <td class="bold">${r.client_name}</td>
+      <td class="muted">${r.client_full_name || '-'}</td>
+      <td class="r bold">${$c(r.total)}</td>
+      <td>${r.paid === null ? '<span class="muted">n/a</span>' : r.paid ? '<span class="green bold">✓</span>' : '<span class="red bold">✗ ' + (r.outstanding > 0 ? $c(r.outstanding) : '') + '</span>'}</td>
+      <td style="font-size:11px;">${r.status}</td>
+    </tr>`).join('') || '<tr><td colspan="7" class="empty">No orders match</td></tr>'}</tbody>
+  </table>`;
+}
+
+function clearFilters() {
+  const years = [...new Set(myData.map(r => r.year))].sort((a,b) => b-a);
+  document.getElementById('f-from').value = `${years[0]}-01-01`;
+  const latest = allData.reduce((m,r) => r.invoice_date > m ? r.invoice_date : m, allData[0].invoice_date);
+  document.getElementById('f-to').value = latest.toISOString().slice(0,10);
+  document.getElementById('f-inv').value = '';
+  document.getElementById('f-client').value = '';
+  document.getElementById('f-completed').checked = false;
+  renderOrders();
+}
+
+function tableToCSV(containerId) {
+  const table = document.querySelector('#' + containerId + ' table');
+  if (!table) return '';
+  let csv = [...table.querySelectorAll('thead th')].map(th => '"' + th.textContent.replace(/[↑↓↗]/g,'').trim() + '"').join(',') + '\n';
+  table.querySelectorAll('tbody tr').forEach(tr => {
+    csv += [...tr.querySelectorAll('td')].map(td => '"' + td.textContent.replace(/[↗]/g,'').trim() + '"').join(',') + '\n';
+  });
+  return csv;
+}
+
+function dl(csv, name) {
+  const blob = new Blob([csv], { type: 'text/csv' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `${name}_${myRep.replace(/ /g,'_')}_${new Date().toISOString().slice(0,10)}.csv`;
+  a.click();
+}
+
+function exportMonthly() { dl(tableToCSV('monthlyTable'), 'monthly_performance'); }
+function exportOrders() { dl(tableToCSV('ordersTable'), 'orders'); }
+
+document.addEventListener('DOMContentLoaded', init);
+</script>
+</body>
+</html>
