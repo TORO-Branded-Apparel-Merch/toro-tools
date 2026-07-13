@@ -100,8 +100,8 @@ a { color:#2f6fb2; text-decoration:none; }
     <div class="print-only" id="printHeader"></div>
 
     <div class="card" id="card-goal">
-      <div class="card-head" onclick="toggleCard('card-goal')"><span><span class="arrow">▼</span>🎯 My Goal - <span id="goalMonthLabel"></span></span>
-        <span onclick="event.stopPropagation()"><button class="secondary" id="goalEditBtn" onclick="editGoal()" style="display:none;">✎ Edit Goal</button></span></div>
+      <div class="card-head" onclick="toggleCard('card-goal')"><span><span class="arrow">▼</span>🎯 My Goals - <span id="goalMonthLabel"></span></span>
+        <span id="goalToggle" onclick="event.stopPropagation()" style="display:flex;gap:6px;"></span></div>
       <div class="card-body"><div id="goalBody" style="padding:14px;"></div></div>
     </div>
 
@@ -616,13 +616,77 @@ function toggleCard(id) {
   if (arrow) arrow.textContent = card.classList.contains('collapsed') ? '▶' : '▼';
 }
 
-// ─── MY GOAL ─────────────────────────────────────────────────────────────────
-let goalsCache = {};   // full goals doc: { repName: { "YYYY-MM": number } }
-let goalEditing = false;
+// ─── MY GOALS (v2: booked + invoiced, monthly/annual, seasonal split) ───────
+let goalsCache = {};        // full goals doc
+let goalView = 'monthly';   // 'monthly' | 'annual'
+let goalDetails = false;    // expanded details
+let goalEditing = null;     // null | 'annual' | 'month'
 
-function goalMonthKey() {
-  const latest = allData.reduce((m,r) => r.invoice_date > m ? r.invoice_date : m, allData[0].invoice_date);
-  return { key: `${latest.getFullYear()}-${String(latest.getMonth()+1).padStart(2,'0')}`, latest };
+// Booked = approved-or-beyond (includes completed). Invoiced = completed.
+function monthActual(y, m) {
+  const mo = myData.filter(r => r.year === y && r.month === m);
+  return {
+    bkd: mo.filter(r => stageOf(r) !== 'quoted').reduce((s,r) => s+r.total, 0),
+    inv: mo.filter(r => isComplete(r)).reduce((s,r) => s+r.total, 0),
+  };
+}
+function ytdActual(y, throughMonth, dayFrac) {
+  let bkd = 0, inv = 0;
+  for (let m = 0; m <= throughMonth; m++) { const a = monthActual(y, m); bkd += a.bkd; inv += a.inv; }
+  return { bkd, inv };
+}
+
+// Seasonal weights: personal curve if the rep has 8+ active months in 2024-25,
+// else the company curve. Personal curves are blended 75/25 with company to smooth gaps.
+function seasonalWeights() {
+  const base = allData.filter(r => (r.year === 2024 || r.year === 2025) && isComplete(r));
+  const coMo = Array(12).fill(0);
+  base.forEach(r => coMo[r.month] += r.total);
+  const coTot = coMo.reduce((a,b) => a+b, 0) || 1;
+  const co = coMo.map(v => v/coTot);
+
+  const mine = base.filter(r => r.rep === myRep);
+  const myMo = Array(12).fill(0);
+  mine.forEach(r => myMo[r.month] += r.total);
+  const myTot = myMo.reduce((a,b) => a+b, 0);
+  const activeMonths = myMo.filter(v => v > 0).length;
+
+  // Reps whose pre-tenure history is not their own use the company curve
+  const FORCE_COMPANY_CURVE = ['Lexi Martinez'];
+  if (!FORCE_COMPANY_CURVE.includes(myRep) && myTot > 0 && activeMonths >= 8) {
+    const raw = myMo.map((v,i) => 0.75*(v/myTot) + 0.25*co[i]);
+    const rTot = raw.reduce((a,b) => a+b, 0);
+    return { w: raw.map(v => v/rTot), source: 'your seasonal history' };
+  }
+  return { w: co, source: 'company seasonal curve (until you have a full year of history)' };
+}
+
+function migrateGoals(entry) {
+  if (!entry) return { annual: {}, months: {} };
+  if (entry.annual || entry.months) {
+    return { annual: entry.annual || {}, months: entry.months || {} };
+  }
+  // v1 format: { "YYYY-MM": number } -> monthly overrides
+  const months = {};
+  Object.entries(entry).forEach(([k, v]) => {
+    if (/^\d{4}-\d{2}$/.test(k) && typeof v === 'number') months[k] = { inv: v, bkd: v };
+  });
+  return { annual: {}, months };
+}
+
+function myGoals() {
+  goalsCache[myRep] = migrateGoals(goalsCache[myRep]);
+  return goalsCache[myRep];
+}
+
+// Target for a month: explicit override, else annual x seasonal weight
+function monthlyTarget(y, m, weights) {
+  const g = myGoals();
+  const key = `${y}-${String(m+1).padStart(2,'0')}`;
+  if (g.months[key]) return { ...g.months[key], src: 'override' };
+  const a = g.annual[y];
+  if (a) return { inv: a.inv * weights.w[m], bkd: a.bkd * weights.w[m], src: 'annual' };
+  return null;
 }
 
 async function loadGoals() {
@@ -633,122 +697,191 @@ async function loadGoals() {
   } catch (e) { console.error('Goals load failed:', e); }
 }
 
-async function saveGoal(amount) {
-  const { key } = goalMonthKey();
-  if (!goalsCache[myRep]) goalsCache[myRep] = {};
-  goalsCache[myRep][key] = amount;
-  goalEditing = false;
+async function persistMyGoals() {
   renderGoal();
   if (!cloudEnabled()) return;
   try {
-    await db.collection(CLOUD_COLLECTION).doc('goals').set({ [myRep]: goalsCache[myRep] }, { merge: true });
-  } catch (e) {
-    console.error('Goal save failed:', e);
-    setCloudStatus('Could not save goal to cloud: ' + e.message, true);
-  }
+    await db.collection(CLOUD_COLLECTION).doc('goals').set({ [myRep]: myGoals() }, { merge: true });
+  } catch (e) { setCloudStatus('Could not save goal: ' + e.message, true); }
 }
 
-function submitGoal() {
-  const v = parseFloat(document.getElementById('goalInput').value.replace(/[$,]/g, ''));
-  if (!v || v <= 0) { alert('Please enter a dollar amount'); return; }
-  saveGoal(Math.round(v));
-}
+function setGoalView(v) { goalView = v; goalEditing = null; renderGoal(); }
+function toggleGoalDetails() { goalDetails = !goalDetails; renderGoal(); }
 
-function editGoal() { goalEditing = true; renderGoal(); }
-
-function goalSuggestion(latest) {
-  const m = latest.getMonth(), y = latest.getFullYear();
-  // Same month last year
-  const lySame = myData.filter(r => r.year === y-1 && r.month === m && isComplete(r)).reduce((s,r) => s+r.total, 0);
-  if (lySame > 0) return { amount: Math.round(lySame), why: `${MONTHS_FULL[m]} ${y-1} (${$c0(lySame)})` };
-  // Else 3-month average (previous 3 calendar months)
-  let sum = 0, months = 0;
-  for (let i = 1; i <= 3; i++) {
-    const d = new Date(y, m - i, 1);
-    const rev = myData.filter(r => r.year === d.getFullYear() && r.month === d.getMonth() && isComplete(r)).reduce((s,r) => s+r.total, 0);
-    if (rev > 0) { sum += rev; months++; }
+function annualSuggestion() {
+  // Trailing 12 months invoiced; fallback to annualized run-rate
+  const latest = goalMonthAnchor().latest;
+  const cutoff = new Date(latest); cutoff.setFullYear(cutoff.getFullYear() - 1);
+  const t12 = myData.filter(r => isComplete(r) && r.invoice_date >= cutoff).reduce((s,r) => s+r.total, 0);
+  if (t12 > 0) {
+    const span = Math.min(365, (latest - myData.reduce((m,r) => r.invoice_date < m ? r.invoice_date : m, latest)) / 86400000);
+    if (span >= 300) return { amount: Math.round(t12), why: `trailing 12 months (${$c0(t12)})` };
+    const annualized = t12 / span * 365;
+    return { amount: Math.round(annualized), why: `current run rate, annualized (${$c0(annualized)})` };
   }
-  if (months > 0) return { amount: Math.round(sum/months), why: `your ${months}-month average (${$c0(sum/months)})` };
   return { amount: '', why: '' };
 }
 
+function goalMonthAnchor() {
+  const latest = allData.reduce((m,r) => r.invoice_date > m ? r.invoice_date : m, allData[0].invoice_date);
+  return { y: latest.getFullYear(), m: latest.getMonth(), latest };
+}
+
+function miniRow(label, act, goal, paceFrac) {
+  if (!goal || goal <= 0) return '';
+  const pct = act/goal*100;
+  const ahead = pct >= paceFrac*100;
+  return `<div style="display:flex;align-items:center;gap:10px;margin:5px 0;">
+    <div style="width:62px;font-size:12px;font-weight:600;">${label}</div>
+    <div style="width:190px;font-size:12px;text-align:right;">${$c0(act)} / ${$c0(goal)}</div>
+    <div class="goal-bar-wrap" style="flex:1;height:16px;margin:0;">
+      <div class="goal-bar ${ahead ? '' : 'behind'}" style="width:${Math.min(pct,100)}%;"></div>
+      <div class="goal-pace" style="left:${Math.min(paceFrac*100,100)}%;"></div>
+    </div>
+    <div style="width:44px;font-size:12px;font-weight:700;" class="${ahead ? 'green' : 'orange'}">${pct.toFixed(0)}%</div>
+  </div>`;
+}
+
 function renderGoal() {
-  const { key, latest } = goalMonthKey();
-  const m = latest.getMonth(), y = latest.getFullYear();
-  document.getElementById('goalMonthLabel').textContent = `${MONTHS_FULL[m]} ${y}`;
-  const myGoals = goalsCache[myRep] || {};
-  const goal = myGoals[key];
+  const { y, m, latest } = goalMonthAnchor();
+  const g = myGoals();
+  const weights = seasonalWeights();
+  const hasAnnual = !!g.annual[y];
+  const target = monthlyTarget(y, m, weights);
+
+  document.getElementById('goalMonthLabel').textContent =
+    goalView === 'monthly' ? `${MONTHS_FULL[m]} ${y}` : `${y} Annual`;
+  document.getElementById('goalToggle').innerHTML = `
+    <button class="secondary" style="${goalView==='monthly' ? 'background:var(--red);color:#fff;border-color:var(--red);' : ''}" onclick="setGoalView('monthly')">Monthly</button>
+    <button class="secondary" style="${goalView==='annual' ? 'background:var(--red);color:#fff;border-color:var(--red);' : ''}" onclick="setGoalView('annual')">Annual</button>`;
+
   const body = document.getElementById('goalBody');
-  const editBtn = document.getElementById('goalEditBtn');
 
-  if (!goal || goalEditing) {
-    // Setter view
-    editBtn.style.display = 'none';
-    const sug = goalSuggestion(latest);
-    const prevKey = `${m === 0 ? y-1 : y}-${String((m === 0 ? 12 : m)).padStart(2,'0')}`;
-    const prevGoal = myGoals[prevKey];
-
-    // Receipt-style growth presets off the baseline
-    let presets = '';
-    if (sug.amount) {
-      const opts = [
-        { label: 'Match', pct: 0 },
-        { label: 'Steady', pct: 5 },
-        { label: 'Healthy', pct: 10 },
-        { label: 'Aggressive', pct: 20 },
-      ];
-      presets = `
-        <div style="font-size:11px;color:#888;margin:10px 0 6px;">Suggested targets. Baseline: ${sug.why}.</div>
-        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px;">
-          ${opts.map(o => {
-            const amt = Math.round(sug.amount * (1 + o.pct/100));
-            return `<button class="secondary" style="display:flex;flex-direction:column;align-items:center;padding:8px 14px;line-height:1.4;"
-              onclick="document.getElementById('goalInput').value='${amt}'">
-              <span style="font-weight:700;">${o.label}${o.pct ? ' +' + o.pct + '%' : ''}</span>
-              <span style="font-size:13px;font-weight:700;">${$c0(amt)}</span>
-            </button>`;
-          }).join('')}
-        </div>`;
-    }
-
+  // ── Setter (no goals yet, or explicitly editing annual) ──
+  if ((!hasAnnual && !target) || goalEditing === 'annual') {
+    const sug = annualSuggestion();
+    const cur = g.annual[y] || {};
     body.innerHTML = `
-      <div style="font-size:13px;margin-bottom:8px;">${goal ? 'Update your' : 'Set your'} revenue goal for ${MONTHS_FULL[m]}.</div>
-      ${presets}
-      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
-        <span style="font-size:15px;font-weight:700;">$</span>
-        <input type="text" id="goalInput" value="${goalEditing && goal ? goal : (sug.amount || '')}" style="width:120px;font-size:15px;font-weight:700;" placeholder="0">
-        <button onclick="submitGoal()">Save Goal</button>
-        ${prevGoal && !goal ? `<button class="secondary" onclick="saveGoal(${prevGoal})">Keep last month's (${$c0(prevGoal)})</button>` : ''}
-        ${goalEditing && goal ? `<button class="secondary" onclick="goalEditing=false;renderGoal()">Cancel</button>` : ''}
+      <div style="font-size:13px;margin-bottom:8px;">Set your ${y} annual targets. Monthly targets are derived from the ${weights.source}. Individual months can be adjusted afterward.</div>
+      ${sug.why ? `<div style="font-size:11px;color:#888;margin-bottom:8px;">Reference: ${sug.why}.</div>` : ''}
+      ${sug.amount ? `<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px;">
+        ${[['Match',0],['Steady +5%',5],['Healthy +10%',10],['Aggressive +20%',20]].map(([l,p]) => {
+          const amt = Math.round(sug.amount*(1+p/100));
+          return `<button class="secondary" style="display:flex;flex-direction:column;align-items:center;padding:8px 14px;line-height:1.4;"
+            onclick="document.getElementById('gaInv').value='${amt}';document.getElementById('gaBkd').value='${amt}'">
+            <span style="font-weight:700;">${l}</span><span style="font-size:13px;font-weight:700;">${$c0(amt)}</span></button>`;
+        }).join('')}
+      </div>` : ''}
+      <div style="display:flex;gap:16px;flex-wrap:wrap;align-items:flex-end;">
+        <div><label style="display:block;font-size:10px;text-transform:uppercase;color:#888;margin-bottom:3px;">Invoiced Goal (annual)</label>
+          <span style="font-weight:700;">$</span> <input type="text" id="gaInv" value="${cur.inv || sug.amount || ''}" style="width:110px;font-weight:700;"></div>
+        <div><label style="display:block;font-size:10px;text-transform:uppercase;color:#888;margin-bottom:3px;">Booked Goal (annual)</label>
+          <span style="font-weight:700;">$</span> <input type="text" id="gaBkd" value="${cur.bkd || cur.inv || sug.amount || ''}" style="width:110px;font-weight:700;"></div>
+        <button onclick="saveAnnualGoal()">Save Annual Goals</button>
+        ${hasAnnual ? '<button class="secondary" onclick="goalEditing=null;renderGoal()">Cancel</button>' : ''}
       </div>`;
     return;
   }
 
-  // Progress view
-  editBtn.style.display = 'inline-block';
-  const done = myData.filter(r => r.year === y && r.month === m && isComplete(r)).reduce((s,r) => s+r.total, 0);
-  const pipeline = myData.filter(r => r.year === y && r.month === m && !isComplete(r)).reduce((s,r) => s+r.total, 0);
-  const pct = Math.min(done/goal*100, 100);
-  const rawPct = done/goal*100;
-  const daysInMonth = new Date(y, m+1, 0).getDate();
-  const elapsed = latest.getDate()/daysInMonth*100;
-  const ahead = rawPct >= elapsed;
-  const paceMsg = (ahead ? '▲ Ahead of pace' : rawPct >= elapsed*0.75 ? '● Near pace' : '▼ Behind pace')
-    + `: ${rawPct.toFixed(0)}% of goal, ${Math.round(elapsed)}% of month elapsed`;
+  // ── Month override editor ──
+  if (goalEditing === 'month') {
+    const t = target || { inv: '', bkd: '' };
+    body.innerHTML = `
+      <div style="font-size:13px;margin-bottom:8px;">Adjust ${MONTHS_FULL[m]} targets. This overrides the derived amount for this month only.</div>
+      <div style="display:flex;gap:16px;flex-wrap:wrap;align-items:flex-end;">
+        <div><label style="display:block;font-size:10px;text-transform:uppercase;color:#888;margin-bottom:3px;">Invoiced (${MONTHS[m]})</label>
+          <span style="font-weight:700;">$</span> <input type="text" id="gmInv" value="${Math.round(t.inv) || ''}" style="width:100px;font-weight:700;"></div>
+        <div><label style="display:block;font-size:10px;text-transform:uppercase;color:#888;margin-bottom:3px;">Booked (${MONTHS[m]})</label>
+          <span style="font-weight:700;">$</span> <input type="text" id="gmBkd" value="${Math.round(t.bkd) || ''}" style="width:100px;font-weight:700;"></div>
+        <button onclick="saveMonthOverride()">Save ${MONTHS[m]}</button>
+        <button class="secondary" onclick="goalEditing=null;renderGoal()">Cancel</button>
+      </div>`;
+    return;
+  }
 
-  body.innerHTML = `
-    <div style="display:flex;justify-content:space-between;font-size:13px;">
-      <span><strong>${$c0(done)}</strong> of <strong>${$c0(goal)}</strong> goal</span>
-      <span class="${ahead ? 'green' : 'orange'} bold">${rawPct.toFixed(0)}%</span>
-    </div>
-    <div class="goal-bar-wrap">
-      <div class="goal-bar ${ahead ? '' : 'behind'}" style="width:${pct}%;"></div>
-      <div class="goal-pace" style="left:${Math.min(elapsed,100)}%;" title="Where today sits in the month"></div>
-      <div class="goal-bar-label">${rawPct.toFixed(0)}%</div>
-    </div>
-    <div style="font-size:11px;" class="${ahead ? 'green' : 'orange'}">${paceMsg}</div>
-    ${pipeline > 0 ? `<div style="font-size:11px;color:#888;margin-top:4px;">Open pipeline this month: ${$c0(pipeline)} (counted upon completion).</div>` : ''}
-  `;
+  // ── Snapshot views ──
+  const daysInMonth = new Date(y, m+1, 0).getDate();
+  let html = '';
+
+  if (goalView === 'monthly') {
+    const act = monthActual(y, m);
+    const paceFrac = latest.getDate()/daysInMonth;
+    html = miniRow('Booked', act.bkd, target ? target.bkd : 0, paceFrac)
+         + miniRow('Invoiced', act.inv, target ? target.inv : 0, paceFrac);
+    if (!target) html = '<div style="font-size:12px;color:#888;">No targets set for this month.</div>';
+    if (goalDetails && target) {
+      const pipe = myData.filter(r => r.year === y && r.month === m && stageOf(r) === 'quoted').reduce((s,r) => s+r.total, 0);
+      html += `<div style="font-size:11px;color:#888;margin-top:8px;">
+        Targets ${target.src === 'override' ? 'set manually for this month' : `derived from your annual goal via the ${weights.source}`}.
+        ${pipe > 0 ? `Quoted (not yet booked) this month: ${$c0(pipe)}.` : ''}
+      </div>${breakdownTable(y, weights)}`;
+    }
+  } else {
+    // Annual: pace = seasonal weight of elapsed months + partial current month
+    let paceFrac = 0;
+    for (let i = 0; i < m; i++) paceFrac += weights.w[i];
+    paceFrac += weights.w[m] * (latest.getDate()/daysInMonth);
+    const a = g.annual[y];
+    const ytd = ytdActual(y, m);
+    if (a) {
+      html = miniRow('Booked', ytd.bkd, a.bkd, paceFrac)
+           + miniRow('Invoiced', ytd.inv, a.inv, paceFrac);
+      if (goalDetails) {
+        const proj = paceFrac > 0.02 ? ytd.inv/paceFrac : 0;
+        html += `<div style="font-size:11px;color:#888;margin-top:8px;">
+          Pace follows the ${weights.source}: ${(paceFrac*100).toFixed(0)}% of the year's expected revenue has elapsed.
+          ${proj ? `Current invoiced pace projects to ${$c0(proj)} for the full year.` : ''}
+        </div>${breakdownTable(y, weights)}`;
+      }
+    } else {
+      html = `<div style="font-size:12px;color:#888;">No annual goal set. <a href="javascript:void(0)" onclick="goalEditing='annual';renderGoal()">Set ${y} targets</a></div>`;
+    }
+  }
+
+  body.innerHTML = html + `
+    <div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap;">
+      <button class="secondary" onclick="toggleGoalDetails()">${goalDetails ? 'Hide' : 'Show'} details</button>
+      ${target || g.annual[y] ? `<button class="secondary" onclick="goalEditing='month';renderGoal()">Adjust ${MONTHS[m]}</button>` : ''}
+      <button class="secondary" onclick="goalEditing='annual';renderGoal()">${hasAnnual ? 'Edit' : 'Set'} annual goals</button>
+    </div>`;
+}
+
+function breakdownTable(y, weights) {
+  const g = myGoals();
+  if (!g.annual[y] && !Object.keys(g.months).some(k => k.startsWith(y+'-'))) return '';
+  const rows = [];
+  for (let m = 0; m < 12; m++) {
+    const t = monthlyTarget(y, m, weights);
+    if (!t) continue;
+    const act = monthActual(y, m);
+    rows.push(`<tr><td>${MONTHS[m]}${t.src === 'override' ? ' *' : ''}</td>
+      <td class="r">${$c0(t.bkd)}</td><td class="r">${$c0(act.bkd)}</td>
+      <td class="r">${$c0(t.inv)}</td><td class="r">${$c0(act.inv)}</td></tr>`);
+  }
+  return `<div style="margin-top:10px;"><table style="font-size:11px;">
+    <thead><tr><th>Month</th><th class="r">Booked Target</th><th class="r">Booked Actual</th><th class="r">Invoiced Target</th><th class="r">Invoiced Actual</th></tr></thead>
+    <tbody>${rows.join('')}</tbody></table>
+    <div style="font-size:10px;color:#999;padding:4px 2px;">* manually adjusted month</div></div>`;
+}
+
+function saveAnnualGoal() {
+  const inv = parseFloat(document.getElementById('gaInv').value.replace(/[$,]/g, ''));
+  const bkd = parseFloat(document.getElementById('gaBkd').value.replace(/[$,]/g, '')) || inv;
+  if (!inv || inv <= 0) { alert('Enter an annual invoiced goal'); return; }
+  const { y } = goalMonthAnchor();
+  myGoals().annual[y] = { inv: Math.round(inv), bkd: Math.round(bkd) };
+  goalEditing = null;
+  persistMyGoals();
+}
+
+function saveMonthOverride() {
+  const inv = parseFloat(document.getElementById('gmInv').value.replace(/[$,]/g, ''));
+  const bkd = parseFloat(document.getElementById('gmBkd').value.replace(/[$,]/g, '')) || inv;
+  if (!inv || inv <= 0) { alert('Enter an invoiced target'); return; }
+  const { y, m } = goalMonthAnchor();
+  myGoals().months[`${y}-${String(m+1).padStart(2,'0')}`] = { inv: Math.round(inv), bkd: Math.round(bkd) };
+  goalEditing = null;
+  persistMyGoals();
 }
 
 function updatePrintHeader() {
