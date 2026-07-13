@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TORO Team Hub</title>
+<style>
+* { margin:0; padding:0; box-sizing:border-box; }
+body { font-family:'Segoe UI', Arial, sans-serif; background:#f5f5f5; color:#1a1a1a; font-size:14px; }
+.header { background:#1a1a1a; color:white; padding:16px 24px; display:flex; align-items:center; justify-content:space-between; }
+.header h1 { font-size:17px; }
+.header .who { font-size:12px; color:#aaa; }
+.header .who a { color:#6fcf97; text-decoration:none; margin-left:8px; }
+.container { max-width:860px; margin:0 auto; padding:24px; }
+.grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(240px,1fr)); gap:14px; }
+.tool { background:white; border:1px solid #ddd; border-radius:8px; padding:20px; text-decoration:none; color:#1a1a1a; display:block; transition:all .15s; }
+.tool:hover { border-color:#1a1a1a; box-shadow:0 3px 10px rgba(0,0,0,.08); transform:translateY(-1px); }
+.tool .icon { font-size:26px; margin-bottom:8px; }
+.tool .name { font-weight:700; font-size:15px; margin-bottom:4px; }
+.tool .desc { font-size:12px; color:#777; line-height:1.5; }
+.tool.disabled { opacity:.55; cursor:default; }
+.tool.disabled:hover { border-color:#ddd; box-shadow:none; transform:none; }
+.picker { max-width:420px; margin:50px auto; background:white; border:1px solid #ddd; border-radius:8px; padding:28px; text-align:center; }
+.picker button { display:block; width:100%; margin:6px 0; padding:12px; background:white; color:#1a1a1a; border:1px solid #ccc; border-radius:4px; font-size:14px; cursor:pointer; }
+.picker button:hover { background:#1a1a1a; color:white; }
+.note { font-size:11px; color:#999; margin-top:20px; text-align:center; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>⚡ TORO Team Hub</h1>
+  <div class="who" id="who"></div>
+</div>
+
+<div class="container">
+  <div class="picker" id="picker" style="display:none;">
+    <div style="font-weight:700;font-size:16px;margin-bottom:4px;">Welcome! Who are you?</div>
+    <div style="font-size:12px;color:#888;margin-bottom:16px;">Pick your name once - this page remembers you and personalizes your links.</div>
+    <div id="repButtons"></div>
+  </div>
+
+  <div id="tools" style="display:none;">
+    <div class="grid" id="toolGrid"></div>
+    <div class="note">Bookmark this page - it's your one link to everything. Questions or ideas? Tell Lexi.</div>
+  </div>
+</div>
+
+<script>
+// Rep roster and their commission portal files (edit here if files are added/renamed)
+const REPS = {
+  'Abby Mendez':     { commission: null },
+  'Amy Smith':       { commission: 'Toro_Portal_Amy.html' },
+  'Debra Guerra':    { commission: 'Toro_Portal_Debbie.html' },
+  'Julia Howorth':   { commission: 'Toro_Portal_Julia.html' },
+  'Kimberly Black':  { commission: null },
+  'Lexi Martinez':   { commission: 'Toro_Portal_Lexi.html' },
+};
+
+function currentRep() {
+  const p = new URLSearchParams(location.search).get('rep');
+  if (p && REPS[p]) return p;
+  try { const s = localStorage.getItem('toroHubRep'); if (s && REPS[s]) return s; } catch(e) {}
+  return null;
+}
+
+function pickRep(name) {
+  try { localStorage.setItem('toroHubRep', name); } catch(e) {}
+  render();
+}
+
+function switchUser() {
+  try { localStorage.removeItem('toroHubRep'); } catch(e) {}
+  history.replaceState(null, '', location.pathname);
+  render();
+}
+
+function render() {
+  const rep = currentRep();
+  if (!rep) {
+    document.getElementById('tools').style.display = 'none';
+    document.getElementById('picker').style.display = 'block';
+    document.getElementById('who').innerHTML = '';
+    document.getElementById('repButtons').innerHTML = Object.keys(REPS).map(r =>
+      `<button onclick="pickRep('${r}')">${r}</button>`).join('');
+    return;
+  }
+  document.getElementById('picker').style.display = 'none';
+  document.getElementById('tools').style.display = 'block';
+  document.getElementById('who').innerHTML = `Hi, <strong style="color:white;">${rep.split(' ')[0]}</strong><a href="javascript:void(0)" onclick="switchUser()">switch</a>`;
+
+  const c = REPS[rep].commission;
+  document.getElementById('toolGrid').innerHTML = `
+    <a class="tool" href="Toro_Rep_Portal.html?rep=${encodeURIComponent(rep)}">
+      <div class="icon">📊</div><div class="name">My Sales Portal</div>
+      <div class="desc">Your goal tracker, monthly performance, sales funnel, client list, and order history - printable.</div>
+    </a>
+    ${c ? `<a class="tool" href="${c}">
+      <div class="icon">💵</div><div class="name">My Commission Portal</div>
+      <div class="desc">Your personal commission breakdown.</div>
+    </a>` : `<div class="tool disabled">
+      <div class="icon">💵</div><div class="name">My Commission Portal</div>
+      <div class="desc">Not set up yet - ask Lexi to add yours.</div>
+    </div>`}
+    <a class="tool" href="Toro_Quote_Builder.html">
+      <div class="icon">🧾</div><div class="name">Quote Builder</div>
+      <div class="desc">Build client quotes.</div>
+    </a>
+    <a class="tool" href="Toro_PO_Builder.html">
+      <div class="icon">📦</div><div class="name">PO Builder</div>
+      <div class="desc">Create purchase orders.</div>
+    </a>
+  `;
+}
+
+document.addEventListener('DOMContentLoaded', render);
+</script>
+</body>
+</html>

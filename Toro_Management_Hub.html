@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TORO Management Hub</title>
+<style>
+* { margin:0; padding:0; box-sizing:border-box; }
+body { font-family:'Segoe UI', Arial, sans-serif; background:#f5f5f5; color:#1a1a1a; font-size:14px; }
+.header { background:#1a1a1a; color:white; padding:16px 24px; }
+.header h1 { font-size:17px; }
+.container { max-width:960px; margin:0 auto; padding:24px; }
+h2 { font-size:13px; text-transform:uppercase; letter-spacing:.6px; color:#888; margin:22px 0 10px; }
+h2:first-of-type { margin-top:0; }
+.grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(230px,1fr)); gap:12px; }
+.tool { background:white; border:1px solid #ddd; border-radius:8px; padding:18px; text-decoration:none; color:#1a1a1a; display:block; transition:all .15s; }
+.tool:hover { border-color:#1a1a1a; box-shadow:0 3px 10px rgba(0,0,0,.08); transform:translateY(-1px); }
+.tool .icon { font-size:24px; margin-bottom:6px; }
+.tool .name { font-weight:700; font-size:14px; margin-bottom:3px; }
+.tool .desc { font-size:12px; color:#777; line-height:1.5; }
+.links { background:white; border:1px solid #ddd; border-radius:8px; padding:14px 18px; font-size:13px; line-height:2.2; }
+.links a { color:#2f6fb2; text-decoration:none; margin-right:4px; }
+.links a:hover { text-decoration:underline; }
+.note { font-size:11px; color:#999; margin-top:20px; text-align:center; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>🏢 TORO Management Hub</h1>
+</div>
+
+<div class="container">
+  <h2>Reporting &amp; Operations</h2>
+  <div class="grid">
+    <a class="tool" href="Toro_Report_Builder.html">
+      <div class="icon">🏠</div><div class="name">Report Builder</div>
+      <div class="desc">Opens on the management Overview: KPIs, rep leaderboard with goals, funnel, AR aging, at-risk clients - plus all deep-dive tabs. Upload new exports here.</div>
+    </a>
+    <a class="tool" href="Toro_Quote_Builder.html">
+      <div class="icon">🧾</div><div class="name">Quote Builder</div>
+      <div class="desc">Build client quotes.</div>
+    </a>
+    <a class="tool" href="Toro_PO_Builder.html">
+      <div class="icon">📦</div><div class="name">PO Builder</div>
+      <div class="desc">Create purchase orders.</div>
+    </a>
+    <a class="tool" href="Toro_Team_Hub.html">
+      <div class="icon">⚡</div><div class="name">Team Hub</div>
+      <div class="desc">The single link the reps use - sales portal, commission portal, quote and PO builders.</div>
+    </a>
+  </div>
+
+  <h2>Shannon &amp; Stephen</h2>
+  <div class="grid">
+    <a class="tool" href="Toro_Rep_Portal.html?rep=Shannon%20Bull">
+      <div class="icon">📊</div><div class="name">Shannon - Sales Portal</div>
+      <div class="desc">Goal, performance, funnel, clients, orders.</div>
+    </a>
+    <a class="tool" href="Toro_Portal_Shannon.html">
+      <div class="icon">💵</div><div class="name">Shannon - Commission Portal</div>
+      <div class="desc">Personal commission breakdown.</div>
+    </a>
+    <a class="tool" href="Toro_Rep_Portal.html?rep=Stephen%20Rios">
+      <div class="icon">📊</div><div class="name">Stephen - Sales Portal</div>
+      <div class="desc">Goal, performance, funnel, clients, orders.</div>
+    </a>
+    <a class="tool" href="Toro_Portal_Stephen.html">
+      <div class="icon">💵</div><div class="name">Stephen - Commission Portal</div>
+      <div class="desc">Personal commission breakdown.</div>
+    </a>
+  </div>
+
+  <h2>Every Rep's Sales Portal</h2>
+  <div class="links">
+    <a href="Toro_Rep_Portal.html?rep=Abby%20Mendez">👤 Abby</a> |
+    <a href="Toro_Rep_Portal.html?rep=Amy%20Smith">👤 Amy</a> |
+    <a href="Toro_Rep_Portal.html?rep=Debra%20Guerra">👤 Debra</a> |
+    <a href="Toro_Rep_Portal.html?rep=Julia%20Howorth">👤 Julia</a> |
+    <a href="Toro_Rep_Portal.html?rep=Kimberly%20Black">👤 Kimberly</a> |
+    <a href="Toro_Rep_Portal.html?rep=Lexi%20Martinez">👤 Lexi</a> |
+    <a href="Toro_Rep_Portal.html?rep=Shannon%20Bull">👤 Shannon</a> |
+    <a href="Toro_Rep_Portal.html?rep=Stephen%20Rios">👤 Stephen</a>
+  </div>
+
+  <div class="note">Bookmark this page. Data refresh: open the Report Builder and drop the latest Printavo export - everything updates for everyone.</div>
+</div>
+
+</body>
+</html>

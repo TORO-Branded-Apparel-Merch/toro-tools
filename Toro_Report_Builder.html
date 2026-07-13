@@ -223,16 +223,39 @@ tbody tr:hover { background: #fafafa; }
     </div>
     <div id="groupsPanel" style="display:none;background:white;border:1px solid #ddd;border-radius:4px;padding:14px;margin-bottom:12px;">
       <div style="font-weight:700;font-size:12px;margin-bottom:4px;">Client Groups - merge related companies into one client</div>
-      <div style="font-size:11px;color:#888;margin-bottom:10px;">
-        Companies sharing a name prefix are suggested below. Check a group to combine its members into a single client
-        on any tab where "Use Client Groups" is enabled. High-confidence matches (one name is a prefix of the others) are pre-checked.
+
+      <div id="groupsListWrap">
+        <div style="font-size:11px;color:#888;margin-bottom:10px;">
+          Companies sharing a name prefix are suggested below. Check a group to combine its members into a single client
+          on any tab where "Use Client Groups" is enabled. Use ✎ Edit to add or remove companies from any group, or
+          ➕ New Group to build one from scratch. Custom groups always win when a company appears in more than one.
+        </div>
+        <div style="display:flex;gap:8px;margin-bottom:8px;align-items:center;">
+          <input type="text" id="groupsSearch" placeholder="Search groups..." style="max-width:300px;" oninput="renderGroupsList()">
+          <button class="secondary" onclick="openGroupEditor('new')">➕ New Group</button>
+        </div>
+        <div id="groupsList" style="max-height:340px;overflow-y:auto;border:1px solid #eee;border-radius:3px;"></div>
+        <div style="margin-top:10px;display:flex;gap:8px;">
+          <button onclick="applyGroups()">Apply Groups</button>
+          <button class="secondary" onclick="setAllGroups(true)">Check All</button>
+          <button class="secondary" onclick="setAllGroups(false)">Uncheck All</button>
+        </div>
       </div>
-      <input type="text" id="groupsSearch" placeholder="Search groups..." style="margin-bottom:8px;max-width:300px;" oninput="renderGroupsList()">
-      <div id="groupsList" style="max-height:340px;overflow-y:auto;border:1px solid #eee;border-radius:3px;"></div>
-      <div style="margin-top:10px;display:flex;gap:8px;">
-        <button onclick="applyGroups()">Apply Groups</button>
-        <button class="secondary" onclick="setAllGroups(true)">Check All</button>
-        <button class="secondary" onclick="setAllGroups(false)">Uncheck All</button>
+
+      <div id="groupEditor" style="display:none;">
+        <div style="display:flex;gap:10px;align-items:flex-end;margin-bottom:8px;flex-wrap:wrap;">
+          <div>
+            <label style="display:block;font-size:10px;text-transform:uppercase;color:#888;margin-bottom:3px;">Group Name</label>
+            <input type="text" id="geName" placeholder="e.g. TCU (all departments)" style="min-width:240px;">
+          </div>
+          <div style="font-size:11px;color:#888;padding-bottom:7px;" id="geCount">0 members</div>
+        </div>
+        <input type="text" id="geSearch" placeholder="Search companies to add..." style="margin-bottom:8px;max-width:340px;" oninput="renderEditorList()">
+        <div id="geList" style="max-height:300px;overflow-y:auto;border:1px solid #eee;border-radius:3px;padding:4px;"></div>
+        <div style="margin-top:10px;display:flex;gap:8px;">
+          <button onclick="saveGroupEdit()">Save Group</button>
+          <button class="secondary" onclick="closeGroupEditor()">Cancel</button>
+        </div>
       </div>
     </div>
 
@@ -617,6 +640,14 @@ const VALID_REPS = ['Abby Mendez','Amy Smith','Debra Guerra','Julia Howorth','Ki
 // Completed = either the current status or the 2022-era legacy status
 const COMPLETE_STATUSES = new Set(['ORDER COMPLETE - SYNC', 'Order Complete$$ - Closed - DO NOT USE']);
 const isComplete = r => COMPLETE_STATUSES.has(r.status);
+
+// Sales funnel stages: quoted (potential) -> booked (committed/in production) -> completed (final)
+const QUOTED_STATUSES = new Set(['Quote', '🚀*QUOTE APPROVAL SENT', '🚀*REVISED QUOTE SENT', 'ART DECLINED']);
+function stageOf(r) {
+  if (isComplete(r)) return 'completed';
+  if (QUOTED_STATUSES.has(r.status) || r.status.startsWith('Pre-Quote')) return 'quoted';
+  return 'booked';
+}
 const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 
 let allData = [];
@@ -978,6 +1009,8 @@ function ytdLabel(latest) {
 let groupSuggestions = [];   // { key, label, members: [names], confident }
 let activeGroupKeys = new Set();
 let clientGroupMap = {};     // client name -> group label (only for active groups)
+let customGroups = {};       // { label: [member names] } - user-built groups, always win over suggestions
+let editingGroup = null;     // { label, members:Set, sourceKey } while the editor is open
 
 const GROUP_STOPWORDS = new Set(['the','of','and','a','an','city','town','st','saint']);
 
@@ -1023,14 +1056,24 @@ function buildGroupSuggestions() {
     })
     .sort((a, b) => b.members.length - a.members.length || a.label.localeCompare(b.label));
 
+  // Restore custom groups (user-built)
+  try { customGroups = JSON.parse(localStorage.getItem('clientGroupsCustom_v1') || '{}') || {}; } catch (e) { customGroups = {}; }
+  // Drop members that no longer exist in the data
+  const nameSet = new Set(names);
+  Object.keys(customGroups).forEach(label => {
+    customGroups[label] = (customGroups[label] || []).filter(m => nameSet.has(m));
+    if (!customGroups[label].length) delete customGroups[label];
+  });
+
   // Restore saved selections, or default to confident groups
   let saved = null;
   try { saved = JSON.parse(localStorage.getItem('clientGroups_v1') || 'null'); } catch (e) {}
   if (saved && Array.isArray(saved)) {
-    const validKeys = new Set(groupSuggestions.map(g => g.key));
+    const validKeys = new Set([...groupSuggestions.map(g => g.key), ...Object.keys(customGroups).map(l => 'custom:' + l)]);
     activeGroupKeys = new Set(saved.filter(k => validKeys.has(k)));
   } else {
     activeGroupKeys = new Set(groupSuggestions.filter(g => g.confident).map(g => g.key));
+    Object.keys(customGroups).forEach(l => activeGroupKeys.add('custom:' + l));
   }
   rebuildGroupMap();
 }
@@ -1040,6 +1083,12 @@ function rebuildGroupMap() {
   groupSuggestions.forEach(g => {
     if (activeGroupKeys.has(g.key)) {
       g.members.forEach(m => { clientGroupMap[m] = g.label; });
+    }
+  });
+  // Custom groups apply last so they always win over suggestions
+  Object.entries(customGroups).forEach(([label, members]) => {
+    if (activeGroupKeys.has('custom:' + label)) {
+      members.forEach(m => { clientGroupMap[m] = label; });
     }
   });
   const countEl = document.getElementById('groupsCount');
@@ -1059,12 +1108,31 @@ function toggleGroupsPanel() {
 
 function renderGroupsList() {
   const search = (document.getElementById('groupsSearch')?.value || '').toLowerCase();
-  const list = groupSuggestions.filter(g =>
-    !search || g.label.toLowerCase().includes(search) || g.members.some(m => m.toLowerCase().includes(search))
-  );
-  document.getElementById('groupsList').innerHTML = list.map((g, i) => {
-    const idx = groupSuggestions.indexOf(g);
-    return `<div style="padding:8px 10px;border-bottom:1px solid #eee;display:flex;gap:10px;align-items:flex-start;">
+  const match = (label, members) => !search || label.toLowerCase().includes(search) || members.some(m => m.toLowerCase().includes(search));
+
+  const customHtml = Object.entries(customGroups)
+    .filter(([label, members]) => match(label, members))
+    .sort((a,b) => a[0].localeCompare(b[0]))
+    .map(([label, members]) => `<div style="padding:8px 10px;border-bottom:1px solid #eee;display:flex;gap:10px;align-items:flex-start;background:#f7fbff;">
+      <input type="checkbox" data-gkey="custom:${encodeURIComponent(label)}" ${activeGroupKeys.has('custom:' + label) ? 'checked' : ''}
+        onchange="this.checked ? activeGroupKeys.add('custom:' + decodeURIComponent(this.dataset.gkey.slice(7))) : activeGroupKeys.delete('custom:' + decodeURIComponent(this.dataset.gkey.slice(7)))"
+        style="width:auto;min-width:unset;margin-top:2px;">
+      <div style="flex:1;">
+        <div style="font-weight:600;font-size:12px;">
+          ${label} <span style="color:#999;font-weight:normal;">(${members.length} companies)</span>
+          <span style="color:#2f6fb2;font-size:10px;font-weight:600;"> CUSTOM</span>
+          &nbsp;<a href="javascript:void(0)" onclick="openGroupEditor('custom', '${encodeURIComponent(label)}')" style="font-size:11px;">✎ Edit</a>
+          &nbsp;<a href="javascript:void(0)" onclick="deleteCustomGroup('${encodeURIComponent(label)}')" style="font-size:11px;color:#c0392b;">🗑 Delete</a>
+        </div>
+        <div style="font-size:11px;color:#777;margin-top:2px;">${members.join(' • ')}</div>
+      </div>
+    </div>`).join('');
+
+  const editedLabels = new Set(Object.keys(customGroups));
+  const sugHtml = groupSuggestions
+    .filter(g => !editedLabels.has(g.label))
+    .filter(g => match(g.label, g.members))
+    .map(g => `<div style="padding:8px 10px;border-bottom:1px solid #eee;display:flex;gap:10px;align-items:flex-start;">
       <input type="checkbox" data-gkey="${g.key}" ${activeGroupKeys.has(g.key) ? 'checked' : ''}
         onchange="this.checked ? activeGroupKeys.add(this.dataset.gkey) : activeGroupKeys.delete(this.dataset.gkey)"
         style="width:auto;min-width:unset;margin-top:2px;">
@@ -1072,11 +1140,115 @@ function renderGroupsList() {
         <div style="font-weight:600;font-size:12px;">
           ${g.label} <span style="color:#999;font-weight:normal;">(${g.members.length} companies)</span>
           ${g.confident ? '<span style="color:#1a7f4b;font-size:10px;font-weight:600;"> HIGH CONFIDENCE</span>' : ''}
+          &nbsp;<a href="javascript:void(0)" onclick="openGroupEditor('sug', '${g.key}')" style="font-size:11px;">✎ Edit</a>
         </div>
         <div style="font-size:11px;color:#777;margin-top:2px;">${g.members.join(' • ')}</div>
       </div>
-    </div>`;
-  }).join('') || '<div class="empty">No matching groups</div>';
+    </div>`).join('');
+
+  document.getElementById('groupsList').innerHTML = (customHtml + sugHtml) || '<div class="empty">No matching groups</div>';
+}
+
+// ─── GROUP EDITOR: create groups, edit members, move clients between groups ──
+function allClientNames() {
+  return [...new Set(allData.map(r => r.client_name))].sort((a,b) => a.localeCompare(b));
+}
+
+function openGroupEditor(source, keyOrLabel) {
+  if (source === 'new') {
+    editingGroup = { label: '', members: new Set(), sourceKey: null, isNew: true };
+  } else if (source === 'custom') {
+    const label = decodeURIComponent(keyOrLabel);
+    editingGroup = { label, members: new Set(customGroups[label] || []), sourceKey: null, originalLabel: label };
+  } else {
+    const g = groupSuggestions.find(x => x.key === keyOrLabel);
+    if (!g) return;
+    // Editing a suggestion converts it to a custom group (the suggestion gets superseded)
+    editingGroup = { label: g.label, members: new Set(g.members), sourceKey: g.key };
+  }
+  document.getElementById('groupEditor').style.display = 'block';
+  document.getElementById('groupsListWrap').style.display = 'none';
+  document.getElementById('geName').value = editingGroup.label;
+  document.getElementById('geSearch').value = '';
+  renderEditorList();
+}
+
+function renderEditorList() {
+  const search = (document.getElementById('geSearch').value || '').toLowerCase();
+  const names = allClientNames();
+  const inGroup = names.filter(n => editingGroup.members.has(n));
+  const candidates = search
+    ? names.filter(n => !editingGroup.members.has(n) && n.toLowerCase().includes(search)).slice(0, 150)
+    : [];
+
+  const row = (n, checked) => `<label style="display:flex;align-items:center;gap:6px;font-size:12px;padding:3px 4px;cursor:pointer;font-weight:normal;">
+    <input type="checkbox" data-name="${encodeURIComponent(n)}" ${checked ? 'checked' : ''}
+      onchange="this.checked ? editingGroup.members.add(decodeURIComponent(this.dataset.name)) : editingGroup.members.delete(decodeURIComponent(this.dataset.name)); renderEditorCount();"
+      style="width:auto;min-width:unset;">
+    <span>${clientGroupMap[n] && !editingGroup.members.has(n) ? n + ' <span style=\"color:#c87f1d;font-size:10px;\">(currently in ' + clientGroupMap[n] + ')</span>' : n}</span>
+  </label>`;
+
+  document.getElementById('geList').innerHTML =
+    (inGroup.length ? `<div style="font-size:10px;color:#888;text-transform:uppercase;padding:4px;">In this group (${inGroup.length})</div>` + inGroup.map(n => row(n, true)).join('') : '') +
+    (search ? `<div style="font-size:10px;color:#888;text-transform:uppercase;padding:4px;border-top:1px solid #eee;margin-top:4px;">Search results</div>` +
+      (candidates.map(n => row(n, false)).join('') || '<div style="padding:6px;font-size:11px;color:#999;">No matches</div>') :
+      `<div style="padding:6px;font-size:11px;color:#999;border-top:1px solid #eee;margin-top:4px;">Type above to search all ${names.length.toLocaleString()} companies and check the ones to add. Checking a company that's in another group moves it here.</div>`);
+  renderEditorCount();
+}
+
+function renderEditorCount() {
+  document.getElementById('geCount').textContent = editingGroup.members.size + ' member' + (editingGroup.members.size === 1 ? '' : 's');
+}
+
+function closeGroupEditor() {
+  editingGroup = null;
+  document.getElementById('groupEditor').style.display = 'none';
+  document.getElementById('groupsListWrap').style.display = 'block';
+  renderGroupsList();
+}
+
+function saveGroupEdit() {
+  const label = document.getElementById('geName').value.trim();
+  if (!label) { alert('Please give the group a name'); return; }
+  if (editingGroup.members.size < 2) { alert('A group needs at least 2 companies'); return; }
+  // Renamed? remove the old label
+  if (editingGroup.originalLabel && editingGroup.originalLabel !== label) {
+    delete customGroups[editingGroup.originalLabel];
+    activeGroupKeys.delete('custom:' + editingGroup.originalLabel);
+  }
+  customGroups[label] = [...editingGroup.members].sort();
+  activeGroupKeys.add('custom:' + label);
+  // TRUE MOVE: pull these members out of every other custom group
+  Object.keys(customGroups).forEach(other => {
+    if (other === label) return;
+    customGroups[other] = customGroups[other].filter(m => !editingGroup.members.has(m));
+    if (customGroups[other].length < 2) {
+      delete customGroups[other];
+      activeGroupKeys.delete('custom:' + other);
+    }
+  });
+  // Supersede the suggestion it came from
+  if (editingGroup.sourceKey) activeGroupKeys.delete(editingGroup.sourceKey);
+  persistGroups();
+  closeGroupEditor();
+}
+
+function deleteCustomGroup(encLabel) {
+  const label = decodeURIComponent(encLabel);
+  if (!confirm(`Delete the group "${label}"? Its companies go back to being separate clients (or their suggested group if re-checked).`)) return;
+  delete customGroups[label];
+  activeGroupKeys.delete('custom:' + label);
+  persistGroups();
+  renderGroupsList();
+}
+
+function persistGroups() {
+  rebuildGroupMap();
+  try {
+    localStorage.setItem('clientGroups_v1', JSON.stringify([...activeGroupKeys]));
+    localStorage.setItem('clientGroupsCustom_v1', JSON.stringify(customGroups));
+  } catch (e) {}
+  saveGroupsToCloud();
 }
 
 function setAllGroups(on) {
@@ -1089,9 +1261,7 @@ function setAllGroups(on) {
 }
 
 function applyGroups() {
-  rebuildGroupMap();
-  try { localStorage.setItem('clientGroups_v1', JSON.stringify([...activeGroupKeys])); } catch (e) {}
-  saveGroupsToCloud();
+  persistGroups();
   // Refresh views that use client grouping
   applyClientFilters();
   document.getElementById('groupsPanel').style.display = 'none';
@@ -1858,6 +2028,10 @@ async function renderOverview() {
   const lastWeekOrders = cur.filter(r => r.invoice_date >= weekAgo);
   const lwRev = lastWeekOrders.reduce((s,r) => s+r.total, 0);
 
+  // Booked backlog: committed orders in motion (any date, not yet complete)
+  const bookedOpen = allData.filter(r => stageOf(r) === 'booked');
+  const bookedTotal = bookedOpen.reduce((s,r) => s+r.total, 0);
+
   // Rep leaderboard rows (sorted by revenue - goal progress is information, not ranking)
   const goalKey = `${latest.getFullYear()}-${String(latest.getMonth()+1).padStart(2,'0')}`;
   const daysInMo = new Date(latest.getFullYear(), latest.getMonth()+1, 0).getDate();
@@ -1873,8 +2047,9 @@ async function renderOverview() {
     const yoy = rLy > 0 ? (rRev-rLy)/rLy*100 : null;
     const momR = rLastMo > 0 ? (rMtd-rLastMo)/rLastMo*100 : null;
     const rAr = unpaid.filter(r => r.rep === rep).reduce((s,r) => s+r.outstanding, 0);
+    const rBooked = bookedOpen.filter(r => r.rep === rep).reduce((s,r) => s+r.total, 0);
     const goal = goals[rep] ? goals[rep][goalKey] : null;
-    return { rep, rRev, rLy, yoy, rMtd, momR, rAr, goal, clients: new Set(rCur.map(x=>x.client_name)).size };
+    return { rep, rRev, rLy, yoy, rMtd, momR, rAr, rBooked, goal, clients: new Set(rCur.map(x=>x.client_name)).size };
   }).filter(r => r.rRev > 0 || r.rLy > 0).sort((a,b) => b.rRev - a.rRev)
     .map(r => {
       const gp = r.goal ? r.rMtd/r.goal*100 : null;
@@ -1885,6 +2060,7 @@ async function renderOverview() {
       `<span class="r ${r.yoy === null ? 'muted' : r.yoy >= 0 ? 'green' : 'red'}">${r.yoy === null ? '-' : (r.yoy >= 0 ? '+' : '') + r.yoy.toFixed(1) + '%'}</span>`,
       `<span class="r">${$c(r.rMtd)}</span>`,
       `<span class="r ${r.momR === null ? 'muted' : r.momR >= 0 ? 'green' : 'red'}">${r.momR === null ? '-' : (r.momR >= 0 ? '+' : '') + r.momR.toFixed(1) + '%'}</span>`,
+      `<span class="r blue">${$c(r.rBooked)}</span>`,
       `<span class="r ${r.goal ? '' : 'muted'}">${r.goal ? $c0(r.goal) : '-'}</span>`,
       gp === null ? '<span class="r muted">-</span>' :
         `<span class="r bold ${gp >= elapsedPct ? 'green' : gp >= elapsedPct*0.75 ? 'orange' : 'red'}">${gp.toFixed(0)}%</span>`,
@@ -1939,13 +2115,40 @@ async function renderOverview() {
       <div class="stat"><span class="stat-val">${$c0(rev)}</span><span class="stat-lbl">${y} Revenue YTD${chg !== null ? ` <span class="${chg >= 0 ? 'green' : 'red'}">(${chg >= 0 ? '+' : ''}${chg.toFixed(1)}% vs ${ly})</span>` : ''}</span></div>
       <div class="stat"><span class="stat-val">${$c0(mtd)}</span><span class="stat-lbl">${MONTHS[thisMonth]} MTD${mom !== null ? ` <span class="${mom >= 0 ? 'green' : 'red'}">(${mom >= 0 ? '+' : ''}${mom.toFixed(1)}% MoM)</span>` : ''}</span></div>
       <div class="stat"><span class="stat-val">${$c0(lwRev)}</span><span class="stat-lbl">Last 7 Days (${lastWeekOrders.length} orders)</span></div>
+      <div class="stat"><span class="stat-val blue">${$c0(bookedTotal)}</span><span class="stat-lbl">Booked - In Progress (${bookedOpen.length})</span></div>
       <div class="stat"><span class="stat-val orange">${$c0(arTotal)}</span><span class="stat-lbl">Open AR (${unpaid.length} invoices)</span></div>
       <div class="stat"><span class="stat-val red">${$c0(ar90)}</span><span class="stat-lbl">AR 90+ Past Due</span></div>
     </div>
     ${dashSection(`🏆 Rep Leaderboard - ${y} YTD${info ? ` (through ${MONTHS[info.latest.getMonth()]} ${info.latest.getDate()})` : ''}`,
-      simpleTable(['Rep', `${y} YTD`, `${ly} YTD`, 'YoY', `${MONTHS[thisMonth]}`, 'MoM', `${MONTHS[thisMonth]} Goal`, 'Progress', 'Clients', 'Open AR', 'Portal'], lbRows) +
+      simpleTable(['Rep', `${y} YTD`, `${ly} YTD`, 'YoY', `${MONTHS[thisMonth]}`, 'MoM', 'Booked', `${MONTHS[thisMonth]} Goal`, 'Progress', 'Clients', 'Open AR', 'Portal'], lbRows) +
       `<div style="padding:6px 12px;font-size:11px;color:#999;">Goals are self-set by each rep on their portal. Progress is completed revenue vs goal, colored by pace (${Math.round(elapsedPct)}% of the month has elapsed).</div>`)}
     ${dashSection(`📅 Company Monthly - ${y} vs ${ly}`, simpleTable(['Month', `${y}`, `${ly}`, 'Change'], moRows))}
+    ${(() => {
+      const yAll = allData.filter(r => r.year === y);
+      const fRows = [];
+      const tot = { quoted:0, booked:0, completed:0 };
+      for (let m = 0; m < 12; m++) {
+        const mo = yAll.filter(r => r.month === m);
+        if (!mo.length) continue;
+        const q = mo.filter(r => stageOf(r)==='quoted').reduce((s,r)=>s+r.total,0);
+        const b = mo.filter(r => stageOf(r)==='booked').reduce((s,r)=>s+r.total,0);
+        const c = mo.filter(r => stageOf(r)==='completed').reduce((s,r)=>s+r.total,0);
+        tot.quoted += q; tot.booked += b; tot.completed += c;
+        fRows.push([MONTHS[m],
+          `<span class="r muted">${$c(q)}</span>`,
+          `<span class="r blue">${$c(b)}</span>`,
+          `<span class="r green bold">${$c(c)}</span>`,
+          `<span class="r bold">${$c(q+b+c)}</span>`]);
+      }
+      fRows.push(['<span class="bold">Total</span>',
+        `<span class="r muted bold">${$c(tot.quoted)}</span>`,
+        `<span class="r blue bold">${$c(tot.booked)}</span>`,
+        `<span class="r green bold">${$c(tot.completed)}</span>`,
+        `<span class="r bold">${$c(tot.quoted+tot.booked+tot.completed)}</span>`]);
+      return dashSection(`💰 Sales Funnel by Month (${y}) - Quoted / Booked / Completed`,
+        simpleTable(['Month','Quoted','Booked','Completed','Total'], fRows) +
+        `<div style="padding:8px 12px;font-size:11px;color:#999;">Quoted = still at quote/pre-quote stage (potential). Booked = quote approved, in production or fulfillment (committed, future cash). Completed = finished orders (final revenue). Each order counts once, in the month of its invoice date, at its current stage.</div>`);
+    })()}
     ${dashSection(`💳 AR Aging Summary`, simpleTable(['Bucket', 'Invoices', 'Outstanding'], arRows) +
       `<div style="padding:8px 12px;font-size:11px;color:#999;">Full detail with Printavo links: Company Dashboard tab.</div>`)}
     ${dashSection(`📬 New Business - Last 7 Days (${fdate(weekAgo)} - ${fdate(latest)})`,
@@ -2189,6 +2392,9 @@ async function loadFromCloud() {
       if (settings.exists && Array.isArray(settings.data().groupKeys)) {
         try { localStorage.setItem('clientGroups_v1', JSON.stringify(settings.data().groupKeys)); } catch(e) {}
       }
+      if (settings.exists && settings.data().customGroups) {
+        try { localStorage.setItem('clientGroupsCustom_v1', settings.data().customGroups); } catch(e) {}
+      }
     } catch(e) { /* settings optional */ }
 
     renderAllPanels();
@@ -2209,6 +2415,7 @@ async function saveGroupsToCloud() {
   try {
     await db.collection(CLOUD_COLLECTION).doc('settings').set({
       groupKeys: [...activeGroupKeys],
+      customGroups: JSON.stringify(customGroups),
       updatedAt: new Date().toISOString(),
     }, { merge: true });
   } catch (e) { console.error('Group sync failed:', e); }
@@ -2636,16 +2843,9 @@ function applyCompanyDash() {
     ${simpleTable(['Company','Contact','Rep','Last Prior Order','Orders',`${y1} Spend`], reactRows, 'None')}
   `;
 
-  // 6. New Business Last Week
+  // 6. AR / Aging - TRUE unpaid balances aged by due date (invoice date + payment terms)
+  // (New Business - Last 7 Days lives on the Overview tab)
   const mostRecent = getMostRecentDate();
-  const weekAgo = new Date(mostRecent); weekAgo.setDate(weekAgo.getDate() - 7);
-  const lastWeekData = y1data.filter(r => r.invoice_date >= weekAgo);
-  const lastWeekRows = lastWeekData
-    .sort((a,b) => b.invoice_date - a.invoice_date)
-    .map(r => [fdate(r.invoice_date), pvLink(r), `<span class="bold">${r.client_name}</span>`, r.client_full_name||'-', r.rep, $c(r.total), r.product]);
-  const lastWeekHtml = simpleTable(['Date','Invoice','Company','Contact','Rep','Amount','Product'], lastWeekRows, `No completed orders in the last 7 days (${fdate(weekAgo)} - ${fdate(mostRecent)})`);
-
-  // 7. AR / Aging - TRUE unpaid balances aged by due date (invoice date + payment terms)
   const arHtml = buildARSection(r => true, mostRecent);
 
   document.getElementById('coResults').innerHTML = `
@@ -2665,7 +2865,6 @@ function applyCompanyDash() {
     ${dashSection(`📈 Month-Over-Month Growth (${y1})`, momHtml, true)}
     ${dashSection(`💰 Average Sales by Month (${y1})`, avgHtml, true)}
     ${dashSection(`🔄 New &amp; Reactive Accounts (${y1})`, newReactHtml)}
-    ${dashSection(`📬 New Business - Last 7 Days (${fdate(weekAgo)} - ${fdate(mostRecent)})`, lastWeekHtml)}
     ${dashSection(`💳 Accounts Receivable / Aging - Open Orders`, arHtml)}
   `;
 }

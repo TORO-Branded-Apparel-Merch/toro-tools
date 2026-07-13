@@ -104,6 +104,13 @@ a { color:#2f6fb2; text-decoration:none; }
       <div class="card-body"><div id="monthlyTable"></div></div>
     </div>
 
+    <div class="card" id="card-funnel">
+      <div class="card-head" onclick="toggleCard('card-funnel')"><span><span class="arrow">▼</span>💰 My Sales Funnel - Quoted / Booked / Completed</span>
+        <span onclick="event.stopPropagation()"><button class="secondary" onclick="printSection('card-funnel')">🖨️ Print</button>
+        <button class="secondary" onclick="exportFunnel()">💾 Export</button></span></div>
+      <div class="card-body"><div id="funnelTable"></div></div>
+    </div>
+
     <div class="card" id="card-clients">
       <div class="card-head" onclick="toggleCard('card-clients')"><span><span class="arrow">▼</span>👥 My Clients</span>
         <span onclick="event.stopPropagation()"><button class="secondary" onclick="printSection('card-clients')">🖨️ Print</button>
@@ -152,6 +159,14 @@ const VALID_REPS = ['Abby Mendez','Amy Smith','Debra Guerra','Julia Howorth','Ki
 // Completed = either the current status or the 2022-era legacy status
 const COMPLETE_STATUSES = new Set(['ORDER COMPLETE - SYNC', 'Order Complete$$ - Closed - DO NOT USE']);
 const isComplete = r => COMPLETE_STATUSES.has(r.status);
+
+// Sales funnel stages: quoted (potential) -> booked (committed/in production) -> completed (final)
+const QUOTED_STATUSES = new Set(['Quote', '🚀*QUOTE APPROVAL SENT', '🚀*REVISED QUOTE SENT', 'ART DECLINED']);
+function stageOf(r) {
+  if (isComplete(r)) return 'completed';
+  if (QUOTED_STATUSES.has(r.status) || r.status.startsWith('Pre-Quote')) return 'quoted';
+  return 'booked';
+}
 const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 
 let allData = [];
@@ -549,7 +564,40 @@ function startDash() {
 
 function curYear() { return parseInt(document.getElementById('yearSel').value); }
 
-function renderAll() { renderKPIs(); renderMonthly(); renderClients(); renderOrders(); renderGoal(); updatePrintHeader(); }
+function renderAll() { renderKPIs(); renderMonthly(); renderFunnel(); renderClients(); renderOrders(); renderGoal(); updatePrintHeader(); }
+
+function renderFunnel() {
+  const y = curYear();
+  const yAll = myData.filter(r => r.year === y);
+  const rows = [];
+  const tot = { quoted:0, booked:0, completed:0 };
+  for (let m = 0; m < 12; m++) {
+    const mo = yAll.filter(r => r.month === m);
+    if (!mo.length) continue;
+    const q = mo.filter(r => stageOf(r)==='quoted').reduce((s,r)=>s+r.total,0);
+    const b = mo.filter(r => stageOf(r)==='booked').reduce((s,r)=>s+r.total,0);
+    const c = mo.filter(r => stageOf(r)==='completed').reduce((s,r)=>s+r.total,0);
+    tot.quoted += q; tot.booked += b; tot.completed += c;
+    rows.push(`<tr>
+      <td class="bold">${MONTHS[m]}</td>
+      <td class="r muted">${$c(q)}</td>
+      <td class="r" style="color:#2f6fb2;">${$c(b)}</td>
+      <td class="r green bold">${$c(c)}</td>
+      <td class="r bold">${$c(q+b+c)}</td>
+    </tr>`);
+  }
+  document.getElementById('funnelTable').innerHTML = `
+    <div style="padding:8px 14px;font-size:11px;color:#666;background:#fafafa;border-bottom:1px solid #eee;">
+      Quoted = potential (quote stage) &nbsp;•&nbsp; Booked = committed, in production (future cash) &nbsp;•&nbsp; Completed = final revenue. Each order counts once at its current stage.
+    </div>
+    <table>
+    <thead><tr><th>Month</th><th class="r">Quoted</th><th class="r">Booked</th><th class="r">Completed</th><th class="r">Total</th></tr></thead>
+    <tbody>${rows.join('') || '<tr><td colspan="5" class="empty">No activity this year</td></tr>'}</tbody>
+    ${rows.length ? `<tfoot><tr style="background:#fafafa;font-weight:700;"><td>Total</td><td class="r muted">${$c(tot.quoted)}</td><td class="r" style="color:#2f6fb2;">${$c(tot.booked)}</td><td class="r green">${$c(tot.completed)}</td><td class="r">${$c(tot.quoted+tot.booked+tot.completed)}</td></tr></tfoot>` : ''}
+  </table>`;
+}
+
+function exportFunnel() { dl(tableToCSV('funnelTable'), 'sales_funnel'); }
 
 // ─── COLLAPSIBLE CARDS ───────────────────────────────────────────────────────
 function toggleCard(id) {
@@ -630,12 +678,37 @@ function renderGoal() {
     const sug = goalSuggestion(latest);
     const prevKey = `${m === 0 ? y-1 : y}-${String((m === 0 ? 12 : m)).padStart(2,'0')}`;
     const prevGoal = myGoals[prevKey];
+
+    // Receipt-style growth presets off the baseline
+    let presets = '';
+    if (sug.amount) {
+      const opts = [
+        { label: 'Match', pct: 0,  desc: 'same as before' },
+        { label: 'Steady', pct: 5,  desc: 'easy growth' },
+        { label: 'Healthy', pct: 10, desc: 'solid stretch' },
+        { label: 'Aggressive', pct: 20, desc: 'big swing' },
+      ];
+      presets = `
+        <div style="font-size:11px;color:#888;margin:10px 0 6px;">Quick picks (based on ${sug.why}):</div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px;">
+          ${opts.map(o => {
+            const amt = Math.round(sug.amount * (1 + o.pct/100));
+            return `<button class="secondary" style="display:flex;flex-direction:column;align-items:center;padding:8px 14px;line-height:1.4;"
+              onclick="document.getElementById('goalInput').value='${amt}'">
+              <span style="font-weight:700;">${o.label}${o.pct ? ' +' + o.pct + '%' : ''}</span>
+              <span style="font-size:13px;font-weight:700;">${$c0(amt)}</span>
+              <span style="font-size:10px;color:#888;">${o.desc}</span>
+            </button>`;
+          }).join('')}
+        </div>`;
+    }
+
     body.innerHTML = `
       <div style="font-size:13px;margin-bottom:8px;">${goal ? 'Update your' : 'Set your own'} revenue goal for ${MONTHS[m]} - it's yours to choose and change anytime.</div>
-      ${sug.why ? `<div style="font-size:11px;color:#888;margin-bottom:8px;">For reference: ${sug.why}.</div>` : ''}
+      ${presets}
       <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
         <span style="font-size:15px;font-weight:700;">$</span>
-        <input type="text" id="goalInput" value="${goalEditing && goal ? goal : sug.amount}" style="width:120px;font-size:15px;font-weight:700;" placeholder="0">
+        <input type="text" id="goalInput" value="${goalEditing && goal ? goal : (sug.amount || '')}" style="width:120px;font-size:15px;font-weight:700;" placeholder="0">
         <button onclick="submitGoal()">Save Goal</button>
         ${prevGoal && !goal ? `<button class="secondary" onclick="saveGoal(${prevGoal})">Keep last month's (${$c0(prevGoal)})</button>` : ''}
         ${goalEditing && goal ? `<button class="secondary" onclick="goalEditing=false;renderGoal()">Cancel</button>` : ''}
@@ -736,6 +809,8 @@ function renderKPIs() {
   const avg = orders ? rev/orders : 0;
   const ar = myData.filter(r => r.paid === false && r.outstanding > 0);
   const arTotal = ar.reduce((s,r) => s+r.outstanding, 0);
+  const bookedOpen = myData.filter(r => stageOf(r) === 'booked');
+  const bookedTotal = bookedOpen.reduce((s,r) => s+r.total, 0);
 
   const chg = lyRev > 0 ? ((rev-lyRev)/lyRev*100) : null;
   const chgHtml = chg === null ? '' :
@@ -748,6 +823,7 @@ function renderKPIs() {
     <div class="kpi"><div class="val">${orders}</div><div class="lbl">Orders</div><div class="cmp muted">${prior.length} in ${ly}${info ? ' YTD' : ''}</div></div>
     <div class="kpi"><div class="val">${clients}</div><div class="lbl">Clients</div></div>
     <div class="kpi"><div class="val">${$c0(avg)}</div><div class="lbl">Avg Order</div></div>
+    <div class="kpi"><div class="val" style="color:#2f6fb2;">${$c0(bookedTotal)}</div><div class="lbl">Booked - In Progress</div><div class="cmp muted">${bookedOpen.length} committed order${bookedOpen.length === 1 ? '' : 's'}</div></div>
     <div class="kpi"><div class="val ${arTotal > 0 ? 'orange' : 'green'}">${$c0(arTotal)}</div><div class="lbl">My Open AR</div><div class="cmp muted">${ar.length} unpaid invoice${ar.length === 1 ? '' : 's'}</div></div>
   `;
 }
