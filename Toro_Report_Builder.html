@@ -2015,24 +2015,43 @@ function goalSeasonalWeights(rep) {
 }
 
 function migrateGoalsEntry(entry) {
+  // Current format: annual[year] = number (booked), months["YYYY-MM"] = number (booked)
   if (!entry) return { annual: {}, months: {} };
-  if (entry.annual || entry.months) return { annual: entry.annual || {}, months: entry.months || {} };
-  const months = {};
+  const num = v => typeof v === 'number' ? v : (v && (v.bkd || v.inv)) || 0;
+  const annual = {}, months = {};
+  if (entry.annual || entry.months) {
+    Object.entries(entry.annual || {}).forEach(([y, v]) => { const n = num(v); if (n) annual[y] = n; });
+    Object.entries(entry.months || {}).forEach(([k, v]) => { const n = num(v); if (n) months[k] = n; });
+    return { annual, months };
+  }
   Object.entries(entry).forEach(([k, v]) => {
-    if (/^\d{4}-\d{2}$/.test(k) && typeof v === 'number') months[k] = { inv: v, bkd: v };
+    if (/^\d{4}-\d{2}$/.test(k) && typeof v === 'number') months[k] = v;
   });
-  return { annual: {}, months };
+  return { annual, months };
 }
 
+// Monthly BOOKED target for a rep (override, else annual x seasonal weight)
 function goalTargetFor(rep, goalsDoc, y, m) {
   const g = migrateGoalsEntry(goalsDoc[rep]);
   const key = `${y}-${String(m+1).padStart(2,'0')}`;
   if (g.months[key]) return g.months[key];
-  if (g.annual[y]) {
-    const w = goalSeasonalWeights(rep);
-    return { inv: g.annual[y].inv * w[m], bkd: g.annual[y].bkd * w[m] };
-  }
+  if (g.annual[y]) return g.annual[y] * goalSeasonalWeights(rep)[m];
   return null;
+}
+
+// Management-set company invoiced goal + edit handler
+let _goalsDocCache = {};
+function setCompanyGoal() {
+  const y = new Date().getFullYear();
+  const existing = (_goalsDocCache._company && _goalsDocCache._company.invAnnual && _goalsDocCache._company.invAnnual[y]) || '';
+  const v = prompt(`Company annual INVOICED goal for ${y} (dollars):`, existing);
+  if (v === null) return;
+  const n = Math.round(parseFloat(String(v).replace(/[$,]/g, '')));
+  if (!n || n <= 0) { alert('Enter a dollar amount'); return; }
+  if (!cloudEnabled()) { alert('Cloud not connected'); return; }
+  db.collection(CLOUD_COLLECTION).doc('goals').set({ _company: { invAnnual: { [y]: n } } }, { merge: true })
+    .then(() => renderOverview())
+    .catch(e => alert('Could not save: ' + e.message));
 }
 
 // ─── PANEL 0: OVERVIEW (management landing page) ────────────────────────────
@@ -2047,6 +2066,7 @@ async function renderOverview() {
       if (gdoc.exists) goals = gdoc.data() || {};
     } catch (e) { console.error('Goals load failed:', e); }
   }
+  _goalsDocCache = goals;
 
   const years = [...new Set(allData.map(r => r.year))].sort((a,b) => b-a);
   const y = years[0], ly = y - 1;
@@ -2099,12 +2119,11 @@ async function renderOverview() {
     const rAr = unpaid.filter(r => r.rep === rep).reduce((s,r) => s+r.outstanding, 0);
     const rBooked = bookedOpen.filter(r => r.rep === rep).reduce((s,r) => s+r.total, 0);
     const rMtdBkd = allData.filter(r => r.rep === rep && r.year === y && r.month === thisMonth && stageOf(r) !== 'quoted').reduce((s,r) => s+r.total, 0);
-    const target = goalTargetFor(rep, goals, y, thisMonth);
-    return { rep, rRev, rLy, yoy, rMtd, momR, rAr, rBooked, rMtdBkd, target, clients: new Set(rCur.map(x=>x.client_name)).size };
+    const bkdTarget = goalTargetFor(rep, goals, y, thisMonth);
+    return { rep, rRev, rLy, yoy, rMtd, momR, rAr, rBooked, rMtdBkd, bkdTarget, clients: new Set(rCur.map(x=>x.client_name)).size };
   }).filter(r => r.rRev > 0 || r.rLy > 0).sort((a,b) => b.rRev - a.rRev)
     .map(r => {
-      const gpInv = r.target && r.target.inv > 0 ? r.rMtd/r.target.inv*100 : null;
-      const gpBkd = r.target && r.target.bkd > 0 ? r.rMtdBkd/r.target.bkd*100 : null;
+      const gp = r.bkdTarget > 0 ? r.rMtdBkd/r.bkdTarget*100 : null;
       const pc = p => p >= elapsedPct ? 'green' : p >= elapsedPct*0.75 ? 'orange' : 'red';
       return [
       `<span class="bold">${r.rep}</span>`,
@@ -2114,9 +2133,9 @@ async function renderOverview() {
       `<span class="r">${$c(r.rMtd)}</span>`,
       `<span class="r ${r.momR === null ? 'muted' : r.momR >= 0 ? 'green' : 'red'}">${r.momR === null ? '-' : (r.momR >= 0 ? '+' : '') + r.momR.toFixed(1) + '%'}</span>`,
       `<span class="r blue">${$c(r.rBooked)}</span>`,
-      `<span class="r ${r.target ? '' : 'muted'}">${r.target ? $c0(r.target.inv) : '-'}</span>`,
-      gpInv === null ? '<span class="r muted">-</span>' :
-        `<span class="r" style="white-space:nowrap;">Inv <span class="bold ${pc(gpInv)}">${gpInv.toFixed(0)}%</span>${gpBkd !== null ? ` · Bkd <span class="bold ${pc(gpBkd)}">${gpBkd.toFixed(0)}%</span>` : ''}</span>`,
+      `<span class="r ${r.bkdTarget ? '' : 'muted'}">${r.bkdTarget ? $c0(r.bkdTarget) : '-'}</span>`,
+      gp === null ? '<span class="r muted">-</span>' :
+        `<span class="r bold ${pc(gp)}">${gp.toFixed(0)}%</span>`,
       `<span class="r">${r.clients}</span>`,
       `<span class="r ${r.rAr > 0 ? 'orange' : ''}">${$c(r.rAr)}</span>`,
       `<a href="Toro_Rep_Portal.html?rep=${encodeURIComponent(r.rep)}" target="_blank">Portal →</a>`,
@@ -2169,12 +2188,29 @@ async function renderOverview() {
       <div class="stat"><span class="stat-val">${$c0(mtd)}</span><span class="stat-lbl">${MONTHS[thisMonth]} MTD${mom !== null ? ` <span class="${mom >= 0 ? 'green' : 'red'}">(${mom >= 0 ? '+' : ''}${mom.toFixed(1)}% MoM)</span>` : ''}</span></div>
       <div class="stat"><span class="stat-val">${$c0(lwRev)}</span><span class="stat-lbl">Last 7 Days (${lastWeekOrders.length} orders)</span></div>
       <div class="stat"><span class="stat-val blue">${$c0(bookedTotal)}</span><span class="stat-lbl">Booked - In Progress (${bookedOpen.length})</span></div>
+      ${(() => {
+        const cg = goals._company && goals._company.invAnnual && goals._company.invAnnual[y];
+        const coW = goalSeasonalWeights('__company__');
+        let paceFrac = 0;
+        for (let i = 0; i < thisMonth; i++) paceFrac += coW[i];
+        paceFrac += coW[thisMonth] * (latest.getDate()/new Date(y, thisMonth+1, 0).getDate());
+        const repGoalSum = VALID_REPS.reduce((s, rp) => {
+          const g = migrateGoalsEntry(goals[rp]);
+          return s + (g.annual[y] || 0);
+        }, 0);
+        if (!cg) return `<div class="stat"><span class="stat-val muted" style="cursor:pointer;" onclick="setCompanyGoal()">Set</span><span class="stat-lbl">Company Invoiced Goal${repGoalSum ? ` (rep booked goals: ${$c0(repGoalSum)})` : ''}</span></div>`;
+        const pct = rev/cg*100;
+        const cls = pct >= paceFrac*100 ? 'green' : pct >= paceFrac*75 ? 'orange' : 'red';
+        return `<div class="stat" style="cursor:pointer;" onclick="setCompanyGoal()" title="Click to edit">
+          <span class="stat-val ${cls}">${pct.toFixed(0)}%</span>
+          <span class="stat-lbl">Company Invoiced Goal ${$c0(cg)}${repGoalSum ? ` · Rep booked goals ${$c0(repGoalSum)}` : ''}</span></div>`;
+      })()}
       <div class="stat"><span class="stat-val orange">${$c0(arTotal)}</span><span class="stat-lbl">Open AR (${unpaid.length} invoices)</span></div>
       <div class="stat"><span class="stat-val red">${$c0(ar90)}</span><span class="stat-lbl">AR 90+ Past Due</span></div>
     </div>
     ${dashSection(`🏆 Rep Leaderboard - ${y} YTD${info ? ` (through ${MONTHS[info.latest.getMonth()]} ${info.latest.getDate()})` : ''}`,
-      simpleTable(['Rep', `${y} YTD`, `${ly} YTD`, 'YoY', `${MONTHS[thisMonth]}`, 'MoM', 'Booked', `${MONTHS[thisMonth]} Goal`, 'Progress', 'Clients', 'Open AR', 'Portal'], lbRows) +
-      `<div style="padding:6px 12px;font-size:11px;color:#999;">Goals are self-set by each rep on their portal as annual targets, split into monthly targets by each rep's seasonal curve. Goal column shows this month's invoiced target; Progress shows invoiced and booked attainment, colored by pace (${Math.round(elapsedPct)}% of the month has elapsed).</div>`)}
+      simpleTable(['Rep', `${y} YTD`, `${ly} YTD`, 'YoY', `${MONTHS[thisMonth]}`, 'MoM', 'Booked', `${MONTHS[thisMonth]} Bkd Goal`, 'Progress', 'Clients', 'Open AR', 'Portal'], lbRows) +
+      `<div style="padding:6px 12px;font-size:11px;color:#999;">Reps set annual booked goals on their portals, split into monthly targets by each rep's seasonal curve. Progress is booked attainment vs this month's target, colored by pace (${Math.round(elapsedPct)}% of the month has elapsed). Invoiced is tracked at the company level above.</div>`)}
     ${dashSection(`📅 Company Monthly - ${y} vs ${ly}`, simpleTable(['Month', `${y}`, `${ly}`, 'Change'], moRows))}
     ${(() => {
       const yAll = allData.filter(r => r.year === y);

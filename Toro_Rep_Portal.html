@@ -662,16 +662,19 @@ function seasonalWeights() {
 }
 
 function migrateGoals(entry) {
+  // Current format: annual[year] = number (booked), months["YYYY-MM"] = number (booked)
   if (!entry) return { annual: {}, months: {} };
+  const num = v => typeof v === 'number' ? v : (v && (v.bkd || v.inv)) || 0;
+  const annual = {}, months = {};
   if (entry.annual || entry.months) {
-    return { annual: entry.annual || {}, months: entry.months || {} };
+    Object.entries(entry.annual || {}).forEach(([y, v]) => { const n = num(v); if (n) annual[y] = n; });
+    Object.entries(entry.months || {}).forEach(([k, v]) => { const n = num(v); if (n) months[k] = n; });
+    return { annual, months };
   }
-  // v1 format: { "YYYY-MM": number } -> monthly overrides
-  const months = {};
   Object.entries(entry).forEach(([k, v]) => {
-    if (/^\d{4}-\d{2}$/.test(k) && typeof v === 'number') months[k] = { inv: v, bkd: v };
+    if (/^\d{4}-\d{2}$/.test(k) && typeof v === 'number') months[k] = v;
   });
-  return { annual: {}, months };
+  return { annual, months };
 }
 
 function myGoals() {
@@ -683,9 +686,8 @@ function myGoals() {
 function monthlyTarget(y, m, weights) {
   const g = myGoals();
   const key = `${y}-${String(m+1).padStart(2,'0')}`;
-  if (g.months[key]) return { ...g.months[key], src: 'override' };
-  const a = g.annual[y];
-  if (a) return { inv: a.inv * weights.w[m], bkd: a.bkd * weights.w[m], src: 'annual' };
+  if (g.months[key]) return { bkd: g.months[key], src: 'override' };
+  if (g.annual[y]) return { bkd: g.annual[y] * weights.w[m], src: 'annual' };
   return null;
 }
 
@@ -712,7 +714,7 @@ function annualSuggestion() {
   // Trailing 12 months invoiced; fallback to annualized run-rate
   const latest = goalMonthAnchor().latest;
   const cutoff = new Date(latest); cutoff.setFullYear(cutoff.getFullYear() - 1);
-  const t12 = myData.filter(r => isComplete(r) && r.invoice_date >= cutoff).reduce((s,r) => s+r.total, 0);
+  const t12 = myData.filter(r => stageOf(r) !== 'quoted' && r.invoice_date >= cutoff).reduce((s,r) => s+r.total, 0);
   if (t12 > 0) {
     const span = Math.min(365, (latest - myData.reduce((m,r) => r.invoice_date < m ? r.invoice_date : m, latest)) / 86400000);
     if (span >= 300) return { amount: Math.round(t12), why: `trailing 12 months (${$c0(t12)})` };
@@ -760,24 +762,22 @@ function renderGoal() {
   // ── Setter (no goals yet, or explicitly editing annual) ──
   if ((!hasAnnual && !target) || goalEditing === 'annual') {
     const sug = annualSuggestion();
-    const cur = g.annual[y] || {};
+    const cur = g.annual[y] || 0;
     body.innerHTML = `
-      <div style="font-size:13px;margin-bottom:8px;">Set your ${y} annual targets. Monthly targets are derived from the ${weights.source}. Individual months can be adjusted afterward.</div>
+      <div style="font-size:13px;margin-bottom:8px;">Set your ${y} annual booked sales target. Monthly targets are derived from the ${weights.source}. Individual months can be adjusted afterward.</div>
       ${sug.why ? `<div style="font-size:11px;color:#888;margin-bottom:8px;">Reference: ${sug.why}.</div>` : ''}
       ${sug.amount ? `<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px;">
         ${[['Match',0],['Steady +5%',5],['Healthy +10%',10],['Aggressive +20%',20]].map(([l,p]) => {
           const amt = Math.round(sug.amount*(1+p/100));
           return `<button class="secondary" style="display:flex;flex-direction:column;align-items:center;padding:8px 14px;line-height:1.4;"
-            onclick="document.getElementById('gaInv').value='${amt}';document.getElementById('gaBkd').value='${amt}'">
+            onclick="document.getElementById('gaBkd').value='${amt}'">
             <span style="font-weight:700;">${l}</span><span style="font-size:13px;font-weight:700;">${$c0(amt)}</span></button>`;
         }).join('')}
       </div>` : ''}
       <div style="display:flex;gap:16px;flex-wrap:wrap;align-items:flex-end;">
-        <div><label style="display:block;font-size:10px;text-transform:uppercase;color:#888;margin-bottom:3px;">Invoiced Goal (annual)</label>
-          <span style="font-weight:700;">$</span> <input type="text" id="gaInv" value="${cur.inv || sug.amount || ''}" style="width:110px;font-weight:700;"></div>
-        <div><label style="display:block;font-size:10px;text-transform:uppercase;color:#888;margin-bottom:3px;">Booked Goal (annual)</label>
-          <span style="font-weight:700;">$</span> <input type="text" id="gaBkd" value="${cur.bkd || cur.inv || sug.amount || ''}" style="width:110px;font-weight:700;"></div>
-        <button onclick="saveAnnualGoal()">Save Annual Goals</button>
+        <div><label style="display:block;font-size:10px;text-transform:uppercase;color:#888;margin-bottom:3px;">Annual Booked Goal</label>
+          <span style="font-weight:700;">$</span> <input type="text" id="gaBkd" value="${(typeof cur === 'number' && cur) || sug.amount || ''}" style="width:110px;font-weight:700;"></div>
+        <button onclick="saveAnnualGoal()">Save Annual Goal</button>
         ${hasAnnual ? '<button class="secondary" onclick="goalEditing=null;renderGoal()">Cancel</button>' : ''}
       </div>`;
     return;
@@ -785,13 +785,11 @@ function renderGoal() {
 
   // ── Month override editor ──
   if (goalEditing === 'month') {
-    const t = target || { inv: '', bkd: '' };
+    const t = target || { bkd: '' };
     body.innerHTML = `
-      <div style="font-size:13px;margin-bottom:8px;">Adjust ${MONTHS_FULL[m]} targets. This overrides the derived amount for this month only.</div>
+      <div style="font-size:13px;margin-bottom:8px;">Adjust the ${MONTHS_FULL[m]} booked target. This overrides the derived amount for this month only.</div>
       <div style="display:flex;gap:16px;flex-wrap:wrap;align-items:flex-end;">
-        <div><label style="display:block;font-size:10px;text-transform:uppercase;color:#888;margin-bottom:3px;">Invoiced (${MONTHS[m]})</label>
-          <span style="font-weight:700;">$</span> <input type="text" id="gmInv" value="${Math.round(t.inv) || ''}" style="width:100px;font-weight:700;"></div>
-        <div><label style="display:block;font-size:10px;text-transform:uppercase;color:#888;margin-bottom:3px;">Booked (${MONTHS[m]})</label>
+        <div><label style="display:block;font-size:10px;text-transform:uppercase;color:#888;margin-bottom:3px;">Booked Target (${MONTHS[m]})</label>
           <span style="font-weight:700;">$</span> <input type="text" id="gmBkd" value="${Math.round(t.bkd) || ''}" style="width:100px;font-weight:700;"></div>
         <button onclick="saveMonthOverride()">Save ${MONTHS[m]}</button>
         <button class="secondary" onclick="goalEditing=null;renderGoal()">Cancel</button>
@@ -807,12 +805,12 @@ function renderGoal() {
     const act = monthActual(y, m);
     const paceFrac = latest.getDate()/daysInMonth;
     html = miniRow('Booked', act.bkd, target ? target.bkd : 0, paceFrac)
-         + miniRow('Invoiced', act.inv, target ? target.inv : 0, paceFrac);
-    if (!target) html = '<div style="font-size:12px;color:#888;">No targets set for this month.</div>';
+         + `<div style="font-size:11px;color:#888;margin:4px 0 0 72px;">Invoiced this month: ${$c0(act.inv)} (tracked at the company level)</div>`;
+    if (!target) html = '<div style="font-size:12px;color:#888;">No target set for this month.</div>';
     if (goalDetails && target) {
       const pipe = myData.filter(r => r.year === y && r.month === m && stageOf(r) === 'quoted').reduce((s,r) => s+r.total, 0);
       html += `<div style="font-size:11px;color:#888;margin-top:8px;">
-        Targets ${target.src === 'override' ? 'set manually for this month' : `derived from your annual goal via the ${weights.source}`}.
+        Target ${target.src === 'override' ? 'set manually for this month' : `derived from your annual goal via the ${weights.source}`}.
         ${pipe > 0 ? `Quoted (not yet booked) this month: ${$c0(pipe)}.` : ''}
       </div>${breakdownTable(y, weights)}`;
     }
@@ -824,13 +822,13 @@ function renderGoal() {
     const a = g.annual[y];
     const ytd = ytdActual(y, m);
     if (a) {
-      html = miniRow('Booked', ytd.bkd, a.bkd, paceFrac)
-           + miniRow('Invoiced', ytd.inv, a.inv, paceFrac);
+      html = miniRow('Booked', ytd.bkd, a, paceFrac)
+           + `<div style="font-size:11px;color:#888;margin:4px 0 0 72px;">Invoiced YTD: ${$c0(ytd.inv)} (tracked at the company level)</div>`;
       if (goalDetails) {
-        const proj = paceFrac > 0.02 ? ytd.inv/paceFrac : 0;
+        const proj = paceFrac > 0.02 ? ytd.bkd/paceFrac : 0;
         html += `<div style="font-size:11px;color:#888;margin-top:8px;">
-          Pace follows the ${weights.source}: ${(paceFrac*100).toFixed(0)}% of the year's expected revenue has elapsed.
-          ${proj ? `Current invoiced pace projects to ${$c0(proj)} for the full year.` : ''}
+          Pace follows the ${weights.source}: ${(paceFrac*100).toFixed(0)}% of the year's expected volume has elapsed.
+          ${proj ? `Current booked pace projects to ${$c0(proj)} for the full year.` : ''}
         </div>${breakdownTable(y, weights)}`;
       }
     } else {
@@ -856,30 +854,28 @@ function breakdownTable(y, weights) {
     const act = monthActual(y, m);
     rows.push(`<tr><td>${MONTHS[m]}${t.src === 'override' ? ' *' : ''}</td>
       <td class="r">${$c0(t.bkd)}</td><td class="r">${$c0(act.bkd)}</td>
-      <td class="r">${$c0(t.inv)}</td><td class="r">${$c0(act.inv)}</td></tr>`);
+      <td class="r muted">${$c0(act.inv)}</td></tr>`);
   }
   return `<div style="margin-top:10px;"><table style="font-size:11px;">
-    <thead><tr><th>Month</th><th class="r">Booked Target</th><th class="r">Booked Actual</th><th class="r">Invoiced Target</th><th class="r">Invoiced Actual</th></tr></thead>
+    <thead><tr><th>Month</th><th class="r">Booked Target</th><th class="r">Booked Actual</th><th class="r">Invoiced (ref)</th></tr></thead>
     <tbody>${rows.join('')}</tbody></table>
     <div style="font-size:10px;color:#999;padding:4px 2px;">* manually adjusted month</div></div>`;
 }
 
 function saveAnnualGoal() {
-  const inv = parseFloat(document.getElementById('gaInv').value.replace(/[$,]/g, ''));
-  const bkd = parseFloat(document.getElementById('gaBkd').value.replace(/[$,]/g, '')) || inv;
-  if (!inv || inv <= 0) { alert('Enter an annual invoiced goal'); return; }
+  const bkd = parseFloat(document.getElementById('gaBkd').value.replace(/[$,]/g, ''));
+  if (!bkd || bkd <= 0) { alert('Enter an annual booked goal'); return; }
   const { y } = goalMonthAnchor();
-  myGoals().annual[y] = { inv: Math.round(inv), bkd: Math.round(bkd) };
+  myGoals().annual[y] = Math.round(bkd);
   goalEditing = null;
   persistMyGoals();
 }
 
 function saveMonthOverride() {
-  const inv = parseFloat(document.getElementById('gmInv').value.replace(/[$,]/g, ''));
-  const bkd = parseFloat(document.getElementById('gmBkd').value.replace(/[$,]/g, '')) || inv;
-  if (!inv || inv <= 0) { alert('Enter an invoiced target'); return; }
+  const bkd = parseFloat(document.getElementById('gmBkd').value.replace(/[$,]/g, ''));
+  if (!bkd || bkd <= 0) { alert('Enter a booked target'); return; }
   const { y, m } = goalMonthAnchor();
-  myGoals().months[`${y}-${String(m+1).padStart(2,'0')}`] = { inv: Math.round(inv), bkd: Math.round(bkd) };
+  myGoals().months[`${y}-${String(m+1).padStart(2,'0')}`] = Math.round(bkd);
   goalEditing = null;
   persistMyGoals();
 }
