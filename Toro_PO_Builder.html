@@ -168,6 +168,18 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
         <div class="field"><label>Account #</label><input type="text" id="v-acct" placeholder="Vendor account number"></div>
         <div class="field"><label>PO date</label><input type="date" id="po-date"></div>
       </div>
+      <div class="row2" style="margin-top:8px;">
+        <div class="field">
+          <label>Starting PO # <span style="font-weight:400;color:var(--text3);font-size:11px;">— change if resuming a previous session</span></label>
+          <div style="display:flex;align-items:center;gap:8px;">
+            <span id="po-num-prefix" style="font-size:13px;font-weight:700;color:#BC112A;white-space:nowrap;">PO-XXXX-</span>
+            <input type="number" id="po-start-num" min="1" value="1" step="1"
+              style="width:72px;padding:7px 8px;border:1px solid var(--border2);border-radius:var(--radius-sm);font-size:15px;font-weight:700;text-align:center;"
+              title="The number appended to the first PO — set to e.g. 5 if you already issued POs 1–4 in a previous session">
+          </div>
+          <div style="font-size:11px;color:var(--text3);margin-top:4px;">POs in this session will be numbered starting from this value. Each PO generated increments automatically.</div>
+        </div>
+      </div>
 
       <div style="border-top:1px solid var(--border);margin:16px 0;"></div>
       <div style="font-size:13px;font-weight:700;color:var(--text2);margin-bottom:10px;">Ship to</div>
@@ -336,6 +348,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
       <div style="color:#fff;font-weight:700;font-size:16px;" id="modal-title">PO Preview</div>
       <div style="display:flex;gap:8px;">
+        <button class="btn btn-sm" style="background:#fff;color:#2255cc;" onclick="reEditPO()">✏️ Re-edit</button>
         <button class="btn btn-sm" style="background:#fff;color:var(--red);" onclick="printCurrentPO()">🖨️ Open print view</button>
         <button class="btn btn-sm btn-gray" onclick="closeModal()">✕ Close</button>
       </div>
@@ -346,7 +359,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 
 <script>
 // ── State ──────────────────────────────────────────────────────────────────
-const PO_VERSION = 'v2.5';
+const PO_VERSION = 'v2.6';
 
 const HG_DECO_MAP = {
   'Blank':'Blank',
@@ -478,6 +491,9 @@ function initBuilder() {
   document.getElementById('disp-firm').innerHTML = q.ihdFirm ? '<span style="color:var(--red);font-weight:700;">🔒 FIRM</span>' : '<span style="color:var(--green);">Not firm</span>';
   // Set today as default PO date
   document.getElementById('po-date').value = new Date().toISOString().split('T')[0];
+  // Update the PO number prefix to show the real quote number
+  const _pfx = document.getElementById('po-num-prefix');
+  if(_pfx) _pfx.textContent = 'PO-'+(q.quoteNum||'XXXX')+'-';
   dz.style.display = 'none';
   document.getElementById('builder').classList.remove('hidden');
   document.getElementById('clear-quote-btn').style.display = 'inline-flex';
@@ -794,17 +810,32 @@ function validate() {
   return true;
 }
 
+let _reEditIdx = null; // null = new PO; number = replacing this queue slot
+
 // ── Add to queue ───────────────────────────────────────────────────────────
 function addToQueue() {
   if(!validate()) return;
   const q = quoteData;
-  const poNum = 'PO-'+(q.quoteNum||'XXXX')+'-'+(poQueue.length+1);
+  const _startNum = parseInt(document.getElementById('po-start-num')?.value)||1;
+  // If re-editing, keep the original PO number; otherwise generate a new one
+  const poNum = _reEditIdx !== null
+    ? poQueue[_reEditIdx].poNum
+    : 'PO-'+(q.quoteNum||'XXXX')+'-'+(_startNum + poQueue.length);
   const data = captureFormData();
   const html = buildPOHTML(poNum, data);
-  const po = {id:poNum, typeLabel:currentTypeLabel, html, data, poNum};
-  poQueue.push(po);
-  updateQueueUI();
-  openPO(poQueue.length-1);
+  const po = {id:poNum, typeLabel:currentTypeLabel, html, data, poNum,
+    _selectedItems:[...selectedItems], _currentType:currentType, _currentTypeLabel:currentTypeLabel};
+  if(_reEditIdx !== null){
+    poQueue[_reEditIdx] = po;
+    const replaceIdx = _reEditIdx;
+    _reEditIdx = null;
+    updateQueueUI();
+    openPO(replaceIdx);
+  } else {
+    poQueue.push(po);
+    updateQueueUI();
+    openPO(poQueue.length-1);
+  }
   resetForm();
   document.querySelector('#po-queue').scrollIntoView({behavior:'smooth'});
 }
@@ -1163,7 +1194,7 @@ function buildPOHTML(poNum, d) {
       <!-- Right: PO title + meta -->
       <div style="text-align:right;min-width:160px;">
         <div style="font-size:16px;font-weight:800;">PURCHASE ORDER</div>
-        <div style="font-size:14px;font-weight:800;color:#BC112A;">${poNum}</div>
+        <input class="po-field-edit" style="font-size:14px;font-weight:800;color:#BC112A;text-align:right;width:140px;" value="${poNum}">
         <div style="font-size:10px;color:#888;">${typeLabels[d.type]||d.typeLabel}</div>
         <div style="font-size:10px;color:#888;margin-top:2px;">Date: <input class="po-field-edit" style="font-size:10px;width:100px;" value="${poDate}"></div>
       </div>
@@ -1343,7 +1374,108 @@ function exportAll() {
   document.getElementById('bam-overlay').style.display='flex';
 }
 
+// Re-opens a queued PO back into the form so the rep can change
+// items, vendor, decoration, addresses, etc. and re-submit.
+// The PO retains its original number and replaces the slot in-place.
+function reEditPO() {
+  if(currentModalPO===null) return;
+  const po = poQueue[currentModalPO];
+  if(!po) return;
+  bamConfirm(
+    'Re-edit <strong>'+po.poNum+'</strong>? The current version will be replaced when you click "Add to PO queue" again.',
+    function(ok){
+      if(!ok) return;
+      syncCurrentPOEdits();
+      _reEditIdx = currentModalPO;
+      closeModal();
+      // Show the builder section and scroll to it
+      document.getElementById('builder').classList.remove('hidden');
+      // Restore type selection
+      const type = po._currentType||po.data?.type||'hg';
+      const typeLabel = po._currentTypeLabel||po.typeLabel||'';
+      currentType = type; currentTypeLabel = typeLabel;
+      selectedItems = [];
+      document.querySelectorAll('.po-type-btn').forEach(b=>{
+        const matches = b.getAttribute('onclick')?.includes("'"+type+"'");
+        b.classList.toggle('active', !!matches);
+      });
+      document.getElementById('step2').classList.remove('hidden');
+      document.getElementById('step3').classList.remove('hidden');
+      document.getElementById('deco-wrap')?.classList.toggle('hidden', type==='blank');
+      document.getElementById('proof-wrap')?.classList.toggle('hidden', type==='blank');
+      buildItemList(type);
+      clearAutoFills();
+      // Restore item selections
+      const storedItems = po._selectedItems||[];
+      storedItems.forEach(item=>{
+        const chkId = 'chk_'+item.type+'_'+item.idx;
+        const chk = document.getElementById(chkId);
+        if(chk){ chk.checked=true; toggleItem(chk, item.type, item.idx); }
+      });
+      // Restore form fields from stored data
+      const d = po.data||{};
+      const force = (id,val)=>{ const el=document.getElementById(id); if(el&&val!=null) el.value=val; };
+      force('v-name', d.vendorName); force('v-email', d.vendorEmail);
+      force('v-phone', d.vendorPhone); force('v-acct', d.vendorAcct);
+      force('po-date', d.poDate);
+      // Decoration fields
+      const dMethod = d.decoMethod||'';
+      const dMethodSel = document.getElementById('d-method');
+      if(dMethodSel){
+        // Try to match a known option; if not found use Other
+        const knownOptions=[...dMethodSel.options].map(o=>o.value);
+        if(knownOptions.includes(dMethod)){ dMethodSel.value=dMethod; }
+        else if(dMethod){ dMethodSel.value='Other'; toggleDecoMethodOther('Other'); force('d-method-other', dMethod); }
+      }
+      force('d-loc', d.decoLoc); force('d-art', d.decoArt);
+      force('d-colors', d.decoColors); force('d-count', d.decoCount);
+      force('d-notes', d.decoNotes);
+      // Proof
+      if(d.proofReq){
+        const proofRadio=[...document.querySelectorAll('input[name="proof"]')].find(r=>r.value===d.proofReq);
+        if(proofRadio){ proofRadio.checked=true; autoProofNotes(proofRadio); }
+        if(d.proofNotes) force('proof-notes', d.proofNotes);
+      }
+      // Ship-to
+      if(d.shipToType==='alternate'){
+        const altRadio=document.querySelector('input[name="ship-to-type"][value="alternate"]');
+        if(altRadio){ altRadio.checked=true; toggleShipTo('alternate'); }
+        force('ship-name', d.shipName); force('ship-company', d.shipCompany);
+        force('ship-addr1', d.shipAddr1); force('ship-addr2', d.shipAddr2);
+        force('ship-city', d.shipCity); force('ship-state', d.shipState);
+        force('ship-zip', d.shipZip);
+      }
+      // Order notes
+      force('order-notes', d.orderNotes);
+      // Rep info
+      force('rep-name', d.repName); force('rep-email', d.repEmail);
+      // Add a visual banner so the rep knows they're in re-edit mode
+      const existing=document.getElementById('reedit-banner');
+      if(existing) existing.remove();
+      const banner=document.createElement('div');
+      banner.id='reedit-banner';
+      banner.style.cssText='background:#e8eeff;border:1px solid #aabbee;border-radius:6px;padding:8px 14px;margin-bottom:12px;font-size:13px;font-weight:700;color:#2255cc;display:flex;align-items:center;justify-content:space-between;gap:12px;';
+      banner.innerHTML='<span>✏️ Re-editing <strong>'+po.poNum+'</strong> — make your changes and click "Add to PO queue" to save.</span>'
+        +'<button type="button" style="border:none;background:none;cursor:pointer;font-size:13px;color:#2255cc;text-decoration:underline;padding:0;" onclick="cancelReEdit()">Cancel</button>';
+      const step2=document.getElementById('step2');
+      if(step2) step2.insertAdjacentElement('afterbegin', banner);
+      renderHGImprints();
+      window.scrollTo({top:0, behavior:'smooth'});
+    }
+  );
+}
+
+function cancelReEdit() {
+  _reEditIdx = null;
+  const banner=document.getElementById('reedit-banner');
+  if(banner) banner.remove();
+  resetForm();
+}
+
 function resetForm() {
+  _reEditIdx = null;
+  const banner=document.getElementById('reedit-banner');
+  if(banner) banner.remove();
   selectedItems = [];
   currentType = null;
   document.querySelectorAll('.po-type-btn').forEach(b=>b.classList.remove('active'));
@@ -1401,7 +1533,7 @@ function buildSplitRows() {
     <div style="border:1px solid #e8e8e8;border-radius:8px;margin-bottom:12px;overflow:hidden;">
       <div style="background:#f5f5f7;padding:8px 14px;font-size:12px;font-weight:700;color:#555;display:flex;align-items:center;justify-content:space-between;">
         <span>PO ${i+1}</span>
-        <span style="font-weight:400;color:#888;">PO-${(quoteData?.quoteNum||'XXXX')}-${(poQueue.length+i+1)}</span>
+        <span style="font-weight:400;color:#888;">PO-${(quoteData?.quoteNum||'XXXX')}-${(parseInt(document.getElementById('po-start-num')?.value)||1)+poQueue.length+i}</span>
       </div>
       <div style="padding:12px 14px;display:grid;grid-template-columns:80px 1fr;gap:10px;align-items:start;">
         <div>
@@ -1593,7 +1725,8 @@ function confirmSplit() {
     const qty = parseInt(row.querySelector('.split-qty').value)||0;
     const sameShip = row.querySelector('.split-same-ship').checked;
     const splitNotes = row.querySelector('.split-notes').value.trim();
-    const poNum = 'PO-'+(quoteData?.quoteNum||'XXXX')+'-'+(poQueue.length+1);
+    const _startNum = parseInt(document.getElementById('po-start-num')?.value)||1;
+  const poNum = 'PO-'+(quoteData?.quoteNum||'XXXX')+'-'+(_startNum + poQueue.length);
 
     // Deep copy base data
     const d = JSON.parse(JSON.stringify(baseData));
@@ -1619,7 +1752,8 @@ function confirmSplit() {
     }
 
     const html = buildPOHTML(poNum, d);
-    poQueue.push({id:poNum, typeLabel:currentTypeLabel, html, data:d, poNum});
+    poQueue.push({id:poNum, typeLabel:currentTypeLabel, html, data:d, poNum,
+      _selectedItems:[...selectedItems], _currentType:currentType, _currentTypeLabel:currentTypeLabel});
   });
 
   updateQueueUI();
