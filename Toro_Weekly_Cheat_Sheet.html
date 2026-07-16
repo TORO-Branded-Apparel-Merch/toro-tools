@@ -166,7 +166,7 @@ function stageOf(r) {
   return 'booked';
 }
 
-let db = null, allData = [], goalsDoc = {}, currentRep = null;
+let db = null, allData = [], archivedData = [], goalsDoc = {}, currentRep = null;
 
 function initFirebase() {
   try {
@@ -242,6 +242,10 @@ async function loadFromCloud() {
     let rows = [];
     docs.forEach(d => { if (d.exists) rows = rows.concat(JSON.parse(d.data().rows)); });
     allData = deserializeData(rows);
+    try {
+      const adoc = await db.collection(CLOUD_COLLECTION).doc('archived').get();
+      archivedData = adoc.exists ? deserializeData(JSON.parse(adoc.data().rows)) : [];
+    } catch (e) { archivedData = []; }
     try {
       const gdoc = await db.collection(CLOUD_COLLECTION).doc('goals').get();
       goalsDoc = gdoc.exists ? gdoc.data() : {};
@@ -421,6 +425,21 @@ function buildStalledQuotes(repData, t) {
     .sort((a,b) => originDate(a) - originDate(b));
 }
 
+// Archived quotes worth a second look: this rep's archived quotes (synced
+// separately, last 18 months), skipping clients who ordered in the last 8 weeks
+function buildArchivedQuotes(repData, rep, t) {
+  const recentCut = addDays(t, -56);
+  const recentClients = new Set(repData.filter(r => r.invoice_date && r.invoice_date >= recentCut && stageOf(r) !== 'quoted').map(r => r.client_name));
+  const byClient = new Map();
+  archivedData.forEach(r => {
+    if (r.rep !== rep) return;
+    if (recentClients.has(r.client_name)) return;
+    const prev = byClient.get(r.client_name);
+    if (!prev || r.total > prev.total) byClient.set(r.client_name, r);
+  });
+  return [...byClient.values()].sort((a,b) => b.total - a.total);
+}
+
 // 4. Reactivation: clients with completed history whose last order of any kind is 4+ months back
 function buildReactivation(repData, t, excludeClients) {
   const cut = addDays(t, -120);
@@ -437,9 +456,14 @@ function buildReactivation(repData, t, excludeClients) {
   return out.sort((a,b) => b.lifetime - a.lifetime);
 }
 
-// 6. AR: rep's open invoices aged by due date (invoice date + payment term days)
+// 7. AR - management's rule: an invoice is only receivable when unpaid with a
+// balance AND either completed (due per its Net terms) or in Non-Term Awaiting
+// Payment (deposit due before production). Quotes and in-production Net-terms
+// orders show "outstanding" in Printavo but nothing is owed yet.
+const NTAP_RE = /non.?term.*(await|payment)/i;
+const isTrueAR = r => r.paid === false && r.outstanding > 0 && (isComplete(r) || NTAP_RE.test(r.status));
 function buildAR(repData, t) {
-  return repData.filter(r => r.paid === false && r.outstanding > 0)
+  return repData.filter(isTrueAR)
     .map(r => {
       const due = addDays(r.invoice_date, r.term_days || 0);
       return { ...r, due, daysPast: daysBetween(due, t) };
@@ -504,6 +528,8 @@ function sheetHTML() {
   const excl = new Set(proactive.map(r => r.client_name));
   const reactAll = buildReactivation(repData, t, excl);
   const react = rotate(reactAll, wk * 3).slice(0, 3);
+  const archAll = buildArchivedQuotes(repData, rep, t);
+  const arch = rotate(archAll, wk * 3).slice(0, 3);
   const ar = buildAR(repData, t);
   const arTotal = ar.reduce((s,r) => s + r.outstanding, 0);
   const arPastDue = ar.filter(r => r.daysPast > 0).reduce((s,r) => s + r.outstanding, 0);
@@ -517,7 +543,7 @@ function sheetHTML() {
   const dueDateNote = dueDatesAvailable ? null :
     'Due dates are not in the cloud data yet. Drop the Printavo export (with the Due Date column) on the Report Builder once and this section fills in automatically.';
 
-  const callCount = proactive.length + lastWeek.length + lost.length + react.length + 4;
+  const callCount = proactive.length + lastWeek.length + lost.length + arch.length + react.length + 4;
 
   let html = `
   <div class="week-banner">
@@ -525,7 +551,7 @@ function sheetHTML() {
       <div class="who">${esc(rep)}</div>
       <div class="when">Week of ${fdate(addDays(t, -t.getDay()))} &middot; printed ${fdate(t)}</div>
     </div>
-    <div class="plan">This week's call plan: <strong>${callCount} calls</strong> &mdash; ${proactive.length} proactive &middot; ${lastWeek.length} follow-up &middot; ${lost.length} lost &middot; ${react.length} reactivation &middot; 4 new prospects</div>
+    <div class="plan">This week's call plan: <strong>${callCount} calls</strong> &mdash; ${proactive.length} proactive &middot; ${lastWeek.length} follow-up &middot; ${lost.length} lost &middot; ${arch.length} archived &middot; ${react.length} reactivation &middot; 4 new prospects</div>
   </div>
 
   <div class="kpi-row">
@@ -621,8 +647,22 @@ function sheetHTML() {
       </tr>`).join('')}</tbody></table>`
     : null, 'No open quotes from the six-to-eight-week window.');
 
-  // 4. Reactivation
-  html += card('4. Reactivation calls', `Past customers with no order in the last four months (${reactAll.length} eligible)`,
+  // 4. Archived quotes worth a second look
+  html += card('4. Archived quotes worth a second look', `Quotes archived in Printavo over the last 18 months - was the door really closed? (${archAll.length} eligible)`,
+    arch.length ? `<table><thead><tr><th>Client</th><th>Contact</th><th>Quote</th><th>Status when archived</th><th class="num">Value</th><th class="check-cell">Called</th></tr></thead><tbody>${
+      arch.map((r,i) => `<tr>
+        <td class="client">${esc(r.client_name)}</td>
+        <td class="contact">${contactLine(r)}</td>
+        <td>${fdate(originDate(r))} &middot; ${pvLink(r)} <span class="muted">${esc(r.product)}</span></td>
+        <td class="muted">${esc(r.status)}</td>
+        <td class="num">${$c(r.total)}</td>
+        <td class="check-cell"><input type="checkbox" ${ck('arc'+i)} onchange="toggleCheck('arc${i}',this)"></td>
+      </tr>`).join('')}</tbody></table>`
+    : null, archivedData.length ? 'No archived quotes to revisit - or every archived client has ordered recently.'
+                                : 'Archived quotes are not in the cloud yet. Deploy Report Builder v2.4 and drop the export on it once - archives sync automatically from then on.');
+
+  // 5. Reactivation
+  html += card('5. Reactivation calls', `Past customers with no order in the last four months (${reactAll.length} eligible)`,
     react.length ? `<table><thead><tr><th>Client</th><th>Contact</th><th>Last order</th><th class="num">Lifetime</th><th class="check-cell">Called</th></tr></thead><tbody>${
       react.map((x,i) => `<tr>
         <td class="client">${esc(x.client)}</td>
@@ -634,7 +674,7 @@ function sheetHTML() {
     : null, 'Every client has ordered within the last four months.');
 
   // 5. New prospects (blank - filled in by the rep)
-  html += card('5. New ideal-client prospect calls', 'Four new prospects that fit the ideal client profile - write them in',
+  html += card('6. New ideal-client prospect calls', 'Four new prospects that fit the ideal client profile - write them in',
     `<table><thead><tr><th style="width:24%">Company</th><th style="width:24%">Contact</th><th>Notes / next step</th><th class="check-cell">Called</th></tr></thead><tbody>${
       [0,1,2,3].map(i => `<tr>
         <td><input type="text" class="inline" value="${tv('pcN'+i)}" onchange="saveText('pcN${i}',this)"></td>
@@ -661,7 +701,7 @@ function sheetHTML() {
     : null, 'No stalled quotes - the pipeline is clean.');
 
   // 6. AR
-  html += card('6. My invoices currently due', `Unpaid invoices with a balance, aged by due date - ${$c(arTotal)} outstanding`,
+  html += card('7. My invoices currently due', `Truly due only: completed orders per terms + deposits awaiting payment - ${$c(arTotal)} outstanding`,
     ar.length ? `<table><thead><tr><th>Client</th><th>Invoice</th><th>Invoice date</th><th>Terms</th><th>Due</th><th>Aging</th><th class="num">Outstanding</th></tr></thead><tbody>${
       ar.map(r => `<tr>
         <td class="client">${esc(r.client_name)}</td>
@@ -674,7 +714,7 @@ function sheetHTML() {
       </tr>`).join('')}</tbody></table>`
     : null, 'No open invoices - everything is paid.');
 
-  html += `<div class="footer-note">Revenue and growth use completed orders only, matching every other TORO report. Goals are booked goals set by each rep on their Sales Portal. Lost orders and stalled quotes are aged by Printavo's Created Date when the export includes it, otherwise by invoice date. Checkmarks and notes save in this browser for the current week; stalled-quote decisions carry over.</div>`;
+  html += `<div class="footer-note">Revenue and growth use completed orders only, matching every other TORO report. Goals are booked goals set by each rep on their Sales Portal. Lost orders and stalled quotes are aged by Printavo's Created Date when the export includes it, otherwise by invoice date. Invoices due counts only money truly owed: completed orders (due per their payment terms) and Non-Term Awaiting Payment orders (deposit due before production) - quotes and in-production Net orders are excluded even though Printavo shows an outstanding amount on them. Archived quotes sync separately and never touch revenue reports. Checkmarks and notes save in this browser for the current week; stalled-quote decisions carry over.</div>`;
 
   return html;
 }
