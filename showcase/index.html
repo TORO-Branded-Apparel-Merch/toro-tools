@@ -189,7 +189,7 @@ async function loadSubs(){
 async function submitPhoto(full,thumb,note){
   // Full photo lives in its own document (fetched only when tapped in Organizer view);
   // the lead record carries just a small thumbnail, keeping the admin view fast at scale.
-  if(full.length > 950000) throw new Error('Photo too large after compression — try again.');
+  if(full.length > 950000) throw new Error('Photo too large after compression. Try again.');
   const photoDoc=await addDoc(collection(db,'photos'),{ img:full, vendorId:currentVendor.id, tsClient:Date.now() });
   await addDoc(collection(db,'submissions'),{
     vendorId:currentVendor.id, vendorName:currentVendor.name,
@@ -204,12 +204,12 @@ async function fetchFullPhoto(photoId){
 }
 async function deleteSubmission(r){
   // remove the lead record and its full-size photo doc
-  try{ await deleteDoc(doc(db,'submissions',r.id)); }catch(e){ throw new Error('Delete blocked — did you update the Firestore rules to allow deletes? ('+e.message+')'); }
+  try{ await deleteDoc(doc(db,'submissions',r.id)); }catch(e){ throw new Error('Delete blocked. Did you update the Firestore rules to allow deletes? ('+e.message+')'); }
   if(r.photoId){ try{ await deleteDoc(doc(db,'photos',r.photoId)); }catch(e){} }
 }
 async function deleteVendor(v,recs){
   for(const r of recs){ await deleteSubmission(r); }
-  try{ await deleteDoc(doc(db,'vendors',v.id)); }catch(e){ throw new Error('Delete blocked — did you update the Firestore rules to allow deletes? ('+e.message+')'); }
+  try{ await deleteDoc(doc(db,'vendors',v.id)); }catch(e){ throw new Error('Delete blocked. Did you update the Firestore rules to allow deletes? ('+e.message+')'); }
 }
 let jszipPromise=null;
 function loadJSZip(){
@@ -219,7 +219,7 @@ function loadJSZip(){
       const sc=document.createElement('script');
       sc.src='https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js';
       sc.onload=()=>res(window.JSZip);
-      sc.onerror=()=>rej(new Error('Could not load ZIP library — check connection.'));
+      sc.onerror=()=>rej(new Error('Could not load ZIP library. Check your connection.'));
       document.head.appendChild(sc);
     });
   }
@@ -273,9 +273,9 @@ function renderVendorPicker(){
 function renderIdentify(){
   body.innerHTML='<button class="sp-back" id="sp-back">&larr; All tables</button>'+
     '<div class="sp-card"><div class="sp-h2">'+esc(currentVendor.name)+'</div>'+
-    '<p class="sp-note" style="margin:0 0 12px">Tell us who you are once — your phone remembers for every table today.</p>'+
-    '<span class="sp-label">Your name</span><input class="sp-input" id="sp-name" autocomplete="name" placeholder="Jordan Rivera" style="margin-bottom:12px">'+
-    '<span class="sp-label">Company</span><input class="sp-input" id="sp-co" autocomplete="organization" placeholder="Rivera Interiors" style="margin-bottom:16px">'+
+    '<p class="sp-note" style="margin:0 0 12px">Tell us who you are once. Your phone remembers for every table today.</p>'+
+    '<span class="sp-label">Your name</span><input class="sp-input" id="sp-name" autocomplete="name" style="margin-bottom:12px">'+
+    '<span class="sp-label">Company/Department</span><input class="sp-input" id="sp-co" autocomplete="organization" style="margin-bottom:16px">'+
     '<button class="sp-btn" id="sp-go">Start snapping</button></div>';
   document.getElementById('sp-back').onclick=renderVendorPicker;
   document.getElementById('sp-go').onclick=()=>{
@@ -289,10 +289,10 @@ function renderDrop(){
   body.innerHTML='<button class="sp-back" id="sp-back">&larr; All tables</button>'+
     '<div class="sp-badge"><span>&#127915; '+esc(attendee.name)+(attendee.company?' &middot; '+esc(attendee.company):'')+'</span><button id="sp-notme">Not you?</button></div>'+
     '<div class="sp-card"><div class="sp-h2">'+esc(currentVendor.name)+'</div>'+
-    '<div class="sp-drop" id="sp-drop"><p class="big">Tap to take a photo</p><p class="small">Point at the item you love — that\u2019s it.</p></div>'+
+    '<div class="sp-drop" id="sp-drop"><p class="big">Tap to take a photo</p><p class="small">Point at the item you love. That\u2019s it.</p></div>'+
     '<input type="file" id="sp-file" accept="image/*" capture="environment" multiple style="display:none">'+
     '<div class="sp-thumbs" id="sp-preview" style="display:none"></div>'+
-    '<div class="sp-noteinput" id="sp-noteui"><input class="sp-input" id="sp-notetext" placeholder="Optional note — e.g. loved the walnut finish" maxlength="140"><button class="sp-btn small" id="sp-save">Save</button></div>'+
+    '<div class="sp-noteinput" id="sp-noteui"><input class="sp-input" id="sp-notetext" placeholder="Optional note, e.g. loved the walnut finish" maxlength="140"><button class="sp-btn small" id="sp-save">Save</button></div>'+
     '<div class="sp-thumbs" id="sp-thumbs"></div>'+
     '<div class="sp-toast" id="sp-toast"></div></div>';
   document.getElementById('sp-back').onclick=renderVendorPicker;
@@ -327,9 +327,9 @@ function renderDrop(){
         d.innerHTML='<img alt="Uploaded photo"><div class="cap">'+esc(note)+'</div>';
         d.querySelector('img').src=thumb; thumbs.prepend(d);
         const t=document.getElementById('sp-toast');
-        t.innerHTML='&#128002; BAM! Saved — TORO will follow up with you.';
+        t.innerHTML='&#128002; BAM! Saved. TORO will follow up with you.';
         t.style.display='block'; setTimeout(()=>t.style.display='none',2500);
-      }catch(e){ console.error(e); await bamAlert('That photo didn\u2019t save — check your connection and try again.'); }
+      }catch(e){ console.error(e); await bamAlert('That photo didn\u2019t save. Check your connection and try again.'); }
     }
     pendingFiles=[]; btn.disabled=false; btn.textContent='Save';
     document.getElementById('sp-noteui').classList.remove('open');
@@ -339,7 +339,7 @@ function renderDrop(){
 
 // ---------- ORGANIZER ----------
 function toCSV(subs){
-  const rows=[['Vendor','Attendee name','Attendee company','Note','Timestamp']];
+  const rows=[['Vendor','Attendee name','Company/Department','Note','Timestamp']];
   subs.forEach(r=>rows.push([r.vendorName,r.name,r.company||'',r.note||'',new Date(r.tsClient||0).toISOString()]));
   return rows.map(r=>r.map(c=>'"'+String(c).replace(/"/g,'""')+'"').join(',')).join('\r\n');
 }
@@ -369,12 +369,12 @@ async function renderAdmin(){
       '<button class="sp-btn small ghost" id="sp-zip"'+(totalPhotos?'':' disabled')+'>Download all photos (ZIP)</button>'+
       '<button class="sp-btn small danger" id="sp-delall">Delete ALL data</button>'+
     '</div>'+
-    '<p class="sp-note">Each vendor has its own link below — turn each into a QR code for its table. Scanning takes attendees straight to that vendor\u2019s upload page.</p>'+
+    '<p class="sp-note">Each vendor has its own link below. Turn each into a QR code for its table. Scanning takes attendees straight to that vendor\u2019s upload page.</p>'+
     (vendors.length?vendors.map(v=>'<div class="sp-adminrow"><div style="display:flex;justify-content:space-between;align-items:center;gap:8px"><span class="sp-who">'+esc(v.name)+'</span><button class="sp-del" data-delvendor="'+v.id+'">Delete table</button></div><div class="sp-meta">Code '+esc(v.code)+'</div><div class="sp-qr"><a href="'+base+'?vendor='+esc(v.slug)+'">'+base+'?vendor='+esc(v.slug)+'</a></div></div>').join(''):'<div class="sp-empty">No vendors yet.</div>')+
     '</div>';
 
   html+='<div class="sp-card"><div class="sp-h2">&#127942; Table leaderboard</div>';
-  if(!totalPhotos){ html+='<div class="sp-empty">No photos yet — the race hasn\u2019t started.</div>'; }
+  if(!totalPhotos){ html+='<div class="sp-empty">No photos yet. The race hasn\u2019t started.</div>'; }
   else{
     html+='<ul class="sp-lb">'+lb.map((l,i)=>'<li><span class="rank">'+(i+1)+'</span><span class="vn">'+esc(l.name)+'</span><span class="bar"><i style="width:'+Math.round(l.count/maxC*100)+'%"></i></span><span class="n">'+l.count+'</span></li>').join('')+'</ul>';
   }
@@ -455,7 +455,7 @@ async function renderAdmin(){
       btn.textContent=orig; btn.disabled=false;
     }catch(e){
       console.error(e);
-      bamAlert('ZIP failed: '+(e.message||'unknown error')+' — try again.');
+      bamAlert('ZIP failed: '+(e.message||'unknown error')+'. Try again.');
       btn.textContent=orig; btn.disabled=false;
     }
   };
@@ -519,7 +519,7 @@ async function renderAdmin(){
         ov.innerHTML='<img src="'+full+'" style="max-width:100%;max-height:100%;border-radius:10px" alt="Full size photo">';
         ov.onclick=()=>ov.remove();
         document.body.appendChild(ov);
-      }catch(e){ im.style.opacity=''; bamAlert('Could not load photo — check connection.'); }
+      }catch(e){ im.style.opacity=''; bamAlert('Could not load photo. Check your connection.'); }
     };
   });
 }
