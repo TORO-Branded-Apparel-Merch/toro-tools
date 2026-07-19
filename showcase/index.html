@@ -76,6 +76,10 @@
   .sp-quote{display:flex;align-items:center;justify-content:center;gap:8px;width:100%;padding:11px 12px;border:1.5px dashed var(--line);border-radius:999px;background:#fff;cursor:pointer;font-size:14px;font-weight:600;color:var(--mut);user-select:none;transition:all .15s;}
   .sp-quote:hover{border-color:var(--lanyard);color:var(--lanyard);}
   .sp-quote.on{border:1.5px solid var(--lanyard);background:var(--red-gradient);color:#fff;box-shadow:0 2px 8px rgba(188,17,42,.3);}
+  .sp-offdim{opacity:.45;pointer-events:none;filter:grayscale(60%);}
+  .sp-offnote{display:none;background:#1a1a1f;color:#fff;border-radius:8px;padding:8px 12px;font-size:12.5px;font-weight:600;margin-bottom:10px;}
+  body.is-offline .sp-offnote{display:block;}
+  body.is-offline .sp-needsnet{opacity:.45;pointer-events:none;filter:grayscale(60%);}
   .sp-heart{position:absolute;top:6px;right:6px;width:30px;height:30px;border-radius:50%;background:rgba(255,255,255,.92);border:1px solid var(--line);display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:15px;line-height:1;user-select:none;box-shadow:0 1px 4px rgba(0,0,0,.15);}
   .sp-heart.on{background:var(--lanyard);border-color:var(--lanyard);}
   .sp-thumb{position:relative;}
@@ -178,6 +182,23 @@ function bamConfirm(msg,confirmLabel){
     bamBtns.appendChild(no); bamBtns.appendChild(yes); bamShow();
   });
 }
+function showHowTo(){
+  return new Promise(res=>{
+    bamMsg.innerHTML=
+      '<div style="font-size:16px;font-weight:700;color:#1a1a1f;margin-bottom:12px">Welcome, '+esc(attendee.name.split(' ')[0])+'! Here\u2019s how it works:</div>'+
+      '<div style="display:flex;flex-direction:column;gap:12px;font-size:14.5px;line-height:1.45">'+
+        '<div style="display:flex;gap:10px"><span style="font-size:20px">&#128247;</span><span><b>Snap what you love.</b> See an item at any table? Take a photo. Add a quick note if you want.</span></div>'+
+        '<div style="display:flex;gap:10px"><span style="font-size:20px">&#10084;&#65039;</span><span><b>Heart your favorites.</b> Everything you snap lands in My Favorites. Tap the heart on the ones you love most.</span></div>'+
+        '<div style="display:flex;gap:10px"><span style="font-size:20px">&#128002;</span><span><b>Have a project in mind?</b> Select items on any table page and request a quote with your details.</span></div>'+
+        '<div style="display:flex;gap:10px"><span style="font-size:20px">&#128233;</span><span><b>TORO follows up.</b> On everything. That\u2019s the whole point.</span></div>'+
+      '</div>';
+    bamBtns.innerHTML='';
+    const go=bamBtn('Got it, let\u2019s go',true);
+    go.style.width='100%'; go.style.padding='12px';
+    go.onclick=()=>{bamHide();res();};
+    bamBtns.appendChild(go); bamShow();
+  });
+}
 function bamPrompt(msg,inputType){
   return new Promise(res=>{
     bamMsg.textContent=msg; bamBtns.innerHTML='';
@@ -208,6 +229,88 @@ async function loadSubs(){
   const snap=await getDocs(query(collection(db,'submissions'),orderBy('ts','desc')));
   return snap.docs.map(d=>({id:d.id,...d.data()}));
 }
+// ---------------- OFFLINE QUEUE ----------------
+// If a save fails (dead zone, flaky venue network), the photo is stored on the
+// phone in IndexedDB and auto-synced when connectivity returns. No lead is lost.
+const QDB='bl-offline', QSTORE='queue';
+function qdb(){
+  return new Promise((res,rej)=>{
+    const r=indexedDB.open(QDB,1);
+    r.onupgradeneeded=()=>{ r.result.createObjectStore(QSTORE,{keyPath:'qid'}); };
+    r.onsuccess=()=>res(r.result);
+    r.onerror=()=>rej(r.error);
+  });
+}
+async function qAdd(item){
+  const db_=await qdb();
+  return new Promise((res,rej)=>{
+    const tx=db_.transaction(QSTORE,'readwrite');
+    tx.objectStore(QSTORE).put(item);
+    tx.oncomplete=()=>res(); tx.onerror=()=>rej(tx.error);
+  });
+}
+async function qAll(){
+  const db_=await qdb();
+  return new Promise((res,rej)=>{
+    const rq=db_.transaction(QSTORE,'readonly').objectStore(QSTORE).getAll();
+    rq.onsuccess=()=>res(rq.result||[]); rq.onerror=()=>rej(rq.error);
+  });
+}
+async function qRemove(qid){
+  const db_=await qdb();
+  return new Promise((res,rej)=>{
+    const tx=db_.transaction(QSTORE,'readwrite');
+    tx.objectStore(QSTORE).delete(qid);
+    tx.oncomplete=()=>res(); tx.onerror=()=>rej(tx.error);
+  });
+}
+let syncing=false;
+async function syncQueue(){
+  if(syncing) return; syncing=true;
+  try{
+    const items=await qAll();
+    let done=0;
+    for(const it of items){
+      try{
+        const photoDoc=await addDoc(collection(db,'photos'),{ img:it.full, vendorId:it.vendorId, tsClient:it.tsClient });
+        await addDoc(collection(db,'submissions'),{
+          vendorId:it.vendorId, vendorName:it.vendorName,
+          name:it.name, company:it.company||'', email:it.email||'', attendeeId:it.attendeeId||'',
+          note:it.note||'', quote:false, fav:false, thumb:it.thumb, photoId:photoDoc.id,
+          ts:serverTimestamp(), tsClient:it.tsClient
+        });
+        await qRemove(it.qid); done++;
+      }catch(e){ break; } // still offline or rejected; stop and retry later
+    }
+    if(done>0){
+      const t=document.getElementById('sp-toast');
+      if(t){ t.innerHTML='&#128002; BAM! Back online. '+done+' saved photo'+(done===1?'':'s')+' synced.'; t.style.display='block'; setTimeout(()=>t.style.display='none',3000); }
+      updateQueueBanner();
+      if(typeof loadQuoteSection==='function') loadQuoteSection();
+    }
+  }finally{ syncing=false; }
+}
+async function updateQueueBanner(){
+  let n=0; try{ n=(await qAll()).length; }catch(e){}
+  let b=document.getElementById('sp-qbanner');
+  if(n===0){ if(b) b.remove(); return; }
+  if(!b){
+    b=document.createElement('div'); b.id='sp-qbanner';
+    b.style.cssText='position:fixed;bottom:14px;left:50%;transform:translateX(-50%);background:#1a1a1f;color:#fff;padding:10px 18px;border-radius:999px;font-size:13px;font-weight:600;z-index:90;box-shadow:0 4px 14px rgba(0,0,0,.3);cursor:pointer;';
+    b.onclick=()=>syncQueue();
+    document.body.appendChild(b);
+  }
+  b.innerHTML='&#128246; '+n+' photo'+(n===1?'':'s')+' waiting to sync &middot; tap to retry';
+}
+function applyOnlineState(){
+  document.body.classList.toggle('is-offline', !navigator.onLine);
+}
+window.addEventListener('online',()=>{ applyOnlineState(); syncQueue(); });
+window.addEventListener('offline',applyOnlineState);
+applyOnlineState();
+setInterval(syncQueue,30000); // belt and suspenders: retry every 30s
+setTimeout(()=>{ syncQueue(); updateQueueBanner(); },2000); // sync anything left from a previous visit
+
 async function submitPhoto(full,thumb,note,quote){
   // Full photo lives in its own document (fetched only when tapped in Organizer view);
   // the lead record carries just a small thumbnail, keeping the admin view fast at scale.
@@ -306,7 +409,7 @@ function renderVendorPicker(){
     return;
   }
   body.innerHTML=(attendee&&attendee.pid
-      ? '<div class="sp-badge" style="justify-content:center"><a href="?me='+attendee.pid+'" style="color:var(--ink);font-weight:700;text-decoration:none">&#10084;&#65039; View my favorites</a></div>'
+      ? '<div class="sp-badge sp-needsnet" style="justify-content:center"><a href="?me='+attendee.pid+'" style="color:var(--ink);font-weight:700;text-decoration:none">&#10084;&#65039; View my favorites</a></div>'
       : '')+
     '<div class="sp-card"><span class="sp-label">Which table are you at?</span>'+
     '<div class="sp-vendorgrid">'+vendors.map(v=>'<button class="sp-vcard" data-id="'+v.id+'">'+esc(v.name)+'<span class="code">'+esc(v.code)+'</span></button>').join('')+'</div></div>';
@@ -314,15 +417,17 @@ function renderVendorPicker(){
 }
 
 function renderIdentify(){
-  body.innerHTML='<button class="sp-back" id="sp-back">&larr; All tables</button>'+
-    '<div class="sp-card"><div class="sp-h2">'+esc(currentVendor.name)+'</div>'+
+  const heading=currentVendor?esc(currentVendor.name):'Welcome to the showcase';
+  body.innerHTML=(currentVendor?'<button class="sp-back" id="sp-back">&larr; All tables</button>':'')+
+    '<div class="sp-card"><div class="sp-h2">'+heading+'</div>'+
     '<p class="sp-note" style="margin:0 0 12px">Tell us who you are once. Your phone remembers for every table today.</p>'+
     '<span class="sp-label">Your name</span><input class="sp-input" id="sp-name" autocomplete="name" style="margin-bottom:12px">'+
     '<span class="sp-label">Company/Department</span><input class="sp-input" id="sp-co" autocomplete="organization" style="margin-bottom:12px">'+
     '<span class="sp-label">Email (optional)</span><input class="sp-input" id="sp-em" type="email" autocomplete="email" inputmode="email" style="margin-bottom:6px">'+
     '<p class="sp-note" style="margin:0 0 16px">Add your email so we can follow up on the items you loved.</p>'+
     '<button class="sp-btn" id="sp-go">Start snapping</button></div>';
-  document.getElementById('sp-back').onclick=renderVendorPicker;
+  const backBtn=document.getElementById('sp-back');
+  if(backBtn) backBtn.onclick=renderVendorPicker;
   document.getElementById('sp-go').onclick=async ()=>{
     const n=document.getElementById('sp-name').value.trim(), c=document.getElementById('sp-co').value.trim();
     const em=document.getElementById('sp-em').value.trim();
@@ -332,13 +437,16 @@ function renderIdentify(){
       document.getElementById('sp-em').focus(); return;
     }
     const pid=(attendee&&attendee.pid)||('a'+Date.now().toString(36)+Math.random().toString(36).slice(2,8));
-    attendee={name:n,company:c,email:em,pid}; saveAttendee(); renderDrop();
+    attendee={name:n,company:c,email:em,pid}; saveAttendee();
+    let seen=false; try{ seen=!!localStorage.getItem('bl-howto'); }catch(e){}
+    if(!seen){ try{ localStorage.setItem('bl-howto','1'); }catch(e){}; await showHowTo(); }
+    currentVendor?renderDrop():renderVendorPicker();
   };
 }
 
 function renderDrop(){
   body.innerHTML='<button class="sp-back" id="sp-back">&larr; All tables</button>'+
-    '<div class="sp-badge"><span>&#127915; '+esc(attendee.name)+(attendee.company?' &middot; '+esc(attendee.company):'')+'</span><span style="display:flex;gap:10px"><a href="?me='+(attendee.pid||'')+'" style="font-size:12px;color:var(--ink);font-weight:600">My favorites</a><button id="sp-notme">Not you?</button></span></div>'+
+    '<div class="sp-badge"><span>&#127915; '+esc(attendee.name)+(attendee.company?' &middot; '+esc(attendee.company):'')+'</span><span style="display:flex;gap:10px"><a href="?me='+(attendee.pid||'')+'" class="sp-needsnet" style="font-size:12px;color:var(--ink);font-weight:600">My favorites</a><button id="sp-notme">Not you?</button></span></div>'+
     '<div class="sp-card"><div class="sp-h2">'+esc(currentVendor.name)+'</div>'+
     '<div class="sp-drop" id="sp-drop"><p class="big">Tap to take a photo</p><p class="small">Point at the item you love. That\u2019s it.</p></div>'+
     '<input type="file" id="sp-file" accept="image/*" capture="environment" multiple style="display:none">'+
@@ -350,7 +458,8 @@ function renderDrop(){
     '<div class="sp-thumbs" id="sp-thumbs"></div>'+
     '<div class="sp-toast" id="sp-toast"></div>'+
     '</div>'+
-    '<div class="sp-card" id="sp-quotecard" style="display:none">'+
+    '<div class="sp-offnote" id="sp-quoteoffnote">&#128246; No signal. Quote requests will light back up when you\u2019re connected. Keep snapping, your photos save offline.</div>'+
+    '<div class="sp-card sp-needsnet" id="sp-quotecard" style="display:none">'+
       '<div class="sp-h2">&#128002; Have a project in mind?</div>'+
       '<p class="sp-note" style="margin:0 0 10px">Select the items at this table you\u2019d like a quote on. Everything else stays saved as inspiration.</p>'+
       '<div class="sp-thumbs" id="sp-quoteitems"></div>'+
@@ -392,7 +501,27 @@ function renderDrop(){
         const t=document.getElementById('sp-toast');
         t.innerHTML='&#128002; BAM! Saved. TORO will follow up with you.';
         t.style.display='block'; setTimeout(()=>t.style.display='none',2500);
-      }catch(e){ console.error(e); await bamAlert('That photo didn\u2019t save. Check your connection and try again.'); }
+      }catch(e){
+        console.error(e);
+        // Connectivity fallback: keep it on the phone, sync automatically later.
+        try{
+          const {full,thumb}=await compressBoth(f);
+          await qAdd({ qid:'q'+Date.now().toString(36)+Math.random().toString(36).slice(2,7),
+            vendorId:currentVendor.id, vendorName:currentVendor.name,
+            name:attendee.name, company:attendee.company||'', email:attendee.email||'', attendeeId:attendee.pid||'',
+            note, full, thumb, tsClient:Date.now() });
+          const d=document.createElement('div');d.className='sp-thumb';
+          d.innerHTML='<img alt="Queued photo" style="opacity:.75"><div class="cap" style="color:var(--mut);font-weight:600">&#128246; Will sync when back online</div>';
+          d.querySelector('img').src=thumb; thumbs.prepend(d);
+          const t=document.getElementById('sp-toast');
+          t.innerHTML='&#128002; Saved to your phone. It\u2019ll sync automatically when signal returns.';
+          t.style.display='block'; setTimeout(()=>t.style.display='none',3000);
+          updateQueueBanner();
+        }catch(e2){
+          console.error(e2);
+          await bamAlert('That photo didn\u2019t save. Check your connection and try again.');
+        }
+      }
     }
     pendingFiles=[]; btn.disabled=false; btn.textContent='Save';
     document.getElementById('sp-noteui').classList.remove('open');
@@ -409,7 +538,8 @@ async function loadQuoteSection(){
     const snap=await getDocs(query(collection(db,'submissions'),
       where('attendeeId','==',attendee.pid||''), where('vendorId','==',currentVendor.id)));
     const recs=snap.docs.map(d=>({id:d.id,...d.data()})).sort((a,b)=>(a.tsClient||0)-(b.tsClient||0));
-    if(!recs.length){ card.style.display='none'; return; }
+    const offnote=document.getElementById('sp-quoteoffnote');
+    if(!recs.length){ card.style.display='none'; if(offnote) offnote.style.removeProperty('display'); return; }
     card.style.display='block';
     const grid=document.getElementById('sp-quoteitems');
     grid.innerHTML=recs.map(r=>
@@ -477,7 +607,7 @@ async function renderRecap(pid){
       '<p class="sp-note" style="margin:0 0 10px">'+recs.length+' item'+(recs.length===1?'':'s')+' snapped'+(favCount?', '+favCount+' favorited':'')+'. Tap the heart on the ones you love most. Bookmark this page to revisit anytime. TORO will follow up with you.</p>'+
       '<div class="sp-thumbs">'+
       recs.map(r=>'<div class="sp-thumb"><img src="'+r.thumb+'" alt="Your photo" loading="lazy" data-pid="'+esc(r.photoId||'')+'" style="cursor:zoom-in">'+
-        '<div class="sp-heart'+(r.fav?' on':'')+'" data-fav="'+r.id+'" role="button" aria-label="Favorite">'+(r.fav?'&#10084;&#65039;':'&#129293;')+'</div>'+
+        '<div class="sp-heart sp-needsnet'+(r.fav?' on':'')+'" data-fav="'+r.id+'" role="button" aria-label="Favorite">'+(r.fav?'&#10084;&#65039;':'&#129293;')+'</div>'+
         (r.quote?'<span class="sp-quotetag">&#128002; QUOTE</span>':'')+(r.note?'<div class="cap">'+esc(r.note)+'</div>':'')+'</div>').join('')+
       '</div></div>';
     body.innerHTML=html;
@@ -718,7 +848,11 @@ modeBtn.onclick=()=>{
     const me=new URLSearchParams(location.search).get('me');
     if(me){ renderRecap(me); return; }
     const fromUrl=vendorFromUrl();
-    if(fromUrl){ currentVendor=fromUrl; attendee?renderDrop():renderIdentify(); }
+    if(fromUrl) currentVendor=fromUrl;
+    // Sign-in is the front door: new visitors identify first, then land on
+    // their QR's table (or the picker), with the welcome how-to in between.
+    if(!attendee){ renderIdentify(); }
+    else if(currentVendor){ renderDrop(); }
     else renderVendorPicker();
   }catch(e){
     console.error(e);
