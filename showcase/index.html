@@ -4,8 +4,8 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
 <title>Brandabulls Live! Showcase</title>
-<link rel="icon" type="image/png" href="/toro-tools/favicon.png">
-<link rel="apple-touch-icon" href="/toro-tools/apple-touch-icon.png">
+<link rel="icon" type="image/png" href="/toro-tools/favicon.png?v=2">
+<link rel="apple-touch-icon" href="/toro-tools/apple-touch-icon.png?v=2">
 <!-- ADOBE FONTS: when you have your Latienne Pro web project embed code from
      fonts.adobe.com, replace KIT_ID below and uncomment this line:
 <link rel="stylesheet" href="https://use.typekit.net/KIT_ID.css">
@@ -76,6 +76,10 @@
   .sp-quote{display:flex;align-items:center;justify-content:center;gap:8px;width:100%;padding:11px 12px;border:1.5px dashed var(--line);border-radius:999px;background:#fff;cursor:pointer;font-size:14px;font-weight:600;color:var(--mut);user-select:none;transition:all .15s;}
   .sp-quote:hover{border-color:var(--lanyard);color:var(--lanyard);}
   .sp-quote.on{border:1.5px solid var(--lanyard);background:var(--red-gradient);color:#fff;box-shadow:0 2px 8px rgba(188,17,42,.3);}
+  .sp-heart{position:absolute;top:6px;right:6px;width:30px;height:30px;border-radius:50%;background:rgba(255,255,255,.92);border:1px solid var(--line);display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:15px;line-height:1;user-select:none;box-shadow:0 1px 4px rgba(0,0,0,.15);}
+  .sp-heart.on{background:var(--lanyard);border-color:var(--lanyard);}
+  .sp-thumb{position:relative;}
+  .sp-favtag{display:inline-block;background:var(--red-light);color:var(--lanyard);font-size:10.5px;font-weight:700;padding:2px 7px;border-radius:5px;margin-top:3px;}
   .sp-qitem{cursor:pointer;border:2px solid transparent;border-radius:10px;padding:3px;transition:all .15s;}
   .sp-qitem.sel{border-color:var(--lanyard);background:var(--red-light);}
   .sp-qitem.requested{cursor:default;opacity:.85;}
@@ -212,7 +216,7 @@ async function submitPhoto(full,thumb,note,quote){
   await addDoc(collection(db,'submissions'),{
     vendorId:currentVendor.id, vendorName:currentVendor.name,
     name:attendee.name, company:attendee.company||'', email:attendee.email||'', attendeeId:attendee.pid||'',
-    note:note||'', quote:!!quote, thumb, photoId:photoDoc.id,
+    note:note||'', quote:!!quote, fav:false, thumb, photoId:photoDoc.id,
     ts:serverTimestamp(), tsClient:Date.now()
   });
 }
@@ -301,7 +305,10 @@ function renderVendorPicker(){
     body.innerHTML='<div class="sp-card"><div class="sp-empty">No vendor tables set up yet. Organizers: switch to Organizer view to add vendors.</div></div>';
     return;
   }
-  body.innerHTML='<div class="sp-card"><span class="sp-label">Which table are you at?</span>'+
+  body.innerHTML=(attendee&&attendee.pid
+      ? '<div class="sp-badge" style="justify-content:center"><a href="?me='+attendee.pid+'" style="color:var(--ink);font-weight:700;text-decoration:none">&#10084;&#65039; View my favorites</a></div>'
+      : '')+
+    '<div class="sp-card"><span class="sp-label">Which table are you at?</span>'+
     '<div class="sp-vendorgrid">'+vendors.map(v=>'<button class="sp-vcard" data-id="'+v.id+'">'+esc(v.name)+'<span class="code">'+esc(v.code)+'</span></button>').join('')+'</div></div>';
   body.querySelectorAll('.sp-vcard').forEach(b=>b.onclick=()=>{ currentVendor=vendors.find(v=>v.id===b.dataset.id); attendee?renderDrop():renderIdentify(); });
 }
@@ -464,12 +471,30 @@ async function renderRecap(pid){
     const who=recs[0];
     // Attendee-facing view: intentionally no vendor/table names. Items are presented
     // as one TORO collection so the recap can't be shopped to another supplier.
-    let html='<div class="sp-card"><div class="sp-h2">'+esc(who.name)+'\u2019s favorites</div>'+
-      '<p class="sp-note" style="margin:0 0 10px">'+recs.length+' item'+(recs.length===1?'':'s')+' you loved at the showcase. Bookmark this page to revisit anytime. TORO will follow up with you on every one of them.</p>'+
+    recs.sort((a,b)=>(b.fav?1:0)-(a.fav?1:0) || (a.tsClient||0)-(b.tsClient||0));
+    const favCount=recs.filter(r=>r.fav).length;
+    let html='<div class="sp-card"><div class="sp-h2">'+esc(who.name)+'\u2019s showcase picks</div>'+
+      '<p class="sp-note" style="margin:0 0 10px">'+recs.length+' item'+(recs.length===1?'':'s')+' snapped'+(favCount?', '+favCount+' favorited':'')+'. Tap the heart on the ones you love most. Bookmark this page to revisit anytime. TORO will follow up with you.</p>'+
       '<div class="sp-thumbs">'+
-      recs.map(r=>'<div class="sp-thumb"><img src="'+r.thumb+'" alt="Your photo" loading="lazy" data-pid="'+esc(r.photoId||'')+'" style="cursor:zoom-in">'+(r.quote?'<span class="sp-quotetag">&#128002; QUOTE</span>':'')+(r.note?'<div class="cap">'+esc(r.note)+'</div>':'')+'</div>').join('')+
+      recs.map(r=>'<div class="sp-thumb"><img src="'+r.thumb+'" alt="Your photo" loading="lazy" data-pid="'+esc(r.photoId||'')+'" style="cursor:zoom-in">'+
+        '<div class="sp-heart'+(r.fav?' on':'')+'" data-fav="'+r.id+'" role="button" aria-label="Favorite">'+(r.fav?'&#10084;&#65039;':'&#129293;')+'</div>'+
+        (r.quote?'<span class="sp-quotetag">&#128002; QUOTE</span>':'')+(r.note?'<div class="cap">'+esc(r.note)+'</div>':'')+'</div>').join('')+
       '</div></div>';
     body.innerHTML=html;
+    body.querySelectorAll('[data-fav]').forEach(h=>{
+      h.onclick=async (ev)=>{
+        ev.stopPropagation();
+        const r=recs.find(x=>x.id===h.dataset.fav); if(!r) return;
+        const to=!r.fav;
+        // optimistic UI
+        r.fav=to; h.classList.toggle('on',to); h.innerHTML=to?'&#10084;&#65039;':'&#129293;';
+        try{ await updateDoc(doc(db,'submissions',r.id),{fav:to}); }
+        catch(e){
+          r.fav=!to; h.classList.toggle('on',!to); h.innerHTML=!to?'&#10084;&#65039;':'&#129293;';
+          console.error(e); bamAlert('Couldn\u2019t save that favorite. Check your connection and try again.');
+        }
+      };
+    });
     body.querySelectorAll('.sp-thumb img[data-pid]').forEach(im=>{
       im.onclick=async ()=>{
         const p=im.dataset.pid; if(!p) return;
@@ -494,8 +519,8 @@ async function renderRecap(pid){
 
 // ---------- ORGANIZER ----------
 function toCSV(subs){
-  const rows=[['Vendor','Attendee name','Company/Department','Email','Quote requested','Item note','Project details','Recap link','Timestamp']];
-  subs.forEach(r=>rows.push([r.vendorName,r.name,r.company||'',r.email||'',r.quote?'YES':'',r.note||'',r.quoteNote||'',r.attendeeId?(location.origin+location.pathname+'?me='+r.attendeeId):'',new Date(r.tsClient||0).toISOString()]));
+  const rows=[['Vendor','Attendee name','Company/Department','Email','Favorited','Quote requested','Item note','Project details','Recap link','Timestamp']];
+  subs.forEach(r=>rows.push([r.vendorName,r.name,r.company||'',r.email||'',r.fav?'YES':'',r.quote?'YES':'',r.note||'',r.quoteNote||'',r.attendeeId?(location.origin+location.pathname+'?me='+r.attendeeId):'',new Date(r.tsClient||0).toISOString()]));
   return rows.map(r=>r.map(c=>'"'+String(c).replace(/"/g,'""')+'"').join(',')).join('\r\n');
 }
 
@@ -546,7 +571,7 @@ async function renderAdmin(){
       const rs=byPerson[pk];
       html+='<div class="sp-adminrow"><div style="display:flex;justify-content:space-between;align-items:center;gap:8px"><span class="sp-who">'+esc(rs[0].name)+'</span><button class="sp-del" data-delperson="'+rs.map(x=>x.id).join(',')+'">Delete entries ('+rs.length+')</button></div>'+
         '<div class="sp-meta">'+(rs[0].company?esc(rs[0].company)+' &middot; ':'')+(rs[0].email?esc(rs[0].email)+' &middot; ':'')+new Date(rs[0].tsClient||0).toLocaleString()+'</div>'+
-        '<div class="sp-thumbs">'+rs.map(r=>'<div class="sp-thumb"><img src="'+r.thumb+'" alt="Photo from '+esc(r.name)+'" loading="lazy" data-pid="'+esc(r.photoId||'')+'" style="cursor:zoom-in">'+(r.quote?'<span class="sp-quotetag">&#128002; QUOTE</span>'+(r.quoteNote?'<div class="cap" style="color:#5c4300;font-weight:600">'+esc(r.quoteNote)+'</div>':''):'')+'<button class="sp-del" data-delsub="'+r.id+'" style="width:100%;margin-top:3px;border-radius:0 0 6px 6px">Delete</button>'+(r.note?'<div class="cap">'+esc(r.note)+'</div>':'')+'</div>').join('')+'</div></div>';
+        '<div class="sp-thumbs">'+rs.map(r=>'<div class="sp-thumb"><img src="'+r.thumb+'" alt="Photo from '+esc(r.name)+'" loading="lazy" data-pid="'+esc(r.photoId||'')+'" style="cursor:zoom-in">'+(r.fav?'<span class="sp-favtag">&#10084;&#65039; FAV</span>':'')+(r.quote?'<span class="sp-quotetag">&#128002; QUOTE</span>'+(r.quoteNote?'<div class="cap" style="color:#5c4300;font-weight:600">'+esc(r.quoteNote)+'</div>':''):'')+'<button class="sp-del" data-delsub="'+r.id+'" style="width:100%;margin-top:3px;border-radius:0 0 6px 6px">Delete</button>'+(r.note?'<div class="cap">'+esc(r.note)+'</div>':'')+'</div>').join('')+'</div></div>';
     }
   }
   html+='</div>';
@@ -592,12 +617,12 @@ async function renderAdmin(){
         const folder=personFolder+'/'+fsafe(r.vendorName);
         const base64=img.split(',')[1];
         zip.file(folder+'/'+fname, base64, {base64:true});
-        if(r.note||r.quote){
+        if(r.note||r.quote||r.fav){
           // one notes.txt per person at the top of their folder, covering all tables
           const notesPath=personFolder+'/notes.txt';
           const existing=zip.file(notesPath);
           let txt = existing ? await existing.async('string') : '';
-          txt += fname+': '+(r.quote?'[QUOTE REQUESTED'+(r.quoteNote?' \u2014 '+r.quoteNote:'')+'] ':'')+(r.note||'')+'\r\n';
+          txt += fname+': '+(r.fav?'[FAVORITED] ':'')+(r.quote?'[QUOTE REQUESTED'+(r.quoteNote?' \u2014 '+r.quoteNote:'')+'] ':'')+(r.note||'')+'\r\n';
           zip.file(notesPath, txt);
         }
       }
