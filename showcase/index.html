@@ -69,8 +69,11 @@
   .sp-lb .bar i{display:block;height:100%;background:var(--red-gradient);border-radius:4px;}
   .sp-lb .n{font-weight:700;width:34px;text-align:right;font-size:13px;}
   .sp-lb .vn{width:38%;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
-  .sp-noteinput{margin-top:10px;display:none;gap:8px;}
+  .sp-noteinput{margin-top:10px;display:none;gap:8px;flex-wrap:wrap;}
   .sp-noteinput.open{display:flex;}
+  .sp-quote{display:flex;align-items:center;gap:8px;width:100%;padding:10px 12px;border:1.5px solid var(--line);border-radius:9px;background:#fff;cursor:pointer;font-size:14px;font-weight:600;color:var(--ink);user-select:none;}
+  .sp-quote.on{border-color:var(--lanyard);background:var(--red-light);color:var(--lanyard);}
+  .sp-quotetag{display:inline-block;background:var(--tag);color:#5c4300;font-size:10.5px;font-weight:700;padding:2px 7px;border-radius:5px;margin-top:3px;}
   .sp-qr{margin-top:6px;}
   .sp-qr a{font-size:12px;color:var(--lanyard);}
 </style>
@@ -115,6 +118,13 @@ const firebaseConfig = {
 // Optional: set a simple organizer passcode so attendees can't stumble into admin.
 // Leave as "" to keep organizer view open (fine for a one-day event).
 const ORGANIZER_PASSCODE = "toro2026";
+
+// Optional: instant email notifications when someone taps "Get me a quote".
+// Uses EmailJS (free tier, ~200 emails/month). See SETUP.md Part D to fill these in.
+// Leave blank to disable notifications; the quote flag still gets saved either way.
+const EMAILJS_PUBLIC_KEY = "";
+const EMAILJS_SERVICE_ID = "";
+const EMAILJS_TEMPLATE_ID = "";
 
 // ============================================================
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
@@ -186,17 +196,34 @@ async function loadSubs(){
   const snap=await getDocs(query(collection(db,'submissions'),orderBy('ts','desc')));
   return snap.docs.map(d=>({id:d.id,...d.data()}));
 }
-async function submitPhoto(full,thumb,note){
+async function submitPhoto(full,thumb,note,quote){
   // Full photo lives in its own document (fetched only when tapped in Organizer view);
   // the lead record carries just a small thumbnail, keeping the admin view fast at scale.
   if(full.length > 950000) throw new Error('Photo too large after compression. Try again.');
   const photoDoc=await addDoc(collection(db,'photos'),{ img:full, vendorId:currentVendor.id, tsClient:Date.now() });
   await addDoc(collection(db,'submissions'),{
     vendorId:currentVendor.id, vendorName:currentVendor.name,
-    name:attendee.name, company:attendee.company||'',
-    note:note||'', thumb, photoId:photoDoc.id,
+    name:attendee.name, company:attendee.company||'', email:attendee.email||'',
+    note:note||'', quote:!!quote, thumb, photoId:photoDoc.id,
     ts:serverTimestamp(), tsClient:Date.now()
   });
+}
+function notifyQuote(note){
+  if(!EMAILJS_PUBLIC_KEY||!EMAILJS_SERVICE_ID||!EMAILJS_TEMPLATE_ID) return; // notifications not configured
+  fetch('https://api.emailjs.com/api/v1.0/email/send',{
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({
+      service_id:EMAILJS_SERVICE_ID, template_id:EMAILJS_TEMPLATE_ID, user_id:EMAILJS_PUBLIC_KEY,
+      template_params:{
+        attendee_name:attendee.name,
+        attendee_company:attendee.company||'(none given)',
+        attendee_email:attendee.email||'(none given)',
+        vendor_name:currentVendor.name,
+        note:note||'(no note)',
+        time:new Date().toLocaleString()
+      }
+    })
+  }).catch(e=>console.error('Quote notification failed:',e)); // never block the attendee flow
 }
 async function fetchFullPhoto(photoId){
   const d=await getDoc(doc(db,'photos',photoId));
@@ -275,13 +302,20 @@ function renderIdentify(){
     '<div class="sp-card"><div class="sp-h2">'+esc(currentVendor.name)+'</div>'+
     '<p class="sp-note" style="margin:0 0 12px">Tell us who you are once. Your phone remembers for every table today.</p>'+
     '<span class="sp-label">Your name</span><input class="sp-input" id="sp-name" autocomplete="name" style="margin-bottom:12px">'+
-    '<span class="sp-label">Company/Department</span><input class="sp-input" id="sp-co" autocomplete="organization" style="margin-bottom:16px">'+
+    '<span class="sp-label">Company/Department</span><input class="sp-input" id="sp-co" autocomplete="organization" style="margin-bottom:12px">'+
+    '<span class="sp-label">Email (optional)</span><input class="sp-input" id="sp-em" type="email" autocomplete="email" inputmode="email" style="margin-bottom:6px">'+
+    '<p class="sp-note" style="margin:0 0 16px">Add your email so we can follow up on the items you loved.</p>'+
     '<button class="sp-btn" id="sp-go">Start snapping</button></div>';
   document.getElementById('sp-back').onclick=renderVendorPicker;
-  document.getElementById('sp-go').onclick=()=>{
+  document.getElementById('sp-go').onclick=async ()=>{
     const n=document.getElementById('sp-name').value.trim(), c=document.getElementById('sp-co').value.trim();
+    const em=document.getElementById('sp-em').value.trim();
     if(!n){document.getElementById('sp-name').focus();return;}
-    attendee={name:n,company:c}; saveAttendee(); renderDrop();
+    if(em && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(em)){
+      await bamAlert('That email doesn\u2019t look quite right. Fix it, or leave it blank to skip.');
+      document.getElementById('sp-em').focus(); return;
+    }
+    attendee={name:n,company:c,email:em}; saveAttendee(); renderDrop();
   };
 }
 
@@ -292,7 +326,11 @@ function renderDrop(){
     '<div class="sp-drop" id="sp-drop"><p class="big">Tap to take a photo</p><p class="small">Point at the item you love. That\u2019s it.</p></div>'+
     '<input type="file" id="sp-file" accept="image/*" capture="environment" multiple style="display:none">'+
     '<div class="sp-thumbs" id="sp-preview" style="display:none"></div>'+
-    '<div class="sp-noteinput" id="sp-noteui"><input class="sp-input" id="sp-notetext" placeholder="Optional note, e.g. loved the walnut finish" maxlength="140"><button class="sp-btn small" id="sp-save">Save</button></div>'+
+    '<div class="sp-noteinput" id="sp-noteui">'+
+      '<div class="sp-quote" id="sp-quote">&#128002; Get me a quote on this</div>'+
+      '<input class="sp-input" id="sp-notetext" placeholder="Optional note, e.g. loved the walnut finish" maxlength="140" style="flex:1">'+
+      '<button class="sp-btn small" id="sp-save">Save</button>'+
+    '</div>'+
     '<div class="sp-thumbs" id="sp-thumbs"></div>'+
     '<div class="sp-toast" id="sp-toast"></div></div>';
   document.getElementById('sp-back').onclick=renderVendorPicker;
@@ -315,6 +353,11 @@ function renderDrop(){
     document.getElementById('sp-noteui').classList.add('open');
     document.getElementById('sp-notetext').focus();
   };
+  let quoteOn=false;
+  document.getElementById('sp-quote').onclick=()=>{
+    quoteOn=!quoteOn;
+    document.getElementById('sp-quote').classList.toggle('on',quoteOn);
+  };
   document.getElementById('sp-save').onclick=async ()=>{
     const btn=document.getElementById('sp-save'); btn.disabled=true; btn.textContent='Saving…';
     const noteEl=document.getElementById('sp-notetext'); const note=noteEl.value.trim(); noteEl.value='';
@@ -322,7 +365,8 @@ function renderDrop(){
     for(const f of pendingFiles){
       try{
         const {full,thumb}=await compressBoth(f);
-        await submitPhoto(full,thumb,note);
+        await submitPhoto(full,thumb,note,quoteOn);
+        if(quoteOn) notifyQuote(note);
         const d=document.createElement('div');d.className='sp-thumb';
         d.innerHTML='<img alt="Uploaded photo"><div class="cap">'+esc(note)+'</div>';
         d.querySelector('img').src=thumb; thumbs.prepend(d);
@@ -332,6 +376,7 @@ function renderDrop(){
       }catch(e){ console.error(e); await bamAlert('That photo didn\u2019t save. Check your connection and try again.'); }
     }
     pendingFiles=[]; btn.disabled=false; btn.textContent='Save';
+    quoteOn=false; document.getElementById('sp-quote').classList.remove('on');
     document.getElementById('sp-noteui').classList.remove('open');
     const pv=document.getElementById('sp-preview'); pv.innerHTML=''; pv.style.display='none';
   };
@@ -339,8 +384,8 @@ function renderDrop(){
 
 // ---------- ORGANIZER ----------
 function toCSV(subs){
-  const rows=[['Vendor','Attendee name','Company/Department','Note','Timestamp']];
-  subs.forEach(r=>rows.push([r.vendorName,r.name,r.company||'',r.note||'',new Date(r.tsClient||0).toISOString()]));
+  const rows=[['Vendor','Attendee name','Company/Department','Email','Quote requested','Note','Timestamp']];
+  subs.forEach(r=>rows.push([r.vendorName,r.name,r.company||'',r.email||'',r.quote?'YES':'',r.note||'',new Date(r.tsClient||0).toISOString()]));
   return rows.map(r=>r.map(c=>'"'+String(c).replace(/"/g,'""')+'"').join(',')).join('\r\n');
 }
 
@@ -390,8 +435,8 @@ async function renderAdmin(){
     for(const pk of Object.keys(byPerson)){
       const rs=byPerson[pk];
       html+='<div class="sp-adminrow"><div style="display:flex;justify-content:space-between;align-items:center;gap:8px"><span class="sp-who">'+esc(rs[0].name)+'</span><button class="sp-del" data-delperson="'+rs.map(x=>x.id).join(',')+'">Delete entries ('+rs.length+')</button></div>'+
-        '<div class="sp-meta">'+(rs[0].company?esc(rs[0].company)+' &middot; ':'')+new Date(rs[0].tsClient||0).toLocaleString()+'</div>'+
-        '<div class="sp-thumbs">'+rs.map(r=>'<div class="sp-thumb"><img src="'+r.thumb+'" alt="Photo from '+esc(r.name)+'" loading="lazy" data-pid="'+esc(r.photoId||'')+'" style="cursor:zoom-in"><button class="sp-del" data-delsub="'+r.id+'" style="width:100%;margin-top:3px;border-radius:0 0 6px 6px">Delete</button>'+(r.note?'<div class="cap">'+esc(r.note)+'</div>':'')+'</div>').join('')+'</div></div>';
+        '<div class="sp-meta">'+(rs[0].company?esc(rs[0].company)+' &middot; ':'')+(rs[0].email?esc(rs[0].email)+' &middot; ':'')+new Date(rs[0].tsClient||0).toLocaleString()+'</div>'+
+        '<div class="sp-thumbs">'+rs.map(r=>'<div class="sp-thumb"><img src="'+r.thumb+'" alt="Photo from '+esc(r.name)+'" loading="lazy" data-pid="'+esc(r.photoId||'')+'" style="cursor:zoom-in">'+(r.quote?'<span class="sp-quotetag">&#128002; QUOTE</span>':'')+'<button class="sp-del" data-delsub="'+r.id+'" style="width:100%;margin-top:3px;border-radius:0 0 6px 6px">Delete</button>'+(r.note?'<div class="cap">'+esc(r.note)+'</div>':'')+'</div>').join('')+'</div></div>';
     }
   }
   html+='</div>';
@@ -431,16 +476,18 @@ async function renderAdmin(){
         const ck=person+'|'+table;
         counters[ck]=(counters[ck]||0)+1;
         const num=String(counters[ck]).padStart(2,'0');
-        const fname=person+'_'+table+'_'+num+'.jpg';
-        const folder=fsafe(r.vendorName)+'/'+(r.name.trim())+(r.company?' ('+r.company.trim()+')':'');
+        const fname=person+'_'+table+'_'+num+(r.quote?'_QUOTE':'')+'.jpg';
+        // folder structure: person first, vendor tables as subfolders under them
+        const personFolder=(r.name.trim())+(r.company?' ('+r.company.trim()+')':'');
+        const folder=personFolder+'/'+fsafe(r.vendorName);
         const base64=img.split(',')[1];
         zip.file(folder+'/'+fname, base64, {base64:true});
-        if(r.note){
-          // append note to a per-person notes file inside their folder
-          const notesPath=folder+'/notes.txt';
+        if(r.note||r.quote){
+          // one notes.txt per person at the top of their folder, covering all tables
+          const notesPath=personFolder+'/notes.txt';
           const existing=zip.file(notesPath);
           let txt = existing ? await existing.async('string') : '';
-          txt += fname+': '+r.note+'\r\n';
+          txt += fname+': '+(r.quote?'[QUOTE REQUESTED] ':'')+(r.note||'')+'\r\n';
           zip.file(notesPath, txt);
         }
       }
