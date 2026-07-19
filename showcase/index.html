@@ -74,6 +74,11 @@
   .sp-quote{display:flex;align-items:center;justify-content:center;gap:8px;width:100%;padding:11px 12px;border:1.5px dashed var(--line);border-radius:999px;background:#fff;cursor:pointer;font-size:14px;font-weight:600;color:var(--mut);user-select:none;transition:all .15s;}
   .sp-quote:hover{border-color:var(--lanyard);color:var(--lanyard);}
   .sp-quote.on{border:1.5px solid var(--lanyard);background:var(--red-gradient);color:#fff;box-shadow:0 2px 8px rgba(188,17,42,.3);}
+  .sp-qitem{cursor:pointer;border:2px solid transparent;border-radius:10px;padding:3px;transition:all .15s;}
+  .sp-qitem.sel{border-color:var(--lanyard);background:var(--red-light);}
+  .sp-qitem.requested{cursor:default;opacity:.85;}
+  .sp-qcheck{font-size:10.5px;font-weight:700;color:var(--mut);text-align:center;margin-top:3px;}
+  .sp-qitem.sel .sp-qcheck{color:var(--lanyard);}
   .sp-quotetag{display:inline-block;background:var(--tag);color:#5c4300;font-size:10.5px;font-weight:700;padding:2px 7px;border-radius:5px;margin-top:3px;}
   .sp-qr{margin-top:6px;}
   .sp-qr a{font-size:12px;color:var(--lanyard);}
@@ -129,7 +134,7 @@ const EMAILJS_TEMPLATE_ID = "";
 
 // ============================================================
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-import { getFirestore, collection, addDoc, getDocs, getDoc, deleteDoc, doc, query, where, orderBy, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+import { getFirestore, collection, addDoc, getDocs, getDoc, deleteDoc, updateDoc, doc, query, where, orderBy, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
@@ -209,8 +214,9 @@ async function submitPhoto(full,thumb,note,quote){
     ts:serverTimestamp(), tsClient:Date.now()
   });
 }
-function notifyQuote(note){
+function notifyQuote(items,projectNote){
   if(!EMAILJS_PUBLIC_KEY||!EMAILJS_SERVICE_ID||!EMAILJS_TEMPLATE_ID) return; // notifications not configured
+  const noteText=(projectNote?'PROJECT DETAILS: '+projectNote+' \u2014 ':'')+items.map((r,i)=>'Item '+(i+1)+': '+(r.note||'(no note)')).join(' \u2022 ');
   fetch('https://api.emailjs.com/api/v1.0/email/send',{
     method:'POST', headers:{'Content-Type':'application/json'},
     body:JSON.stringify({
@@ -220,7 +226,7 @@ function notifyQuote(note){
         attendee_company:attendee.company||'(none given)',
         attendee_email:attendee.email||'(none given)',
         vendor_name:currentVendor.name,
-        note:note||'(no note)',
+        note:items.length+' item'+(items.length===1?'':'s')+' selected. '+noteText,
         time:new Date().toLocaleString()
       }
     })
@@ -329,13 +335,20 @@ function renderDrop(){
     '<input type="file" id="sp-file" accept="image/*" capture="environment" multiple style="display:none">'+
     '<div class="sp-thumbs" id="sp-preview" style="display:none"></div>'+
     '<div class="sp-noteinput" id="sp-noteui">'+
-      '<div class="sp-quote" id="sp-quote"><span id="sp-quotelabel">Have a project in mind? Tap for a quote</span></div>'+
-      '<p class="sp-note" style="width:100%;margin:-4px 0 4px">Only tap if you have a specific project or order in mind. Everything else you snap is saved as inspiration for later.</p>'+
       '<input class="sp-input" id="sp-notetext" placeholder="Optional note, e.g. loved the walnut finish" maxlength="140" style="flex:1">'+
       '<button class="sp-btn small" id="sp-save">Save</button>'+
     '</div>'+
     '<div class="sp-thumbs" id="sp-thumbs"></div>'+
-    '<div class="sp-toast" id="sp-toast"></div></div>';
+    '<div class="sp-toast" id="sp-toast"></div>'+
+    '</div>'+
+    '<div class="sp-card" id="sp-quotecard" style="display:none">'+
+      '<div class="sp-h2">&#128002; Have a project in mind?</div>'+
+      '<p class="sp-note" style="margin:0 0 10px">Select the items at this table you\u2019d like a quote on. Everything else stays saved as inspiration.</p>'+
+      '<div class="sp-thumbs" id="sp-quoteitems"></div>'+
+      '<span class="sp-label" style="margin-top:14px">Project details (optional)</span>'+
+      '<textarea class="sp-input" id="sp-quotenote" rows="3" maxlength="500" placeholder="Anything that helps us quote it right: delivery date, quantities, sizes, colors, logo placement, budget\u2026" style="resize:vertical;font-family:inherit"></textarea>'+
+      '<button class="sp-btn" id="sp-quotesend" style="margin-top:12px" disabled>Request quote</button>'+
+    '</div>';
   document.getElementById('sp-back').onclick=renderVendorPicker;
   document.getElementById('sp-notme').onclick=()=>{attendee=null;try{localStorage.removeItem('sp-attendee');}catch(e){};renderIdentify();};
   const fileInput=document.getElementById('sp-file');
@@ -356,14 +369,6 @@ function renderDrop(){
     document.getElementById('sp-noteui').classList.add('open');
     document.getElementById('sp-notetext').focus();
   };
-  let quoteOn=false;
-  document.getElementById('sp-quote').onclick=()=>{
-    quoteOn=!quoteOn;
-    document.getElementById('sp-quote').classList.toggle('on',quoteOn);
-    document.getElementById('sp-quotelabel').innerHTML=quoteOn
-      ? '&#128002; BAM! Quote requested for your project'
-      : 'Have a project in mind? Tap for a quote';
-  };
   document.getElementById('sp-save').onclick=async ()=>{
     const btn=document.getElementById('sp-save'); btn.disabled=true; btn.textContent='Saving…';
     const noteEl=document.getElementById('sp-notetext'); const note=noteEl.value.trim(); noteEl.value='';
@@ -371,8 +376,7 @@ function renderDrop(){
     for(const f of pendingFiles){
       try{
         const {full,thumb}=await compressBoth(f);
-        await submitPhoto(full,thumb,note,quoteOn);
-        if(quoteOn) notifyQuote(note);
+        await submitPhoto(full,thumb,note,false);
         const d=document.createElement('div');d.className='sp-thumb';
         d.innerHTML='<img alt="Uploaded photo"><div class="cap">'+esc(note)+'</div>';
         d.querySelector('img').src=thumb; thumbs.prepend(d);
@@ -382,11 +386,66 @@ function renderDrop(){
       }catch(e){ console.error(e); await bamAlert('That photo didn\u2019t save. Check your connection and try again.'); }
     }
     pendingFiles=[]; btn.disabled=false; btn.textContent='Save';
-    quoteOn=false; document.getElementById('sp-quote').classList.remove('on');
-    document.getElementById('sp-quotelabel').innerHTML='Have a project in mind? Tap for a quote';
     document.getElementById('sp-noteui').classList.remove('open');
     const pv=document.getElementById('sp-preview'); pv.innerHTML=''; pv.style.display='none';
+    loadQuoteSection();
   };
+  loadQuoteSection();
+}
+
+// Quote section on the vendor page: pick items already snapped here, request once.
+async function loadQuoteSection(){
+  const card=document.getElementById('sp-quotecard'); if(!card) return;
+  try{
+    const snap=await getDocs(query(collection(db,'submissions'),
+      where('attendeeId','==',attendee.pid||''), where('vendorId','==',currentVendor.id)));
+    const recs=snap.docs.map(d=>({id:d.id,...d.data()})).sort((a,b)=>(a.tsClient||0)-(b.tsClient||0));
+    if(!recs.length){ card.style.display='none'; return; }
+    card.style.display='block';
+    const grid=document.getElementById('sp-quoteitems');
+    grid.innerHTML=recs.map(r=>
+      '<div class="sp-thumb sp-qitem'+(r.quote?' requested':'')+'" data-id="'+r.id+'">'+
+        '<img src="'+r.thumb+'" alt="Your item">'+
+        (r.quote
+          ? '<span class="sp-quotetag">&#128002; QUOTE REQUESTED</span>'
+          : '<div class="sp-qcheck">Tap to select</div>')+
+        (r.note?'<div class="cap">'+esc(r.note)+'</div>':'')+
+      '</div>').join('');
+    const selected=new Set();
+    const sendBtn=document.getElementById('sp-quotesend');
+    const refreshBtn=()=>{
+      sendBtn.disabled=selected.size===0;
+      sendBtn.textContent=selected.size? 'Request quote on '+selected.size+' item'+(selected.size===1?'':'s') : 'Request quote';
+    };
+    refreshBtn();
+    grid.querySelectorAll('.sp-qitem:not(.requested)').forEach(el=>{
+      el.onclick=()=>{
+        const id=el.dataset.id;
+        if(selected.has(id)){ selected.delete(id); el.classList.remove('sel'); el.querySelector('.sp-qcheck').textContent='Tap to select'; }
+        else { selected.add(id); el.classList.add('sel'); el.querySelector('.sp-qcheck').innerHTML='&#10003; Selected'; }
+        refreshBtn();
+      };
+    });
+    sendBtn.onclick=async ()=>{
+      if(!selected.size) return;
+      sendBtn.disabled=true; sendBtn.textContent='Sending\u2026';
+      const chosen=recs.filter(r=>selected.has(r.id));
+      const projectNote=(document.getElementById('sp-quotenote').value||'').trim().slice(0,500);
+      try{
+        for(const r of chosen){ await updateDoc(doc(db,'submissions',r.id),{quote:true,quoteNote:projectNote}); }
+        notifyQuote(chosen,projectNote);
+        const t=document.getElementById('sp-toast');
+        t.innerHTML='&#128002; BAM! Quote request sent. TORO will follow up with you.';
+        t.style.display='block'; setTimeout(()=>t.style.display='none',3000);
+        document.getElementById('sp-quotenote').value='';
+        loadQuoteSection();
+      }catch(e){
+        console.error(e);
+        await bamAlert('Quote request didn\u2019t go through. Check your connection and try again.');
+        sendBtn.disabled=false; refreshBtn();
+      }
+    };
+  }catch(e){ console.error(e); card.style.display='none'; }
 }
 
 // ---------- PERSONAL RECAP (?me=<id>) ----------
@@ -433,8 +492,8 @@ async function renderRecap(pid){
 
 // ---------- ORGANIZER ----------
 function toCSV(subs){
-  const rows=[['Vendor','Attendee name','Company/Department','Email','Quote requested','Note','Recap link','Timestamp']];
-  subs.forEach(r=>rows.push([r.vendorName,r.name,r.company||'',r.email||'',r.quote?'YES':'',r.note||'',r.attendeeId?(location.origin+location.pathname+'?me='+r.attendeeId):'',new Date(r.tsClient||0).toISOString()]));
+  const rows=[['Vendor','Attendee name','Company/Department','Email','Quote requested','Item note','Project details','Recap link','Timestamp']];
+  subs.forEach(r=>rows.push([r.vendorName,r.name,r.company||'',r.email||'',r.quote?'YES':'',r.note||'',r.quoteNote||'',r.attendeeId?(location.origin+location.pathname+'?me='+r.attendeeId):'',new Date(r.tsClient||0).toISOString()]));
   return rows.map(r=>r.map(c=>'"'+String(c).replace(/"/g,'""')+'"').join(',')).join('\r\n');
 }
 
@@ -485,7 +544,7 @@ async function renderAdmin(){
       const rs=byPerson[pk];
       html+='<div class="sp-adminrow"><div style="display:flex;justify-content:space-between;align-items:center;gap:8px"><span class="sp-who">'+esc(rs[0].name)+'</span><button class="sp-del" data-delperson="'+rs.map(x=>x.id).join(',')+'">Delete entries ('+rs.length+')</button></div>'+
         '<div class="sp-meta">'+(rs[0].company?esc(rs[0].company)+' &middot; ':'')+(rs[0].email?esc(rs[0].email)+' &middot; ':'')+new Date(rs[0].tsClient||0).toLocaleString()+'</div>'+
-        '<div class="sp-thumbs">'+rs.map(r=>'<div class="sp-thumb"><img src="'+r.thumb+'" alt="Photo from '+esc(r.name)+'" loading="lazy" data-pid="'+esc(r.photoId||'')+'" style="cursor:zoom-in">'+(r.quote?'<span class="sp-quotetag">&#128002; QUOTE</span>':'')+'<button class="sp-del" data-delsub="'+r.id+'" style="width:100%;margin-top:3px;border-radius:0 0 6px 6px">Delete</button>'+(r.note?'<div class="cap">'+esc(r.note)+'</div>':'')+'</div>').join('')+'</div></div>';
+        '<div class="sp-thumbs">'+rs.map(r=>'<div class="sp-thumb"><img src="'+r.thumb+'" alt="Photo from '+esc(r.name)+'" loading="lazy" data-pid="'+esc(r.photoId||'')+'" style="cursor:zoom-in">'+(r.quote?'<span class="sp-quotetag">&#128002; QUOTE</span>'+(r.quoteNote?'<div class="cap" style="color:#5c4300;font-weight:600">'+esc(r.quoteNote)+'</div>':''):'')+'<button class="sp-del" data-delsub="'+r.id+'" style="width:100%;margin-top:3px;border-radius:0 0 6px 6px">Delete</button>'+(r.note?'<div class="cap">'+esc(r.note)+'</div>':'')+'</div>').join('')+'</div></div>';
     }
   }
   html+='</div>';
@@ -536,7 +595,7 @@ async function renderAdmin(){
           const notesPath=personFolder+'/notes.txt';
           const existing=zip.file(notesPath);
           let txt = existing ? await existing.async('string') : '';
-          txt += fname+': '+(r.quote?'[QUOTE REQUESTED] ':'')+(r.note||'')+'\r\n';
+          txt += fname+': '+(r.quote?'[QUOTE REQUESTED'+(r.quoteNote?' \u2014 '+r.quoteNote:'')+'] ':'')+(r.note||'')+'\r\n';
           zip.file(notesPath, txt);
         }
       }
