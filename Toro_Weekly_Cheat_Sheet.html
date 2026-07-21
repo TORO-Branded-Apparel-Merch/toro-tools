@@ -166,7 +166,7 @@ function stageOf(r) {
   return 'booked';
 }
 
-let db = null, allData = [], archivedData = [], goalsDoc = {}, currentRep = null;
+let db = null, allData = [], archivedData = [], completionStamps = {}, goalsDoc = {}, currentRep = null;
 
 function initFirebase() {
   try {
@@ -185,6 +185,26 @@ function parseISO(s) {
 
 // Statuses management wants flagged on every rep's sheet (pattern-matched so
 // emoji prefixes and casing variations in Printavo still hit)
+// Live production-pipeline statuses (from the Printavo workflow). An order in any
+// of these is an active job with a real ship deadline. Matched by normalized
+// substring so emoji/asterisk prefixes and minor punctuation differences still hit.
+const PRODUCTION_STATUS_PATTERNS = [
+  'quote approved', 'create proofs', 'create vector', 'create proof',
+  'art wip', 'art - approval sent', 'art approval sent', 'revised art',
+  'art on hold', 'art declined', 'art approved',
+  'final sales rep review', 'send to clc', 'waiting on clc',
+  'create dsts', 'preproduction', 'pre-production',
+  'emb order', 'going to gsi', 'ready for production', 'sent to promo mfg',
+  'in production',
+];
+function normStatus(s) {
+  return String(s || '').toLowerCase().replace(/[^a-z0-9 ]+/g, ' ').replace(/\s+/g, ' ').trim();
+}
+function isProduction(r) {
+  const n = normStatus(r.status);
+  return PRODUCTION_STATUS_PATTERNS.some(p => n.includes(p));
+}
+
 const WATCH_STATUSES = [
   { re: /non.?term.*(payment|await)|await.*payment.*non.?term/i, label: 'Non-term awaiting payment' },
   { re: /on\s*hold/i, label: 'On hold' },
@@ -217,6 +237,7 @@ function deserializeData(rows) {
       delivery: a[14] || '', po: a[15] || '',
       pv_id: a[16] || '', ship_city: a[17] || '', ship_state: a[18] || '',
       due_date: parseISO(a[19]), created_date: parseISO(a[20]),
+      prod_due_date: parseISO(a[21]),
       year, month, quarter,
     };
   }).filter(r => r.year >= 2020 && r.year <= 2030);
@@ -246,6 +267,10 @@ async function loadFromCloud() {
       const adoc = await db.collection(CLOUD_COLLECTION).doc('archived').get();
       archivedData = adoc.exists ? deserializeData(JSON.parse(adoc.data().rows)) : [];
     } catch (e) { archivedData = []; }
+    try {
+      const cdoc = await db.collection(CLOUD_COLLECTION).doc('completions').get();
+      completionStamps = cdoc.exists ? JSON.parse(cdoc.data().stamps || '{}') : {};
+    } catch (e) { completionStamps = {}; }
     try {
       const gdoc = await db.collection(CLOUD_COLLECTION).doc('goals').get();
       goalsDoc = gdoc.exists ? gdoc.data() : {};
@@ -374,11 +399,23 @@ function buildProactive(repData, t) {
   return [...byClient.values()].sort((a,b) => b.total - a.total);
 }
 
-// 2. Completed last week (rolling 7 days by invoice date)
+// 2. Completed recently. Accuracy note: the Printavo export has no status-change
+// timestamp, so we use the completion snapshot (date the Report Builder first saw
+// the order finished) when available. Orders completed before snapshotting began
+// have no stamp, so we fall back to invoice date for those. Window is 10 days.
+function completionDate(r) {
+  const key = r.pv_id || `${r.invoice_number}`;
+  const stamp = completionStamps[key];
+  if (stamp) { const p = stamp.split('-'); return new Date(+p[0], +p[1]-1, +p[2]); }
+  return null;
+}
 function buildCompletedLastWeek(repData, t) {
-  const lo = addDays(t, -7);
-  return repData.filter(r => isComplete(r) && r.invoice_date && r.invoice_date > lo && r.invoice_date <= t)
-    .sort((a,b) => b.total - a.total);
+  const lo = addDays(t, -10);
+  return repData
+    .filter(r => isComplete(r))
+    .map(r => ({ ...r, doneOn: completionDate(r) || r.invoice_date, stamped: !!completionDate(r) }))
+    .filter(r => r.doneOn && r.doneOn > lo && r.doneOn <= t)
+    .sort((a,b) => b.doneOn - a.doneOn);
 }
 
 // 3. Lost: quote-stage orders created 6-8 weeks back that never became orders
@@ -391,6 +428,10 @@ function buildLost(repData, t) {
 }
 
 // Stuck orders: open orders (last 180 days) in a watch status, or past their due date
+// Orders needing attention. Two independent flags:
+//  - a watch status that stalls production (on hold, art declined, CLC, etc.)
+//  - an in-progress order that has blown past its PRODUCTION due date (internal
+//    shop deadline - distinct from the customer due date used for hard deadlines)
 function buildStuck(repData, t) {
   const cut = addDays(t, -180);
   const out = [];
@@ -399,22 +440,27 @@ function buildStuck(repData, t) {
     const reasons = [];
     const wl = watchLabel(r.status);
     if (wl) reasons.push(wl);
-    if (r.due_date && r.due_date < t) reasons.push(`${daysBetween(r.due_date, t)} days past due date`);
-    if (reasons.length) out.push({ ...r, reasons });
+    // Past production due date while still in an active production status
+    if (isProduction(r) && stageOf(r) !== 'quoted' && r.prod_due_date && r.prod_due_date < t) {
+      reasons.push(`${daysBetween(r.prod_due_date, t)} days past production due date`);
+    }
+    if (reasons.length) out.push({ ...r, reasons, prodLate: isProduction(r) && r.prod_due_date && r.prod_due_date < t });
   });
   return out.sort((a,b) => {
-    const ap = a.due_date && a.due_date < t ? 1 : 0, bp = b.due_date && b.due_date < t ? 1 : 0;
-    if (ap !== bp) return bp - ap;                        // past-due first
+    if (a.prodLate !== b.prodLate) return a.prodLate ? -1 : 1;   // production-late first
     return b.total - a.total;
   });
 }
 
-// Hard deadlines: open orders due in the next N days (plus anything already past due)
+// Hard deadlines: driven by the customer due date, which Printavo requires before
+// a quote can start. An order is on this list when it's an active production job
+// (not completed, not a quote) and its due date is within `daysAhead` or past due.
 function buildDeadlines(repData, t, daysAhead) {
   const hi = addDays(t, daysAhead);
-  return repData.filter(r => !isComplete(r) && stageOf(r) !== 'quoted' && r.due_date && r.due_date <= hi)
-    .map(r => ({ ...r, daysLeft: daysBetween(t, r.due_date) }))
-    .sort((a,b) => a.due_date - b.due_date);
+  return repData
+    .filter(r => isProduction(r) && !isComplete(r) && stageOf(r) !== 'quoted' && r.due_date && r.due_date <= hi)
+    .map(r => ({ ...r, daysLeft: daysBetween(t, r.due_date), hasDue: true }))
+    .sort((a, b) => a.due_date - b.due_date);
 }
 function hasDueDates(repData) { return repData.some(r => r.due_date); }
 
@@ -541,7 +587,7 @@ function sheetHTML() {
   const stalledQuotes = buildStalledQuotes(repData, t);
   const undecided = stalledQuotes.filter(r => !quoteState[r.pv_id || r.invoice_number]).length;
   const dueDateNote = dueDatesAvailable ? null :
-    'Due dates are not in the cloud data yet. Drop the Printavo export (with the Due Date column) on the Report Builder once and this section fills in automatically.';
+    'Customer due dates are not in the cloud data yet. Deploy the latest Report Builder and drop the Printavo export on it once - the export column is "Customer Due Date".';
 
   const callCount = proactive.length + lastWeek.length + lost.length + arch.length + react.length + 4;
 
@@ -577,9 +623,9 @@ function sheetHTML() {
     </div>
   </div>`;
 
-  // Hard deadlines - next week and a half
+  // Hard deadlines - orders due in the next 10 days (by customer due date)
   html += card('Hard deadlines - next 10 days',
-    atRisk > 0 ? `${atRisk} order${atRisk === 1 ? '' : 's'} past the due date - confirm firm in-hands, pickup, event, and ship dates on every row`
+    atRisk > 0 ? `${atRisk} order${atRisk === 1 ? '' : 's'} past the customer due date - confirm firm in-hands, pickup, event, and ship dates on every row`
                : 'Confirm firm in-hands, pickup, event, and ship dates on every row',
     deadlines.length ? `<table><thead><tr><th>Client</th><th>Order</th><th>Status</th><th>Due date</th><th>Countdown</th><th class="num">Total</th><th class="check-cell">Date confirmed</th></tr></thead><tbody>${
       deadlines.map((r,i) => `<tr>
@@ -587,26 +633,33 @@ function sheetHTML() {
         <td>${pvLink(r)} <span class="muted">${esc(r.product)}</span></td>
         <td class="muted">${esc(r.status)}</td>
         <td>${fdate(r.due_date)}</td>
-        <td class="${r.daysLeft < 0 ? 'overdue' : (r.daysLeft <= 3 ? 'overdue' : '')}">${r.daysLeft < 0 ? Math.abs(r.daysLeft) + ' days PAST DUE' : r.daysLeft === 0 ? 'DUE TODAY' : r.daysLeft + ' days left'}</td>
+        <td class="${r.daysLeft <= 3 ? 'overdue' : ''}">${
+          r.daysLeft < 0 ? Math.abs(r.daysLeft) + ' days PAST DUE'
+          : r.daysLeft === 0 ? 'DUE TODAY'
+          : r.daysLeft + ' days left'
+        }</td>
         <td class="num">${$c(r.total)}</td>
         <td class="check-cell"><input type="checkbox" ${ck('dl'+i)} onchange="toggleCheck('dl${i}',this)"></td>
       </tr>`).join('')}</tbody></table>`
-    : null, dueDateNote || 'No open orders due in the next ten days.');
+    : null, dueDateNote || 'No production orders due in the next ten days.');
 
-  // Orders needing attention (watch statuses + past due date)
+  // Orders needing attention (watch statuses + past production due date)
+  const prodLateCount = stuck.filter(r => r.prodLate).length;
   html += card('Orders needing attention',
-    'Open orders sitting in a status that stalls production, from the last six months' + (dueDatesAvailable ? ', plus anything past its due date' : ''),
-    stuck.length ? `<table><thead><tr><th>Client</th><th>Order</th><th>Order date</th><th>Status</th><th>Why it is flagged</th><th class="num">Total</th><th class="check-cell">Handled</th></tr></thead><tbody>${
+    'Open orders stalled in a flagged status, or in production past their production due date, from the last six months'
+      + (prodLateCount > 0 ? ` - ${prodLateCount} past the production due date` : ''),
+    stuck.length ? `<table><thead><tr><th>Client</th><th>Order</th><th>Order date</th><th>Prod due</th><th>Status</th><th>Why it is flagged</th><th class="num">Total</th><th class="check-cell">Handled</th></tr></thead><tbody>${
       stuck.slice(0, 25).map((r,i) => `<tr>
         <td class="client">${esc(r.client_name)}</td>
         <td>${pvLink(r)} <span class="muted">${esc(r.product)}</span></td>
         <td>${fdate(r.invoice_date)}</td>
+        <td class="${r.prodLate ? 'overdue' : 'muted'}">${r.prod_due_date ? fdate(r.prod_due_date) : '-'}</td>
         <td class="muted">${esc(r.status)}</td>
         <td class="overdue">${r.reasons.map(esc).join(' &middot; ')}</td>
         <td class="num">${$c(r.total)}</td>
         <td class="check-cell"><input type="checkbox" ${ck('stk'+i)} onchange="toggleCheck('stk${i}',this)"></td>
       </tr>`).join('')}</tbody></table>${stuck.length > 25 ? `<div class="muted" style="padding:6px 0;">Showing the top 25 of ${stuck.length} - clear these first.</div>` : ''}`
-    : null, 'Nothing is stuck - no open orders in a flagged status' + (dueDatesAvailable ? ' or past a due date.' : '.'));
+    : null, 'Nothing needs attention - no stalled orders and nothing past its production due date.');
 
   // 1. Proactive
   html += card('1. Proactive reorder calls', `Clients who ordered around this time last year - their reorder window opens in about six weeks (${proactiveAll.length} eligible)`,
@@ -621,18 +674,20 @@ function sheetHTML() {
     : null, 'No orders from last year land in the six-week window right now.');
 
   // 2. Completed last week
-  html += card('2. Follow-up calls - orders completed last week', 'Ask for a referral, ask for a review, and set a date to circle back for the next order',
-    lastWeek.length ? `<table><thead><tr><th>Client</th><th>Contact</th><th>Order</th><th class="num">Total</th><th class="check-cell">Referral</th><th class="check-cell">Review</th><th>Circle back on</th></tr></thead><tbody>${
+  const lastWeekEstimated = lastWeek.some(r => !r.stamped);
+  html += card('2. Follow-up calls - orders completed in the last 10 days', 'Ask for a referral, ask for a review, and set a date to circle back for the next order',
+    lastWeek.length ? `<table><thead><tr><th>Client</th><th>Contact</th><th>Completed</th><th>Order</th><th class="num">Total</th><th class="check-cell">Referral</th><th class="check-cell">Review</th><th>Circle back on</th></tr></thead><tbody>${
       lastWeek.map((r,i) => `<tr>
         <td class="client">${esc(r.client_name)}</td>
         <td class="contact">${contactLine(r)}</td>
-        <td>${fdate(r.invoice_date)} &middot; ${pvLink(r)} <span class="muted">${esc(r.product)}</span></td>
+        <td>${fdate(r.doneOn)}${r.stamped ? '' : ' <span class="muted">(est.)</span>'}</td>
+        <td>${pvLink(r)} <span class="muted">${esc(r.product)}</span></td>
         <td class="num">${$c(r.total)}</td>
         <td class="check-cell"><input type="checkbox" ${ck('ref'+i)} onchange="toggleCheck('ref${i}',this)"></td>
         <td class="check-cell"><input type="checkbox" ${ck('rev'+i)} onchange="toggleCheck('rev${i}',this)"></td>
         <td><input type="text" class="inline short" placeholder="date" value="${tv('cb'+i)}" onchange="saveText('cb${i}',this)"></td>
-      </tr>`).join('')}</tbody></table>`
-    : null, 'No orders completed in the last seven days.');
+      </tr>`).join('')}</tbody></table>${lastWeekEstimated ? '<div class="muted" style="padding:6px 0;">Dates marked (est.) use the invoice date - these orders completed before completion tracking began. New orders show the true completion date going forward.</div>' : ''}`
+    : null, 'No orders completed in the last ten days.');
 
   // 3. Lost
   html += card('3. Lost orders to win back', `Quotes from six to eight weeks ago that never became orders (${lostAll.length} in the window)`,
