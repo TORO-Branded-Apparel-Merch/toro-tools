@@ -381,7 +381,7 @@ function saveQuote(q) {
   const key = fbKey(q);
   q._fbKey = key;
   // Strip fields that are managed by the dashboard — never let portal overwrite them
-  const DASHBOARD_FIELDS = ['workflowStatus','issueFlag','statusUpdatedAt','submittedAt','paidAt'];
+  const DASHBOARD_FIELDS = ['workflowStatus','issueFlag','statusUpdatedAt','submittedAt','paidAt','commAdjust'];
   const payload = {...q};
   DASHBOARD_FIELDS.forEach(f => delete payload[f]);
   // But DO preserve workflowStatus if it's a portal-owned status
@@ -420,6 +420,7 @@ function processFile(file) {
         q.ihdFirm = q.page1.ihdFirm||false;
         q.commissionSplit = q.page1.commSplit||q.commissionSplit||'standard';
       }
+      q.commNotes = (q.page1 && q.page1.commNotes) || q.commNotes || '';
       const existing = quotes.findIndex(x=>fbKey(x)===fbKey(q));
       if(existing>=0) quotes[existing]=q; else quotes.push(q);
       render();
@@ -460,6 +461,16 @@ function quoteComm(q) {
     return (repOriginal-amEarns)*repFrac;
   }
 }
+function finalRepComm(q) {
+  const base = quoteComm(q);
+  const a = q.commAdjust;
+  if(a && (a.mode==='override'||a.mode==='delta')) {
+    const v = parseFloat(a.value)||0;
+    return a.mode==='override' ? v : base + v;
+  }
+  return base;
+}
+function esc(s){return String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));}
 function quotePeriod(q) { return q.commissionReport||q.period||'N/A'; }
 function quoteMargin(q) {
   const sell = quoteTotal(q,'sell'), net = quoteTotal(q,'net');
@@ -472,7 +483,8 @@ function quoteCard(q, locked) {
   const sell = quoteTotal(q,'sell');
   const net = quoteTotal(q,'net');
   const margin = quoteMargin(q);
-  const comm = quoteComm(q);
+  const comm = finalRepComm(q);
+  const baseComm = quoteComm(q);
   const mgColor = margin<30?'color:var(--red)':margin<35?'color:var(--orange)':'color:var(--green)';
 
   // Low margin note — display only, no workflow change
@@ -530,6 +542,8 @@ function quoteCard(q, locked) {
     '</div>'+
     '<div class="qc-body" style="display:none;">'+
       lowMarginHtml+checksHtml+
+      (q.commNotes?'<div style="font-size:12px;color:var(--brown);margin-top:8px;padding:8px;background:#fff8f0;border:1px solid #f0c080;border-radius:6px;"><strong>📝 Reconciliation note:</strong> '+esc(q.commNotes)+'</div>':'')+
+      (q.commAdjust&&q.commAdjust.mode?'<div style="font-size:12px;color:#1b5e20;margin-top:8px;padding:8px;background:#edf7ee;border:1px solid #a5d6a7;border-radius:6px;"><strong>💰 Commission adjusted by management:</strong> '+fmt(baseComm)+' → <strong>'+fmt(finalRepComm(q))+'</strong> ('+(q.commAdjust.mode==='override'?'set to amount':((( parseFloat(q.commAdjust.value)||0)>=0?'+':'')+fmt(parseFloat(q.commAdjust.value)||0)+' adjustment'))+')'+(q.commAdjust.reason?'<br><span style=\'color:var(--text2)\'>Reason: '+esc(q.commAdjust.reason)+'</span>':'')+'</div>':'')+
       '<div style="font-size:12px;color:var(--text3);margin-top:8px;">'+
         'Split: '+(q.commissionSplit||'standard')+
         (q.notes?' · Notes: '+q.notes:'')+
@@ -556,7 +570,7 @@ function render() {
   const all = [...ready,...active];
 
   const totalSell = all.reduce((a,q)=>a+quoteTotal(q,'sell'),0);
-  const totalComm = all.reduce((a,q)=>a+quoteComm(q),0);
+  const totalComm = all.reduce((a,q)=>a+finalRepComm(q),0);
   document.getElementById('summary-cards').innerHTML =
     '<div class="summary-card"><div class="sc-val">'+all.length+'</div><div class="sc-lbl">Active quotes</div></div>'+
     '<div class="summary-card"><div class="sc-val">'+fmt(totalSell)+'</div><div class="sc-lbl">Total sell</div></div>'+
@@ -570,7 +584,7 @@ function render() {
   if(ready.length){
     const rSell=ready.reduce((a,q)=>a+quoteTotal(q,'sell'),0);
     const rNet=ready.reduce((a,q)=>a+quoteTotal(q,'net'),0);
-    const rComm=ready.reduce((a,q)=>a+quoteComm(q),0);
+    const rComm=ready.reduce((a,q)=>a+finalRepComm(q),0);
     const rMg=rSell>0?((rSell-rNet)/rSell*100):0;
     sr.innerHTML=
       '<div class="section-title" style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;">'+
@@ -796,7 +810,7 @@ function runReport() {
     q.commissionSplit||'standard',
     quoteTotal(q,'sell'),quoteTotal(q,'net'),quoteTotal(q,'sell')-quoteTotal(q,'net'),
     quoteTotal(q,'sell')>0?((quoteTotal(q,'sell')-quoteTotal(q,'net'))/quoteTotal(q,'sell')*100).toFixed(1):0,
-    quoteComm(q),parseFloat(q.totalHouseProfit)||0,
+    finalRepComm(q),parseFloat(q.totalHouseProfit)||0,
     q.workflowStatus||'active',q.paid?'Yes':'No'
   ])];
   if(typeof XLSX==='undefined'){bamAlert('The Excel library isn\'t loaded. Give the page a refresh and try again.');return;}

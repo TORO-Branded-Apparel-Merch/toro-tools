@@ -556,6 +556,11 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--red);box
   <div class="card-title" style="margin-bottom:16px">Quote summary</div>
   <div class="metrics" id="metric_cards"></div>
   <div id="summary_output"></div>
+  <div class="card no-print" style="margin-top:16px;border:1px solid #f0c080;background:#fffaf3">
+    <div class="sum-sec-title" style="color:var(--brown);border-color:#f0c080;margin-bottom:6px">Reconciliation note <span style="font-size:10px;font-weight:400;color:var(--text3)">(internal — flows to the commission report &amp; your portal)</span></div>
+    <p style="font-size:12px;color:var(--text3);margin:0 0 8px">If this quote doesn't match Printavo, note the discrepancy here so management sees it when reviewing commission. Leave blank if everything matches.</p>
+    <textarea id="comm_notes" rows="3" style="width:100%" placeholder="e.g. Printavo invoice #1234 totals $50 higher — added a rush fee after this quote was built." oninput="buildSummary()"></textarea>
+  </div>
   <div class="actions no-print">
     <button class="btn btn-outline" onclick="goTo(4)">&#8592; Back</button>
     <div class="actions-right">

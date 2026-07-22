@@ -336,6 +336,16 @@ function quoteComm(q) {
     return (repOriginal-amEarns)*repFrac;
   }
 }
+function finalRepComm(q) {
+  const base = quoteComm(q);
+  const a = q.commAdjust;
+  if(a && (a.mode==='override'||a.mode==='delta')) {
+    const v = parseFloat(a.value)||0;
+    return a.mode==='override' ? v : base + v;
+  }
+  return base;
+}
+function esc(s){return String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));}
 function marginBadge(net, sell) {
   if(!sell) return '';
   const m=(sell-net)/sell*100;
@@ -512,7 +522,7 @@ function renderSummary() {
     qs.forEach(q=>{
       const sell=quoteTotal(q,'sell'), net=quoteTotal(q,'net');
       totalSell+=sell;
-      totalComm+=quoteComm(q);
+      totalComm+=finalRepComm(q);
       const margin=sell>0?((sell-net)/sell*100):100;
       if(margin>0&&margin<30) lowMarginCount++;
     });
@@ -641,7 +651,7 @@ function bulkMarkPaid() {
       fbSet('paid/'+rl+'/'+qKey, {
         quoteNum:q.quoteNum,quoteName:q.quoteName,clientName:q.clientName,clientCompany:q.clientCompany,
         totalSell:q.totalSell||0,totalNetCost:q.totalNetCost||0,commissionSplit:q.commissionSplit||'standard',
-        totalRepComm:q.totalRepComm||null,period:q.period||q.commissionReport||'',
+        totalRepComm:finalRepComm(q),period:q.period||q.commissionReport||'',
         workflowStatus:'paid',paidAt,_rep:rep,_paidAt:paidAt
       });
       q.workflowStatus = 'paid'; q.paidAt = paidAt; q.issueFlag = false;
@@ -721,7 +731,7 @@ function renderCommission() {
     const qs = (allQuotes[rep]||[]).filter(viewFilter);
     if(!qs.length) continue;
     let repNet=0, repSell=0, repComm=0;
-    qs.forEach(q=>{ repNet+=quoteTotal(q,'net'); repSell+=quoteTotal(q,'sell'); repComm+=quoteComm(q); });
+    qs.forEach(q=>{ repNet+=quoteTotal(q,'net'); repSell+=quoteTotal(q,'sell'); repComm+=finalRepComm(q); });
     grandNet+=repNet; grandSell+=repSell; grandComm+=repComm;
 
     html += `<div class="rep-section">
@@ -737,6 +747,7 @@ function renderCommission() {
 
     qs.forEach(q => {
       const net=quoteTotal(q,'net'), sell=quoteTotal(q,'sell'), comm=quoteComm(q);
+      const adjFin=finalRepComm(q); const isAdj=!!(q.commAdjust&&q.commAdjust.mode);
       const encQKey = encodeURIComponent(fbKey(q));
       const ws = q.workflowStatus;
 
@@ -763,6 +774,10 @@ function renderCommission() {
           <button class="btn btn-sm" style="background:#f0f4ff;color:#2255cc;border:1px solid #c7d2fe;margin-left:4px;" onclick="returnToPending('${rep}','${encQKey}')">✕ Clear Issue</button>`;
       }
 
+      if(commissionView==='pending' || commissionView==='approved') {
+        actions += `<button class="btn btn-sm" style="background:#eef2ff;color:#3730a3;border:1px solid #c7d2fe;margin-left:4px;" onclick="openAdjust('${rep}','${encQKey}')">${isAdj?'✎ Edit Adj':'+ Adjust'}</button>`;
+      }
+
       // Issue badge for pending view
       const issueBadge = isIssue
         ? '<span style="background:#fff8e1;color:#7a5c00;font-size:11px;font-weight:700;padding:2px 8px;border-radius:10px;border:1px solid #ffe082;margin-left:6px;">⚠️ Issue</span>'
@@ -774,12 +789,12 @@ function renderCommission() {
 
       html += `<div class="quote-row" style="${rowBg}">
         <div><input type="checkbox" class="row-chk" data-key="${repKey}" ${isChecked?'checked':''} style="width:14px;height:14px;cursor:pointer;" onchange="toggleRowSelect('${repKey}')"></div>
-        <div><strong><a href="#" onclick="event.preventDefault();openOrderSummary('${rep}','${encQKey}')" style="color:inherit;text-decoration:none;border-bottom:1px dashed #aaa;">${q.quoteName||q.quoteNum||'—'}</a></strong>${issueBadge}<br><span style="font-size:11px;color:var(--text3);">#${q.quoteNum}</span></div>
+        <div><strong><a href="#" onclick="event.preventDefault();openOrderSummary('${rep}','${encQKey}')" style="color:inherit;text-decoration:none;border-bottom:1px dashed #aaa;">${q.quoteName||q.quoteNum||'—'}</a></strong>${issueBadge}<br><span style="font-size:11px;color:var(--text3);">#${q.quoteNum}</span>${q.commNotes?`<div style="margin-top:4px;font-size:11px;color:var(--brown);background:#fff8f0;border:1px solid #f0c080;border-radius:4px;padding:3px 6px;">📝 ${esc(q.commNotes)}</div>`:``}</div>
         <div>${q.period||q.commissionReport||'—'}</div>
         <div>$${net.toFixed(2)}</div>
         <div>$${sell.toFixed(2)}</div>
         <div>${marginBadge(net,sell)}</div>
-        <div style="color:var(--green);font-weight:700;">$${comm.toFixed(2)}</div>
+        <div style="color:var(--green);font-weight:700;">${isAdj?`<span style="text-decoration:line-through;color:var(--text3);font-weight:400;font-size:11px;">$${comm.toFixed(2)}</span> `:``}$${adjFin.toFixed(2)}${isAdj?`<span style="display:block;font-size:10px;color:#1b5e20;font-weight:700;">✎ adjusted</span>`:``}</div>
         <div style="display:flex;align-items:center;gap:4px;flex-wrap:wrap;">${actions}</div>
         <div><button class="btn btn-sm" style="background:#fff0f2;color:var(--red);border:1px solid #f5c2c7;" onclick="deleteQuoteHard('${rep}','${encQKey}')">🗑</button></div>
       </div>`;
@@ -981,6 +996,74 @@ function setQuoteWorkflow(rep, encKey, newStatus, clearIssue, confirmMsg, succes
   });
 }
 
+function openAdjust(rep, encKey) {
+  const key = decodeURIComponent(encKey);
+  const q = (allQuotes[rep]||[]).find(x => (x._fbKey||fbKey(x)) === key || fbKey(x) === key);
+  if(!q) { bamAlert('Could not find that quote.'); return; }
+  const base = quoteComm(q);
+  const a = q.commAdjust||{};
+  const msg = `
+    <div style="text-align:left;font-size:14px;">
+      <div style="font-weight:700;margin-bottom:8px;">Adjust commission — ${esc(q.quoteName||q.quoteNum||'')}</div>
+      <div style="font-size:12px;color:#666;margin-bottom:14px;">Formula commission: <strong>$${base.toFixed(2)}</strong>. Set the rep's final commission for a special case. This shows on the rep's portal.</div>
+      <label style="display:block;font-size:12px;font-weight:700;margin-bottom:4px;">Type</label>
+      <select id="adj-mode" style="width:100%;padding:8px;margin-bottom:12px;font-size:14px;" onchange="document.getElementById('adj-hint').textContent=this.value==='override'?'Enter the new final commission dollar amount.':'Enter a + or − amount to add to the formula commission.'">
+        <option value="override"${a.mode==='override'?' selected':''}>Override — set exact final $</option>
+        <option value="delta"${a.mode==='delta'?' selected':''}>Delta — add / subtract from formula</option>
+      </select>
+      <label style="display:block;font-size:12px;font-weight:700;margin-bottom:4px;">Amount ($)</label>
+      <input id="adj-value" type="number" step="0.01" value="${a.value!=null?a.value:''}" style="width:100%;padding:8px;margin-bottom:4px;font-size:14px;" placeholder="e.g. 250 or -30">
+      <div id="adj-hint" style="font-size:11px;color:#888;margin-bottom:12px;">${a.mode==='delta'?'Enter a + or − amount to add to the formula commission.':'Enter the new final commission dollar amount.'}</div>
+      <label style="display:block;font-size:12px;font-weight:700;margin-bottom:4px;">Reason (optional — shown to rep)</label>
+      <input id="adj-reason" type="text" value="${a.reason?esc(a.reason):''}" style="width:100%;padding:8px;font-size:14px;" placeholder="e.g. Honoring quoted rate despite Printavo total">
+    </div>`;
+  document.getElementById('bam-msg').innerHTML = msg;
+  const btns = document.getElementById('bam-btns');
+  btns.innerHTML = '';
+  if(a.mode){
+    const rm = document.createElement('button');
+    rm.textContent = 'Remove adjustment';
+    rm.style.cssText = 'padding:8px 14px;background:#fff0f2;color:#b91c1c;border:1px solid #f5c2c7;border-radius:6px;cursor:pointer;font-size:13px;margin-right:auto;';
+    rm.onclick = () => { removeAdjust(rep, key); document.getElementById('bam-overlay').classList.remove('open'); };
+    btns.appendChild(rm);
+  }
+  const cancel = document.createElement('button');
+  cancel.textContent = 'Cancel';
+  cancel.style.cssText = 'padding:8px 18px;background:#f0f0f0;color:#333;border:none;border-radius:6px;cursor:pointer;font-size:14px;';
+  cancel.onclick = () => document.getElementById('bam-overlay').classList.remove('open');
+  const save = document.createElement('button');
+  save.textContent = 'Save adjustment';
+  save.style.cssText = 'padding:8px 18px;background:#16a34a;color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:14px;font-weight:600;';
+  save.onclick = () => saveAdjust(rep, key);
+  btns.appendChild(cancel); btns.appendChild(save);
+  document.getElementById('bam-overlay').classList.add('open');
+}
+function saveAdjust(rep, key) {
+  const q = (allQuotes[rep]||[]).find(x => (x._fbKey||fbKey(x)) === key || fbKey(x) === key);
+  if(!q) return;
+  const mode = document.getElementById('adj-mode').value;
+  const value = parseFloat(document.getElementById('adj-value').value);
+  const reason = (document.getElementById('adj-reason').value||'').trim();
+  if(isNaN(value)) { bamAlert('Please enter a valid dollar amount.'); return; }
+  const adj = { mode, value, reason, origRepComm: quoteComm(q), at: new Date().toISOString() };
+  const rl = rep.toLowerCase();
+  const qKey = q._fbKey || fbKey(q);
+  q.commAdjust = adj;
+  fbSet('quotes/'+rl+'/'+qKey+'/commAdjust', adj);
+  document.getElementById('bam-overlay').classList.remove('open');
+  render();
+  setTimeout(()=>bamAlert('💰 Commission adjustment saved. The rep will see it on their portal.'),100);
+}
+function removeAdjust(rep, key) {
+  const q = (allQuotes[rep]||[]).find(x => (x._fbKey||fbKey(x)) === key || fbKey(x) === key);
+  if(!q) return;
+  const rl = rep.toLowerCase();
+  const qKey = q._fbKey || fbKey(q);
+  delete q.commAdjust;
+  fbSet('quotes/'+rl+'/'+qKey+'/commAdjust', null);
+  render();
+  setTimeout(()=>bamAlert('Adjustment removed.'),100);
+}
 function markPaid(rep, encKey) {
   setQuoteWorkflow(rep, encKey, 'paid', true,
     'Mark this commission as paid? It will move to Paid History.',
