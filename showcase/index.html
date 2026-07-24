@@ -76,6 +76,9 @@
   .sp-quote{display:flex;align-items:center;justify-content:center;gap:8px;width:100%;padding:11px 12px;border:1.5px dashed var(--line);border-radius:999px;background:#fff;cursor:pointer;font-size:14px;font-weight:600;color:var(--mut);user-select:none;transition:all .15s;}
   .sp-quote:hover{border-color:var(--lanyard);color:var(--lanyard);}
   .sp-quote.on{border:1.5px solid var(--lanyard);background:var(--red-gradient);color:#fff;box-shadow:0 2px 8px rgba(188,17,42,.3);}
+  .sp-evchip{background:#fff;border:1.5px solid var(--line);border-radius:999px;padding:8px 14px;font-size:13px;font-weight:600;color:var(--ink);cursor:pointer;}
+  .sp-evchip:hover{border-color:var(--lanyard);color:var(--lanyard);}
+  .sp-evchip.on{background:var(--red-gradient);border-color:var(--lanyard);color:#fff;}
   .sp-offdim{opacity:.45;pointer-events:none;filter:grayscale(60%);}
   .sp-offnote{display:none;background:#1a1a1f;color:#fff;border-radius:8px;padding:8px 12px;font-size:12.5px;font-weight:600;margin-bottom:10px;}
   body.is-offline .sp-offnote{display:block;}
@@ -263,6 +266,15 @@ async function copyEventVendors(fromEid,toEid){
   }
 }
 const normName=x=>String(x||'').toLowerCase().replace(/[^a-z0-9]+/g,'');
+// Events show the year they were created unless the organizer already typed one,
+// so repeat guests can tell a 2026 showcase from a 2027 one at a glance.
+function eventLabel(e){
+  if(!e) return 'Showcase';
+  const name=String(e.name||'Showcase');
+  if(/\b(19|20)\d{2}\b/.test(name)) return name;
+  const y=e.created? new Date(e.created).getFullYear() : new Date().getFullYear();
+  return name+' \u00b7 '+y;
+}
 async function loadSubs(){
   const snap=await getDocs(query(collection(db,'submissions'),orderBy('ts','desc')));
   return snap.docs.map(d=>({id:d.id,...d.data()}));
@@ -650,6 +662,19 @@ async function loadQuoteSection(){
 }
 
 // ---------- PERSONAL RECAP (?me=<id>) ----------
+// The photos page is reached by URL (?me=...), so leaving it means clearing that
+// parameter and handing control back to the normal table flow.
+function wireRecapBack(){
+  const b=document.getElementById('sp-recapback');
+  if(!b) return;
+  b.onclick=()=>{
+    try{ history.replaceState(null,'',location.pathname); }catch(e){}
+    vendors=eventVendors(activeEventId);
+    currentVendor=null;
+    attendee?renderVendorPicker():renderIdentify();
+  };
+}
+
 async function renderRecap(pid){
   sub.textContent='Your showcase photos';
   body.innerHTML='<div class="sp-empty">Rounding up your photos\u2026</div>';
@@ -657,22 +682,79 @@ async function renderRecap(pid){
     const snap=await getDocs(query(collection(db,'submissions'),where('attendeeId','==',pid)));
     const recs=snap.docs.map(d=>({id:d.id,...d.data()})).sort((a,b)=>(a.tsClient||0)-(b.tsClient||0));
     if(!recs.length){
-      body.innerHTML='<div class="sp-card"><div class="sp-empty">Nothing in your collection yet. Scan the QR code at any table and take the bull by the horns.</div></div>';
+      body.innerHTML='<button class="sp-back" id="sp-recapback">&larr; Back to tables</button>'+
+        '<div class="sp-card"><div class="sp-empty">Nothing in your collection yet. Scan the QR code at any table and take the bull by the horns.</div></div>';
+      wireRecapBack();
       return;
     }
     const who=recs[0];
     // Attendee-facing view: intentionally no vendor/table names. Items are presented
     // as one TORO collection so the page can't be shopped to another supplier.
+
+    // If they're revisiting an old link while a different showcase is live, say so
+    // plainly rather than silently dropping them into another school's tables.
+    const vById={}; allVendors.forEach(v=>{ vById[v.id]=v; });
+    const firstEventId=events.length?events[0].id:null;
+    const theirEventIds=[...new Set(recs.map(r=>{
+      const v=vById[r.vendorId];
+      return (v&&(v.eventId||firstEventId))||null;
+    }).filter(Boolean))];
+    const liveEvent=events.find(e=>e.id===activeEventId);
+    const sameEvent=!liveEvent || theirEventIds.length===0 || theirEventIds.includes(activeEventId);
+    let crossEventNote='';
+    if(!sameEvent){
+      const theirs=theirEventIds.map(id=>{
+        const e=events.find(x=>x.id===id); return e?eventLabel(e):'';
+      }).filter(Boolean);
+      const fromLabel=theirs.length===1?theirs[0]:'an earlier showcase';
+      crossEventNote='<div class="sp-card" style="border-left:4px solid var(--lanyard);background:var(--red-light)">'+
+        '<div style="font-size:14.5px;line-height:1.5;color:var(--ink)">'+
+          '&#128002; <b>These are your photos from '+esc(fromLabel)+'.</b> '+
+          'They\u2019re yours to keep, and your rep still has them. '+
+          'We\u2019re at <b>'+esc(eventLabel(liveEvent))+'</b> today, so if you\u2019re here with us, '+
+          'scan the QR code at any table to start a fresh collection for this show.'+
+        '</div></div>';
+    }
     const card=r=>'<div class="sp-thumb"><img src="'+r.thumb+'" alt="Your photo" loading="lazy" data-pid="'+esc(r.photoId||'')+'" style="cursor:zoom-in">'+
       '<div class="sp-heart sp-needsnet'+(r.fav?' on':'')+'" data-fav="'+r.id+'" role="button" aria-label="Favorite">'+(r.fav?'&#10084;&#65039;':'&#129293;')+'</div>'+
       (r.quote?'<span class="sp-quotetag">&#128002; QUOTE</span>':'')+
       (r.note?'<div class="cap">'+esc(r.note)+'</div>':'')+'</div>';
 
+    // Photos are tagged with the event they were taken at. Someone who visits more
+    // than one showcase keeps a single link and switches between events here.
+    recs.forEach(r=>{ const v=vById[r.vendorId]; r._eid=(v&&(v.eventId||firstEventId))||'unknown'; });
+    const eventOrder=events.slice().reverse().map(e=>e.id).filter(id=>theirEventIds.includes(id));
+    theirEventIds.forEach(id=>{ if(!eventOrder.includes(id)) eventOrder.push(id); });
+    const multiEvent=eventOrder.length>1;
+    let viewEid=eventOrder.includes(activeEventId)?activeEventId:eventOrder[0];
+    const eventName=id=>eventLabel(events.find(x=>x.id===id));
+
     function paint(){
       recs.sort((a,b)=>(a.tsClient||0)-(b.tsClient||0));
-      const favs=recs.filter(r=>r.fav), rest=recs.filter(r=>!r.fav);
-      let html='<div class="sp-card"><div class="sp-h2">'+esc(who.name)+'\u2019s photos</div>'+
-        '<p class="sp-note" style="margin:0">'+recs.length+' photo'+(recs.length===1?'':'s')+' in your collection'+(favs.length?', including '+favs.length+' favorite'+(favs.length===1?'':'s'):'')+'. Bookmark this page so you can come back to it anytime, and TORO will follow up with you after the show.</p></div>';
+      const scope=multiEvent?recs.filter(r=>r._eid===viewEid):recs;
+      const favs=scope.filter(r=>r.fav), rest=scope.filter(r=>!r.fav);
+
+      let html='<button class="sp-back" id="sp-recapback">&larr; '+(sameEvent?'Back to tables':'See what\u2019s on the floor today')+'</button>'+
+        (crossEventNote||'')+
+        '<div class="sp-card"><div class="sp-h2">'+esc(who.name)+'\u2019s photos</div>'+
+        '<p class="sp-note" style="margin:0">'+
+          (multiEvent
+            ? 'You\u2019ve joined us at '+eventOrder.length+' showcases, with '+recs.length+' photo'+(recs.length===1?'':'s')+' saved in all. Pick a showcase below to look back through it.'
+            : recs.length+' photo'+(recs.length===1?'':'s')+' in your collection'+(favs.length?', including '+favs.length+' favorite'+(favs.length===1?'':'s'):'')+'. Bookmark this page so you can come back to it anytime, and TORO will follow up with you after the show.')+
+        '</p>'+
+        (multiEvent
+          ? '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px">'+
+              eventOrder.map(id=>{
+                const n=recs.filter(r=>r._eid===id).length;
+                return '<button class="sp-evchip'+(id===viewEid?' on':'')+'" data-ev="'+id+'">'+esc(eventName(id))+' <span style="opacity:.7">('+n+')</span></button>';
+              }).join('')+
+            '</div>'
+          : '')+
+        '</div>';
+
+      if(multiEvent){
+        html+='<div class="sp-note" style="margin:-4px 2px 10px">Showing '+scope.length+' photo'+(scope.length===1?'':'s')+' from '+esc(eventName(viewEid))+'.</div>';
+      }
 
       html+='<div class="sp-card"><div class="sp-h2">&#10084;&#65039; Your favorites</div>';
       html+= favs.length
@@ -687,10 +769,14 @@ async function renderRecap(pid){
       html+='</div>';
 
       body.innerHTML=html;
+      body.querySelectorAll('[data-ev]').forEach(b=>{
+        b.onclick=()=>{ viewEid=b.dataset.ev; paint(); window.scrollTo({top:0,behavior:'smooth'}); };
+      });
       bindPhotoHandlers();
     }
 
     function bindPhotoHandlers(){
+      wireRecapBack();
       body.querySelectorAll('[data-fav]').forEach(h=>{
         h.onclick=async ev=>{
           ev.stopPropagation();
@@ -720,7 +806,9 @@ async function renderRecap(pid){
     paint();
   }catch(e){
     console.error(e);
-    body.innerHTML='<div class="sp-card"><div class="sp-empty">We couldn\u2019t load your photos just now. Check your connection and refresh the page.</div></div>';
+    body.innerHTML='<button class="sp-back" id="sp-recapback">&larr; Back to tables</button>'+
+      '<div class="sp-card"><div class="sp-empty">We couldn\u2019t load your photos just now. Check your connection and refresh the page.</div></div>';
+    wireRecapBack();
   }
 }
 
@@ -741,7 +829,7 @@ async function renderAdmin(){
   body.innerHTML='<div class="sp-empty">Wrangling the herd…</div>';
   await loadAll();
   if(!events.length){
-    const name=await bamPrompt('Name your first event (e.g. UT Arlington \u2013 Jul 28):');
+    const name=await bamPrompt('Name your first event (e.g. UT Arlington \u2013 Jul 28, 2026):');
     if(!name||!name.trim()){ mode='attendee'; modeBtn.textContent='Organizer view'; renderVendorPicker(); return; }
     const ev=await createEvent(name.trim());
     await setActiveEvent(ev.id);
@@ -763,14 +851,14 @@ async function renderAdmin(){
 
   let html='<div class="sp-card"><div class="sp-h2">&#128197; Events</div>'+
     '<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:8px">'+
-      '<select class="sp-input" id="sp-evsel" style="flex:1;min-width:180px">'+events.map(e=>'<option value="'+e.id+'"'+(e.id===renderAdmin.sel?' selected':'')+'>'+esc(e.name)+(e.id===activeEventId?' \u2022 LIVE':'')+'</option>').join('')+'</select>'+
+      '<select class="sp-input" id="sp-evsel" style="flex:1;min-width:180px">'+events.map(e=>'<option value="'+e.id+'"'+(e.id===renderAdmin.sel?' selected':'')+'>'+esc(eventLabel(e))+(e.id===activeEventId?' \u2022 LIVE':'')+'</option>').join('')+'</select>'+
       '<button class="sp-btn small ghost" id="sp-evnew">New event</button>'+
       '<button class="sp-btn small ghost" id="sp-evcopy">Copy to new event</button>'+
       (renderAdmin.sel!==activeEventId?'<button class="sp-btn small" id="sp-evactive">Make live for attendees</button>':'')+
     '</div>'+
     '<p class="sp-note">Everything below shows the selected event only. "Copy to new event" brings the vendor list over and leaves all photos and leads behind. The LIVE event is the one attendees see when they open the main link; table QR links always route to their own event automatically.</p>'+
   '</div>'+
-  '<div class="sp-card"><div class="sp-h2">Vendor tables \u2014 '+esc(selEvent.name)+'</div>'+
+  '<div class="sp-card"><div class="sp-h2">Vendor tables \u2014 '+esc(eventLabel(selEvent))+'</div>'+
     '<div style="display:flex;gap:8px;margin-bottom:10px"><input class="sp-input" id="sp-vname" placeholder="Add vendor, e.g. Maple &amp; Co. Furniture" style="flex:1"><button class="sp-btn small" id="sp-vadd">Add</button></div>'+
     '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:6px">'+
       '<button class="sp-btn small ghost" id="sp-csv"'+(totalPhotos?'':' disabled')+'>Export leads CSV</button>'+
@@ -820,13 +908,13 @@ async function renderAdmin(){
           '<span class="sp-count">'+g.photos+' / '+g.favs+' &#10084;&#65039; / '+g.quotes+' &#128002;</span></div>'+
           '<div class="sp-meta">'+events.map(e=>{
             const m=g.byEvent[e.id];
-            return esc(e.name)+': '+(m?m.p+' photo'+(m.p===1?'':'s')+(m.f?', '+m.f+' fav'+(m.f===1?'':'s'):'')+(m.q?', '+m.q+' quote'+(m.q===1?'':'s'):''):'0');
+            return esc(eventLabel(e))+': '+(m?m.p+' photo'+(m.p===1?'':'s')+(m.f?', '+m.f+' fav'+(m.f===1?'':'s'):'')+(m.q?', '+m.q+' quote'+(m.q===1?'':'s'):''):'0');
           }).join(' &middot; ')+'</div></div>';
       }
     }
     html+='</div>';
   }
-  html+='<div class="sp-card"><div class="sp-h2">Submissions \u2014 '+esc(selEvent.name)+' ('+totalPhotos+')</div>';
+  html+='<div class="sp-card"><div class="sp-h2">Submissions \u2014 '+esc(eventLabel(selEvent))+' ('+totalPhotos+')</div>';
   if(!vendors.length) html+='<div class="sp-empty">Add vendors to start collecting.</div>';
   for(const {vendor,recs} of all){
     html+='<div class="sp-vhead"><span class="sp-who">'+esc(vendor.name)+'</span><span class="sp-count">'+recs.length+' photo'+(recs.length===1?'':'s')+'</span></div>';
@@ -849,13 +937,13 @@ async function renderAdmin(){
   };
   document.getElementById('sp-evsel').onchange=e=>{ renderAdmin.sel=e.target.value; renderAdmin(); };
   document.getElementById('sp-evnew').onclick=async ()=>{
-    const name=await bamPrompt('Name the new event (e.g. TCU \u2013 Jul 29):');
+    const name=await bamPrompt('Name the new event (e.g. TCU \u2013 Jul 29, 2026):');
     if(!name||!name.trim()) return;
     try{ const ev=await createEvent(name.trim()); renderAdmin.sel=ev.id; renderAdmin(); }
     catch(e){ bamAlert('Could not create event: '+e.message); }
   };
   document.getElementById('sp-evcopy').onclick=async ()=>{
-    const name=await bamPrompt('Name the new event (the '+vendors.length+' vendor table'+(vendors.length===1?'':'s')+' from "'+selEvent.name+'" will be copied over):');
+    const name=await bamPrompt('Name the new event (the '+vendors.length+' vendor table'+(vendors.length===1?'':'s')+' from "'+eventLabel(selEvent)+'" will be copied over):');
     if(!name||!name.trim()) return;
     try{
       const ev=await createEvent(name.trim());
@@ -869,8 +957,8 @@ async function renderAdmin(){
     catch(e){ bamAlert('Could not set live event: '+e.message); }
   };
   document.getElementById('sp-csv').onclick=()=>{
-    const blob=new Blob([toCSV(subs,selEvent.name)],{type:'text/csv'});
-    const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='brandabulls-live-leads-'+fsafe(selEvent.name)+'.csv';a.click();
+    const blob=new Blob([toCSV(subs,eventLabel(selEvent))],{type:'text/csv'});
+    const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='brandabulls-live-leads-'+fsafe(eventLabel(selEvent))+'.csv';a.click();
     URL.revokeObjectURL(a.href);
   };
 
@@ -914,12 +1002,12 @@ async function renderAdmin(){
         }
       }
       // include the leads CSV inside the zip too
-      zip.file('brandabulls-live-leads-'+fsafe(selEvent.name)+'.csv', toCSV(subs,selEvent.name));
+      zip.file('brandabulls-live-leads-'+fsafe(eventLabel(selEvent))+'.csv', toCSV(subs,eventLabel(selEvent)));
 
       btn.textContent='Zipping…';
       const blob=await zip.generateAsync({type:'blob'},(meta)=>{ btn.textContent='Zipping… '+Math.round(meta.percent)+'%'; });
       const a=document.createElement('a');
-      a.href=URL.createObjectURL(blob); a.download='brandabulls-live-photos-'+fsafe(selEvent.name)+'.zip'; a.click();
+      a.href=URL.createObjectURL(blob); a.download='brandabulls-live-photos-'+fsafe(eventLabel(selEvent))+'.zip'; a.click();
       URL.revokeObjectURL(a.href);
       btn.textContent=orig; btn.disabled=false;
     }catch(e){
@@ -962,7 +1050,7 @@ async function renderAdmin(){
 
   // delete EVERYTHING
   document.getElementById('sp-delall').onclick=async ()=>{
-    if(!await bamConfirm('Delete all vendors, entries, and photos for "'+selEvent.name+'"? Other events are untouched. This can\u2019t be undone.','Continue')) return;
+    if(!await bamConfirm('Delete all vendors, entries, and photos for "'+eventLabel(selEvent)+'"? Other events are untouched. This can\u2019t be undone.','Continue')) return;
     const check=await bamPrompt('Type DELETE to confirm:');
     if(check!=='DELETE') return;
     const btn=document.getElementById('sp-delall'); btn.disabled=true;
