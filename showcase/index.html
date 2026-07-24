@@ -187,8 +187,8 @@ function showHowTo(){
     bamMsg.innerHTML=
       '<div style="font-size:16px;font-weight:700;color:#1a1a1f;margin-bottom:12px">Welcome, '+esc(attendee.name.split(' ')[0])+'! Here\u2019s how it works:</div>'+
       '<div style="display:flex;flex-direction:column;gap:12px;font-size:14.5px;line-height:1.45">'+
-        '<div style="display:flex;gap:10px"><span style="font-size:20px">&#128247;</span><span><b>Photos</b> are for anything that catches your eye. Snap as many as you like at every table, and they all save to your personal collection.</span></div>'+
-        '<div style="display:flex;gap:10px"><span style="font-size:20px">&#10084;&#65039;</span><span><b>Favorites</b> are your top picks. Tap the heart on the photos you love most so they rise to the top of your collection.</span></div>'+
+        '<div style="display:flex;gap:10px"><span style="font-size:20px">&#128247;</span><span><b>Photos</b> are for anything that catches your eye. Snap as many as you like at every table, and they all save to My Photos.</span></div>'+
+        '<div style="display:flex;gap:10px"><span style="font-size:20px">&#10084;&#65039;</span><span><b>Favorites</b> are your top picks. Tap the heart on any photo, right at the table or later under My Photos, and it moves into your favorites section.</span></div>'+
         '<div style="display:flex;gap:10px"><span style="font-size:20px">&#128002;</span><span><b>Quotes</b> are for when you have a real project or order in mind. Select the items and add your details, and your rep will follow up after the show with concrete pricing and next steps to move your order across the finish line.</span></div>'+
         '<div style="display:flex;gap:10px"><span style="font-size:20px">&#128233;</span><span><b>Then leave the rest to us.</b> Our team will reach out after the show to help with anything you saved.</span></div>'+
       '</div>';
@@ -447,7 +447,7 @@ function renderVendorPicker(){
     return;
   }
   body.innerHTML=(attendee&&attendee.pid
-      ? '<div class="sp-badge sp-needsnet" style="justify-content:center"><a href="?me='+attendee.pid+'" style="color:var(--ink);font-weight:700;text-decoration:none">&#10084;&#65039; View my favorites</a></div>'
+      ? '<div class="sp-badge sp-needsnet" style="justify-content:center"><a href="?me='+attendee.pid+'" style="color:var(--ink);font-weight:700;text-decoration:none">&#128247; My photos</a></div>'
       : '')+
     '<div class="sp-card"><span class="sp-label">Which table are you at?</span>'+
     '<div class="sp-vendorgrid">'+vendors.map(v=>'<button class="sp-vcard" data-id="'+v.id+'">'+esc(v.name)+'<span class="code">'+esc(v.code)+'</span></button>').join('')+'</div></div>';
@@ -484,7 +484,7 @@ function renderIdentify(){
 
 function renderDrop(){
   body.innerHTML='<button class="sp-back" id="sp-back">&larr; All tables</button>'+
-    '<div class="sp-badge"><span>&#127915; '+esc(attendee.name)+(attendee.company?' &middot; '+esc(attendee.company):'')+'</span><span style="display:flex;gap:10px"><a href="?me='+(attendee.pid||'')+'" class="sp-needsnet" style="font-size:12px;color:var(--ink);font-weight:600">My favorites</a><button id="sp-notme">Not you?</button></span></div>'+
+    '<div class="sp-badge"><span>&#127915; '+esc(attendee.name)+(attendee.company?' &middot; '+esc(attendee.company):'')+'</span><span style="display:flex;gap:10px"><a href="?me='+(attendee.pid||'')+'" class="sp-needsnet" style="font-size:12px;color:var(--ink);font-weight:600">My photos</a><button id="sp-notme">Not you?</button></span></div>'+
     '<div class="sp-card"><div class="sp-h2">'+esc(currentVendor.name)+'</div>'+
     '<div class="sp-drop" id="sp-drop"><p class="big">Tap here to take a photo</p><p class="small">Just point your camera at the item you love and we\u2019ll save it to your collection.</p></div>'+
     '<input type="file" id="sp-file" accept="image/*" capture="environment" multiple style="display:none">'+
@@ -498,8 +498,8 @@ function renderDrop(){
     '</div>'+
     '<div class="sp-offnote" id="sp-quoteoffnote">&#128246; Looks like you\u2019ve lost signal, so quote requests are paused for the moment. Keep snapping though, because your photos are saving right to your phone.</div>'+
     '<div class="sp-card sp-needsnet" id="sp-quotecard" style="display:none">'+
-      '<div class="sp-h2">&#128002; Have a project in mind?</div>'+
-      '<p class="sp-note" style="margin:0 0 10px">Select any items from this table that you\u2019d like a quote on. Everything else stays saved in your collection as inspiration.</p>'+
+      '<div class="sp-h2">Your photos from this table</div>'+
+      '<p class="sp-note" style="margin:0 0 10px">Tap the heart on anything you love to add it to your favorites. If you have a project in mind, select the items you\u2019d like a quote on and add your details below.</p>'+
       '<div class="sp-thumbs" id="sp-quoteitems"></div>'+
       '<span class="sp-label" style="margin-top:14px">Project details (optional)</span>'+
       '<textarea class="sp-input" id="sp-quotenote" rows="3" maxlength="500" placeholder="Anything that helps us quote it right: delivery date, quantities, sizes, colors, logo placement, budget\u2026" style="resize:vertical;font-family:inherit"></textarea>'+
@@ -570,6 +570,23 @@ function renderDrop(){
 }
 
 // Quote section on the vendor page: pick items already snapped here, request once.
+// Shared heart toggle. Optimistic UI with rollback if the save fails.
+async function toggleFav(rec,heartEl){
+  const to=!rec.fav;
+  rec.fav=to;
+  heartEl.classList.toggle('on',to);
+  heartEl.innerHTML=to?'&#10084;&#65039;':'&#129293;';
+  try{ await updateDoc(doc(db,'submissions',rec.id),{fav:to}); return true; }
+  catch(e){
+    rec.fav=!to;
+    heartEl.classList.toggle('on',!to);
+    heartEl.innerHTML=!to?'&#10084;&#65039;':'&#129293;';
+    console.error(e);
+    bamAlert('We couldn\u2019t save that heart just now. Check your connection and give it another tap.');
+    return false;
+  }
+}
+
 async function loadQuoteSection(){
   const card=document.getElementById('sp-quotecard'); if(!card) return;
   try{
@@ -583,11 +600,18 @@ async function loadQuoteSection(){
     grid.innerHTML=recs.map(r=>
       '<div class="sp-thumb sp-qitem'+(r.quote?' requested':'')+'" data-id="'+r.id+'">'+
         '<img src="'+r.thumb+'" alt="Your item">'+
+        '<div class="sp-heart sp-needsnet'+(r.fav?' on':'')+'" data-fav="'+r.id+'" role="button" aria-label="Favorite">'+(r.fav?'&#10084;&#65039;':'&#129293;')+'</div>'+
         (r.quote
           ? '<span class="sp-quotetag">&#128002; QUOTE REQUESTED</span>'
           : '<div class="sp-qcheck">Tap to select</div>')+
         (r.note?'<div class="cap">'+esc(r.note)+'</div>':'')+
       '</div>').join('');
+    grid.querySelectorAll('[data-fav]').forEach(h=>{
+      h.onclick=async ev=>{
+        ev.stopPropagation(); // don't trigger quote selection
+        const r=recs.find(x=>x.id===h.dataset.fav); if(r) await toggleFav(r,h);
+      };
+    });
     const selected=new Set();
     const sendBtn=document.getElementById('sp-quotesend');
     const refreshBtn=()=>{
@@ -627,8 +651,8 @@ async function loadQuoteSection(){
 
 // ---------- PERSONAL RECAP (?me=<id>) ----------
 async function renderRecap(pid){
-  sub.textContent='Your showcase favorites';
-  body.innerHTML='<div class="sp-empty">Rounding up your favorites\u2026</div>';
+  sub.textContent='Your showcase photos';
+  body.innerHTML='<div class="sp-empty">Rounding up your photos\u2026</div>';
   try{
     const snap=await getDocs(query(collection(db,'submissions'),where('attendeeId','==',pid)));
     const recs=snap.docs.map(d=>({id:d.id,...d.data()})).sort((a,b)=>(a.tsClient||0)-(b.tsClient||0));
@@ -638,50 +662,65 @@ async function renderRecap(pid){
     }
     const who=recs[0];
     // Attendee-facing view: intentionally no vendor/table names. Items are presented
-    // as one TORO collection so the recap can't be shopped to another supplier.
-    recs.sort((a,b)=>(b.fav?1:0)-(a.fav?1:0) || (a.tsClient||0)-(b.tsClient||0));
-    const favCount=recs.filter(r=>r.fav).length;
-    let html='<div class="sp-card"><div class="sp-h2">'+esc(who.name)+'\u2019s showcase picks</div>'+
-      '<p class="sp-note" style="margin:0 0 10px">'+recs.length+' item'+(recs.length===1?'':'s')+' in your collection'+(favCount?', including '+favCount+' favorite'+(favCount===1?'':'s'):'')+'. Tap the heart on the ones you love most, and bookmark this page so you can come back to it anytime. TORO will follow up with you after the show.</p>'+
-      '<div class="sp-thumbs">'+
-      recs.map(r=>'<div class="sp-thumb"><img src="'+r.thumb+'" alt="Your photo" loading="lazy" data-pid="'+esc(r.photoId||'')+'" style="cursor:zoom-in">'+
-        '<div class="sp-heart sp-needsnet'+(r.fav?' on':'')+'" data-fav="'+r.id+'" role="button" aria-label="Favorite">'+(r.fav?'&#10084;&#65039;':'&#129293;')+'</div>'+
-        (r.quote?'<span class="sp-quotetag">&#128002; QUOTE</span>':'')+(r.note?'<div class="cap">'+esc(r.note)+'</div>':'')+'</div>').join('')+
-      '</div></div>';
-    body.innerHTML=html;
-    body.querySelectorAll('[data-fav]').forEach(h=>{
-      h.onclick=async (ev)=>{
-        ev.stopPropagation();
-        const r=recs.find(x=>x.id===h.dataset.fav); if(!r) return;
-        const to=!r.fav;
-        // optimistic UI
-        r.fav=to; h.classList.toggle('on',to); h.innerHTML=to?'&#10084;&#65039;':'&#129293;';
-        try{ await updateDoc(doc(db,'submissions',r.id),{fav:to}); }
-        catch(e){
-          r.fav=!to; h.classList.toggle('on',!to); h.innerHTML=!to?'&#10084;&#65039;':'&#129293;';
-          console.error(e); bamAlert('Couldn\u2019t save that favorite. Check your connection and try again.');
-        }
-      };
-    });
-    body.querySelectorAll('.sp-thumb img[data-pid]').forEach(im=>{
-      im.onclick=async ()=>{
-        const p=im.dataset.pid; if(!p) return;
-        im.style.opacity='.5';
-        try{
-          const full=await fetchFullPhoto(p);
-          im.style.opacity='';
-          if(!full) return;
-          const ov=document.createElement('div');
-          ov.style.cssText='position:fixed;inset:0;background:rgba(20,25,35,.92);display:flex;align-items:center;justify-content:center;z-index:99;cursor:zoom-out;padding:20px';
-          ov.innerHTML='<img src="'+full+'" style="max-width:100%;max-height:100%;border-radius:10px" alt="Full size photo">';
-          ov.onclick=()=>ov.remove();
-          document.body.appendChild(ov);
-        }catch(e){ im.style.opacity=''; }
-      };
-    });
+    // as one TORO collection so the page can't be shopped to another supplier.
+    const card=r=>'<div class="sp-thumb"><img src="'+r.thumb+'" alt="Your photo" loading="lazy" data-pid="'+esc(r.photoId||'')+'" style="cursor:zoom-in">'+
+      '<div class="sp-heart sp-needsnet'+(r.fav?' on':'')+'" data-fav="'+r.id+'" role="button" aria-label="Favorite">'+(r.fav?'&#10084;&#65039;':'&#129293;')+'</div>'+
+      (r.quote?'<span class="sp-quotetag">&#128002; QUOTE</span>':'')+
+      (r.note?'<div class="cap">'+esc(r.note)+'</div>':'')+'</div>';
+
+    function paint(){
+      recs.sort((a,b)=>(a.tsClient||0)-(b.tsClient||0));
+      const favs=recs.filter(r=>r.fav), rest=recs.filter(r=>!r.fav);
+      let html='<div class="sp-card"><div class="sp-h2">'+esc(who.name)+'\u2019s photos</div>'+
+        '<p class="sp-note" style="margin:0">'+recs.length+' photo'+(recs.length===1?'':'s')+' in your collection'+(favs.length?', including '+favs.length+' favorite'+(favs.length===1?'':'s'):'')+'. Bookmark this page so you can come back to it anytime, and TORO will follow up with you after the show.</p></div>';
+
+      html+='<div class="sp-card"><div class="sp-h2">&#10084;&#65039; Your favorites</div>';
+      html+= favs.length
+        ? '<div class="sp-thumbs">'+favs.map(card).join('')+'</div>'
+        : '<div class="sp-empty" style="padding:6px 0">Nothing here yet. Tap the heart on any photo below to move it up here.</div>';
+      html+='</div>';
+
+      html+='<div class="sp-card"><div class="sp-h2">All your photos</div>';
+      html+= rest.length
+        ? '<p class="sp-note" style="margin:0 0 10px">Tap the heart on the ones you love most to move them into your favorites.</p><div class="sp-thumbs">'+rest.map(card).join('')+'</div>'
+        : '<div class="sp-empty" style="padding:6px 0">Every photo you\u2019ve taken is a favorite. Nicely done.</div>';
+      html+='</div>';
+
+      body.innerHTML=html;
+      bindPhotoHandlers();
+    }
+
+    function bindPhotoHandlers(){
+      body.querySelectorAll('[data-fav]').forEach(h=>{
+        h.onclick=async ev=>{
+          ev.stopPropagation();
+          const r=recs.find(x=>x.id===h.dataset.fav); if(!r) return;
+          const ok=await toggleFav(r,h);
+          if(ok) paint(); // move the photo between sections
+        };
+      });
+      body.querySelectorAll('.sp-thumb img[data-pid]').forEach(im=>{
+        im.onclick=async ()=>{
+          const p=im.dataset.pid; if(!p) return;
+          im.style.opacity='.5';
+          try{
+            const full=await fetchFullPhoto(p);
+            im.style.opacity='';
+            if(!full) return;
+            const ov=document.createElement('div');
+            ov.style.cssText='position:fixed;inset:0;background:rgba(20,25,35,.92);display:flex;align-items:center;justify-content:center;z-index:99;cursor:zoom-out;padding:20px';
+            ov.innerHTML='<img src="'+full+'" style="max-width:100%;max-height:100%;border-radius:10px" alt="Full size photo">';
+            ov.onclick=()=>ov.remove();
+            document.body.appendChild(ov);
+          }catch(e){ im.style.opacity=''; }
+        };
+      });
+    }
+
+    paint();
   }catch(e){
     console.error(e);
-    body.innerHTML='<div class="sp-card"><div class="sp-empty">Could not load favorites. Check your connection and refresh.</div></div>';
+    body.innerHTML='<div class="sp-card"><div class="sp-empty">We couldn\u2019t load your photos just now. Check your connection and refresh the page.</div></div>';
   }
 }
 
