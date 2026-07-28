@@ -790,6 +790,35 @@ function addGarment(){
   });
   updateGLbl(id);
   refreshAllShareDropdowns();
+  renumberGarments();
+}
+
+// ── Sequential renumbering of item badges ─────────────────────────────────
+// Card element IDs (g_<id>, hg_<id>, imp_<gid>_<n>) stay stable because they
+// key every field; only the DISPLAYED number is renumbered to match position,
+// so deleting #2 and adding again no longer skips a number.
+function renumberGarments(){
+  const c=$c('garments_container'); if(!c) return;
+  c.querySelectorAll('.g-card').forEach((card,idx)=>{
+    const num=card.querySelector('.g-num'); if(num) num.textContent=idx+1;
+    const lbl=card.querySelector('[id^="glbl_"]');
+    if(lbl && /^Apparel item \d+$/.test(lbl.textContent.trim())) lbl.textContent='Apparel item '+(idx+1);
+  });
+}
+function renumberHardGoods(){
+  const c=$c('hg_container'); if(!c) return;
+  c.querySelectorAll('.hg-item').forEach((card,idx)=>{
+    const lbl=card.querySelector('.hg-num-label'); if(lbl) lbl.textContent='Hard good '+(idx+1);
+  });
+}
+function renumberImprints(gid){
+  const c=$c('imps_'+gid); if(!c) return;
+  c.querySelectorAll('.imp-card').forEach((card,idx)=>{
+    const label=card.querySelector('.imp-head-left'); if(!label) return;
+    for(const node of label.childNodes){
+      if(node.nodeType===Node.TEXT_NODE && node.textContent.includes('Imprint')){ node.textContent='Imprint '+(idx+1); break; }
+    }
+  });
 }
 
 function toggleG(id){
@@ -810,6 +839,7 @@ function removeG(id){
   });
   $c('g_'+id)?.remove();
   garments=garments.filter(g=>g.id!==id);
+  renumberGarments();
   setTimeout(refreshAllShareDropdowns,50);
 }
 function addXSRow(gid){
@@ -1001,8 +1031,8 @@ function addImp(gid){
           <span style="font-size:12px;color:#888;margin-left:8px;">e.g. use a legacy grid rate or custom price</span>
         </div>
       </div>
+      <div class="field" style="margin-bottom:10px"><label>Design name <span style="color:var(--red)">*</span></label><input type="text" id="imp_name_${iid}" placeholder="e.g. Left chest logo" style="width:100%;padding:7px 10px;border:1px solid var(--border2);border-radius:var(--radius-sm);font-size:13px" oninput="calcAllDebounced()"></div>
       <div id="if_screen_${iid}">
-        <div class="field" style="margin-bottom:10px"><label>Design name <span style="color:var(--red)">*</span></label><input type="text" id="imp_name_${iid}" placeholder="e.g. Left chest logo" style="width:100%;padding:7px 10px;border:1px solid var(--border2);border-radius:var(--radius-sm);font-size:13px" oninput="calcAllDebounced()"></div>
         <div class="row3">
           <div class="field"><label>Print location <span style="color:var(--red)">*</span></label>
             <select id="sp_loc_${iid}" required onchange="otherCheck(this);spLocChange('${iid}')" style="padding:8px 11px;font-size:14px"><option value="">Select location</option>
@@ -1057,7 +1087,6 @@ function addImp(gid){
         </div>
       </div>
       <div id="if_embroidery_${iid}" class="hidden">
-        <div class="field" style="margin-bottom:10px"><label>Design name <span style="color:var(--red)">*</span></label><input type="text" id="imp_name_${iid}" placeholder="e.g. Left chest logo" style="width:100%;padding:7px 10px;border:1px solid var(--border2);border-radius:var(--radius-sm);font-size:13px" oninput="calcAllDebounced()"></div>
         <div class="row3">
           <div class="field"><label>Location</label>
             <select id="emb_loc_${iid}" required onchange="otherCheck(this)"><option value="">Select location</option><option>Left chest</option><option>Full front</option><option>Full back</option><option>Left sleeve</option><option>Right sleeve</option><option>Right chest</option><option>Back necktag</option><option>Other</option></select>
@@ -1103,7 +1132,6 @@ function addImp(gid){
         </div>
       </div>
       <div id="if_dtf_${iid}" class="hidden">
-        <div class="field" style="margin-bottom:10px"><label>Design name <span style="color:var(--red)">*</span></label><input type="text" id="imp_name_${iid}" placeholder="e.g. Left chest logo" style="width:100%;padding:7px 10px;border:1px solid var(--border2);border-radius:var(--radius-sm);font-size:13px" oninput="calcAllDebounced()"></div>
         <div class="row3">
           <div class="field"><label>Location <span style="color:var(--red)">*</span></label>
             <select id="dtf_loc_${iid}" required onchange="otherCheck(this)"><option value="">Select location</option><option>Left chest</option><option>Full front</option><option>Full back</option><option>Left sleeve</option><option>Right sleeve</option><option>Right chest</option><option>Back necktag</option><option>Other</option></select>
@@ -1118,7 +1146,6 @@ function addImp(gid){
         </div>
       </div>
       <div id="if_heat_${iid}" class="hidden">
-        <div class="field" style="margin-bottom:10px"><label>Design name <span style="color:var(--red)">*</span></label><input type="text" id="imp_name_${iid}" placeholder="e.g. Left chest logo" style="width:100%;padding:7px 10px;border:1px solid var(--border2);border-radius:var(--radius-sm);font-size:13px" oninput="calcAllDebounced()"></div>
         <div class="row3">
           <div class="field"><label>Location</label>
             <select id="heat_loc_${iid}" onchange="otherCheck(this)"><option value="">Select location</option><option>Left chest</option><option>Full front</option><option>Full back</option><option>Left sleeve</option><option>Right sleeve</option><option>Right chest</option><option>Back necktag</option><option>Other</option></select>
@@ -1135,7 +1162,6 @@ function addImp(gid){
         </div>
       </div>
       <div id="if_vinyl_${iid}" class="hidden">
-        <div class="field" style="margin-bottom:10px"><label>Design name <span style="color:var(--red)">*</span></label><input type="text" id="imp_name_${iid}" placeholder="e.g. Left chest logo" style="width:100%;padding:7px 10px;border:1px solid var(--border2);border-radius:var(--radius-sm);font-size:13px" oninput="calcAllDebounced()"></div>
         <div class="row3">
           <div class="field"><label>Location</label>
             <select id="vinyl_loc_${iid}" required onchange="otherCheck(this)"><option value="">Select location</option><option>Left chest</option><option>Full front</option><option>Full back</option><option>Left sleeve</option><option>Right sleeve</option><option>Right chest</option><option>Back necktag</option><option>Other</option></select>
@@ -1177,24 +1203,12 @@ function addImp(gid){
   c.appendChild(d);
   $c('imp_'+iid).dataset.type='screen';
   refreshAllShareDropdowns();
+  renumberImprints(gid);
 }
 
 function removeImp(iid){
   $c('imp_'+iid)?.remove();
-  // Renumber surviving imprints sequentially (1, 2, 3…)
-  const gid = iid.split('_')[0];
-  const container = $c('imps_'+gid);
-  if(!container) return;
-  container.querySelectorAll('.imp-card').forEach((card, idx) => {
-    const label = card.querySelector('.imp-head-left');
-    if(!label) return;
-    for(const node of label.childNodes) {
-      if(node.nodeType === Node.TEXT_NODE && node.textContent.includes('Imprint')) {
-        node.textContent = 'Imprint ' + (idx + 1);
-        break;
-      }
-    }
-  });
+  renumberImprints(iid.split('_')[0]);
 }
 
 // ── Duplication ─────────────────────────────────────────────────────────────
@@ -1726,7 +1740,7 @@ function getIC(iid,qty,isNW,poolQty){
     const puff=v('emb_puff_'+iid,0),os=v('emb_os_'+iid,0);
     const rate=getEmbRate(st),run=rate*qty;
     lines.push({l:'Run $'+rate.toFixed(2)+' × '+qty,v:fmt(run)});total+=run;
-    if(df>0){lines.push({l:'Digitization fee',v:fmt(df)});total+=df;}
+    /* digitization fee is an ORDER-LEVEL fee (see _digiNet); excluded from garment/imprint net */
     if(tc>0){const x=tc*4;lines.push({l:'Color changes ('+tc+'×$4)',v:fmt(x)});total+=x;}
     if(puff>0){const x=puff*qty;lines.push({l:'Puff surcharge',v:fmt(x)});total+=x;}
     if(os>0){const x=os*qty;lines.push({l:'Oversize surcharge',v:fmt(x)});total+=x;}
@@ -1776,7 +1790,7 @@ function addHG(){
   d.className='hg-item';d.id='hg_'+id;
   d.innerHTML=`
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
-      <div style="font-weight:700;font-size:14px">Hard good ${id}</div>
+      <div class="hg-num-label" style="font-weight:700;font-size:14px">Hard good ${id}</div>
       <div style="display:flex;gap:6px;align-items:center">
         <button class="btn btn-sm no-print" style="font-size:12px;padding:5px 10px;background:#BC112A;color:#fff;border:none;font-weight:700;" onclick="dupHG(${id})" title="Duplicate this hard good">&#10064; Duplicate</button>
         <button class="btn btn-sm btn-danger no-print" onclick="removeHG(${id})">&#128465; Remove</button>
@@ -1873,8 +1887,28 @@ function addHG(){
     </div>`;
   c.appendChild(d);
   refreshAllHGShareDropdowns();
+  renumberHardGoods();
 }
-function removeHG(id){$c('hg_'+id)?.remove();hardGoods=hardGoods.filter(h=>h.id!==id);refreshAllHGShareDropdowns();}
+function removeHG(id){
+  $c('hg_'+id)?.remove();
+  hardGoods=hardGoods.filter(h=>h.id!==id);
+  // Any OTHER item that was "sharing with" the one just deleted would keep its
+  // own decoration/setup zeroed against a partner that no longer exists, which
+  // silently repriced the remaining items. Detach those orphaned items and
+  // restore them to standalone so they carry their own costs again.
+  document.querySelectorAll('[id^="hg_share_with_"]').forEach(sel=>{
+    if(String(sel.value)===String(id)){
+      const oid=parseInt(sel.id.replace('hg_share_with_',''));
+      sel.value='';
+      const chk=$c('hg_share_chk_'+oid);
+      if(chk){ chk.checked=false; const wrap=$c('hg_share_wrap_'+oid); if(wrap) wrap.style.display='none'; }
+      applyHGShareEffects(oid,false);
+    }
+  });
+  refreshAllHGShareDropdowns();
+  renumberHardGoods();
+  calcAll();
+}
 
 // ── Shared imprints across hard goods (e.g. one imprint, many colors) ──────
 function toggleHGShare(id){
@@ -1946,7 +1980,7 @@ function _buildHGProjectGroups(hgList) {
           if(sharedDesc && colorLabels.length===group.length){
             return sharedDesc + ' (' + colorLabels.join(', ') + ')';
           }
-          return group.map(g => { const item = hgList.find(x=>String(x.hid)===g); return item?.desc||''; }).filter(Boolean).join(' + ');
+          return group.map(g => { const item = hgList.find(x=>String(x.hid)===g); return item?.desc||''; }).filter(Boolean).filter((x,i,a)=>a.indexOf(x)===i).join(' + ');
         })()
       : '';
     group.forEach(g => { keyByHid[g] = { key: groupKey, isShared: group.length>1, invGrpLabel, fallbackName }; });
@@ -2003,6 +2037,24 @@ function refreshAllHGShareDropdowns(){
       const id=parseInt(chk.id.replace('hg_share_chk_',''));
       populateHGShareDropdown(id);
     }
+  });
+}
+
+// Color each pricing card's sell inputs by THAT card's own blended margin.
+// marginForCard(key) receives a prefixed card key ('g_<gid>' or 'hg_<hid>')
+// and returns that card's margin %, or null. Previously every sell input on
+// the page was recolored from a single order-wide "worst" margin, so one item
+// dropping below 35/30 turned the entire page amber/red.
+function _colorSellsPerCard(marginForCard){
+  document.querySelectorAll('.cs-master-card').forEach(card=>{
+    const tot = card.querySelector('.cs-master-totals');
+    let mg = null;
+    if(tot && tot.id){
+      const m = tot.id.match(/^totals_(g|hg)_(.+)$/);
+      if(m) mg = marginForCard((m[1]==='g'?'g_':'hg_')+m[2]);
+    }
+    const col = (mg==null) ? 'var(--green)' : (mg<30?'#E24B4A':mg<35?'#B8860B':'var(--green)');
+    card.querySelectorAll('[data-mg-sell]').forEach(el=>{ el.style.color=col; });
   });
 }
 
@@ -2386,7 +2438,8 @@ function calcAll(){
   const _addonsAmt=_bagAmt+_labAmt+_oopAmt; // kept for grand calculation
   const _preProdAmt=v('pre_prod',0), _simAmt=v('sim_process',0), _shipAmt=v('inbound_ship',0);
   const _flatAmt=_preProdAmt+_simAmt+_shipAmt; // kept for grand calculation
-  const sub=garProd+hgTotal+art,rushAmt=sub*rush,grand=sub+rushAmt+_addonsAmt+_flatAmt;
+  const _digiNet=sections.filter(s=>s.type==='g').reduce((a,s)=>a+(s.impLines||[]).reduce((b,im)=>b+(im.digi_cost||0),0),0);
+  const sub=garProd+hgTotal+art,rushAmt=sub*rush,grand=sub+rushAmt+_addonsAmt+_flatAmt+_digiNet;
   const cpi=totalQty>0?grand/totalQty:0;
   // Garment sell sum per-garment sells using individual margin inputs
   let garSell=0;
@@ -2463,6 +2516,7 @@ function calcAll(){
   }
   const _artMgT=(perItemMargins['fee_art']?.pct??40)/100;
   const artSell=perItemMargins['fee_art']?.sell!=null?perItemMargins['fee_art'].sell:(_artMgT<1&&art>0?art/(1-_artMgT):0);
+  const _digiMg=(perItemMargins['fee_digi']?.pct??40); const _digiSell=perItemMargins['fee_digi']?.sell!=null?perItemMargins['fee_digi'].sell:(_digiMg<100&&_digiNet>0?_digiNet/(1-_digiMg/100):0);
   // HG sell (per-line margins or order margin)
   let hgSell=0;
   hgSecs.forEach(h=>{
@@ -2509,7 +2563,7 @@ function calcAll(){
   const shipSell=perItemMargins['fee_ship']?.sell!=null?perItemMargins['fee_ship'].sell:(_shipMgT<1&&_shipAmt>0?_shipAmt/(1-_shipMgT):0);
   const addonsSell=bagSell+labSell+oopSell;
   const flatSellAmt=preProdSell+simSell+shipSell;
-  const tSell=garSell+hgSell+artSell+rushSell+addonsSell+flatSellAmt;
+  const tSell=garSell+hgSell+artSell+rushSell+addonsSell+flatSellAmt+_digiSell;
   const spi=totalQty>0?garSell/totalQty:0;
   const gp=tSell-grand;
 
@@ -2528,7 +2582,7 @@ function calcAll(){
   }
   const hgSetupPct=v('hg_setup_pct',20)/100;
   const hgRushPct=v('hg_rush_pct',20)/100;
-  lastCalc={margin,rush,rushAmt,sub,grand,cpi,spi,tSell,gp,sections,hgSecs,art,totalQty,garProd,hgTotal,hgSell,garSell,
+  lastCalc={margin,rush,rushAmt,sub,grand,cpi,spi,tSell,gp,_digiNet,_digiSell,sections,hgSecs,art,totalQty,garProd,hgTotal,hgSell,garSell,
     addonsSell,flatSellAmt,_addonsAmt,_flatAmt,artSell,rushSell,
     _bagAmt,_labAmt,_oopAmt,_preProdAmt,_simAmt,_shipAmt,
     bagSell,labSell,oopSell,preProdSell,simSell,shipSell,
@@ -2615,7 +2669,7 @@ function calcAll(){
       (_adj[n]||new Set()).forEach(nb=>{ if(!_visited.has(nb)) stack.push(nb); });
     }
     const pName = group.length>1
-      ? group.map(g=>{ const sec=_garSections.find(s2=>String(s2.gid)===g); return sec?(sec.gdesign||sec.gtype):''; }).filter(Boolean).join(' + ')
+      ? group.map(g=>{ const sec=_garSections.find(s2=>String(s2.gid)===g); return sec?(sec.gdesign||sec.gtype):''; }).filter(Boolean).filter((x,i,a)=>a.indexOf(x)===i).join(' + ')
       : null;
     // Detect if grouping came from invoice group (all members share same ginvgrp)
     const _grpInvLabels=group.map(g=>{ const sec=_garSections.find(s2=>String(s2.gid)===g); return (sec?.ginvgrp||'').trim(); }).filter(Boolean);
@@ -2840,19 +2894,10 @@ function calcAll(){
       // Shared run cost is distributed into size group net/item already (via s.gTotal).
       // garSellAmt from size group rows automatically prices it at the garment margin.
 
-      // Digitization fee sell — each emb imprint with a digi fee gets its own margin row
-      s.impLines.forEach(im=>{
-        if(im.type!=='embroidery'||!(im.digi_cost>0)) return;
-        const _dk='digi_'+im.iid;
-        if(!perItemMargins[_dk]) perItemMargins[_dk]={pct:40};
-        const _dmg=perItemMargins[_dk].pct;
-        const _dNet=im.digi_cost;
-        const _ds=perItemMargins[_dk].sell!=null?perItemMargins[_dk].sell:(_dmg<100&&_dNet>0?_dNet/(1-_dmg/100):0);
-        _lastLoadedNet[_dk]=_dNet;
-        garSellAmt+=_ds;
-      });
+      // Digitization is an order-level fee now (not attributed to this garment's sell).
 
       totalNetCost+=s.gTotal; totalSellAmt+=garSellAmt;
+      _cardSellByGid[String(s.gid)]=garSellAmt; // single source of truth for the commission breakdown
 
       // ── Read master sell override ─────────────────────────────────────
       const _masterKey='g_'+s.gid+'_master';
@@ -3002,29 +3047,7 @@ function calcAll(){
       // Received shared run — shown in the imprint section above, not as a separate editable row.
       // The cost is already included in s.gTotal and distributed proportionally across size groups.
 
-      // Digitization fee rows — one editable row per embroidery imprint that has a digi fee
-      s.impLines.forEach(im=>{
-        if(im.type!=='embroidery'||!(im.digi_cost>0)) return;
-        const _dk='digi_'+im.iid;
-        if(!perItemMargins[_dk]) perItemMargins[_dk]={pct:40};
-        const _dmg=perItemMargins[_dk].pct;
-        const _dNet=im.digi_cost;
-        const _dStored=perItemMargins[_dk].sell;
-        const _dSell=_dStored!=null?_dStored:(_dmg<100&&_dNet>0?_dNet/(1-_dmg/100):0);
-        const _dDispMg=_dNet>0&&_dSell>0?Math.round((1-_dNet/_dSell)*10000)/100:_dmg;
-        _lastLoadedNet[_dk]=_dNet;
-        html+=`<div class="cs-proj-child-row cs-proj-sub-row">
-          <span class="cs-proj-child-label" style="padding-left:12px;color:var(--text3)">↳ Digitization fee${s.impLines.filter(x=>x.type==='embroidery').length>1?' — '+(im.loc||'imprint'):''}
-          </span>
-          <span class="cs-proj-child-net">$${_dNet.toFixed(2)} flat</span>
-          <input type="number" value="${_dDispMg.toFixed(2)}" min="-999" max="999.99" step="0.01"
-            data-mg-pct="${_dk}" data-loaded-net="${_dNet.toFixed(4)}"
-            class="cs-proj-mg-input" onchange="setItemMarginPct('${_dk}',this.value)">
-          <input type="number" step="0.01" min="0" value="${_dSell.toFixed(2)}"
-            data-mg-sell="${_dk}"
-            class="cs-proj-sell-input" onchange="setItemMarginSell('${_dk}',this.value,${_dNet.toFixed(4)})">
-        </div>`;
-      });
+      // Digitization fee is now a single order-level line (see grand totals), not a per-garment row.
 
       // Garment misc fee rows (sub-rows — indented slightly)
       _miscLines2.forEach(m=>{
@@ -3102,6 +3125,25 @@ function calcAll(){
       html += `</div>`; // cs-master-card
     }); // end proj.gids.forEach
 
+    // ── Per-project digitization: the digi for this project's own embroidery ──
+    const _projDigiNet = proj.gids.reduce((a,gidStr)=>{
+      const s=_garSections.find(sec=>String(sec.gid)===gidStr);
+      return a + (s?(s.impLines||[]).filter(im=>im.type==='embroidery').reduce((b,im)=>b+(im.digi_cost||0),0):0);
+    },0);
+    let _projDigiSell=0;
+    if(_projDigiNet>0){
+      const _pdMg=perItemMargins['fee_digi']?.pct??40;
+      _projDigiSell = _pdMg<100 ? _projDigiNet/(1-_pdMg/100) : 0;
+      const _pdImpN = proj.gids.reduce((a,gidStr)=>{const s=_garSections.find(sec=>String(sec.gid)===gidStr);return a+(s?(s.impLines||[]).filter(im=>im.type==='embroidery'&&im.digi_cost>0).length:0);},0);
+      const _pdDispMg=_projDigiSell>0?Math.round((1-_projDigiNet/_projDigiSell)*10000)/100:_pdMg;
+      html+=`<div class="cs-proj-child-row" data-projdigi-net="${_projDigiNet.toFixed(4)}" data-projdigi-mgkey="fee_digi" style="background:#f7f9ff">
+        <span class="cs-proj-child-label" style="font-weight:600">Digitization <span style="font-weight:400;color:var(--text3);font-size:11px">${_pdImpN} imprint${_pdImpN===1?'':'s'} · this project</span></span>
+        <span class="cs-proj-child-net">$${_projDigiNet.toFixed(2)} flat</span>
+        <input type="number" value="${_pdDispMg.toFixed(2)}" min="-999" max="999.99" step="0.01" data-mg-pct="fee_digi" data-loaded-net="${_projDigiNet.toFixed(4)}" class="cs-proj-mg-input" onchange="setItemMarginPct('fee_digi',this.value)" title="Digitization margin % (applies to all projects)">
+        <span class="cs-proj-child-net" data-projdigi-sell style="font-weight:700;color:var(--green);text-align:right">$${_projDigiSell.toFixed(2)}</span>
+      </div>`;
+    }
+
     // Project summary row — only for shared projects (2+ garments)
     if(proj.isSharedProject){
       // Sum net and sell across all garments + fees in this project
@@ -3148,10 +3190,13 @@ function calcAll(){
         _projSumNet+=_mNet;
         _projSumSell+=_mSell;
       });
-      const _projGP=_projSumSell-_projSumNet;
-      const _projMg=_projSumSell>0?(_projGP/_projSumSell*100):0;
+      const _projGP=_projSumSell-_projSumNet+0;
+      // Fold this project's digitization into its project total
+      _projSumNet+=_projDigiNet; _projSumSell+=_projDigiSell;
+      const _projGP2=_projSumSell-_projSumNet;
+      const _projMg=_projSumSell>0?(_projGP2/_projSumSell*100):0;
       const _projMgColor=_projMg>=35?'var(--green)':_projMg>=30?'#b07000':'var(--red)';
-      html+=`<div data-projtotal="g" data-members="${proj.gids.join(',')}" style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px;padding:8px 14px 12px;
+      html+=`<div data-projtotal="g" data-members="${proj.gids.join(',')}" data-projdigi-net="${_projDigiNet.toFixed(4)}" style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px;padding:8px 14px 12px;
         background:#f0f4ff;border:1px solid var(--border);border-radius:0 0 var(--radius-sm) var(--radius-sm);
         margin-bottom:8px;font-size:12px;border-top:2px solid var(--red);">
         <span style="font-weight:700;color:var(--red)">${proj.invGrpLabel?'Invoice group total':'Project total'}</span>
@@ -3462,33 +3507,28 @@ function calcAll(){
   const effAvgMg=isFinite(_rawEff)?_rawEff:40;
   const warn=$c('margin_warning');
   if(warn){
-    const m=worstMg; // use worst per-item margin for flagging
+    const m=worstMg; // banner flags on the worst card; per-card coloring below
     if(m<30){
       warn.style.display='';
       warn.style.background='#FFEBEB';
       warn.style.border='1.5px solid #E24B4A';
       warn.style.color='#A32D2D';
       warn.innerHTML='&#9888; Margin below 30%. Management approval required.';
-      // Color sell numbers red on all pricing cards
-      document.querySelectorAll('[data-mg-sell]').forEach(el=>{ el.style.color='#E24B4A'; });
-      document.querySelectorAll('.cs-totals-row strong').forEach(el=>{
-        if(el.style.color&&el.style.color.includes('green')) el.style.color='#E24B4A';
-      });
     } else if(m<35){
       warn.style.display='';
       warn.style.background='#FFF8E1';
       warn.style.border='1.5px solid #F0A500';
       warn.style.color='#7A4F00';
       warn.innerHTML='&#9888; Average margin below 35%. Review before submitting.';
-      document.querySelectorAll('[data-mg-sell]').forEach(el=>{ el.style.color='#B8860B'; });
       document.querySelectorAll('.cl.sell').forEach(el=>{if(!el.dataset.colored)el.style.color='#B8860B';});
     } else {
       warn.style.display='none';
       warn.innerHTML='';
-      // Restore all sell numbers to green
-      document.querySelectorAll('[data-mg-sell]').forEach(el=>{ el.style.color='var(--green)'; });
       document.querySelectorAll('.cl.sell').forEach(el=>{ el.style.color=''; });
     }
+    // Each card's sell numbers follow that card's OWN margin, so a single
+    // low-margin item no longer recolors every other item on the page.
+    _colorSellsPerCard(k=>(_cardMargins[k]!=null?_cardMargins[k]:null));
   }
 }
 
@@ -3551,20 +3591,27 @@ function calcCommission(){
   const _garNetTotal=(d.sections||[]).filter(s=>s.type==='g').reduce((a,s)=>a+s.gTotal,0);
   (d.sections||[]).filter(s=>s.type==='g').forEach((s,i)=>{
     // Sell = sum of per-group sell amounts
-    let sellAmt=0;
-    const _grpSeenC={};
-    s.szRows.forEach(r=>{
-      const gk='g_'+s.gid+'_grp_'+(r.grp==='none'?'ind_'+r.rid:r.grp);
-      if(_grpSeenC[gk]) return;
-      _grpSeenC[gk]=true;
-      const ln=_lastLoadedNet[gk]||r.cost;
-      const mg=getItemMargin(gk)/100;
-      const grpQty=s.szRows.filter(r2=>(r.grp==='none'?r2.rid===r.rid:r2.grp===r.grp)).reduce((a,r2)=>a+r2.qty,0);
-      sellAmt+=mg<1?(ln/(1-mg))*grpQty:0;
-    });
-    if(sellAmt===0) sellAmt=orderMargin<1?s.gTotal/(1-orderMargin):0;
+    // Use the pricing engine's authoritative per-garment sell so the commission
+    // matches the pricing page and honors rep-set sell prices. The old margin-based
+    // recompute ignored stored sells, which is what made shared-run source garments
+    // (e.g. the digitized embroidery source) disagree with the pricing total.
+    let sellAmt = _cardSellByGid[String(s.gid)];
+    if(sellAmt==null){
+      sellAmt=0;
+      const _grpSeenC={};
+      s.szRows.forEach(r=>{
+        const gk='g_'+s.gid+'_grp_'+(r.grp==='none'?'ind_'+r.rid:r.grp);
+        if(_grpSeenC[gk]) return;
+        _grpSeenC[gk]=true;
+        const ln=_lastLoadedNet[gk]||r.cost;
+        const mg=getItemMargin(gk)/100;
+        const grpQty=s.szRows.filter(r2=>(r.grp==='none'?r2.rid===r.rid:r2.grp===r.grp)).reduce((a,r2)=>a+r2.qty,0);
+        sellAmt+=mg<1?(ln/(1-mg))*grpQty:0;
+      });
+      if(sellAmt===0) sellAmt=orderMargin<1?s.gTotal/(1-orderMargin):0;
+    }
     const gp=sellAmt-s.gTotal;
-    const mgPct=sellAmt>0?Math.round(((sellAmt-s.gTotal)/sellAmt)*100):Math.round(orderMargin*100);
+    const mgPct=sellAmt>0?Math.round(((sellAmt-s.gTotal)/sellAmt)*10000)/100:Math.round(orderMargin*10000)/100;
     const qualifies=mgPct>=30;
     if(!qualifies) needsApproval=true;
     const {houseEarns,repEarns,amEarns}=splitLine(gp,qualifies,sellAmt);
@@ -3629,6 +3676,7 @@ function calcCommission(){
     {name:'Pre-production',    net:d._preProdAmt||0,sell:d.preProdSell||0},
     {name:'Simulated process', net:d._simAmt||0,    sell:d.simSell||0},
     {name:'Inbound shipping',  net:d._shipAmt||0,   sell:d.shipSell||0},
+    {name:'Digitization',      net:d._digiNet||0,   sell:d._digiSell||0},
   ].filter(f=>f.net>0||f.sell>0);
   _orderFees.forEach(f=>{
     const gp=f.sell-f.net;
@@ -3844,7 +3892,7 @@ function buildSummary(){
   _projects.forEach(proj=>{
     let projNet=0, projSell=0;
     const projName = proj.isShared
-      ? proj.gids.map(g=>{ const s=_garSecs.find(s2=>String(s2.gid)===g); return s?(s.gdesign||s.gtype||'Garment '+g):''; }).filter(Boolean).join(' + ')
+      ? proj.gids.map(g=>{ const s=_garSecs.find(s2=>String(s2.gid)===g); return s?(s.gdesign||s.gtype||'Garment '+g):''; }).filter(Boolean).filter((x,i,a)=>a.indexOf(x)===i).join(' + ')
       : (()=>{ const s=_garSecs.find(s2=>String(s2.gid)===proj.gids[0]); return s?(s.gdesign?s.gdesign+' '+s.gtype:s.gtype||'Garment '+proj.gids[0]):''; })();
 
     proj.gids.forEach(gidStr=>{
@@ -3864,30 +3912,11 @@ function buildSummary(){
       const _recvShRunComm1=(d._sharedRunByTargetGid?.[s.gid]||[]).reduce((a,sr)=>a+sr.run,0);
       const _recvShRunPIComm1=_totPcsComm>0?_recvShRunComm1/_totPcsComm:0;
       const decoPI=_totalRun+(totalScreenQty>0?_totalSetup/totalScreenQty:0)+_recvShRunPIComm1;
-      const seen={};
-      s.szRows.forEach(r=>{
-        const gk='g_'+s.gid+'_grp_'+(r.grp==='none'?'ind_'+r.rid:r.grp);
-        if(seen[gk]) return; seen[gk]=true;
-        const loadedNet=r.cost+decoPI;
-        const mgPct=perItemMargins[gk]?.pct??40;
-        const qty=s.szRows.filter(r2=>r.grp==='none'?r2.rid===r.rid:r2.grp===r.grp).reduce((a,r2)=>a+r2.qty,0);
-        projSell+=_grpSell(gk,loadedNet,mgPct,qty);
-      });
-      // Misc fees — use per-item aware net
-      const miscC=document.getElementById('misc_'+s.gid);
-      if(miscC) miscC.querySelectorAll('[id^="miscrow_g'+s.gid+'_"]').forEach(row=>{
-        const mid=row.id.replace('miscrow_g'+s.gid+'_','');
-        const sqty=s.szRows.reduce((a,r)=>a+r.qty,0)||1;
-        const mnet=_miscNetTotal('g',s.gid,mid,sqty);
-        const mk='g_'+s.gid+'_misc_'+mid;
-        projSell+=_miscSell(mk,mnet,perItemMargins[mk]?.pct??40);
-      });
-      // Digitization fees — each emb imprint's digi fee has its own margin key
-      (s.impLines||[]).forEach(im=>{
-        if(im.type!=='embroidery'||!(im.digi_cost>0)) return;
-        const _dk='digi_'+im.iid;
-        projSell+=_feeSell(_dk,im.digi_cost,perItemMargins[_dk]?.pct??40);
-      });
+      // Use the pricing engine's authoritative per-garment sell (size groups + misc),
+      // so the commission breakdown matches the pricing page exactly rather than
+      // recomputing from margin (which ignored rep-set sell prices on shared-run sources).
+      projSell += (_cardSellByGid[String(s.gid)]||0);
+      // Digitization handled as a single order-level commission line (see below).
     });
     // Order fees: assign to project by invoice group match (or first project if no group set)
     const _firstGidStr=proj.gids[0];
@@ -3952,7 +3981,7 @@ function buildSummary(){
   _projects.forEach(proj=>{
     // Project label for shared projects
     if(proj.isShared){
-      const projName=proj.gids.map(g=>{ const s=_garSecs.find(s2=>String(s2.gid)===g); return s?(s.gdesign||s.gtype):''; }).filter(Boolean).join(' + ');
+      const projName=proj.gids.map(g=>{ const s=_garSecs.find(s2=>String(s2.gid)===g); return s?(s.gdesign||s.gtype):''; }).filter(Boolean).filter((x,i,a)=>a.indexOf(x)===i).join(' + ');
       gRows+=`<div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--text3);padding:6px 0 2px">Project: ${projName}</div>`;
     }
 
@@ -4089,6 +4118,8 @@ function buildSummary(){
             if(_vinylColors) _detailParts.push({k:'Colors',v:_vinylColors});
           }
 
+          if(im.run_per_item>0) _detailParts.push({k:'Run charge',v:'$'+im.run_per_item.toFixed(2)+'/piece'});
+
           if(_detailParts.length){
             gRows+=`<div style="display:flex;flex-wrap:wrap;gap:6px 16px;margin-top:4px;padding-left:4px">`;
             _detailParts.forEach(p=>{
@@ -4112,7 +4143,7 @@ function buildSummary(){
             });
             Object.values(_slAgg).forEach(sl=>{
               const _tName=[document.getElementById('gdesign_'+sl.targetGid)?.value,document.getElementById('gtype_'+sl.targetGid)?.value].filter(Boolean).join(' ')||('Garment '+sl.targetGid);
-              gRows+=`<div style="font-size:11px;color:var(--text3);padding-left:12px;margin-top:2px">↳ Run charge billed to: ${_tName} (${sl.qty} pcs)${sl.effC>0?' ['+sl.effC+' colors'+(sl.hasBase?' incl. base':'')+']':''}: ${fmt(sl.run)}</div>`;
+              gRows+=`<div style="font-size:11px;color:var(--text3);padding-left:12px;margin-top:2px">↳ Run charge billed to: ${_tName} (${sl.qty} pcs${sl.qty>0?' @ '+fmt(sl.run/sl.qty)+'/pc':''})${sl.effC>0?' ['+sl.effC+' colors'+(sl.hasBase?' incl. base':'')+']':''}: ${fmt(sl.run)}</div>`;
             });
           }
           gRows+=`</div>`;
@@ -4149,6 +4180,7 @@ function buildSummary(){
           {label:`Pre-production`,net:d._preProdAmt||0,key:'fee_preprod'},
           {label:`Simulated process`,net:d._simAmt||0,key:'fee_sim'},
           {label:`Inbound shipping`,net:d._shipAmt||0,key:'fee_ship'},
+          {label:`Digitization`,net:d._digiNet||0,key:'fee_digi'},
         ].filter(f=>f.net>0);
         if(_fees.length){
           gRows+=`<div style="margin-top:6px;padding-top:6px;border-top:1px solid var(--border)"><div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--text3);margin-bottom:4px">Order fees</div>`;
@@ -5058,6 +5090,7 @@ function applyToGroup(rid,gid,grp){
 
 // ── Per-item margin ───────────────────────────────────────────────────────
 let perItemMargins={};
+let _cardSellByGid={}; // authoritative per-garment sell from the pricing engine (gid -> sell)
 function getItemMargin(key){if(!perItemMargins[key])perItemMargins[key]={pct:40};return perItemMargins[key].pct;}
 // Lightweight totals update — updates card totals bars and grand totals in-place
 // without re-rendering the pricing page. Called by sell/margin input changes.
@@ -5155,6 +5188,7 @@ function updatePricingTotals(){
     const table = type==='hg' ? _hgCardTotals : _gCardTotals;
     let pNet=0, pSell=0;
     members.forEach(id=>{ const t=table[id]; if(t){ pNet+=t.net; pSell+=t.sell; } });
+    if(type==='g'){ const _pdNet=parseFloat(footer.dataset.projdigiNet)||0; if(_pdNet>0){ const _pdmg=(perItemMargins['fee_digi']?.pct??40); pNet+=_pdNet; pSell+=_pdmg<100?_pdNet/(1-_pdmg/100):0; } }
     const pGP = pSell - pNet;
     const pMg = pSell>0 ? (pGP/pSell*100) : 0;
     const pMgColor = mgColor(pMg);
@@ -5176,19 +5210,22 @@ function updatePricingTotals(){
       warnLive.style.display='';
       warnLive.style.background='#FFEBEB'; warnLive.style.border='1.5px solid #E24B4A'; warnLive.style.color='#A32D2D';
       warnLive.innerHTML='&#9888; Margin below 30%. Management approval required.';
-      document.querySelectorAll('[data-mg-sell]').forEach(el=>{ el.style.color='#E24B4A'; });
     } else if(_worstMgLive<35){
       warnLive.style.display='';
       warnLive.style.background='#FFF8E1'; warnLive.style.border='1.5px solid #F0A500'; warnLive.style.color='#7A4F00';
       warnLive.innerHTML='&#9888; Average margin below 35%. Review before submitting.';
-      document.querySelectorAll('[data-mg-sell]').forEach(el=>{ el.style.color='#B8860B'; });
     } else {
       warnLive.style.display='none'; warnLive.innerHTML='';
-      document.querySelectorAll('[data-mg-sell]').forEach(el=>{ el.style.color='var(--green)'; });
     }
+    // Per-card coloring: each card's sell inputs follow that card's own margin.
+    _colorSellsPerCard(k=>{
+      if(k.slice(0,3)==='hg_'){ const t=_hgCardTotals[k.slice(3)]; return (t&&t.sell>0)?((t.sell-t.net)/t.sell*100):null; }
+      const t=_gCardTotals[k.slice(2)]; return (t&&t.sell>0)?((t.sell-t.net)/t.sell*100):null;
+    });
   }
 
-  // Update grand totals
+  // Update grand totals (order-level digitization is not tied to a card, add it here)
+  newTSell += (d._digiSell||0);
   const grandGP = newTSell - d.grand;
   const grandMg = newTSell>0?(grandGP/newTSell*100):0;
   document.querySelectorAll('.cl.sell').forEach((el,i)=>{
@@ -5206,6 +5243,17 @@ function updatePricingTotals(){
   if(lastCalc) lastCalc.tSell = newTSell;
 }
 
+function setDigiMargin(pct){
+  pct=parseFloat(pct); if(isNaN(pct)) return;
+  perItemMargins['fee_digi']={pct}; // drop any stored sell so it recomputes from margin
+  calcAll();
+}
+function setDigiSell(sell){
+  sell=parseFloat(sell); if(isNaN(sell)||sell<0) return;
+  const cur=perItemMargins['fee_digi']||{};
+  perItemMargins['fee_digi']={pct:cur.pct??40, sell};
+  calcAll();
+}
 function setItemMarginPct(key,pct){
   if(!perItemMargins[key]) perItemMargins[key]={pct:40};
   const p = parseFloat(pct);
@@ -5279,17 +5327,18 @@ function exportQuoteData(){
   const commReport=calcCommReportDate(ship);
   const today=new Date().toLocaleDateString('en-US',{month:'long',day:'numeric',year:'numeric'});
   const fullData=serializeQuote();
+  const _r2=x=>Math.round((x||0)*100)/100;
   const payload={...fullData,exportedAt:today,quoteNum:qnum,quoteName:qname,rep,
     clientName:vs('client_name'),clientCompany:vs('client_company'),ihd:ship,
     commissionReport:commReport,commissionSplit:split,hasAM:hasAMFlag,
-    totalNetCost:d.grand||0,totalSell:d.tSell||0,grossProfit:d.gp||0,
+    totalNetCost:_r2(d.grand),totalSell:_r2(d.tSell),grossProfit:_r2((d.tSell||0)-(d.grand||0)),
     avgMargin:d.tSell>0?Math.round((1-(d.grand||0)/(d.tSell||1))*1000)/10:0,
-    totalRepComm:d.totalRepComm||0,totalHouseProfit:d.totalHouseProfit||0,
-    totalAM:d.totalAM||0,needsApproval:d.needsApproval||false,
+    totalRepComm:_r2(d.totalRepComm),totalHouseProfit:_r2(d.totalHouseProfit),
+    totalAM:_r2(d.totalAM),needsApproval:d.needsApproval||false,
     ihdFirm:document.getElementById('ihd_firm')?.checked||false,
-    lines:(d.commLines||[]).map(l=>({name:l.name,net:l.net,sell:l.sell,
-      margin:Math.round(l.mgPct*10)/10,grossProfit:l.gp,house:l.houseEarns,
-      rep:l.repEarns,am:l.amEarns||0,qualifies:l.qualifies}))};
+    lines:(d.commLines||[]).map(l=>({name:l.name,net:_r2(l.net),sell:_r2(l.sell),
+      margin:Math.round(l.mgPct*100)/100,grossProfit:_r2(l.gp),house:_r2(l.houseEarns),
+      rep:_r2(l.repEarns),am:_r2(l.amEarns||0),qualifies:l.qualifies}))};
   const fname='Toro_Quote'+(qnum?'_'+qnum:'')+(qname?'_'+qname.replace(/[^a-z0-9]/gi,'_'):'')+'.json';
   const blob=new Blob([JSON.stringify(payload,null,2)],{type:'application/json'});
   const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=fname;a.click();URL.revokeObjectURL(a.href);
