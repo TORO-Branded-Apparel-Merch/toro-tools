@@ -543,6 +543,8 @@ function renderDrop(){
     '</div>';
   document.getElementById('sp-back').onclick=renderVendorPicker;
   document.getElementById('sp-notme').onclick=()=>{attendee=null;try{localStorage.removeItem('sp-attendee');}catch(e){};renderIdentify();};
+  const scBtn=document.getElementById('sp-showcode'); if(scBtn) scBtn.onclick=showMyCode;
+  const scBig=document.getElementById('sp-showcode-big'); if(scBig) scBig.onclick=showMyCode;
   const fileInput=document.getElementById('sp-file');
   document.getElementById('sp-drop').onclick=()=>fileInput.click();
   fileInput.onchange=()=>{ if(!fileInput.files.length)return;
