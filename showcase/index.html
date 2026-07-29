@@ -76,6 +76,8 @@
   .sp-quote{display:flex;align-items:center;justify-content:center;gap:8px;width:100%;padding:11px 12px;border:1.5px dashed var(--line);border-radius:999px;background:#fff;cursor:pointer;font-size:14px;font-weight:600;color:var(--mut);user-select:none;transition:all .15s;}
   .sp-quote:hover{border-color:var(--lanyard);color:var(--lanyard);}
   .sp-quote.on{border:1.5px solid var(--lanyard);background:var(--red-gradient);color:#fff;box-shadow:0 2px 8px rgba(188,17,42,.3);}
+  .sp-prio{flex:1;padding:9px 6px;border:1.5px solid var(--line);border-radius:8px;background:#fff;font-size:13px;font-weight:600;color:var(--ink);cursor:pointer;}
+  .sp-prio.on{border-color:var(--lanyard);background:var(--red-light);color:var(--lanyard);}
   .sp-evchip{background:#fff;border:1.5px solid var(--line);border-radius:999px;padding:8px 14px;font-size:13px;font-weight:600;color:var(--ink);cursor:pointer;}
   .sp-evchip:hover{border-color:var(--lanyard);color:var(--lanyard);}
   .sp-evchip.on{background:var(--red-gradient);border-color:var(--lanyard);color:#fff;}
@@ -152,7 +154,7 @@ import { getFirestore, collection, addDoc, getDocs, getDoc, deleteDoc, updateDoc
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 
-let mode='attendee', vendors=[], attendee=null, currentVendor=null, pendingFiles=[], adminUnlocked=false;
+let mode='attendee', vendors=[], attendee=null, currentVendor=null, pendingFiles=[], adminUnlocked=false, pendingBooth=false;
 const body=document.getElementById('sp-body'), modeBtn=document.getElementById('sp-modebtn'), sub=document.getElementById('sp-sub');
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const slug=s=>s.toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/(^-|-$)/g,'');
@@ -192,7 +194,7 @@ function showHowTo(){
       '<div style="display:flex;flex-direction:column;gap:12px;font-size:14.5px;line-height:1.45">'+
         '<div style="display:flex;gap:10px"><span style="font-size:20px">&#128247;</span><span><b>Photos</b> are for anything that catches your eye. Snap as many as you like at every table, and they all save to My Photos.</span></div>'+
         '<div style="display:flex;gap:10px"><span style="font-size:20px">&#10084;&#65039;</span><span><b>Favorites</b> are your top picks. Tap the heart on any photo, right at the table or later under My Photos, and it moves into your favorites section.</span></div>'+
-        '<div style="display:flex;gap:10px"><span style="font-size:20px">&#128002;</span><span><b>Quotes</b> are for when you have a real project or order in mind. Select the items and add your details, and your rep will follow up after the show with concrete pricing and next steps to move your order across the finish line.</span></div>'+
+        '<div style="display:flex;gap:10px"><span style="font-size:20px">&#128002;</span><span><b>Quotes</b> are for when you have a real project or order in mind. Select the items and add your details, and your Branding Specialist will follow up after the show with concrete pricing and next steps to move your order across the finish line.</span></div>'+
         '<div style="display:flex;gap:10px"><span style="font-size:20px">&#128233;</span><span><b>Then leave the rest to us.</b> Our team will reach out after the show to help with anything you saved.</span></div>'+
       '</div>';
     bamBtns.innerHTML='';
@@ -405,6 +407,28 @@ async function deleteVendor(v,recs){
   try{ await deleteDoc(doc(db,'vendors',v.id)); }catch(e){ throw new Error('Delete blocked. Did you update the Firestore rules to allow deletes? ('+e.message+')'); }
 }
 let jszipPromise=null;
+let qrLibPromise=null;
+function loadQRCode(){ // qrcode generator for the visitor's personal code
+  if(window.QRCode) return Promise.resolve();
+  if(!qrLibPromise){ qrLibPromise=new Promise((res,rej)=>{
+    const sc=document.createElement('script');
+    sc.src='https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js';
+    sc.onload=()=>res(); sc.onerror=()=>rej(new Error('QR library failed to load'));
+    document.head.appendChild(sc);
+  }); }
+  return qrLibPromise;
+}
+let scanLibPromise=null;
+function loadScanner(){ // html5-qrcode for the rep scanning a visitor's code
+  if(window.Html5Qrcode) return Promise.resolve();
+  if(!scanLibPromise){ scanLibPromise=new Promise((res,rej)=>{
+    const sc=document.createElement('script');
+    sc.src='https://cdnjs.cloudflare.com/ajax/libs/html5-qrcode/2.3.8/html5-qrcode.min.js';
+    sc.onload=()=>res(); sc.onerror=()=>rej(new Error('Scanner library failed to load'));
+    document.head.appendChild(sc);
+  }); }
+  return scanLibPromise;
+}
 function loadJSZip(){
   if(window.JSZip) return Promise.resolve(window.JSZip);
   if(!jszipPromise){
@@ -496,7 +520,7 @@ function renderIdentify(){
 
 function renderDrop(){
   body.innerHTML='<button class="sp-back" id="sp-back">&larr; All tables</button>'+
-    '<div class="sp-badge"><span>&#127915; '+esc(attendee.name)+(attendee.company?' &middot; '+esc(attendee.company):'')+'</span><span style="display:flex;gap:10px"><a href="?me='+(attendee.pid||'')+'" class="sp-needsnet" style="font-size:12px;color:var(--ink);font-weight:600">My photos</a><button id="sp-notme">Not you?</button></span></div>'+
+    '<div class="sp-badge"><span>&#127915; '+esc(attendee.name)+(attendee.company?' &middot; '+esc(attendee.company):'')+'</span><span style="display:flex;gap:10px;align-items:center"><button id="sp-showcode" style="background:none;border:none;font-size:12px;color:var(--ink);font-weight:600;cursor:pointer;text-decoration:underline;padding:0">Show my code</button><a href="?me='+(attendee.pid||'')+'" class="sp-needsnet" style="font-size:12px;color:var(--ink);font-weight:600">My photos</a><button id="sp-notme">Not you?</button></span></div>'+
     '<div class="sp-card"><div class="sp-h2">'+esc(currentVendor.name)+'</div>'+
     '<div class="sp-drop" id="sp-drop"><p class="big">Tap here to take a photo</p><p class="small">Just point your camera at the item you love and we\u2019ll save it to your collection.</p></div>'+
     '<input type="file" id="sp-file" accept="image/*" capture="environment" multiple style="display:none">'+
@@ -582,6 +606,127 @@ function renderDrop(){
 }
 
 // Quote section on the vendor page: pick items already snapped here, request once.
+// Visitor shows this to a booth rep; the rep scans it to attach notes to them.
+async function showMyCode(){
+  const payload='visitor:'+(attendee.pid||'')+'|'+encodeURIComponent(attendee.name||'')+'|'+encodeURIComponent(attendee.email||'');
+  const ov=document.createElement('div');
+  ov.style.cssText='position:fixed;inset:0;background:rgba(20,25,35,.94);display:flex;align-items:center;justify-content:center;z-index:200;padding:24px;cursor:zoom-out';
+  ov.innerHTML='<div style="background:#fff;border-radius:16px;padding:26px 28px;text-align:center;max-width:340px">'+
+    '<div style="font-size:17px;font-weight:700;color:#1a1a1f;margin-bottom:6px">'+esc(attendee.name)+'</div>'+
+    '<div style="font-size:13px;color:#888;margin-bottom:16px">Show this to your TORO Branding Specialist so they can add you to their notes.</div>'+
+    '<div id="sp-qrbox" style="display:flex;justify-content:center;min-height:200px;align-items:center"><span style="color:#888;font-size:13px">Loading code\u2026</span></div>'+
+    '<button id="sp-qrclose" style="margin-top:18px;padding:10px 22px;background:#BC112A;color:#fff;border:none;border-radius:8px;font-size:14px;font-weight:600;cursor:pointer">Done</button>'+
+  '</div>';
+  ov.onclick=e=>{ if(e.target===ov) ov.remove(); };
+  document.body.appendChild(ov);
+  ov.querySelector('#sp-qrclose').onclick=()=>ov.remove();
+  try{
+    await loadQRCode();
+    const box=ov.querySelector('#sp-qrbox'); box.innerHTML='';
+    new window.QRCode(box,{text:payload,width:200,height:200,colorDark:'#1a1a1f',colorLight:'#ffffff'});
+  }catch(e){
+    ov.querySelector('#sp-qrbox').innerHTML='<span style="color:#888;font-size:13px">Couldn\u2019t load the code. Check your connection.</span>';
+  }
+}
+
+// ================= BOOTH MODE =================
+// A shared booth tablet where a rep captures visitors one after another. Never
+// remembers a person. Rep notes are INTERNAL, never shown on a visitor's link.
+let boothVisitor=null;
+async function renderBooth(){
+  sub.textContent='Booth mode \u2014 capture visitors';
+  const eid=activeEventId;
+  const ev=events.find(e=>e.id===eid);
+  body.innerHTML=
+    '<div class="sp-badge" style="background:#1a1a1f;color:#fff"><span>&#128290; Booth mode'+(ev?' \u2014 '+esc(eventLabel(ev)):'')+'</span><button id="sp-boothexit" style="color:#fff;text-decoration:underline;background:none;border:none;cursor:pointer;font-size:12px">Exit</button></div>'+
+    '<div class="sp-card">'+
+      '<div class="sp-h2">New visitor</div>'+
+      '<p class="sp-note" style="margin:0 0 12px">Capture the person you\u2019re talking to. If they\u2019re on the app on their own phone, scan their code to link instantly.</p>'+
+      '<button class="sp-btn ghost" id="sp-boothscan" style="width:100%;margin-bottom:14px">&#128247; Scan visitor\u2019s code</button>'+
+      '<span class="sp-label">Name</span><input class="sp-input" id="b-name" autocomplete="off" style="margin-bottom:10px">'+
+      '<span class="sp-label">Email</span><input class="sp-input" id="b-email" type="email" autocomplete="off" inputmode="email" style="margin-bottom:10px">'+
+      '<span class="sp-label">Company / Department</span><input class="sp-input" id="b-co" autocomplete="off" style="margin-bottom:10px">'+
+      '<span class="sp-label">Notes from your conversation</span><textarea class="sp-input" id="b-notes" rows="3" maxlength="800" placeholder="What are they looking for? Key details, timing, sizes, quantities\u2026" style="resize:vertical;font-family:inherit;margin-bottom:12px"></textarea>'+
+      '<div id="b-linked" style="display:none;background:var(--red-light);border-radius:8px;padding:8px 12px;font-size:12.5px;font-weight:600;color:var(--lanyard);margin-bottom:12px"></div>'+
+      '<span class="sp-label">Follow-up priority</span>'+
+      '<div style="display:flex;gap:8px;margin:4px 0 14px" id="b-prio">'+
+        '<button class="sp-prio" data-p="hot">&#128293; Hot</button>'+
+        '<button class="sp-prio" data-p="warm">&#127777;&#65039; Warm</button>'+
+        '<button class="sp-prio" data-p="cold">&#10052;&#65039; Cold</button>'+
+      '</div>'+
+      '<label style="display:flex;align-items:center;gap:8px;font-size:14px;font-weight:600;margin-bottom:16px;cursor:pointer"><input type="checkbox" id="b-quote" style="width:18px;height:18px"> They want a quote</label>'+
+      '<button class="sp-btn" id="b-save" style="width:100%">Save visitor</button>'+
+    '</div>'+
+    '<div class="sp-card"><div class="sp-h2">This session</div><div id="b-list"><div class="sp-empty" style="padding:6px 0">No visitors captured yet.</div></div></div>';
+
+  let prio='warm';
+  body.querySelectorAll('.sp-prio').forEach(b=>{
+    if(b.dataset.p===prio) b.classList.add('on');
+    b.onclick=()=>{ prio=b.dataset.p; body.querySelectorAll('.sp-prio').forEach(x=>x.classList.toggle('on',x.dataset.p===prio)); };
+  });
+  document.getElementById('sp-boothexit').onclick=()=>{ mode='attendee'; boothVisitor=null; modeBtn.textContent='Organizer view'; vendors=eventVendors(activeEventId); renderVendorPicker(); };
+  document.getElementById('sp-boothscan').onclick=()=>boothScan();
+
+  document.getElementById('b-save').onclick=async ()=>{
+    const name=document.getElementById('b-name').value.trim();
+    const email=document.getElementById('b-email').value.trim();
+    const co=document.getElementById('b-co').value.trim();
+    const notes=document.getElementById('b-notes').value.trim();
+    const quote=document.getElementById('b-quote').checked;
+    if(!name && !email){ await bamAlert('Add at least a name or an email so we can follow up.'); return; }
+    const btn=document.getElementById('b-save'); btn.disabled=true; btn.textContent='Saving\u2026';
+    try{
+      await addDoc(collection(db,'repnotes'),{
+        eventId:eid||'', visitorName:name, visitorEmail:email, visitorCompany:co,
+        notes, quote:!!quote, priority:prio,
+        linkedPid: boothVisitor?boothVisitor.pid:'',
+        ts:serverTimestamp(), tsClient:Date.now()
+      });
+      boothVisitor=null;
+      renderBooth();
+    }catch(e){ console.error(e); await bamAlert('That didn\u2019t save. Check your connection and try again.'); btn.disabled=false; btn.textContent='Save visitor'; }
+  };
+  loadBoothList(eid);
+}
+
+async function loadBoothList(eid){
+  const el=document.getElementById('b-list'); if(!el) return;
+  try{
+    const snap=await getDocs(query(collection(db,'repnotes'),where('eventId','==',eid||'')));
+    const rows=snap.docs.map(d=>d.data()).sort((a,b)=>(b.tsClient||0)-(a.tsClient||0)).slice(0,25);
+    if(!rows.length){ el.innerHTML='<div class="sp-empty" style="padding:6px 0">No visitors captured yet.</div>'; return; }
+    const ico={hot:'&#128293;',warm:'&#127777;&#65039;',cold:'&#10052;&#65039;'};
+    el.innerHTML=rows.map(r=>'<div class="sp-adminrow"><div style="display:flex;justify-content:space-between;gap:8px"><span class="sp-who">'+esc(r.visitorName||r.visitorEmail||'(no name)')+'</span><span class="sp-count">'+(ico[r.priority]||'')+(r.quote?' &#128002;':'')+(r.linkedPid?' &#128279;':'')+'</span></div>'+(r.visitorCompany?'<div class="sp-meta">'+esc(r.visitorCompany)+'</div>':'')+(r.notes?'<div class="cap" style="margin-top:2px">'+esc(r.notes)+'</div>':'')+'</div>').join('');
+  }catch(e){ el.innerHTML='<div class="sp-empty" style="padding:6px 0">Couldn\u2019t load the list.</div>'; }
+}
+
+async function boothScan(){
+  const ov=document.createElement('div');
+  ov.style.cssText='position:fixed;inset:0;background:rgba(20,25,35,.96);z-index:200;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:20px';
+  ov.innerHTML='<div style="color:#fff;font-size:15px;font-weight:600;margin-bottom:14px">Point at the visitor\u2019s code</div>'+
+    '<div id="sp-reader" style="width:280px;max-width:90vw;background:#000;border-radius:12px;overflow:hidden"></div>'+
+    '<button id="sp-scancancel" style="margin-top:18px;padding:10px 22px;background:#fff;color:#1a1a1f;border:none;border-radius:8px;font-size:14px;font-weight:600;cursor:pointer">Cancel</button>';
+  document.body.appendChild(ov);
+  let scanner=null, stopped=false;
+  const kill=()=>{ if(stopped){ ov.remove(); return; } stopped=true; if(scanner){ scanner.stop().then(()=>ov.remove()).catch(()=>ov.remove()); } else ov.remove(); };
+  ov.querySelector('#sp-scancancel').onclick=kill;
+  try{
+    await loadScanner();
+    scanner=new window.Html5Qrcode('sp-reader');
+    await scanner.start({facingMode:'environment'},{fps:10,qrbox:220},(txt)=>{
+      if(txt&&txt.indexOf('visitor:')===0&&!stopped){
+        const parts=txt.slice(8).split('|');
+        boothVisitor={pid:parts[0]||'', name:decodeURIComponent(parts[1]||''), email:decodeURIComponent(parts[2]||'')};
+        kill();
+        const nm=document.getElementById('b-name'), em=document.getElementById('b-email'), lk=document.getElementById('b-linked');
+        if(nm&&!nm.value) nm.value=boothVisitor.name;
+        if(em&&!em.value) em.value=boothVisitor.email;
+        if(lk){ lk.style.display='block'; lk.innerHTML='&#128279; Linked to '+esc(boothVisitor.name||'this visitor')+'\u2019s photos. Your notes attach to their record.'; }
+      }
+    },()=>{});
+  }catch(e){ console.error(e); ov.remove(); bamAlert('Couldn\u2019t start the camera. Allow camera access, or enter the visitor by hand.'); }
+}
+
 // Shared heart toggle. Optimistic UI with rollback if the save fails.
 async function toggleFav(rec,heartEl){
   const to=!rec.fav;
@@ -648,7 +793,7 @@ async function loadQuoteSection(){
         for(const r of chosen){ await updateDoc(doc(db,'submissions',r.id),{quote:true,quoteNote:projectNote}); }
         notifyQuote(chosen,projectNote);
         const t=document.getElementById('sp-toast');
-        t.innerHTML='&#128002; BAM! Quote request sent. Your rep will follow up after the show with pricing and next steps.';
+        t.innerHTML='&#128002; BAM! Quote request sent. Your Branding Specialist will follow up after the show with pricing and next steps.';
         t.style.display='block'; setTimeout(()=>t.style.display='none',3000);
         document.getElementById('sp-quotenote').value='';
         loadQuoteSection();
@@ -710,7 +855,7 @@ async function renderRecap(pid){
       crossEventNote='<div class="sp-card" style="border-left:4px solid var(--lanyard);background:var(--red-light)">'+
         '<div style="font-size:14.5px;line-height:1.5;color:var(--ink)">'+
           '&#128002; <b>These are your photos from '+esc(fromLabel)+'.</b> '+
-          'They\u2019re yours to keep, and your rep still has them. '+
+          'They\u2019re yours to keep, and your Branding Specialist still has them. '+
           'We\u2019re at <b>'+esc(eventLabel(liveEvent))+'</b> today, so if you\u2019re here with us, '+
           'scan the QR code at any table to start a fresh collection for this show.'+
         '</div></div>';
@@ -813,9 +958,52 @@ async function renderRecap(pid){
 }
 
 // ---------- ORGANIZER ----------
-function toCSV(subs,evName){
-  const rows=[['Event','Vendor','Attendee name','Company/Department','Email','Favorited','Quote requested','Item note','Project details','Recap link','Timestamp']];
-  subs.forEach(r=>rows.push([evName,r.vendorName,r.name,r.company||'',r.email||'',r.fav?'YES':'',r.quote?'YES':'',r.note||'',r.quoteNote||'',r.attendeeId?(location.origin+location.pathname+'?me='+r.attendeeId):'',new Date(r.tsClient||0).toISOString()]));
+function toCSV(subs,evName,repNotes){
+  repNotes=repNotes||[];
+  const norm=x=>String(x||'').trim().toLowerCase();
+  // Build lookup of photo-side people by pid, email, and name
+  const byPid={}, byEmail={}, byName={};
+  subs.forEach(r=>{
+    if(r.attendeeId) byPid[r.attendeeId]=r;
+    if(r.email) byEmail[norm(r.email)]=r;
+    if(r.name) byName[norm(r.name)]=r;
+  });
+  // Assign match info + a shared group id so related rows sort together
+  let grp=0; const groupFor={};
+  const keyOf=r=>r.attendeeId||('email:'+norm(r.email))||('name:'+norm(r.name))||('row'+(grp++));
+  function ensureGroup(k){ if(!groupFor[k]) groupFor[k]='G'+String(++grp).padStart(3,'0'); return groupFor[k]; }
+
+  const rows=[['Match','Match group','Source','Event','Vendor','Name','Company/Department','Email','Favorited','Quote requested','Priority','Rep notes','Item note / Project details','Recap link','Timestamp']];
+
+  // Photo submissions
+  subs.forEach(r=>{
+    const k=r.attendeeId?('pid:'+r.attendeeId):(r.email?('email:'+norm(r.email)):('name:'+norm(r.name)));
+    const g=ensureGroup(k);
+    rows.push(['','',g,evName,r.vendorName,r.name,r.company||'',r.email||'',r.fav?'YES':'',r.quote?'YES':'','',
+      '', [r.note||'',r.quoteNote||''].filter(Boolean).join(' | '),
+      r.attendeeId?(location.origin+location.pathname+'?me='+r.attendeeId):'',
+      new Date(r.tsClient||0).toISOString()]);
+  });
+
+  // Rep notes, matched back to a photo person where possible
+  repNotes.forEach(n=>{
+    let match='NONE', partner=null;
+    if(n.linkedPid && byPid[n.linkedPid]){ match='LINKED'; partner=byPid[n.linkedPid]; }
+    else if(n.visitorEmail && byEmail[norm(n.visitorEmail)]){ match='EMAIL'; partner=byEmail[norm(n.visitorEmail)]; }
+    else if(n.visitorName && byName[norm(n.visitorName)]){ match='LIKELY: '+n.visitorName; partner=byName[norm(n.visitorName)]; }
+    let g;
+    if(partner){
+      const pk=partner.attendeeId?('pid:'+partner.attendeeId):(partner.email?('email:'+norm(partner.email)):('name:'+norm(partner.name)));
+      g=ensureGroup(pk);
+    } else { g=ensureGroup('rep:'+(n.id||Math.random())); }
+    rows.push([match,g,'Rep note',evName,'',n.visitorName||'',n.visitorCompany||'',n.visitorEmail||'','',n.quote?'YES':'',(n.priority||'').toUpperCase(),
+      n.notes||'', '', '', new Date(n.tsClient||0).toISOString()]);
+  });
+
+  // Sort by match group so a person's photo row(s) and rep note sit together
+  const header=rows.shift();
+  rows.sort((a,b)=> String(a[1]).localeCompare(String(b[1])) || String(a[2]).localeCompare(String(b[2])));
+  rows.unshift(header);
   return rows.map(r=>r.map(c=>'"'+String(c).replace(/"/g,'""')+'"').join(',')).join('\r\n');
 }
 
@@ -825,6 +1013,7 @@ async function renderAdmin(){
     if(pass!==ORGANIZER_PASSCODE){ mode='attendee'; modeBtn.textContent='Organizer view'; renderVendorPicker(); return; }
     adminUnlocked=true;
   }
+  if(pendingBooth){ pendingBooth=false; await loadAll(); renderBooth(); return; }
   sub.textContent='Events, vendor tables, leads & leaderboard';
   body.innerHTML='<div class="sp-empty">Wrangling the herd…</div>';
   await loadAll();
@@ -840,6 +1029,11 @@ async function renderAdmin(){
   const allSubs=await loadSubs();
   const vset=new Set(vendors.map(v=>v.id));
   const subs=allSubs.filter(r=>vset.has(r.vendorId));
+  let repNotes=[];
+  try{
+    const rn=await getDocs(query(collection(db,'repnotes'),where('eventId','==',renderAdmin.sel||'')));
+    repNotes=rn.docs.map(d=>({id:d.id,...d.data()}));
+  }catch(e){ repNotes=[]; }
   const byVendor={}; vendors.forEach(v=>byVendor[v.id]={vendor:v,recs:[]});
   subs.forEach(r=>{ if(byVendor[r.vendorId]) byVendor[r.vendorId].recs.push(r); });
   const all=Object.values(byVendor);
@@ -855,6 +1049,7 @@ async function renderAdmin(){
       '<button class="sp-btn small ghost" id="sp-evnew">New event</button>'+
       '<button class="sp-btn small ghost" id="sp-evcopy">Copy to new event</button>'+
       (renderAdmin.sel!==activeEventId?'<button class="sp-btn small" id="sp-evactive">Make live for attendees</button>':'')+
+      '<button class="sp-btn small" id="sp-boothlaunch" style="background:#1a1a1f">&#128290; Launch booth mode</button>'+
     '</div>'+
     '<p class="sp-note">Everything below shows the selected event only. "Copy to new event" brings the vendor list over and leaves all photos and leads behind. The LIVE event is the one attendees see when they open the main link; table QR links always route to their own event automatically.</p>'+
   '</div>'+
@@ -914,6 +1109,17 @@ async function renderAdmin(){
     }
     html+='</div>';
   }
+  // Booth rep notes card
+  if(repNotes.length){
+    const ico={hot:'&#128293;',warm:'&#127777;&#65039;',cold:'&#10052;&#65039;'};
+    const sorted=repNotes.slice().sort((a,b)=>{const o={hot:0,warm:1,cold:2};return (o[a.priority]??3)-(o[b.priority]??3)||(b.tsClient||0)-(a.tsClient||0);});
+    html+='<div class="sp-card"><div class="sp-h2">&#128290; Booth rep notes ('+repNotes.length+')</div>'+
+      '<p class="sp-note" style="margin:0 0 10px">Captured by staff at the booth. &#128279; = linked to a visitor\u2019s photos. Export the CSV to see notes married with photo leads.</p>'+
+      sorted.map(n=>'<div class="sp-adminrow"><div style="display:flex;justify-content:space-between;gap:8px"><span class="sp-who">'+esc(n.visitorName||n.visitorEmail||'(no name)')+'</span><span class="sp-count">'+(ico[n.priority]||'')+(n.quote?' &#128002;':'')+(n.linkedPid?' &#128279;':'')+'</span></div>'+
+        (n.visitorCompany||n.visitorEmail?'<div class="sp-meta">'+[esc(n.visitorCompany||''),esc(n.visitorEmail||'')].filter(Boolean).join(' &middot; ')+'</div>':'')+
+        (n.notes?'<div class="cap" style="margin-top:2px">'+esc(n.notes)+'</div>':'')+'</div>').join('')+
+    '</div>';
+  }
   html+='<div class="sp-card"><div class="sp-h2">Submissions \u2014 '+esc(eventLabel(selEvent))+' ('+totalPhotos+')</div>';
   if(!vendors.length) html+='<div class="sp-empty">Add vendors to start collecting.</div>';
   for(const {vendor,recs} of all){
@@ -956,8 +1162,16 @@ async function renderAdmin(){
     try{ await setActiveEvent(renderAdmin.sel); renderAdmin(); }
     catch(e){ bamAlert('Could not set live event: '+e.message); }
   };
+  document.getElementById('sp-boothlaunch').onclick=async ()=>{
+    if(renderAdmin.sel!==activeEventId){
+      const ok=await bamConfirm('Booth mode captures visitors for the LIVE event. Make "'+eventLabel(selEvent)+'" live and start booth mode?','Make live & start');
+      if(!ok) return;
+      try{ await setActiveEvent(renderAdmin.sel); }catch(e){ bamAlert('Could not set live event: '+e.message); return; }
+    }
+    mode='booth'; boothVisitor=null; renderBooth();
+  };
   document.getElementById('sp-csv').onclick=()=>{
-    const blob=new Blob([toCSV(subs,eventLabel(selEvent))],{type:'text/csv'});
+    const blob=new Blob([toCSV(subs,eventLabel(selEvent),repNotes)],{type:'text/csv'});
     const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='brandabulls-live-leads-'+fsafe(eventLabel(selEvent))+'.csv';a.click();
     URL.revokeObjectURL(a.href);
   };
@@ -1002,7 +1216,7 @@ async function renderAdmin(){
         }
       }
       // include the leads CSV inside the zip too
-      zip.file('brandabulls-live-leads-'+fsafe(eventLabel(selEvent))+'.csv', toCSV(subs,eventLabel(selEvent)));
+      zip.file('brandabulls-live-leads-'+fsafe(eventLabel(selEvent))+'.csv', toCSV(subs,eventLabel(selEvent),repNotes));
 
       btn.textContent='Zipping…';
       const blob=await zip.generateAsync({type:'blob'},(meta)=>{ btn.textContent='Zipping… '+Math.round(meta.percent)+'%'; });
@@ -1084,6 +1298,7 @@ async function renderAdmin(){
 
 // ---- boot ----
 modeBtn.onclick=()=>{
+  if(mode==='booth'){ mode='attendee'; modeBtn.textContent='Organizer view'; boothVisitor=null; vendors=eventVendors(activeEventId); renderVendorPicker(); return; }
   mode=mode==='attendee'?'admin':'attendee';
   modeBtn.textContent=mode==='attendee'?'Organizer view':'Attendee view';
   mode==='attendee'?renderVendorPicker():renderAdmin();
