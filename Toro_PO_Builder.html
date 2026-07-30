@@ -820,7 +820,7 @@ function addToQueue() {
   // If re-editing, keep the original PO number; otherwise generate a new one
   const poNum = _reEditIdx !== null
     ? poQueue[_reEditIdx].poNum
-    : 'PO-'+(q.quoteNum||'XXXX')+'-'+(_startNum + poQueue.length);
+    : 'PO-'+(q.quoteNum||'XXXX')+'-'+_startNum;
   const data = captureFormData();
   const html = buildPOHTML(poNum, data);
   const po = {id:poNum, typeLabel:currentTypeLabel, html, data, poNum,
@@ -833,6 +833,7 @@ function addToQueue() {
     openPO(replaceIdx);
   } else {
     poQueue.push(po);
+    const _sn=document.getElementById('po-start-num'); if(_sn) _sn.value = _startNum + 1; // auto-advance to next PO number
     updateQueueUI();
     openPO(poQueue.length-1);
   }
@@ -1126,16 +1127,20 @@ function buildPOHTML(poNum, d) {
         const h = item.data;
         if(!h || !h.hg_dec || h.hg_dec === 'none') return;
         const itemTitle = h.hg_desc||'Hard good';
-        const method = hgDecMap[h.hg_dec]||h.hg_dec||'';
-        perItemDecoHTML += `
+        // Every imprint area (primary + additional) becomes its own spec block
+        const hgImps = [{method: hgDecMap[h.hg_dec]||h.hg_dec||'', design: h.hg_design||h.hg_desc||'', colors: h.hg_colors||'', loc: h.hg_dec_loc||''}];
+        (h.hg_imp_areas||[]).forEach(a=>hgImps.push({method: hgDecMap[a.dec]||a.dec||'', design: a.design||h.hg_design||'', colors: a.colors||'', loc: a.loc||''}));
+        hgImps.forEach((imp, ii) => {
+          perItemDecoHTML += `
           <div style="margin-bottom:8px;padding:8px 10px;background:#f8f8fa;border-radius:5px;border-left:3px solid #BC112A;">
-            <div style="font-size:11px;font-weight:800;color:#BC112A;margin-bottom:6px;">${itemTitle}</div>
+            <div style="font-size:11px;font-weight:800;color:#BC112A;margin-bottom:6px;">${itemTitle}${hgImps.length>1?' &mdash; Imprint '+(ii+1):''}${imp.loc?' <span style="font-weight:600;color:#888;">&middot; '+imp.loc+'</span>':''}</div>
             <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;font-size:11px;">
-              <div><span style="font-size:10px;font-weight:700;text-transform:uppercase;color:#888;display:block;margin-bottom:3px;">Method</span><input class="po-field-edit" style="font-size:13px;font-weight:700;" value="${method}"></div>
-              <div><span style="font-size:10px;font-weight:700;text-transform:uppercase;color:#888;display:block;margin-bottom:3px;">Art / design name</span><input class="po-field-edit" style="font-size:13px;font-weight:700;" value="${h.hg_design||h.hg_desc||''}"></div>
-              <div><span style="font-size:10px;font-weight:700;text-transform:uppercase;color:#888;display:block;margin-bottom:3px;">Imprint colors <span style="color:#BC112A">&#9733;</span></span><input class="po-field-edit" style="font-size:14px;font-weight:800;color:#BC112A;" value="${h.hg_colors||''}"></div>
+              <div><span style="font-size:10px;font-weight:700;text-transform:uppercase;color:#888;display:block;margin-bottom:3px;">Method</span><input class="po-field-edit" style="font-size:13px;font-weight:700;" value="${imp.method}"></div>
+              <div><span style="font-size:10px;font-weight:700;text-transform:uppercase;color:#888;display:block;margin-bottom:3px;">Art / design name</span><input class="po-field-edit" style="font-size:13px;font-weight:700;" value="${imp.design}"></div>
+              <div><span style="font-size:10px;font-weight:700;text-transform:uppercase;color:#888;display:block;margin-bottom:3px;">Imprint colors <span style="color:#BC112A">&#9733;</span></span><input class="po-field-edit" style="font-size:14px;font-weight:800;color:#BC112A;" value="${imp.colors}"></div>
             </div>
           </div>`;
+        });
       }
     });
   }
@@ -1726,7 +1731,7 @@ function confirmSplit() {
     const sameShip = row.querySelector('.split-same-ship').checked;
     const splitNotes = row.querySelector('.split-notes').value.trim();
     const _startNum = parseInt(document.getElementById('po-start-num')?.value)||1;
-  const poNum = 'PO-'+(quoteData?.quoteNum||'XXXX')+'-'+(_startNum + poQueue.length);
+  const poNum = 'PO-'+(quoteData?.quoteNum||'XXXX')+'-'+(_startNum + i);
 
     // Deep copy base data
     const d = JSON.parse(JSON.stringify(baseData));
@@ -1756,6 +1761,7 @@ function confirmSplit() {
       _selectedItems:[...selectedItems], _currentType:currentType, _currentTypeLabel:currentTypeLabel});
   });
 
+  const _snEl=document.getElementById('po-start-num'); if(_snEl){ _snEl.value = (parseInt(_snEl.value)||1) + rows.length; } // advance past the splits just created
   updateQueueUI();
   closeSplitModal();
   resetForm();
