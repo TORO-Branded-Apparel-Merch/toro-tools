@@ -256,7 +256,7 @@ async function syncLookbookToSubs(on){
   if(!attendee||!attendee.pid) return;
   try{
     const snap=await getDocs(query(collection(db,'submissions'),where('attendeeId','==',attendee.pid)));
-    for(const d of snap.docs){ try{ await updateDoc(doc(db,'submissions',d.id),{lookbook:!!on}); }catch(e){} }
+    for(const d of snap.docs){ try{ await updateDoc(doc(db,'submissions',d.id),{lookbook:!!on}); }catch(e){ await queueUpdate(d.id,{lookbook:!!on}); } }
   }catch(e){}
 }
 
@@ -357,30 +357,54 @@ async function qRemove(qid){
   });
 }
 let syncing=false;
+// Each queued item has a 'kind'. Photos default to 'photo' for backward compatibility.
+async function processQueueItem(it){
+  const kind=it.kind||'photo';
+  if(kind==='photo'){
+    const photoDoc=await addDoc(collection(db,'photos'),{ img:it.full, vendorId:it.vendorId, tsClient:it.tsClient });
+    await addDoc(collection(db,'submissions'),{
+      vendorId:it.vendorId, vendorName:it.vendorName,
+      name:it.name, company:it.company||'', email:it.email||'', attendeeId:it.attendeeId||'',
+      note:it.note||'', quote:false, fav:false, lookbook:!!it.lookbook, thumb:it.thumb, photoId:photoDoc.id,
+      ts:serverTimestamp(), tsClient:it.tsClient
+    });
+  } else if(kind==='repnote'){
+    await addDoc(collection(db,'repnotes'),{
+      eventId:it.eventId||'', visitorName:it.visitorName||'', visitorEmail:it.visitorEmail||'', visitorCompany:it.visitorCompany||'',
+      notes:it.notes||'', quote:!!it.quote, lookbook:!!it.lookbook, priority:it.priority||'warm',
+      linkedPid:it.linkedPid||'', ts:serverTimestamp(), tsClient:it.tsClient
+    });
+  } else if(kind==='update'){
+    // deferred field update on an existing submission (quote / fav / lookbook / quoteNote)
+    await updateDoc(doc(db,'submissions',it.docId), it.fields);
+  }
+}
 async function syncQueue(){
   if(syncing) return; syncing=true;
   try{
-    const items=await qAll();
-    let done=0;
+    const items=(await qAll()).sort((a,b)=>(a.tsClient||0)-(b.tsClient||0));
+    let photos=0, others=0;
     for(const it of items){
-      try{
-        const photoDoc=await addDoc(collection(db,'photos'),{ img:it.full, vendorId:it.vendorId, tsClient:it.tsClient });
-        await addDoc(collection(db,'submissions'),{
-          vendorId:it.vendorId, vendorName:it.vendorName,
-          name:it.name, company:it.company||'', email:it.email||'', attendeeId:it.attendeeId||'',
-          note:it.note||'', quote:false, fav:false, lookbook:!!it.lookbook, thumb:it.thumb, photoId:photoDoc.id,
-          ts:serverTimestamp(), tsClient:it.tsClient
-        });
-        await qRemove(it.qid); done++;
-      }catch(e){ break; } // still offline or rejected; stop and retry later
+      try{ await processQueueItem(it); await qRemove(it.qid); (it.kind&&it.kind!=='photo')?others++:photos++; }
+      catch(e){ break; } // still offline or rejected; stop and retry later
     }
-    if(done>0){
+    if(photos+others>0){
       const t=document.getElementById('sp-toast');
-      if(t){ t.innerHTML='&#128002; You\u2019re back online! We just wrangled '+done+' photo'+(done===1?'':'s')+' in from your phone.'; t.style.display='block'; setTimeout(()=>t.style.display='none',3000); }
+      if(t){
+        const bits=[]; if(photos) bits.push(photos+' photo'+(photos===1?'':'s')); if(others) bits.push(others+' update'+(others===1?'':'s'));
+        t.innerHTML='&#128002; You\u2019re back online! We just synced '+bits.join(' and ')+' from this device.';
+        t.style.display='block'; setTimeout(()=>t.style.display='none',3000);
+      }
       updateQueueBanner();
       if(typeof loadQuoteSection==='function') loadQuoteSection();
+      if(mode==='booth' && typeof loadBoothList==='function') loadBoothList(activeEventId);
     }
   }finally{ syncing=false; }
+}
+// Enqueue a deferred update if the direct write fails; returns true if queued.
+async function queueUpdate(docId,fields){
+  try{ await qAdd({qid:'u'+Date.now().toString(36)+Math.random().toString(36).slice(2,7), kind:'update', docId, fields, tsClient:Date.now()}); updateQueueBanner(); return true; }
+  catch(e){ return false; }
 }
 async function updateQueueBanner(){
   let n=0; try{ n=(await qAll()).length; }catch(e){}
@@ -392,7 +416,7 @@ async function updateQueueBanner(){
     b.onclick=()=>syncQueue();
     document.body.appendChild(b);
   }
-  b.innerHTML='&#128246; '+n+' photo'+(n===1?'':'s')+' saved on your phone, waiting for signal &middot; tap to retry';
+  b.innerHTML='&#128246; '+n+' item'+(n===1?'':'s')+' saved on this device, waiting for signal &middot; tap to retry';
 }
 function applyOnlineState(){
   document.body.classList.toggle('is-offline', !navigator.onLine);
@@ -575,8 +599,8 @@ function renderDrop(){
     '<div class="sp-thumbs" id="sp-thumbs"></div>'+
     '<div class="sp-toast" id="sp-toast"></div>'+
     '</div>'+
-    '<div class="sp-offnote" id="sp-quoteoffnote">&#128246; Looks like you\u2019ve lost signal, so quote requests are paused for the moment. Keep snapping though, because your photos are saving right to your phone.</div>'+
-    '<div class="sp-card sp-needsnet" id="sp-quotecard" style="display:none">'+
+    '<div class="sp-offnote" id="sp-quoteoffnote">&#128246; You\u2019re offline right now. You can still favorite and request quotes, and everything saves on your device and syncs the moment you\u2019re back online.</div>'+
+    '<div class="sp-card" id="sp-quotecard" style="display:none">'+
       '<div class="sp-h2">Your photos from this table</div>'+
       '<p class="sp-note" style="margin:0 0 10px">Tap the heart on anything you love to add it to your favorites. If you have a project in mind, select the items you\u2019d like a quote on and add your details below.</p>'+
       '<div class="sp-thumbs" id="sp-quoteitems"></div>'+
@@ -722,16 +746,26 @@ async function renderBooth(){
     const lookbook=document.getElementById('b-lookbook').checked;
     if(!name && !email){ await bamAlert('Add at least a name or an email so we can follow up.'); return; }
     const btn=document.getElementById('b-save'); btn.disabled=true; btn.textContent='Saving\u2026';
+    const rec={ eventId:eid||'', visitorName:name, visitorEmail:email, visitorCompany:co,
+      notes, quote:!!quote, lookbook:!!lookbook, priority:prio,
+      linkedPid: boothVisitor?boothVisitor.pid:'' };
     try{
-      await addDoc(collection(db,'repnotes'),{
-        eventId:eid||'', visitorName:name, visitorEmail:email, visitorCompany:co,
-        notes, quote:!!quote, lookbook:!!lookbook, priority:prio,
-        linkedPid: boothVisitor?boothVisitor.pid:'',
-        ts:serverTimestamp(), tsClient:Date.now()
-      });
-      boothVisitor=null;
-      renderBooth();
-    }catch(e){ console.error(e); await bamAlert('That didn\u2019t save. Check your connection and try again.'); btn.disabled=false; btn.textContent='Save visitor'; }
+      await addDoc(collection(db,'repnotes'),{...rec, ts:serverTimestamp(), tsClient:Date.now()});
+      boothVisitor=null; renderBooth();
+    }catch(e){
+      // Offline / weak signal: keep it on the tablet and sync later. Never lose a lead.
+      const queued=await qAdd({qid:'r'+Date.now().toString(36)+Math.random().toString(36).slice(2,7), kind:'repnote', ...rec, tsClient:Date.now()}).then(()=>true).catch(()=>false);
+      if(queued){
+        updateQueueBanner();
+        boothVisitor=null; renderBooth();
+        const t=document.createElement('div');
+        t.style.cssText='position:fixed;top:16px;left:50%;transform:translateX(-50%);background:#1d8a4e;color:#fff;padding:10px 16px;border-radius:9px;font-size:14px;font-weight:600;z-index:120;box-shadow:0 4px 14px rgba(0,0,0,.25)';
+        t.innerHTML='&#9989; Visitor saved on this device. It will sync when signal returns.';
+        document.body.appendChild(t); setTimeout(()=>t.remove(),3000);
+      }else{
+        console.error(e); await bamAlert('That didn\u2019t save. Check your connection and try again.'); btn.disabled=false; btn.textContent='Save visitor';
+      }
+    }
   };
   loadBoothList(eid);
 }
@@ -782,6 +816,9 @@ async function toggleFav(rec,heartEl){
   heartEl.innerHTML=to?'&#10084;&#65039;':'&#129293;';
   try{ await updateDoc(doc(db,'submissions',rec.id),{fav:to}); return true; }
   catch(e){
+    // Weak signal: queue the change and keep the heart as the visitor set it.
+    const queued=await queueUpdate(rec.id,{fav:to});
+    if(queued) return true;
     rec.fav=!to;
     heartEl.classList.toggle('on',!to);
     heartEl.innerHTML=!to?'&#10084;&#65039;':'&#129293;';
@@ -837,10 +874,17 @@ async function loadQuoteSection(){
       const chosen=recs.filter(r=>selected.has(r.id));
       const projectNote=(document.getElementById('sp-quotenote').value||'').trim().slice(0,500);
       try{
-        for(const r of chosen){ await updateDoc(doc(db,'submissions',r.id),{quote:true,quoteNote:projectNote}); }
-        notifyQuote(chosen,projectNote);
+        for(const r of chosen){
+          try{ await updateDoc(doc(db,'submissions',r.id),{quote:true,quoteNote:projectNote}); }
+          catch(err){ await queueUpdate(r.id,{quote:true,quoteNote:projectNote}); }
+          r.quote=true; r.quoteNote=projectNote;
+        }
+        const online=navigator.onLine;
+        if(online) notifyQuote(chosen,projectNote);
         const t=document.getElementById('sp-toast');
-        t.innerHTML='&#128002; BAM! Quote request sent. Your Branding Specialist will follow up after the show with pricing and next steps.';
+        t.innerHTML=online
+          ? '&#128002; BAM! Quote request sent. Your Branding Specialist will follow up after the show with pricing and next steps.'
+          : '&#128002; BAM! Quote request saved on your device. It sends automatically once you\u2019re back online, and your Branding Specialist will follow up after the show.';
         t.style.display='block'; setTimeout(()=>t.style.display='none',3000);
         document.getElementById('sp-quotenote').value='';
         loadQuoteSection();
@@ -908,7 +952,7 @@ async function renderRecap(pid){
         '</div></div>';
     }
     const card=r=>'<div class="sp-thumb"><img src="'+r.thumb+'" alt="Your photo" loading="lazy" data-pid="'+esc(r.photoId||'')+'" style="cursor:zoom-in">'+
-      '<div class="sp-heart sp-needsnet'+(r.fav?' on':'')+'" data-fav="'+r.id+'" role="button" aria-label="Favorite">'+(r.fav?'&#10084;&#65039;':'&#129293;')+'</div>'+
+      '<div class="sp-heart'+(r.fav?' on':'')+'" data-fav="'+r.id+'" role="button" aria-label="Favorite">'+(r.fav?'&#10084;&#65039;':'&#129293;')+'</div>'+
       (r.quote?'<span class="sp-quotetag">&#128002; QUOTE</span>':'')+
       (r.note?'<div class="cap">'+esc(r.note)+'</div>':'')+'</div>';
 
