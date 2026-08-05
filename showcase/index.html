@@ -219,6 +219,46 @@ function bamPrompt(msg,inputType){
 // (localStorage is fine here — this is a normal hosted page, not an artifact)
 try{ const saved=localStorage.getItem('sp-attendee'); if(saved) attendee=JSON.parse(saved); }catch(e){}
 function saveAttendee(){ try{ localStorage.setItem('sp-attendee',JSON.stringify(attendee)); }catch(e){} }
+const LOOKBOOK_INFO='Each month we send a TORO Lookbook: a short, curated email of fresh apparel and merch ideas, seasonal picks, and what\u2019s trending with schools like yours. No spam, just inspiration, and you can unsubscribe anytime.';
+function showLookbookInfo(){
+  const ov=document.createElement('div');
+  ov.style.cssText='position:fixed;inset:0;background:rgba(20,25,35,.9);display:flex;align-items:center;justify-content:center;z-index:200;padding:24px';
+  ov.innerHTML='<div style="background:#fff;border-radius:14px;padding:24px 26px;max-width:360px" onclick="event.stopPropagation()">'+
+    '<div style="font-size:16px;font-weight:700;color:#BC112A;margin-bottom:10px">&#128214; The TORO Monthly Lookbook</div>'+
+    '<div style="font-size:14px;line-height:1.5;color:#333;margin-bottom:16px">'+LOOKBOOK_INFO+'</div>'+
+    '<button id="lb-ok" style="width:100%;padding:11px;background:#BC112A;color:#fff;border:none;border-radius:8px;font-size:14px;font-weight:600;cursor:pointer">Got it</button>'+
+  '</div>';
+  ov.onclick=e=>{ if(e.target===ov) ov.remove(); };
+  document.body.appendChild(ov);
+  ov.querySelector('#lb-ok').onclick=()=>ov.remove();
+}
+// A reusable opt-in row. onToggle keeps every copy of the checkbox in sync.
+function lookbookRowHTML(id){
+  return '<label style="display:flex;align-items:center;gap:9px;font-size:13.5px;font-weight:600;color:var(--ink);cursor:pointer;line-height:1.35">'+
+    '<input type="checkbox" class="lb-check" id="'+id+'" style="width:18px;height:18px;flex:none"'+((attendee&&attendee.lookbook)?' checked':'')+'>'+
+    '<span>Send me the monthly TORO Lookbook '+
+      '<button type="button" class="lb-info" style="background:none;border:1px solid var(--mut);color:var(--mut);border-radius:50%;width:16px;height:16px;font-size:11px;line-height:1;cursor:pointer;padding:0;vertical-align:middle" aria-label="What is this?">i</button>'+
+    '</span></label>';
+}
+function wireLookbook(container, onChange){
+  const root=container||document;
+  root.querySelectorAll('.lb-info').forEach(b=>b.onclick=e=>{ e.preventDefault(); e.stopPropagation(); showLookbookInfo(); });
+  root.querySelectorAll('.lb-check').forEach(c=>c.onchange=async ()=>{
+    const on=c.checked;
+    if(attendee){ attendee.lookbook=on; saveAttendee(); }
+    // keep any other visible copies in sync
+    document.querySelectorAll('.lb-check').forEach(o=>{ if(o!==c) o.checked=on; });
+    if(onChange) await onChange(on);
+  });
+}
+// Persist the opt-in onto every submission this person has made, so it lands in exports.
+async function syncLookbookToSubs(on){
+  if(!attendee||!attendee.pid) return;
+  try{
+    const snap=await getDocs(query(collection(db,'submissions'),where('attendeeId','==',attendee.pid)));
+    for(const d of snap.docs){ try{ await updateDoc(doc(db,'submissions',d.id),{lookbook:!!on}); }catch(e){} }
+  }catch(e){}
+}
 
 // ---- data ----
 // ---- Events layer ----
@@ -328,7 +368,7 @@ async function syncQueue(){
         await addDoc(collection(db,'submissions'),{
           vendorId:it.vendorId, vendorName:it.vendorName,
           name:it.name, company:it.company||'', email:it.email||'', attendeeId:it.attendeeId||'',
-          note:it.note||'', quote:false, fav:false, thumb:it.thumb, photoId:photoDoc.id,
+          note:it.note||'', quote:false, fav:false, lookbook:!!it.lookbook, thumb:it.thumb, photoId:photoDoc.id,
           ts:serverTimestamp(), tsClient:it.tsClient
         });
         await qRemove(it.qid); done++;
@@ -371,7 +411,7 @@ async function submitPhoto(full,thumb,note,quote){
   await addDoc(collection(db,'submissions'),{
     vendorId:currentVendor.id, vendorName:currentVendor.name,
     name:attendee.name, company:attendee.company||'', email:attendee.email||'', attendeeId:attendee.pid||'',
-    note:note||'', quote:!!quote, fav:false, thumb, photoId:photoDoc.id,
+    note:note||'', quote:!!quote, fav:false, lookbook:!!(attendee&&attendee.lookbook), thumb, photoId:photoDoc.id,
     ts:serverTimestamp(), tsClient:Date.now()
   });
 }
@@ -498,7 +538,8 @@ function renderIdentify(){
     '<span class="sp-label">Your name</span><input class="sp-input" id="sp-name" autocomplete="name" style="margin-bottom:12px">'+
     '<span class="sp-label">Company/Department</span><input class="sp-input" id="sp-co" autocomplete="organization" style="margin-bottom:12px">'+
     '<span class="sp-label">Email (optional)</span><input class="sp-input" id="sp-em" type="email" autocomplete="email" inputmode="email" style="margin-bottom:6px">'+
-    '<p class="sp-note" style="margin:0 0 16px">Add your email so we can follow up on the items you loved.</p>'+
+    '<p class="sp-note" style="margin:0 0 12px">Add your email so we can follow up on the items you loved.</p>'+
+    '<div style="margin:0 0 16px">'+lookbookRowHTML('sp-lb-signin')+'</div>'+
     '<button class="sp-btn" id="sp-go">Start snapping</button></div>';
   const backBtn=document.getElementById('sp-back');
   if(backBtn) backBtn.onclick=renderVendorPicker;
@@ -511,11 +552,13 @@ function renderIdentify(){
       document.getElementById('sp-em').focus(); return;
     }
     const pid=(attendee&&attendee.pid)||('a'+Date.now().toString(36)+Math.random().toString(36).slice(2,8));
-    attendee={name:n,company:c,email:em,pid}; saveAttendee();
+    const lb=(document.getElementById('sp-lb-signin')||{}).checked||false;
+    attendee={name:n,company:c,email:em,pid,lookbook:lb}; saveAttendee();
     let seen=false; try{ seen=!!localStorage.getItem('bl-howto'); }catch(e){}
     if(!seen){ try{ localStorage.setItem('bl-howto','1'); }catch(e){}; await showHowTo(); }
     currentVendor?renderDrop():renderVendorPicker();
   };
+  wireLookbook(document.getElementById('sp-body'));
 }
 
 function renderDrop(){
@@ -585,7 +628,7 @@ function renderDrop(){
           await qAdd({ qid:'q'+Date.now().toString(36)+Math.random().toString(36).slice(2,7),
             vendorId:currentVendor.id, vendorName:currentVendor.name,
             name:attendee.name, company:attendee.company||'', email:attendee.email||'', attendeeId:attendee.pid||'',
-            note, full, thumb, tsClient:Date.now() });
+            lookbook:!!(attendee&&attendee.lookbook), note, full, thumb, tsClient:Date.now() });
           const d=document.createElement('div');d.className='sp-thumb';
           d.innerHTML='<img alt="Queued photo" style="opacity:.75"><div class="cap" style="color:var(--mut);font-weight:600">&#128246; Will sync when back online</div>';
           d.querySelector('img').src=thumb; thumbs.prepend(d);
@@ -656,7 +699,8 @@ async function renderBooth(){
         '<button class="sp-prio" data-p="warm">&#127777;&#65039; Warm</button>'+
         '<button class="sp-prio" data-p="cold">&#10052;&#65039; Cold</button>'+
       '</div>'+
-      '<label style="display:flex;align-items:center;gap:8px;font-size:14px;font-weight:600;margin-bottom:16px;cursor:pointer"><input type="checkbox" id="b-quote" style="width:18px;height:18px"> They want a quote</label>'+
+      '<label style="display:flex;align-items:center;gap:8px;font-size:14px;font-weight:600;margin-bottom:10px;cursor:pointer"><input type="checkbox" id="b-quote" style="width:18px;height:18px"> They want a quote</label>'+
+      '<label style="display:flex;align-items:center;gap:8px;font-size:14px;font-weight:600;margin-bottom:16px;cursor:pointer"><input type="checkbox" id="b-lookbook" style="width:18px;height:18px"> Add them to the monthly Lookbook</label>'+
       '<button class="sp-btn" id="b-save" style="width:100%">Save visitor</button>'+
     '</div>'+
     '<div class="sp-card"><div class="sp-h2">This session</div><div id="b-list"><div class="sp-empty" style="padding:6px 0">No visitors captured yet.</div></div></div>';
@@ -675,12 +719,13 @@ async function renderBooth(){
     const co=document.getElementById('b-co').value.trim();
     const notes=document.getElementById('b-notes').value.trim();
     const quote=document.getElementById('b-quote').checked;
+    const lookbook=document.getElementById('b-lookbook').checked;
     if(!name && !email){ await bamAlert('Add at least a name or an email so we can follow up.'); return; }
     const btn=document.getElementById('b-save'); btn.disabled=true; btn.textContent='Saving\u2026';
     try{
       await addDoc(collection(db,'repnotes'),{
         eventId:eid||'', visitorName:name, visitorEmail:email, visitorCompany:co,
-        notes, quote:!!quote, priority:prio,
+        notes, quote:!!quote, lookbook:!!lookbook, priority:prio,
         linkedPid: boothVisitor?boothVisitor.pid:'',
         ts:serverTimestamp(), tsClient:Date.now()
       });
@@ -897,6 +942,7 @@ async function renderRecap(pid){
               }).join('')+
             '</div>'
           : '')+
+        '<div style="margin-top:14px;padding-top:12px;border-top:1px solid var(--line)">'+lookbookRowHTML('sp-lb-photos')+'</div>'+
         '</div>';
 
       if(multiEvent){
@@ -924,6 +970,7 @@ async function renderRecap(pid){
 
     function bindPhotoHandlers(){
       wireRecapBack();
+      wireLookbook(body, syncLookbookToSubs);
       body.querySelectorAll('[data-fav]').forEach(h=>{
         h.onclick=async ev=>{
           ev.stopPropagation();
@@ -975,13 +1022,13 @@ function toCSV(subs,evName,repNotes){
   const keyOf=r=>r.attendeeId||('email:'+norm(r.email))||('name:'+norm(r.name))||('row'+(grp++));
   function ensureGroup(k){ if(!groupFor[k]) groupFor[k]='G'+String(++grp).padStart(3,'0'); return groupFor[k]; }
 
-  const rows=[['Match','Match group','Source','Event','Vendor','Name','Company/Department','Email','Favorited','Quote requested','Priority','Rep notes','Item note / Project details','Recap link','Timestamp']];
+  const rows=[['Match','Match group','Source','Event','Vendor','Name','Company/Department','Email','Lookbook opt-in','Favorited','Quote requested','Priority','Rep notes','Item note / Project details','Recap link','Timestamp']];
 
   // Photo submissions
   subs.forEach(r=>{
     const k=r.attendeeId?('pid:'+r.attendeeId):(r.email?('email:'+norm(r.email)):('name:'+norm(r.name)));
     const g=ensureGroup(k);
-    rows.push(['','',g,evName,r.vendorName,r.name,r.company||'',r.email||'',r.fav?'YES':'',r.quote?'YES':'','',
+    rows.push(['','',g,evName,r.vendorName,r.name,r.company||'',r.email||'',r.lookbook?'YES':'',r.fav?'YES':'',r.quote?'YES':'','',
       '', [r.note||'',r.quoteNote||''].filter(Boolean).join(' | '),
       r.attendeeId?(location.origin+location.pathname+'?me='+r.attendeeId):'',
       new Date(r.tsClient||0).toISOString()]);
@@ -998,7 +1045,7 @@ function toCSV(subs,evName,repNotes){
       const pk=partner.attendeeId?('pid:'+partner.attendeeId):(partner.email?('email:'+norm(partner.email)):('name:'+norm(partner.name)));
       g=ensureGroup(pk);
     } else { g=ensureGroup('rep:'+(n.id||Math.random())); }
-    rows.push([match,g,'Rep note',evName,'',n.visitorName||'',n.visitorCompany||'',n.visitorEmail||'','',n.quote?'YES':'',(n.priority||'').toUpperCase(),
+    rows.push([match,g,'Rep note',evName,'',n.visitorName||'',n.visitorCompany||'',n.visitorEmail||'',n.lookbook?'YES':'','',n.quote?'YES':'',(n.priority||'').toUpperCase(),
       n.notes||'', '', '', new Date(n.tsClient||0).toISOString()]);
   });
 
