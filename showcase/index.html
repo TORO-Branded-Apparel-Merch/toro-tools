@@ -6,6 +6,14 @@
 <title>Brandabulls Live! Showcase</title>
 <link rel="icon" type="image/png" href="/toro-tools/favicon.png?v=2">
 <link rel="apple-touch-icon" href="/toro-tools/apple-touch-icon.png?v=2">
+<script>
+  // Register the service worker so the app opens even with no signal.
+  if('serviceWorker' in navigator){
+    window.addEventListener('load',()=>{
+      navigator.serviceWorker.register('./sw.js').catch(()=>{});
+    });
+  }
+</script>
 <!-- ADOBE FONTS: when you have your Latienne Pro web project embed code from
      fonts.adobe.com, replace KIT_ID below and uncomment this line:
 <link rel="stylesheet" href="https://use.typekit.net/KIT_ID.css">
@@ -717,6 +725,10 @@ async function renderBooth(){
       '<span class="sp-label">Company / Department</span><input class="sp-input" id="b-co" autocomplete="off" style="margin-bottom:10px">'+
       '<span class="sp-label">Notes from your conversation</span><textarea class="sp-input" id="b-notes" rows="3" maxlength="800" placeholder="What are they looking for? Key details, timing, sizes, quantities\u2026" style="resize:vertical;font-family:inherit;margin-bottom:12px"></textarea>'+
       '<div id="b-linked" style="display:none;background:var(--red-light);border-radius:8px;padding:8px 12px;font-size:12.5px;font-weight:600;color:var(--lanyard);margin-bottom:12px"></div>'+
+      '<span class="sp-label">Photos for this visitor</span>'+
+      '<div class="sp-drop" id="b-drop" style="padding:18px 14px;margin-bottom:6px"><p class="big" style="margin:0 0 2px">&#128247; Take photos for them</p><p class="small" style="margin:0">Snap the items they\u2019re interested in. They\u2019ll get these in their own photo link.</p></div>'+
+      '<input type="file" id="b-file" accept="image/*" capture="environment" multiple style="display:none">'+
+      '<div class="sp-thumbs" id="b-thumbs" style="margin-bottom:12px"></div>'+
       '<span class="sp-label">Follow-up priority</span>'+
       '<div style="display:flex;gap:8px;margin:4px 0 14px" id="b-prio">'+
         '<button class="sp-prio" data-p="hot">&#128293; Hot</button>'+
@@ -737,6 +749,23 @@ async function renderBooth(){
   document.getElementById('sp-boothexit').onclick=()=>{ mode='attendee'; boothVisitor=null; modeBtn.textContent='Organizer view'; vendors=eventVendors(activeEventId); renderVendorPicker(); };
   document.getElementById('sp-boothscan').onclick=()=>boothScan();
 
+  let boothPhotos=[]; // {full,thumb} captured for this visitor
+  const bFile=document.getElementById('b-file');
+  document.getElementById('b-drop').onclick=()=>bFile.click();
+  bFile.onchange=async ()=>{
+    const files=[...bFile.files]; bFile.value='';
+    const thumbs=document.getElementById('b-thumbs');
+    for(const f of files){
+      try{
+        const {full,thumb}=await compressBoth(f);
+        boothPhotos.push({full,thumb});
+        const d=document.createElement('div'); d.className='sp-thumb';
+        d.innerHTML='<img alt="Visitor photo">'; d.querySelector('img').src=thumb;
+        thumbs.appendChild(d);
+      }catch(e){ console.error(e); }
+    }
+  };
+
   document.getElementById('b-save').onclick=async ()=>{
     const name=document.getElementById('b-name').value.trim();
     const email=document.getElementById('b-email').value.trim();
@@ -746,26 +775,45 @@ async function renderBooth(){
     const lookbook=document.getElementById('b-lookbook').checked;
     if(!name && !email){ await bamAlert('Add at least a name or an email so we can follow up.'); return; }
     const btn=document.getElementById('b-save'); btn.disabled=true; btn.textContent='Saving\u2026';
+    // If linked via QR, reuse that visitor's pid so photos land in THEIR collection.
+    // Otherwise mint a new attendee id so rep-captured photos still get a My Photos link.
+    const pid=(boothVisitor&&boothVisitor.pid)||('a'+Date.now().toString(36)+Math.random().toString(36).slice(2,8));
+    const boothVendor=vendors[0]; // the booth's single table
     const rec={ eventId:eid||'', visitorName:name, visitorEmail:email, visitorCompany:co,
-      notes, quote:!!quote, lookbook:!!lookbook, priority:prio,
-      linkedPid: boothVisitor?boothVisitor.pid:'' };
-    try{
-      await addDoc(collection(db,'repnotes'),{...rec, ts:serverTimestamp(), tsClient:Date.now()});
-      boothVisitor=null; renderBooth();
-    }catch(e){
-      // Offline / weak signal: keep it on the tablet and sync later. Never lose a lead.
-      const queued=await qAdd({qid:'r'+Date.now().toString(36)+Math.random().toString(36).slice(2,7), kind:'repnote', ...rec, tsClient:Date.now()}).then(()=>true).catch(()=>false);
-      if(queued){
-        updateQueueBanner();
-        boothVisitor=null; renderBooth();
-        const t=document.createElement('div');
-        t.style.cssText='position:fixed;top:16px;left:50%;transform:translateX(-50%);background:#1d8a4e;color:#fff;padding:10px 16px;border-radius:9px;font-size:14px;font-weight:600;z-index:120;box-shadow:0 4px 14px rgba(0,0,0,.25)';
-        t.innerHTML='&#9989; Visitor saved on this device. It will sync when signal returns.';
-        document.body.appendChild(t); setTimeout(()=>t.remove(),3000);
-      }else{
-        console.error(e); await bamAlert('That didn\u2019t save. Check your connection and try again.'); btn.disabled=false; btn.textContent='Save visitor';
+      notes, quote:!!quote, lookbook:!!lookbook, priority:prio, linkedPid:pid };
+    let allOk=true;
+    // 3a. photos -> submissions (queue individually on failure)
+    for(const p of boothPhotos){
+      const subRec={
+        vendorId:boothVendor?boothVendor.id:'', vendorName:boothVendor?boothVendor.name:(ev?eventLabel(ev):'Booth'),
+        name, company:co, email, attendeeId:pid,
+        note:'', quote:!!quote, fav:false, lookbook:!!lookbook, tsClient:Date.now()
+      };
+      try{
+        const photoDoc=await addDoc(collection(db,'photos'),{ img:p.full, vendorId:subRec.vendorId, tsClient:subRec.tsClient });
+        await addDoc(collection(db,'submissions'),{...subRec, thumb:p.thumb, photoId:photoDoc.id, ts:serverTimestamp()});
+      }catch(e){
+        allOk=false;
+        await qAdd({qid:'q'+Date.now().toString(36)+Math.random().toString(36).slice(2,7), kind:'photo',
+          vendorId:subRec.vendorId, vendorName:subRec.vendorName, name, company:co, email, attendeeId:pid,
+          lookbook:!!lookbook, note:'', full:p.full, thumb:p.thumb, tsClient:subRec.tsClient}).catch(()=>{});
       }
     }
+    // 3b. rep note (linked to the same pid)
+    try{
+      await addDoc(collection(db,'repnotes'),{...rec, ts:serverTimestamp(), tsClient:Date.now()});
+    }catch(e){
+      await qAdd({qid:'r'+Date.now().toString(36)+Math.random().toString(36).slice(2,7), kind:'repnote', ...rec, tsClient:Date.now()}).catch(()=>{ allOk=false; });
+    }
+    updateQueueBanner();
+    boothVisitor=null; boothPhotos=[];
+    // Offer the visitor's link so the rep can show/send it
+    const link=location.origin+location.pathname+'?me='+pid;
+    renderBooth();
+    const t=document.createElement('div');
+    t.style.cssText='position:fixed;top:16px;left:50%;transform:translateX(-50%);background:#1d8a4e;color:#fff;padding:12px 18px;border-radius:9px;font-size:14px;font-weight:600;z-index:120;box-shadow:0 4px 14px rgba(0,0,0,.25);max-width:90vw;text-align:center';
+    t.innerHTML='&#9989; '+esc(name||'Visitor')+' saved'+(allOk?'':' (syncing when online)')+'.';
+    document.body.appendChild(t); setTimeout(()=>t.remove(),3200);
   };
   loadBoothList(eid);
 }
