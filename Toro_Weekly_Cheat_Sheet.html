@@ -775,7 +775,9 @@ function sheetHTML() {
 }
 
 // ─── PRINT ALL REPS (one page per rep) ───────────────────────────────────────
-const SALES_REPS = ['Amy Smith','Debra Guerra','Julia Howorth','Lexi Martinez','Shannon Bull','Stephen Rios'];
+// All eight reps print in the batch. Abby and Kimberly aren't commission reps, but
+// their sales data counts and Stephen wants their weekly sheets printed too.
+const SALES_REPS = ['Abby Mendez','Amy Smith','Debra Guerra','Julia Howorth','Kimberly Black','Lexi Martinez','Shannon Bull','Stephen Rios'];
 let restorePending = false;
 function printAll() {
   if (!allData.length) return;
