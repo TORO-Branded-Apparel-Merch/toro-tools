@@ -1826,8 +1826,8 @@ function recalcPORow(input) {
   const costEl = tr.querySelector('[data-role="cost"]');
   const totalEl = tr.querySelector('.po-line-total');
   if(qtyEl && costEl && totalEl) {
-    const qty  = parseFloat(qtyEl.value)  || 0;
-    const cost = parseFloat(costEl.value) || 0;
+    const qty  = parseFloat(String(qtyEl.value).replace(/[^0-9.\-]/g,''))  || 0;
+    const cost = parseFloat(String(costEl.value).replace(/[^0-9.\-]/g,'')) || 0;
     totalEl.textContent = '$' + (qty * cost).toFixed(2);
   }
   recalcPOTable(input);
@@ -1845,7 +1845,7 @@ function recalcPOTable(input) {
     // .po-line-total may be text content or contain a flat input
     const flatInput = lineEl.querySelector('[data-role="flat"]');
     if(flatInput) {
-      total += parseFloat(flatInput.value) || 0;
+      total += parseFloat(String(flatInput.value).replace(/[^0-9.\-]/g,'')) || 0;
     } else {
       total += parseFloat(lineEl.textContent.replace(/[^0-9.\-]/g,'')) || 0;
     }
