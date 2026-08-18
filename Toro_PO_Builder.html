@@ -996,7 +996,32 @@ function buildPOHTML(poNum, d) {
                 <td></td>
               </tr>
             </tbody>
-          </table>` : ''}
+          </table>` : (g.gnosizes && (g.gnosizes_qty>0 || g.gnosizes_cost>0) ? `
+          <table class="po-table" style="margin-top:8px;">
+            <thead><tr>
+              <th>Item</th><th>Qty</th><th>Net cost/ea</th><th>Line total</th><th style="width:24px;"></th>
+            </tr></thead>
+            <tbody id="po-gar-rows-${poNum.replace(/[^a-z0-9]/gi,'_')}">
+              <tr id="po-row-g-${poNum.replace(/[^a-z0-9]/gi,'_')}-0">
+                <td style="font-weight:700;"><input class="po-field-edit" value="Not sized" style="font-weight:700;width:80px;"></td>
+                <td><input class="po-field-edit po-calc" data-role="qty" value="${g.gnosizes_qty||0}" style="width:60px;text-align:center;" oninput="recalcPORow(this)"></td>
+                <td><input class="po-field-edit po-calc" data-role="cost" value="${fmt(g.gnosizes_cost)}" style="width:80px;" oninput="recalcPORow(this)"></td>
+                <td style="font-weight:600;" class="po-line-total">${fmt((g.gnosizes_qty||0)*(g.gnosizes_cost||0))}</td>
+                <td></td>
+              </tr>
+              ${(g.g_misc_fees||[]).map((f,fi)=>`<tr id="po-row-gf-${poNum.replace(/[^a-z0-9]/gi,'_')}-${fi}">
+                <td colspan="2"><input class="po-field-edit" value="${f.desc||'Misc fee'}" style="font-style:italic;"></td>
+                <td></td>
+                <td class="po-line-total"><input class="po-field-edit po-calc" data-role="flat" value="${fmt(f.net)}" style="width:80px;" oninput="recalcPOTable(this)"></td>
+                <td><button onclick="const _tb=this.closest('tbody');this.closest('tr').remove();recalcPOTable(_tb);syncCurrentPOEdits();" style="border:none;background:none;cursor:pointer;color:#bbb;font-size:13px;padding:2px 4px;" title="Remove row">✕</button></td>
+              </tr>`).join('')}
+              <tr class="po-total-row" style="background:#f5f5f7;font-weight:700;">
+                <td colspan="3">Total</td>
+                <td class="po-grand-total">${fmt((g.gnosizes_qty||0)*(g.gnosizes_cost||0)+(g.g_misc_fees||[]).reduce((a,f)=>a+(f.net||0),0))}</td>
+                <td></td>
+              </tr>
+            </tbody>
+          </table>` : '')}
         </div>`;
     } else if(item.type==='hg') {
       const h = item.data;
