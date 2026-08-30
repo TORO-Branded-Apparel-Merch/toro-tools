@@ -20,91 +20,200 @@
 -->
 <style>
   :root{
+    /* ---- brand tokens (unchanged names — referenced throughout the app) ---- */
     --ink:#1a1a1f; --paper:#F5F5F7; --card:#fff;
     --lanyard:#BC112A; --lanyard-dark:#9e0f22;
     --red-gradient:linear-gradient(160deg,#BC112A 0%,#E9553A 100%);
     --red-light:#fff0f2;
-    --tag:#ffd54f; --ok:#1a7f4b; --line:#E2E3E6; --mut:#888;
+    --tag:#ffd54f; --ok:#1a7f4b; --line:#E2E3E6; --mut:#6b6f76;
     --headline:"latienne-pro",Georgia,"Times New Roman",serif;
+
+    /* ---- new: spacing scale (4px base) ---- */
+    --sp-1:4px; --sp-2:8px; --sp-3:12px; --sp-4:16px; --sp-5:20px; --sp-6:28px; --sp-7:40px;
+
+    /* ---- new: type scale ---- */
+    --fs-xs:11.5px; --fs-sm:13px; --fs-base:15px; --fs-md:16px; --fs-lg:18px; --fs-xl:21px;
+
+    /* ---- new: radius scale ---- */
+    --r-sm:8px; --r-md:12px; --r-lg:16px; --r-pill:999px;
+
+    /* ---- new: elevation ---- */
+    --shadow-sm:0 1px 3px rgba(20,20,30,.07);
+    --shadow-md:0 6px 20px rgba(20,20,30,.10);
+    --shadow-lg:0 14px 36px rgba(20,20,30,.18);
+
+    /* ---- new: motion ---- */
+    --dur-fast:120ms; --dur-base:200ms; --ease:cubic-bezier(.2,.7,.3,1);
+
+    --danger:#b3261e; --danger-light:#fdecea;
   }
   *{box-sizing:border-box;}
-  body{margin:0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;color:var(--ink);background:var(--paper);}
+  html{-webkit-text-size-adjust:100%;}
+  body{margin:0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;font-size:var(--fs-base);line-height:1.5;color:var(--ink);background:var(--paper);}
+  h1,h2,h3,p{margin:0;}
+  button{font-family:inherit;}
+  ::selection{background:var(--red-light);color:var(--lanyard-dark);}
+
+  /* focus visibility, kept quiet everywhere except keyboard nav */
+  a:focus-visible, button:focus-visible, input:focus-visible, textarea:focus-visible, select:focus-visible,
+  [tabindex]:focus-visible{
+    outline:2px solid var(--lanyard); outline-offset:2px; border-radius:4px;
+  }
+
+  @media (prefers-reduced-motion: reduce){
+    *,*::before,*::after{animation-duration:.001ms !important;animation-iteration-count:1 !important;transition-duration:.001ms !important;}
+  }
+
   .sp-app{max-width:720px;margin:0 auto;min-height:100vh;background:var(--paper);}
-  .sp-head{background:var(--red-gradient);color:#fff;padding:14px 20px;display:flex;align-items:center;justify-content:space-between;gap:12px;position:sticky;top:0;z-index:100;box-shadow:0 2px 8px rgba(0,0,0,0.15);}
-  .sp-head h1{margin:0;font-size:20px;font-weight:700;font-family:var(--headline);letter-spacing:.2px;}
-  .sp-head .sub{margin:2px 0 0;font-size:12.5px;opacity:.85;}
-  .sp-tabbtn{background:rgba(255,255,255,.14);color:#fff;border:1px solid rgba(255,255,255,.35);border-radius:8px;padding:7px 12px;font-size:12.5px;cursor:pointer;white-space:nowrap;}
-  .sp-body{padding:20px;}
-  .sp-card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px;margin-bottom:14px;}
-  .sp-label{display:block;font-size:12px;font-weight:600;letter-spacing:.4px;text-transform:uppercase;color:var(--mut);margin-bottom:6px;}
-  .sp-input{width:100%;padding:11px 12px;font-size:16px;border:1.5px solid var(--line);border-radius:9px;background:#fff;color:var(--ink);}
+
+  .sp-head{background:var(--red-gradient);color:#fff;padding:var(--sp-3) var(--sp-5);display:flex;align-items:center;justify-content:space-between;gap:var(--sp-3);position:sticky;top:0;z-index:100;box-shadow:var(--shadow-md);}
+  .sp-head h1{font-size:var(--fs-xl);font-weight:700;font-family:var(--headline);letter-spacing:.2px;line-height:1.15;}
+  .sp-head .sub{margin:2px 0 0;font-size:var(--fs-sm);opacity:.88;line-height:1.3;}
+  .sp-tabbtn{background:rgba(255,255,255,.16);color:#fff;border:1px solid rgba(255,255,255,.4);border-radius:var(--r-sm);padding:8px 13px;font-size:var(--fs-sm);font-weight:600;cursor:pointer;white-space:nowrap;transition:background var(--dur-fast) var(--ease),transform var(--dur-fast) var(--ease);}
+  .sp-tabbtn:hover{background:rgba(255,255,255,.26);}
+  .sp-tabbtn:active{transform:scale(.97);}
+
+  .sp-body{padding:var(--sp-5);}
+
+  /* ---- screen-transition: one quiet fade+rise moment on every render ---- */
+  .sp-body.sp-enter{animation:screenIn var(--dur-base) var(--ease);}
+  @keyframes screenIn{
+    from{opacity:0;transform:translateY(6px);}
+    to{opacity:1;transform:translateY(0);}
+  }
+
+  /* ---- card system: one shape, two weights ---- */
+  .sp-card{background:var(--card);border:1px solid var(--line);border-radius:var(--r-lg);padding:var(--sp-4) var(--sp-4);margin-bottom:var(--sp-4);box-shadow:var(--shadow-sm);}
+  .sp-card.sp-card-primary{border-top:3px solid var(--lanyard);box-shadow:var(--shadow-md);}
+  .sp-card.sp-card-quiet{background:var(--paper);border:1px dashed var(--line);box-shadow:none;}
+  .sp-card.sp-card-dark{background:var(--ink);color:#fff;border:none;box-shadow:var(--shadow-md);}
+
+  .sp-sectioneyebrow{display:flex;align-items:center;justify-content:space-between;gap:var(--sp-2);margin-bottom:var(--sp-2);}
+  .sp-optional{font-size:var(--fs-xs);font-weight:700;letter-spacing:.3px;color:var(--mut);background:var(--paper);border:1px solid var(--line);border-radius:var(--r-pill);padding:3px 9px;white-space:nowrap;}
+
+  .sp-label{display:block;font-size:var(--fs-xs);font-weight:700;letter-spacing:.3px;color:var(--mut);margin-bottom:6px;}
+  .sp-input{width:100%;padding:12px 13px;font-size:var(--fs-md);border:1.5px solid var(--line);border-radius:var(--r-sm);background:#fff;color:var(--ink);transition:border-color var(--dur-fast) var(--ease);}
   .sp-input:focus{outline:2px solid var(--lanyard);outline-offset:1px;border-color:var(--lanyard);}
-  .sp-btn{display:inline-block;background:var(--lanyard);color:#fff;border:none;border-radius:10px;padding:12px 18px;font-size:15px;font-weight:600;cursor:pointer;}
-  .sp-btn:hover{background:var(--lanyard-dark);}
-  .sp-btn[disabled]{opacity:.5;cursor:default;}
-  .sp-btn.ghost{background:#fff;color:var(--lanyard);border:1.5px solid var(--lanyard);}
-  .sp-btn.small{padding:8px 12px;font-size:13px;border-radius:8px;}
-  .sp-btn.danger{background:#fff;color:#b3261e;border:1.5px solid #b3261e;}
-  .sp-vendorgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px;}
-  .sp-vcard{background:#fff;border:1.5px solid var(--line);border-radius:10px;padding:12px;cursor:pointer;text-align:left;font-size:14px;font-weight:600;color:var(--ink);}
-  .sp-vcard .code{display:block;margin-top:5px;font-size:11px;font-weight:700;letter-spacing:1px;color:var(--mut);}
-  .sp-badge{background:var(--tag);border-radius:8px;padding:10px 14px;font-size:13.5px;font-weight:600;display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:14px;}
-  .sp-badge button{background:none;border:none;text-decoration:underline;font-size:12px;cursor:pointer;color:var(--ink);}
-  .sp-drop{border:2px dashed var(--lanyard);border-radius:12px;background:var(--red-light);padding:26px 16px;text-align:center;cursor:pointer;transition:all .15s;}
+  .sp-input::placeholder{color:#a7abb2;}
+  .sp-fieldgroup{margin-bottom:var(--sp-4);}
+  .sp-fieldgroup:last-child{margin-bottom:0;}
+  .sp-divider{border:none;border-top:1px solid var(--line);margin:var(--sp-4) 0;}
+
+  /* ---- button system: pick 2-3 treatments, used consistently ----
+     primary  = the one main action on a screen
+     ghost    = supportive / secondary action
+     danger   = destructive action only
+     text-link (.sp-linkbtn) = quiet in-flow navigation, not a decision */
+  .sp-btn{display:inline-flex;align-items:center;justify-content:center;gap:7px;background:var(--red-gradient);color:#fff;border:none;border-radius:var(--r-sm);padding:13px 20px;font-size:var(--fs-base);font-weight:700;cursor:pointer;box-shadow:var(--shadow-sm);transition:transform var(--dur-fast) var(--ease),box-shadow var(--dur-fast) var(--ease),filter var(--dur-fast) var(--ease);}
+  .sp-btn:hover{filter:brightness(1.05);box-shadow:var(--shadow-md);}
+  .sp-btn:active{transform:scale(.98);}
+  .sp-btn[disabled]{opacity:.45;cursor:default;box-shadow:none;filter:none;transform:none;}
+  .sp-btn.ghost{background:#fff;color:var(--lanyard);border:1.5px solid var(--lanyard);box-shadow:none;}
+  .sp-btn.ghost:hover{background:var(--red-light);}
+  .sp-btn.small{padding:9px 14px;font-size:var(--fs-sm);border-radius:var(--r-sm);}
+  .sp-btn.danger{background:#fff;color:var(--danger);border:1.5px solid var(--danger);box-shadow:none;}
+  .sp-btn.danger:hover{background:var(--danger-light);}
+  .sp-btn.neutral{background:var(--ink);color:#fff;box-shadow:none;}
+  .sp-btn.neutral:hover{filter:brightness(1.2);}
+  .sp-btn.block{width:100%;}
+
+  .sp-linkbtn{background:none;border:none;color:var(--lanyard);font-size:var(--fs-sm);font-weight:600;cursor:pointer;padding:0;text-decoration:underline;text-underline-offset:2px;}
+  .sp-linkbtn:hover{color:var(--lanyard-dark);}
+
+  .sp-vendorgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:var(--sp-3);}
+  .sp-vcard{background:#fff;border:1.5px solid var(--line);border-radius:var(--r-md);padding:var(--sp-3);cursor:pointer;text-align:left;font-size:var(--fs-base);font-weight:700;color:var(--ink);transition:border-color var(--dur-fast) var(--ease),transform var(--dur-fast) var(--ease),box-shadow var(--dur-fast) var(--ease);}
+  .sp-vcard:hover{border-color:var(--lanyard);box-shadow:var(--shadow-sm);transform:translateY(-1px);}
+  .sp-vcard .code{display:block;margin-top:5px;font-size:var(--fs-xs);font-weight:700;letter-spacing:.6px;color:var(--mut);}
+
+  .sp-badge{background:var(--tag);border-radius:var(--r-sm);padding:11px 14px;font-size:var(--fs-sm);font-weight:700;display:flex;align-items:center;justify-content:space-between;gap:var(--sp-3);margin-bottom:var(--sp-4);}
+  .sp-badge button{background:none;border:none;text-decoration:underline;font-size:var(--fs-xs);cursor:pointer;color:var(--ink);font-weight:700;}
+
+  .sp-drop{border:2px dashed var(--lanyard);border-radius:var(--r-lg);background:var(--red-light);padding:34px 18px;text-align:center;cursor:pointer;transition:background var(--dur-fast) var(--ease),transform var(--dur-fast) var(--ease);}
   .sp-drop:hover{background:#ffe4e8;}
-  .sp-drop .big{font-size:15px;font-weight:700;color:var(--lanyard);margin:0 0 4px;}
-  .sp-drop .small{font-size:12.5px;color:var(--mut);margin:0;}
-  .sp-thumbs{display:grid;grid-template-columns:repeat(auto-fill,minmax(90px,1fr));gap:8px;margin-top:12px;}
-  .sp-thumb img{width:100%;height:90px;object-fit:cover;border-radius:8px;border:1px solid var(--line);display:block;}
-  .sp-thumb .cap{font-size:10.5px;color:var(--mut);margin-top:2px;line-height:1.25;max-height:26px;overflow:hidden;}
-  .sp-note{font-size:12.5px;color:var(--mut);margin-top:8px;}
-  .sp-toast{background:var(--ok);color:#fff;border-radius:9px;padding:10px 14px;font-size:14px;font-weight:600;margin-top:12px;display:none;}
-  .sp-adminrow{border-top:1px solid var(--line);padding:12px 0;}
+  .sp-drop:active{transform:scale(.995);}
+  .sp-drop .icon{font-size:30px;display:block;margin-bottom:6px;}
+  .sp-drop .big{font-size:var(--fs-md);font-weight:700;color:var(--lanyard);margin:0 0 4px;}
+  .sp-drop .small{font-size:var(--fs-sm);color:var(--mut);margin:0;}
+
+  .sp-thumbs{display:grid;grid-template-columns:repeat(auto-fill,minmax(96px,1fr));gap:var(--sp-2);margin-top:var(--sp-3);}
+  .sp-thumb img{width:100%;height:96px;object-fit:cover;border-radius:var(--r-sm);border:1px solid var(--line);display:block;}
+  .sp-thumb .cap{font-size:var(--fs-xs);color:var(--mut);margin-top:3px;line-height:1.3;max-height:28px;overflow:hidden;}
+
+  .sp-note{font-size:var(--fs-sm);color:var(--mut);margin-top:var(--sp-2);line-height:1.5;}
+  .sp-toast{background:var(--ok);color:#fff;border-radius:var(--r-sm);padding:11px 14px;font-size:var(--fs-base);font-weight:600;margin-top:var(--sp-3);display:none;animation:screenIn var(--dur-base) var(--ease);}
+
+  .sp-adminrow{border-top:1px solid var(--line);padding:var(--sp-3) 0;}
   .sp-adminrow:first-child{border-top:none;}
-  .sp-who{font-weight:700;font-size:14.5px;}
-  .sp-meta{font-size:12px;color:var(--mut);margin-top:2px;}
-  .sp-empty{color:var(--mut);font-size:14px;padding:14px 0;}
-  .sp-h2{font-size:17px;margin:0 0 10px;font-weight:700;font-family:var(--headline);}
-  .sp-vhead{display:flex;justify-content:space-between;align-items:baseline;margin:6px 0 4px;}
-  .sp-count{font-size:12px;color:var(--mut);}
-  .sp-del{background:#fff;border:1px solid #ddd;color:var(--lanyard);padding:4px 10px;border-radius:6px;font-size:11.5px;font-weight:600;cursor:pointer;}
+  .sp-who{font-weight:700;font-size:var(--fs-base);}
+  .sp-meta{font-size:var(--fs-xs);color:var(--mut);margin-top:2px;}
+  .sp-empty{color:var(--mut);font-size:var(--fs-base);padding:var(--sp-4) 0;}
+  .sp-h2{font-size:var(--fs-lg);margin:0 0 var(--sp-2);font-weight:700;font-family:var(--headline);line-height:1.25;}
+  .sp-vhead{display:flex;justify-content:space-between;align-items:baseline;margin:var(--sp-2) 0 4px;}
+  .sp-count{font-size:var(--fs-xs);color:var(--mut);font-weight:600;}
+  .sp-del{background:#fff;border:1px solid var(--line);color:var(--lanyard);padding:5px 11px;border-radius:var(--r-sm);font-size:var(--fs-xs);font-weight:700;cursor:pointer;transition:background var(--dur-fast) var(--ease),border-color var(--dur-fast) var(--ease);}
   .sp-del:hover{background:var(--red-light);border-color:var(--lanyard);}
-  .sp-back{background:none;border:none;color:var(--lanyard);font-size:13px;cursor:pointer;padding:0;margin-bottom:12px;text-decoration:underline;}
+  .sp-back{background:none;border:none;color:var(--lanyard);font-size:var(--fs-sm);font-weight:600;cursor:pointer;padding:0;margin-bottom:var(--sp-3);text-decoration:underline;text-underline-offset:2px;}
+
   .sp-lb{list-style:none;margin:0;padding:0;}
-  .sp-lb li{display:flex;align-items:center;gap:10px;padding:8px 0;border-top:1px solid var(--line);font-size:14px;}
+  .sp-lb li{display:flex;align-items:center;gap:var(--sp-3);padding:9px 0;border-top:1px solid var(--line);font-size:var(--fs-base);}
   .sp-lb li:first-child{border-top:none;}
-  .sp-lb .rank{width:26px;height:26px;border-radius:50%;background:var(--paper);border:1px solid var(--line);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:12px;flex:none;}
+  .sp-lb .rank{width:26px;height:26px;border-radius:50%;background:var(--paper);border:1px solid var(--line);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:var(--fs-sm);flex:none;}
   .sp-lb li:nth-child(1) .rank{background:var(--tag);border-color:var(--tag);}
   .sp-lb .bar{flex:1;height:8px;background:var(--paper);border-radius:4px;overflow:hidden;}
-  .sp-lb .bar i{display:block;height:100%;background:var(--red-gradient);border-radius:4px;}
-  .sp-lb .n{font-weight:700;width:34px;text-align:right;font-size:13px;}
+  .sp-lb .bar i{display:block;height:100%;background:var(--red-gradient);border-radius:4px;transition:width var(--dur-base) var(--ease);}
+  .sp-lb .n{font-weight:700;width:34px;text-align:right;font-size:var(--fs-sm);}
   .sp-lb .vn{width:38%;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
-  .sp-noteinput{margin-top:10px;display:none;gap:8px;flex-wrap:wrap;}
-  .sp-noteinput.open{display:flex;}
-  .sp-quote{display:flex;align-items:center;justify-content:center;gap:8px;width:100%;padding:11px 12px;border:1.5px dashed var(--line);border-radius:999px;background:#fff;cursor:pointer;font-size:14px;font-weight:600;color:var(--mut);user-select:none;transition:all .15s;}
+
+  .sp-noteinput{margin-top:var(--sp-3);display:none;gap:var(--sp-2);flex-wrap:wrap;}
+  .sp-noteinput.open{display:flex;animation:screenIn var(--dur-base) var(--ease);}
+
+  .sp-quote{display:flex;align-items:center;justify-content:center;gap:8px;width:100%;padding:12px;border:1.5px dashed var(--line);border-radius:var(--r-pill);background:#fff;cursor:pointer;font-size:var(--fs-base);font-weight:700;color:var(--mut);user-select:none;transition:border-color var(--dur-fast) var(--ease),color var(--dur-fast) var(--ease),background var(--dur-fast) var(--ease),box-shadow var(--dur-fast) var(--ease);}
   .sp-quote:hover{border-color:var(--lanyard);color:var(--lanyard);}
-  .sp-quote.on{border:1.5px solid var(--lanyard);background:var(--red-gradient);color:#fff;box-shadow:0 2px 8px rgba(188,17,42,.3);}
-  .sp-prio{flex:1;padding:9px 6px;border:1.5px solid var(--line);border-radius:8px;background:#fff;font-size:13px;font-weight:600;color:var(--ink);cursor:pointer;}
+  .sp-quote.on{border:1.5px solid var(--lanyard);background:var(--red-gradient);color:#fff;box-shadow:0 3px 12px rgba(188,17,42,.32);}
+
+  .sp-prio{flex:1;padding:11px 6px;border:1.5px solid var(--line);border-radius:var(--r-sm);background:#fff;font-size:var(--fs-sm);font-weight:700;color:var(--ink);cursor:pointer;transition:border-color var(--dur-fast) var(--ease),background var(--dur-fast) var(--ease);}
   .sp-prio.on{border-color:var(--lanyard);background:var(--red-light);color:var(--lanyard);}
-  .sp-evchip{background:#fff;border:1.5px solid var(--line);border-radius:999px;padding:8px 14px;font-size:13px;font-weight:600;color:var(--ink);cursor:pointer;}
+
+  .sp-evchip{background:#fff;border:1.5px solid var(--line);border-radius:var(--r-pill);padding:9px 15px;font-size:var(--fs-sm);font-weight:700;color:var(--ink);cursor:pointer;transition:border-color var(--dur-fast) var(--ease),background var(--dur-fast) var(--ease);}
   .sp-evchip:hover{border-color:var(--lanyard);color:var(--lanyard);}
   .sp-evchip.on{background:var(--red-gradient);border-color:var(--lanyard);color:#fff;}
+
   .sp-offdim{opacity:.45;pointer-events:none;filter:grayscale(60%);}
-  .sp-offnote{display:none;background:#1a1a1f;color:#fff;border-radius:8px;padding:8px 12px;font-size:12.5px;font-weight:600;margin-bottom:10px;}
+  .sp-offnote{display:none;background:var(--ink);color:#fff;border-radius:var(--r-sm);padding:10px 13px;font-size:var(--fs-sm);font-weight:600;margin-bottom:var(--sp-3);}
   body.is-offline .sp-offnote{display:block;}
   body.is-offline .sp-needsnet{opacity:.45;pointer-events:none;filter:grayscale(60%);}
-  .sp-heart{position:absolute;top:6px;right:6px;width:30px;height:30px;border-radius:50%;background:rgba(255,255,255,.92);border:1px solid var(--line);display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:15px;line-height:1;user-select:none;box-shadow:0 1px 4px rgba(0,0,0,.15);}
+
+  .sp-heart{position:absolute;top:6px;right:6px;width:30px;height:30px;border-radius:50%;background:rgba(255,255,255,.94);border:1px solid var(--line);display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:15px;line-height:1;user-select:none;box-shadow:var(--shadow-sm);transition:transform var(--dur-fast) var(--ease),background var(--dur-fast) var(--ease);}
+  .sp-heart:active{transform:scale(.88);}
   .sp-heart.on{background:var(--lanyard);border-color:var(--lanyard);}
   .sp-thumb{position:relative;}
-  .sp-favtag{display:inline-block;background:var(--red-light);color:var(--lanyard);font-size:10.5px;font-weight:700;padding:2px 7px;border-radius:5px;margin-top:3px;}
-  .sp-qitem{cursor:pointer;border:2px solid transparent;border-radius:10px;padding:3px;transition:all .15s;}
+  .sp-favtag{display:inline-block;background:var(--red-light);color:var(--lanyard);font-size:var(--fs-xs);font-weight:700;padding:2px 7px;border-radius:5px;margin-top:3px;}
+
+  #sp-quoteitems:not(.selecting) .sp-qcheck{display:none;}
+  #sp-quoteitems:not(.selecting) .sp-qitem:not(.requested){cursor:default;}
+  .sp-qitem{cursor:pointer;border:2px solid transparent;border-radius:var(--r-md);padding:3px;transition:border-color var(--dur-fast) var(--ease),background var(--dur-fast) var(--ease);}
   .sp-qitem.sel{border-color:var(--lanyard);background:var(--red-light);}
   .sp-qitem.requested{cursor:default;opacity:.85;}
-  .sp-qcheck{font-size:10.5px;font-weight:700;color:var(--mut);text-align:center;margin-top:3px;}
+  .sp-qcheck{font-size:var(--fs-xs);font-weight:700;color:var(--mut);text-align:center;margin-top:3px;}
   .sp-qitem.sel .sp-qcheck{color:var(--lanyard);}
-  .sp-quotetag{display:inline-block;background:var(--tag);color:#5c4300;font-size:10.5px;font-weight:700;padding:2px 7px;border-radius:5px;margin-top:3px;}
+  .sp-quotetag{display:inline-block;background:var(--tag);color:#5c4300;font-size:var(--fs-xs);font-weight:700;padding:2px 7px;border-radius:5px;margin-top:3px;}
   .sp-qr{margin-top:6px;}
-  .sp-qr a{font-size:12px;color:var(--lanyard);}
+  .sp-qr a{font-size:var(--fs-xs);color:var(--lanyard);}
+
+  /* ---- booth mode: grouped sections instead of one long scroll ---- */
+  .sp-boothgrid{display:grid;grid-template-columns:1fr;gap:0;}
+  @media (min-width:640px){
+    .sp-boothgrid{grid-template-columns:1fr 1fr;gap:0 var(--sp-5);}
+    .sp-boothgrid .sp-fieldgroup.span2{grid-column:1 / -1;}
+  }
+  .sp-boothsticky{position:sticky;bottom:0;background:linear-gradient(to top,var(--card) 60%,rgba(255,255,255,0));padding-top:var(--sp-4);margin-top:var(--sp-2);}
+  .sp-livedot-key{font-size:var(--fs-xs);color:var(--mut);margin-bottom:var(--sp-3);display:flex;gap:var(--sp-4);flex-wrap:wrap;}
+  .sp-livedot-key span{display:inline-flex;align-items:center;gap:4px;}
+  .sp-dot{display:inline-block;width:9px;height:9px;border-radius:50%;}
+
+  /* bam modal, restyled to match the system without changing its markup/behavior */
+  #bam-overlay{backdrop-filter:blur(1px);}
+  #bam-overlay > div{border-radius:var(--r-lg) !important;box-shadow:var(--shadow-lg) !important;animation:screenIn var(--dur-base) var(--ease);}
 </style>
 </head>
 <body>
@@ -162,8 +271,19 @@ import { getFirestore, collection, addDoc, getDocs, getDoc, deleteDoc, updateDoc
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 
-let mode='attendee', vendors=[], attendee=null, currentVendor=null, pendingFiles=[], adminUnlocked=false, pendingBooth=false;
+let mode='attendee', vendors=[], attendee=null, currentVendor=null, pendingFiles=[], adminUnlocked=false, pendingBooth=false, actingAsRep=false;
 const body=document.getElementById('sp-body'), modeBtn=document.getElementById('sp-modebtn'), sub=document.getElementById('sp-sub');
+// Every screen is drawn by replacing body.innerHTML wholesale (no templating layer),
+// so a single MutationObserver gives every screen change the same quiet fade+rise
+// instead of us having to thread a transition through every render function.
+(()=>{
+  let raf=null;
+  new MutationObserver(()=>{
+    body.classList.remove('sp-enter');
+    if(raf) cancelAnimationFrame(raf);
+    raf=requestAnimationFrame(()=>body.classList.add('sp-enter'));
+  }).observe(body,{childList:true});
+})();
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const slug=s=>s.toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/(^-|-$)/g,'');
 
@@ -227,6 +347,37 @@ function bamPrompt(msg,inputType){
 // (localStorage is fine here — this is a normal hosted page, not an artifact)
 try{ const saved=localStorage.getItem('sp-attendee'); if(saved) attendee=JSON.parse(saved); }catch(e){}
 function saveAttendee(){ try{ localStorage.setItem('sp-attendee',JSON.stringify(attendee)); }catch(e){} }
+function actingBannerHTML(){
+  if(!actingAsRep) return '';
+  return '<div class="sp-badge" style="background:var(--ink);color:#fff;justify-content:space-between">'+
+    '<span>&#128100; Acting as '+esc((attendee&&attendee.name)||'visitor')+'</span>'+
+    '<button id="sp-actdone" class="sp-btn small" style="padding:6px 12px">I\u2019m done \u2014 next person</button>'+
+  '</div>';
+}
+function wireActingBanner(){
+  const b=document.getElementById('sp-actdone');
+  if(b) b.onclick=()=>{
+    actingAsRep=false; attendee=null; currentVendor=null;
+    try{ localStorage.removeItem('sp-attendee'); }catch(e){}
+    renderBooth();
+  };
+}
+
+// signedInAt never changes after first sign-in; lastActivity moves every time
+// they actually do something (photo, quote, favorite, lookbook toggle). The gap
+// between the two is what lets the live attendee list color-code engagement.
+async function touchPresence(isActivity){
+  if(!attendee||!attendee.pid) return;
+  if(!attendee.signedInAt) attendee.signedInAt=Date.now();
+  const now=Date.now();
+  try{
+    await setDoc(doc(db,'attendees',attendee.pid),{
+      name:attendee.name||'', company:attendee.company||'', email:attendee.email||'',
+      eventId:activeEventId||'', signedInAt:attendee.signedInAt,
+      lastActivity: isActivity? now : (attendee.signedInAt||now)
+    });
+  }catch(e){}
+}
 const LOOKBOOK_INFO='Each month we send a TORO Lookbook: a short, curated email of fresh apparel and merch ideas, seasonal picks, and what\u2019s trending with schools like yours. No spam, just inspiration, and you can unsubscribe anytime.';
 function showLookbookInfo(){
   const ov=document.createElement('div');
@@ -262,6 +413,7 @@ function wireLookbook(container, onChange){
 // Persist the opt-in onto every submission this person has made, so it lands in exports.
 async function syncLookbookToSubs(on){
   if(!attendee||!attendee.pid) return;
+  touchPresence(true);
   try{
     const snap=await getDocs(query(collection(db,'submissions'),where('attendeeId','==',attendee.pid)));
     for(const d of snap.docs){ try{ await updateDoc(doc(db,'submissions',d.id),{lookbook:!!on}); }catch(e){ await queueUpdate(d.id,{lookbook:!!on}); } }
@@ -420,7 +572,9 @@ async function updateQueueBanner(){
   if(n===0){ if(b) b.remove(); return; }
   if(!b){
     b=document.createElement('div'); b.id='sp-qbanner';
-    b.style.cssText='position:fixed;bottom:14px;left:50%;transform:translateX(-50%);background:#1a1a1f;color:#fff;padding:10px 18px;border-radius:999px;font-size:13px;font-weight:600;z-index:90;box-shadow:0 4px 14px rgba(0,0,0,.3);cursor:pointer;';
+    b.style.cssText='position:fixed;bottom:16px;left:50%;transform:translateX(-50%);background:var(--ink);color:#fff;padding:11px 20px;border-radius:999px;font-size:13px;font-weight:700;z-index:90;box-shadow:0 8px 24px rgba(0,0,0,.32);cursor:pointer;transition:transform .12s ease;';
+    b.onmousedown=()=>{b.style.transform='translateX(-50%) scale(.97)';};
+    b.onmouseup=()=>{b.style.transform='translateX(-50%)';};
     b.onclick=()=>syncQueue();
     document.body.appendChild(b);
   }
@@ -554,25 +708,27 @@ function renderVendorPicker(){
     body.innerHTML='<div class="sp-card"><div class="sp-empty">No vendor tables set up yet. Organizers: switch to Organizer view to add vendors.</div></div>';
     return;
   }
-  body.innerHTML=(attendee&&attendee.pid
+  body.innerHTML=actingBannerHTML()+(attendee&&attendee.pid
       ? '<div class="sp-badge sp-needsnet" style="justify-content:center"><a href="?me='+attendee.pid+'" style="color:var(--ink);font-weight:700;text-decoration:none">&#128247; My photos</a></div>'
       : '')+
-    '<div class="sp-card"><span class="sp-label">Which table are you at?</span>'+
+    '<div class="sp-card sp-card-primary"><span class="sp-label">Which table are you at?</span>'+
     '<div class="sp-vendorgrid">'+vendors.map(v=>'<button class="sp-vcard" data-id="'+v.id+'">'+esc(v.name)+'<span class="code">'+esc(v.code)+'</span></button>').join('')+'</div></div>';
   body.querySelectorAll('.sp-vcard').forEach(b=>b.onclick=()=>{ currentVendor=vendors.find(v=>v.id===b.dataset.id); attendee?renderDrop():renderIdentify(); });
+  wireActingBanner();
 }
 
 function renderIdentify(){
   const heading=currentVendor?esc(currentVendor.name):'Welcome to the showcase';
-  body.innerHTML=(currentVendor?'<button class="sp-back" id="sp-back">&larr; All tables</button>':'')+
-    '<div class="sp-card"><div class="sp-h2">'+heading+'</div>'+
-    '<p class="sp-note" style="margin:0 0 12px">You only need to fill this out once. Your phone will remember you at every table for the rest of the day.</p>'+
-    '<span class="sp-label">Your name</span><input class="sp-input" id="sp-name" autocomplete="name" style="margin-bottom:12px">'+
-    '<span class="sp-label">Company/Department</span><input class="sp-input" id="sp-co" autocomplete="organization" style="margin-bottom:12px">'+
-    '<span class="sp-label">Email (optional)</span><input class="sp-input" id="sp-em" type="email" autocomplete="email" inputmode="email" style="margin-bottom:6px">'+
-    '<p class="sp-note" style="margin:0 0 12px">Add your email so we can follow up on the items you loved.</p>'+
-    '<div style="margin:0 0 16px">'+lookbookRowHTML('sp-lb-signin')+'</div>'+
-    '<button class="sp-btn" id="sp-go">Start snapping</button></div>';
+  body.innerHTML=actingBannerHTML()+(currentVendor?'<button class="sp-back" id="sp-back">&larr; All tables</button>':'')+
+    '<div class="sp-card sp-card-primary"><div class="sp-h2">'+heading+'</div>'+
+    '<p class="sp-note" style="margin:0 0 16px">You only need to fill this out once. Your phone will remember you at every table for the rest of the day.</p>'+
+    '<div class="sp-fieldgroup"><span class="sp-label">Your name</span><input class="sp-input" id="sp-name" autocomplete="name"></div>'+
+    '<div class="sp-fieldgroup"><span class="sp-label">Company/Department</span><input class="sp-input" id="sp-co" autocomplete="organization"></div>'+
+    '<div class="sp-fieldgroup"><span class="sp-label">Email (optional)</span><input class="sp-input" id="sp-em" type="email" autocomplete="email" inputmode="email">'+
+    '<p class="sp-note" style="margin-top:6px">Add your email so we can follow up on the items you loved.</p></div>'+
+    '<div class="sp-fieldgroup">'+lookbookRowHTML('sp-lb-signin')+'</div>'+
+    '<button class="sp-btn block" id="sp-go">Start snapping</button></div>';
+  wireActingBanner();
   const backBtn=document.getElementById('sp-back');
   if(backBtn) backBtn.onclick=renderVendorPicker;
   document.getElementById('sp-go').onclick=async ()=>{
@@ -586,6 +742,13 @@ function renderIdentify(){
     const pid=(attendee&&attendee.pid)||('a'+Date.now().toString(36)+Math.random().toString(36).slice(2,8));
     const lb=(document.getElementById('sp-lb-signin')||{}).checked||false;
     attendee={name:n,company:c,email:em,pid,lookbook:lb}; saveAttendee();
+    touchPresence();
+    if(actingAsRep){
+      // Rep is standing in for this visitor: skip the how-to (they know the app)
+      // and go straight into the normal flow, with a way to exit at any point.
+      currentVendor?renderDrop():renderVendorPicker();
+      return;
+    }
     let seen=false; try{ seen=!!localStorage.getItem('bl-howto'); }catch(e){}
     if(!seen){ try{ localStorage.setItem('bl-howto','1'); }catch(e){}; await showHowTo(); }
     currentVendor?renderDrop():renderVendorPicker();
@@ -594,10 +757,10 @@ function renderIdentify(){
 }
 
 function renderDrop(){
-  body.innerHTML='<button class="sp-back" id="sp-back">&larr; All tables</button>'+
-    '<div class="sp-badge"><span>&#127915; '+esc(attendee.name)+(attendee.company?' &middot; '+esc(attendee.company):'')+'</span><span style="display:flex;gap:10px;align-items:center"><button id="sp-showcode" style="background:none;border:none;font-size:12px;color:var(--ink);font-weight:600;cursor:pointer;text-decoration:underline;padding:0">Show my code</button><a href="?me='+(attendee.pid||'')+'" class="sp-needsnet" style="font-size:12px;color:var(--ink);font-weight:600">My photos</a><button id="sp-notme">Not you?</button></span></div>'+
-    '<div class="sp-card"><div class="sp-h2">'+esc(currentVendor.name)+'</div>'+
-    '<div class="sp-drop" id="sp-drop"><p class="big">Tap here to take a photo</p><p class="small">Just point your camera at the item you love and we\u2019ll save it to your collection.</p></div>'+
+  body.innerHTML=actingBannerHTML()+'<button class="sp-back" id="sp-back">&larr; All tables</button>'+
+    '<div class="sp-badge"><span>&#127915; '+esc(attendee.name)+(attendee.company?' &middot; '+esc(attendee.company):'')+'</span><span style="display:flex;gap:14px;align-items:center"><button id="sp-showcode" class="sp-linkbtn" style="color:var(--ink)">Show my code</button><a href="?me='+(attendee.pid||'')+'" class="sp-needsnet sp-linkbtn" style="color:var(--ink)">My photos</a><button id="sp-notme" class="sp-linkbtn" style="color:var(--ink)">Not you?</button></span></div>'+
+    '<div class="sp-card sp-card-primary"><div class="sp-h2">'+esc(currentVendor.name)+'</div>'+
+    '<div class="sp-drop" id="sp-drop"><span class="icon">&#128247;</span><p class="big">Tap here to take a photo</p><p class="small">Point your camera at the item you love. It saves straight to your collection, no other steps needed.</p></div>'+
     '<input type="file" id="sp-file" accept="image/*" capture="environment" multiple style="display:none">'+
     '<div class="sp-thumbs" id="sp-preview" style="display:none"></div>'+
     '<div class="sp-noteinput" id="sp-noteui">'+
@@ -609,14 +772,21 @@ function renderDrop(){
     '</div>'+
     '<div class="sp-offnote" id="sp-quoteoffnote">&#128246; You\u2019re offline right now. You can still favorite and request quotes, and everything saves on your device and syncs the moment you\u2019re back online.</div>'+
     '<div class="sp-card" id="sp-quotecard" style="display:none">'+
-      '<div class="sp-h2">Your photos from this table</div>'+
-      '<p class="sp-note" style="margin:0 0 10px">Tap the heart on anything you love to add it to your favorites. If you have a project in mind, select the items you\u2019d like a quote on and add your details below.</p>'+
+      '<div class="sp-sectioneyebrow"><div class="sp-h2" style="margin:0">Your photos from this table</div><span class="sp-optional">Whenever you\u2019re ready</span></div>'+
+      '<p class="sp-note" style="margin:0 0 10px">Tap the heart on anything you love to add it to your favorites.</p>'+
       '<div class="sp-thumbs" id="sp-quoteitems"></div>'+
-      '<span class="sp-label" style="margin-top:14px">Project details (optional)</span>'+
-      '<textarea class="sp-input" id="sp-quotenote" rows="3" maxlength="500" placeholder="Anything that helps us quote it right: delivery date, quantities, sizes, colors, logo placement, budget\u2026" style="resize:vertical;font-family:inherit"></textarea>'+
-      '<button class="sp-btn" id="sp-quotesend" style="margin-top:12px" disabled>Request quote</button>'+
+      '<div id="sp-quotebuilder" style="margin-top:16px">'+
+        '<button class="sp-quote" type="button" id="sp-quotetoggle">&#128002; Ready for a quote? Send email to your rep now.</button>'+
+        '<div id="sp-quoteform" style="display:none;margin-top:14px">'+
+          '<p class="sp-note" style="margin:0 0 10px">Tap the items above you\u2019d like priced, then tell us a bit more.</p>'+
+          '<span class="sp-label">Project details (optional)</span>'+
+          '<textarea class="sp-input" id="sp-quotenote" rows="3" maxlength="500" placeholder="Anything that helps us quote it right: delivery date, quantities, sizes, colors, logo placement, budget\u2026" style="resize:vertical;font-family:inherit"></textarea>'+
+          '<button class="sp-btn block" id="sp-quotesend" style="margin-top:12px" disabled>Request quote</button>'+
+        '</div>'+
+      '</div>'+
     '</div>';
   document.getElementById('sp-back').onclick=renderVendorPicker;
+  wireActingBanner();
   document.getElementById('sp-notme').onclick=()=>{attendee=null;try{localStorage.removeItem('sp-attendee');}catch(e){};renderIdentify();};
   const scBtn=document.getElementById('sp-showcode'); if(scBtn) scBtn.onclick=showMyCode;
   const scBig=document.getElementById('sp-showcode-big'); if(scBig) scBig.onclick=showMyCode;
@@ -646,6 +816,7 @@ function renderDrop(){
       try{
         const {full,thumb}=await compressBoth(f);
         await submitPhoto(full,thumb,note,false);
+        touchPresence(true);
         const d=document.createElement('div');d.className='sp-thumb';
         d.innerHTML='<img alt="Uploaded photo"><div class="cap">'+esc(note)+'</div>';
         d.querySelector('img').src=thumb; thumbs.prepend(d);
@@ -715,29 +886,55 @@ async function renderBooth(){
   const eid=activeEventId;
   const ev=events.find(e=>e.id===eid);
   body.innerHTML=
-    '<div class="sp-badge" style="background:#1a1a1f;color:#fff"><span>&#128290; Booth mode'+(ev?' \u2014 '+esc(eventLabel(ev)):'')+'</span><button id="sp-boothexit" style="color:#fff;text-decoration:underline;background:none;border:none;cursor:pointer;font-size:12px">Exit</button></div>'+
-    '<div class="sp-card">'+
+    '<div class="sp-badge" style="background:var(--ink);color:#fff"><span>&#128290; Booth mode'+(ev?' \u2014 '+esc(eventLabel(ev)):'')+'</span><button id="sp-boothexit" class="sp-linkbtn" style="color:#fff">Exit</button></div>'+
+    '<div class="sp-card sp-card-primary">'+
       '<div class="sp-h2">New visitor</div>'+
-      '<p class="sp-note" style="margin:0 0 12px">Capture the person you\u2019re talking to. If they\u2019re on the app on their own phone, scan their code to link instantly.</p>'+
-      '<button class="sp-btn ghost" id="sp-boothscan" style="width:100%;margin-bottom:14px">&#128247; Scan visitor\u2019s code</button>'+
-      '<span class="sp-label">Name</span><input class="sp-input" id="b-name" autocomplete="off" style="margin-bottom:10px">'+
-      '<span class="sp-label">Email</span><input class="sp-input" id="b-email" type="email" autocomplete="off" inputmode="email" style="margin-bottom:10px">'+
-      '<span class="sp-label">Company / Department</span><input class="sp-input" id="b-co" autocomplete="off" style="margin-bottom:10px">'+
-      '<span class="sp-label">Notes from your conversation</span><textarea class="sp-input" id="b-notes" rows="3" maxlength="800" placeholder="What are they looking for? Key details, timing, sizes, quantities\u2026" style="resize:vertical;font-family:inherit;margin-bottom:12px"></textarea>'+
-      '<div id="b-linked" style="display:none;background:var(--red-light);border-radius:8px;padding:8px 12px;font-size:12.5px;font-weight:600;color:var(--lanyard);margin-bottom:12px"></div>'+
-      '<span class="sp-label">Photos for this visitor</span>'+
-      '<div class="sp-drop" id="b-drop" style="padding:18px 14px;margin-bottom:6px"><p class="big" style="margin:0 0 2px">&#128247; Take photos for them</p><p class="small" style="margin:0">Snap the items they\u2019re interested in. They\u2019ll get these in their own photo link.</p></div>'+
+      '<p class="sp-note" style="margin:0 0 14px">Capture the person you\u2019re talking to. If they\u2019re on the app on their own phone, scan their code to link instantly.</p>'+
+      '<div class="sp-boothgrid" style="margin-bottom:16px">'+
+        '<div class="sp-fieldgroup"><button class="sp-btn ghost block" id="sp-boothscan">&#128247; Scan visitor\u2019s code</button></div>'+
+        '<div class="sp-fieldgroup"><button class="sp-btn neutral block" id="sp-actas">&#128100; Act as a visitor</button></div>'+
+      '</div>'+
+      '<div id="b-linked" style="display:none;background:var(--red-light);border-radius:var(--r-sm);padding:9px 12px;font-size:var(--fs-sm);font-weight:700;color:var(--lanyard);margin-bottom:16px"></div>'+
+
+      '<div class="sp-sectioneyebrow"><span class="sp-label" style="margin:0">Who are you talking to</span></div>'+
+      '<div class="sp-boothgrid">'+
+        '<div class="sp-fieldgroup"><span class="sp-label">Name</span><input class="sp-input" id="b-name" autocomplete="off"></div>'+
+        '<div class="sp-fieldgroup"><span class="sp-label">Email</span><input class="sp-input" id="b-email" type="email" autocomplete="off" inputmode="email"></div>'+
+        '<div class="sp-fieldgroup span2"><span class="sp-label">Company / Department</span><input class="sp-input" id="b-co" autocomplete="off"></div>'+
+      '</div>'+
+      '<hr class="sp-divider">'+
+
+      '<div class="sp-sectioneyebrow"><span class="sp-label" style="margin:0">Conversation notes</span></div>'+
+      '<div class="sp-fieldgroup"><textarea class="sp-input" id="b-notes" rows="3" maxlength="800" placeholder="What are they looking for? Key details, timing, sizes, quantities\u2026" style="resize:vertical;font-family:inherit"></textarea></div>'+
+      '<hr class="sp-divider">'+
+
+      '<div class="sp-sectioneyebrow"><span class="sp-label" style="margin:0">Photos for this visitor</span><span class="sp-optional">Optional</span></div>'+
+      '<div class="sp-fieldgroup"><div class="sp-drop" id="b-drop" style="padding:20px 14px"><span class="icon" style="font-size:22px">&#128247;</span><p class="big" style="margin:0 0 2px">Take photos for them</p><p class="small" style="margin:0">They\u2019ll land in this visitor\u2019s own photo link.</p></div>'+
       '<input type="file" id="b-file" accept="image/*" capture="environment" multiple style="display:none">'+
-      '<div class="sp-thumbs" id="b-thumbs" style="margin-bottom:12px"></div>'+
-      '<span class="sp-label">Follow-up priority</span>'+
-      '<div style="display:flex;gap:8px;margin:4px 0 14px" id="b-prio">'+
+      '<div class="sp-thumbs" id="b-thumbs"></div></div>'+
+      '<hr class="sp-divider">'+
+
+      '<div class="sp-sectioneyebrow"><span class="sp-label" style="margin:0">Follow-up</span></div>'+
+      '<div class="sp-fieldgroup" style="display:flex;gap:8px" id="b-prio">'+
         '<button class="sp-prio" data-p="hot">&#128293; Hot</button>'+
         '<button class="sp-prio" data-p="warm">&#127777;&#65039; Warm</button>'+
         '<button class="sp-prio" data-p="cold">&#10052;&#65039; Cold</button>'+
       '</div>'+
-      '<label style="display:flex;align-items:center;gap:8px;font-size:14px;font-weight:600;margin-bottom:10px;cursor:pointer"><input type="checkbox" id="b-quote" style="width:18px;height:18px"> They want a quote</label>'+
-      '<label style="display:flex;align-items:center;gap:8px;font-size:14px;font-weight:600;margin-bottom:16px;cursor:pointer"><input type="checkbox" id="b-lookbook" style="width:18px;height:18px"> Add them to the monthly Lookbook</label>'+
-      '<button class="sp-btn" id="b-save" style="width:100%">Save visitor</button>'+
+      '<div class="sp-fieldgroup" style="display:flex;flex-direction:column;gap:10px">'+
+        '<label style="display:flex;align-items:center;gap:9px;font-size:var(--fs-base);font-weight:600;cursor:pointer"><input type="checkbox" id="b-quote" style="width:18px;height:18px"> They want a quote</label>'+
+        '<label style="display:flex;align-items:center;gap:9px;font-size:var(--fs-base);font-weight:600;cursor:pointer"><input type="checkbox" id="b-lookbook" style="width:18px;height:18px"> Add them to the monthly Lookbook</label>'+
+      '</div>'+
+      '<div class="sp-boothsticky"><button class="sp-btn block" id="b-save">Save visitor</button></div>'+
+    '</div>'+
+    '<div class="sp-card"><div class="sp-h2">&#128225; Live attendees'+(ev?' \u2014 '+esc(eventLabel(ev)):'')+'</div>'+
+      '<p class="sp-note" style="margin:0 0 8px">Sorted A\u2013Z. Tap a name to act as them again \u2014 add more photos, a note, or a quote.</p>'+
+      '<div class="sp-livedot-key">'+
+        '<span><span class="sp-dot" style="background:#ffd54f"></span>Signed in, no activity</span>'+
+        '<span><span class="sp-dot" style="background:#1d8a4e"></span>Active in last 30 min</span>'+
+        '<span><span class="sp-dot" style="background:#b3261e"></span>Quiet 30+ min</span>'+
+      '</div>'+
+      '<input class="sp-input" id="b-search" placeholder="Search by name, company, or email" style="margin-bottom:10px">'+
+      '<div id="b-attendees"><div class="sp-empty" style="padding:6px 0">Loading\u2026</div></div>'+
     '</div>'+
     '<div class="sp-card"><div class="sp-h2">This session</div><div id="b-list"><div class="sp-empty" style="padding:6px 0">No visitors captured yet.</div></div></div>';
 
@@ -748,6 +945,12 @@ async function renderBooth(){
   });
   document.getElementById('sp-boothexit').onclick=()=>{ mode='attendee'; boothVisitor=null; modeBtn.textContent='Organizer view'; vendors=eventVendors(activeEventId); renderVendorPicker(); };
   document.getElementById('sp-boothscan').onclick=()=>boothScan();
+  document.getElementById('sp-actas').onclick=()=>{
+    actingAsRep=true; attendee=null; currentVendor=null;
+    try{ localStorage.removeItem('sp-attendee'); }catch(e){}
+    vendors=eventVendors(activeEventId);
+    vendors.length===1 ? (currentVendor=vendors[0], renderIdentify()) : renderIdentify();
+  };
 
   let boothPhotos=[]; // {full,thumb} captured for this visitor
   const bFile=document.getElementById('b-file');
@@ -816,6 +1019,64 @@ async function renderBooth(){
     document.body.appendChild(t); setTimeout(()=>t.remove(),3200);
   };
   loadBoothList(eid);
+  loadLiveAttendees(eid);
+  const sBox=document.getElementById('b-search');
+  if(sBox) sBox.oninput=()=>filterAttendees(sBox.value);
+}
+
+let liveAttendeeRows=[]; // cached for instant search filtering without re-querying
+function activityDot(r){
+  // Yellow: signed in, no activity yet. Green: active within 30 min. Red: quiet 30+ min.
+  const last=r.lastActivity||r.signedInAt||0;
+  const signedOnly = !r.lastActivity || r.lastActivity===r.signedInAt;
+  if(signedOnly) return '<span style="display:inline-block;width:9px;height:9px;border-radius:50%;background:#ffd54f" title="Signed in, no activity yet"></span>';
+  const mins=(Date.now()-last)/60000;
+  return mins<=30
+    ? '<span style="display:inline-block;width:9px;height:9px;border-radius:50%;background:#1d8a4e" title="Active within 30 minutes"></span>'
+    : '<span style="display:inline-block;width:9px;height:9px;border-radius:50%;background:#b3261e" title="No activity in 30+ minutes"></span>';
+}
+function renderAttendeeRows(rows){
+  const el=document.getElementById('b-attendees'); if(!el) return;
+  if(!rows.length){ el.innerHTML='<div class="sp-empty" style="padding:6px 0">No matches.</div>'; return; }
+  el.innerHTML=rows.map(r=>'<button class="sp-adminrow" data-pid="'+esc(r.pid)+'" style="width:100%;text-align:left;background:none;border:none;border-top:1px solid var(--line);cursor:pointer;font:inherit;color:inherit;padding:10px 0">'+
+    '<div style="display:flex;justify-content:space-between;align-items:center;gap:8px"><span class="sp-who">'+activityDot(r)+' '+esc(r.name||'(no name)')+'</span><span class="sp-meta">'+timeAgo(r.lastActivity||r.signedInAt)+'</span></div>'+
+    (r.company||r.email?'<div class="sp-meta" style="padding-left:17px">'+[esc(r.company||''),esc(r.email||'')].filter(Boolean).join(' &middot; ')+'</div>':'')+
+  '</button>').join('');
+  el.querySelectorAll('[data-pid]').forEach(b=>{
+    b.onclick=async ()=>{
+      const r=liveAttendeeRows.find(x=>x.pid===b.dataset.pid); if(!r) return;
+      actingAsRep=true;
+      attendee={name:r.name||'', company:r.company||'', email:r.email||'', pid:r.pid, lookbook:false, signedInAt:r.signedInAt||r.lastActivity||Date.now()};
+      saveAttendee();
+      const vs=eventVendors(activeEventId); vendors=vs;
+      currentVendor = vs.length===1 ? vs[0] : null;
+      currentVendor ? renderDrop() : renderVendorPicker();
+    };
+  });
+}
+function filterAttendees(term){
+  const t=term.trim().toLowerCase();
+  const rows=!t ? liveAttendeeRows : liveAttendeeRows.filter(r=>
+    (r.name||'').toLowerCase().includes(t) || (r.company||'').toLowerCase().includes(t) || (r.email||'').toLowerCase().includes(t));
+  renderAttendeeRows(rows);
+}
+async function loadLiveAttendees(eid){
+  const el=document.getElementById('b-attendees'); if(!el) return;
+  try{
+    const snap=await getDocs(query(collection(db,'attendees'),where('eventId','==',eid||'')));
+    liveAttendeeRows=snap.docs.map(d=>({pid:d.id,...d.data()}))
+      .sort((a,b)=>(a.name||'').localeCompare(b.name||'',undefined,{sensitivity:'base'}));
+    if(!liveAttendeeRows.length){ el.innerHTML='<div class="sp-empty" style="padding:6px 0">No one has signed in yet.</div>'; return; }
+    const searchBox=document.getElementById('b-search');
+    filterAttendees(searchBox?searchBox.value:'');
+  }catch(e){ el.innerHTML='<div class="sp-empty" style="padding:6px 0">Couldn\u2019t load the list.</div>'; }
+}
+function timeAgo(ts){
+  if(!ts) return '';
+  const s_=Math.max(0,Math.floor((Date.now()-ts)/1000));
+  if(s_<60) return 'just now';
+  const m=Math.floor(s_/60); if(m<60) return m+'m ago';
+  const h=Math.floor(m/60); return h+'h ago';
 }
 
 async function loadBoothList(eid){
@@ -862,7 +1123,7 @@ async function toggleFav(rec,heartEl){
   rec.fav=to;
   heartEl.classList.toggle('on',to);
   heartEl.innerHTML=to?'&#10084;&#65039;':'&#129293;';
-  try{ await updateDoc(doc(db,'submissions',rec.id),{fav:to}); return true; }
+  try{ await updateDoc(doc(db,'submissions',rec.id),{fav:to}); touchPresence(true); return true; }
   catch(e){
     // Weak signal: queue the change and keep the heart as the visitor set it.
     const queued=await queueUpdate(rec.id,{fav:to});
@@ -901,6 +1162,22 @@ async function loadQuoteSection(){
         const r=recs.find(x=>x.id===h.dataset.fav); if(r) await toggleFav(r,h);
       };
     });
+    // Requesting a quote is a deliberate, separate step: the picker stays closed
+    // (hearting is the only decision on screen) until someone taps the toggle below.
+    const builder=document.getElementById('sp-quotebuilder');
+    const toggleBtn=document.getElementById('sp-quotetoggle');
+    const formBox=document.getElementById('sp-quoteform');
+    const anyUnrequested=recs.some(r=>!r.quote);
+    if(!anyUnrequested){ builder.style.display='none'; }
+    else{
+      builder.style.display='block'; toggleBtn.style.display='inline-flex'; formBox.style.display='none';
+      toggleBtn.onclick=()=>{
+        grid.classList.add('selecting');
+        toggleBtn.style.display='none';
+        formBox.style.display='block';
+        formBox.querySelector('textarea').focus();
+      };
+    }
     const selected=new Set();
     const sendBtn=document.getElementById('sp-quotesend');
     const refreshBtn=()=>{
@@ -910,6 +1187,7 @@ async function loadQuoteSection(){
     refreshBtn();
     grid.querySelectorAll('.sp-qitem:not(.requested)').forEach(el=>{
       el.onclick=()=>{
+        if(!grid.classList.contains('selecting')) return; // ignore taps until quoting is switched on
         const id=el.dataset.id;
         if(selected.has(id)){ selected.delete(id); el.classList.remove('sel'); el.querySelector('.sp-qcheck').textContent='Tap to select'; }
         else { selected.add(id); el.classList.add('sel'); el.querySelector('.sp-qcheck').innerHTML='&#10003; Selected'; }
@@ -928,6 +1206,7 @@ async function loadQuoteSection(){
           r.quote=true; r.quoteNote=projectNote;
         }
         const online=navigator.onLine;
+        touchPresence(true);
         if(online) notifyQuote(chosen,projectNote);
         const t=document.getElementById('sp-toast');
         t.innerHTML=online
@@ -1020,7 +1299,7 @@ async function renderRecap(pid){
 
       let html='<button class="sp-back" id="sp-recapback">&larr; '+(sameEvent?'Back to tables':'See what\u2019s on the floor today')+'</button>'+
         (crossEventNote||'')+
-        '<div class="sp-card"><div class="sp-h2">'+esc(who.name)+'\u2019s photos</div>'+
+        '<div class="sp-card sp-card-primary"><div class="sp-h2">'+esc(who.name)+'\u2019s photos</div>'+
         '<p class="sp-note" style="margin:0">'+
           (multiEvent
             ? 'You\u2019ve joined us at '+eventOrder.length+' showcases, with '+recs.length+' photo'+(recs.length===1?'':'s')+' saved in all. Pick a showcase below to look back through it.'
@@ -1034,7 +1313,7 @@ async function renderRecap(pid){
               }).join('')+
             '</div>'
           : '')+
-        '<div style="margin-top:14px;padding-top:12px;border-top:1px solid var(--line)">'+lookbookRowHTML('sp-lb-photos')+'</div>'+
+        '<hr class="sp-divider">'+lookbookRowHTML('sp-lb-photos')+
         '</div>';
 
       if(multiEvent){
@@ -1149,10 +1428,14 @@ function toCSV(subs,evName,repNotes){
 }
 
 async function renderAdmin(){
+  // Remember this device once it's been unlocked, so staff on the floor
+  // aren't re-typing the passcode every time they switch views.
+  if(!adminUnlocked){ try{ adminUnlocked = localStorage.getItem('sp-admin-unlocked')==='1'; }catch(e){} }
   if(ORGANIZER_PASSCODE && !adminUnlocked){
     const pass=await bamPrompt('Organizer passcode:','password');
     if(pass!==ORGANIZER_PASSCODE){ mode='attendee'; modeBtn.textContent='Organizer view'; renderVendorPicker(); return; }
     adminUnlocked=true;
+    try{ localStorage.setItem('sp-admin-unlocked','1'); }catch(e){}
   }
   if(pendingBooth){ pendingBooth=false; await loadAll(); renderBooth(); return; }
   sub.textContent='Events, vendor tables, leads & leaderboard';
@@ -1184,25 +1467,31 @@ async function renderAdmin(){
   const lb=all.map(x=>({name:x.vendor.name,count:x.recs.length})).sort((a,b)=>b.count-a.count);
   const maxC=Math.max(1,...lb.map(l=>l.count));
 
-  let html='<div class="sp-card"><div class="sp-h2">&#128197; Events</div>'+
-    '<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:8px">'+
-      '<select class="sp-input" id="sp-evsel" style="flex:1;min-width:180px">'+events.map(e=>'<option value="'+e.id+'"'+(e.id===renderAdmin.sel?' selected':'')+'>'+esc(eventLabel(e))+(e.id===activeEventId?' \u2022 LIVE':'')+'</option>').join('')+'</select>'+
+  let html='<div class="sp-card sp-card-primary"><div class="sp-h2">&#128197; Events</div>'+
+    '<div class="sp-fieldgroup"><select class="sp-input" id="sp-evsel">'+events.map(e=>'<option value="'+e.id+'"'+(e.id===renderAdmin.sel?' selected':'')+'>'+esc(eventLabel(e))+(e.id===activeEventId?' \u2022 LIVE':'')+'</option>').join('')+'</select></div>'+
+    '<div class="sp-fieldgroup" style="display:flex;gap:8px;flex-wrap:wrap">'+
       '<button class="sp-btn small ghost" id="sp-evnew">New event</button>'+
       '<button class="sp-btn small ghost" id="sp-evcopy">Copy to new event</button>'+
       (renderAdmin.sel!==activeEventId?'<button class="sp-btn small" id="sp-evactive">Make live for attendees</button>':'')+
-      '<button class="sp-btn small" id="sp-boothlaunch" style="background:#1a1a1f">&#128290; Launch booth mode</button>'+
     '</div>'+
-    '<p class="sp-note">Everything below shows the selected event only. "Copy to new event" brings the vendor list over and leaves all photos and leads behind. The LIVE event is the one attendees see when they open the main link; table QR links always route to their own event automatically.</p>'+
+    '<hr class="sp-divider">'+
+    '<div class="sp-fieldgroup" style="display:flex;gap:8px;flex-wrap:wrap">'+
+      '<button class="sp-btn small neutral" id="sp-boothlaunch">&#128290; Launch booth mode</button>'+
+      '<button class="sp-btn small ghost" id="sp-orglock">&#128274; Lock this device</button>'+
+    '</div>'+
+    '<p class="sp-note" style="margin-top:0">Everything below shows the selected event only. "Copy to new event" brings the vendor list over and leaves all photos and leads behind. The LIVE event is the one attendees see when they open the main link; table QR links always route to their own event automatically.</p>'+
   '</div>'+
   '<div class="sp-card"><div class="sp-h2">Vendor tables \u2014 '+esc(eventLabel(selEvent))+'</div>'+
-    '<div style="display:flex;gap:8px;margin-bottom:10px"><input class="sp-input" id="sp-vname" placeholder="Add vendor, e.g. Maple &amp; Co. Furniture" style="flex:1"><button class="sp-btn small" id="sp-vadd">Add</button></div>'+
-    '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:6px">'+
+    '<div class="sp-fieldgroup" style="display:flex;gap:8px"><input class="sp-input" id="sp-vname" placeholder="Add vendor, e.g. Maple &amp; Co. Furniture" style="flex:1"><button class="sp-btn small" id="sp-vadd">Add</button></div>'+
+    '<p class="sp-note" style="margin-top:0">Each vendor has its own link below. Turn each into a QR code for its table. Scanning takes attendees straight to that vendor\u2019s upload page.</p>'+
+    (vendors.length?vendors.map(v=>'<div class="sp-adminrow"><div style="display:flex;justify-content:space-between;align-items:center;gap:8px"><span class="sp-who">'+esc(v.name)+'</span><button class="sp-del" data-delvendor="'+v.id+'">Delete table</button></div><div class="sp-meta">Code '+esc(v.code)+'</div><div class="sp-qr"><a href="'+base+'?vendor='+v.id+'">'+base+'?vendor='+v.id+'</a></div></div>').join(''):'<div class="sp-empty">No vendors yet.</div>')+
+    '<hr class="sp-divider">'+
+    '<div class="sp-sectioneyebrow"><span class="sp-label" style="margin:0">Export this event\u2019s data</span></div>'+
+    '<div style="display:flex;gap:8px;flex-wrap:wrap">'+
       '<button class="sp-btn small ghost" id="sp-csv"'+(totalPhotos?'':' disabled')+'>Export leads CSV</button>'+
       '<button class="sp-btn small ghost" id="sp-zip"'+(totalPhotos?'':' disabled')+'>Download all photos (ZIP)</button>'+
       '<button class="sp-btn small danger" id="sp-delall">Delete this event\u2019s data</button>'+
     '</div>'+
-    '<p class="sp-note">Each vendor has its own link below. Turn each into a QR code for its table. Scanning takes attendees straight to that vendor\u2019s upload page.</p>'+
-    (vendors.length?vendors.map(v=>'<div class="sp-adminrow"><div style="display:flex;justify-content:space-between;align-items:center;gap:8px"><span class="sp-who">'+esc(v.name)+'</span><button class="sp-del" data-delvendor="'+v.id+'">Delete table</button></div><div class="sp-meta">Code '+esc(v.code)+'</div><div class="sp-qr"><a href="'+base+'?vendor='+v.id+'">'+base+'?vendor='+v.id+'</a></div></div>').join(''):'<div class="sp-empty">No vendors yet.</div>')+
     '</div>';
 
   html+='<div class="sp-card"><div class="sp-h2">&#127942; Table leaderboard</div>';
@@ -1286,8 +1575,14 @@ async function renderAdmin(){
   document.getElementById('sp-evnew').onclick=async ()=>{
     const name=await bamPrompt('Name the new event (e.g. TCU \u2013 Jul 29, 2026):');
     if(!name||!name.trim()) return;
-    try{ const ev=await createEvent(name.trim()); renderAdmin.sel=ev.id; renderAdmin(); }
-    catch(e){ bamAlert('Could not create event: '+e.message); }
+    try{
+      const ev=await createEvent(name.trim());
+      if(vendors.length){
+        const copy=await bamConfirm('Copy the '+vendors.length+' vendor table'+(vendors.length===1?'':'s')+' from "'+eventLabel(selEvent)+'" into "'+name.trim()+'"? You can also add or remove tables after.','Copy tables');
+        if(copy) await copyEventVendors(renderAdmin.sel,ev.id);
+      }
+      renderAdmin.sel=ev.id; renderAdmin();
+    }catch(e){ bamAlert('Could not create event: '+e.message); }
   };
   document.getElementById('sp-evcopy').onclick=async ()=>{
     const name=await bamPrompt('Name the new event (the '+vendors.length+' vendor table'+(vendors.length===1?'':'s')+' from "'+eventLabel(selEvent)+'" will be copied over):');
@@ -1302,6 +1597,11 @@ async function renderAdmin(){
   if(evActiveBtn) evActiveBtn.onclick=async ()=>{
     try{ await setActiveEvent(renderAdmin.sel); renderAdmin(); }
     catch(e){ bamAlert('Could not set live event: '+e.message); }
+  };
+  document.getElementById('sp-orglock').onclick=async ()=>{
+    if(!await bamConfirm('Lock organizer access on this device? You\u2019ll need the passcode again next time.','Lock it')) return;
+    try{ localStorage.removeItem('sp-admin-unlocked'); }catch(e){}
+    adminUnlocked=false; mode='attendee'; modeBtn.textContent='Organizer view'; vendors=eventVendors(activeEventId); renderVendorPicker();
   };
   document.getElementById('sp-boothlaunch').onclick=async ()=>{
     if(renderAdmin.sel!==activeEventId){
