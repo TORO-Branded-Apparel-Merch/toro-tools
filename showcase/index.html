@@ -2,8 +2,10 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#BC112A">
 <title>Brandabulls Live! Showcase</title>
+<link rel="manifest" href="./manifest.json">
 <link rel="icon" type="image/png" href="/toro-tools/favicon.png?v=2">
 <link rel="apple-touch-icon" href="/toro-tools/apple-touch-icon.png?v=2">
 <script>
@@ -20,7 +22,7 @@
 -->
 <style>
   :root{
-    /* ---- brand tokens (unchanged names — referenced throughout the app) ---- */
+    /* ---- brand tokens (unchanged names - referenced throughout the app) ---- */
     --ink:#1a1a1f; --paper:#F5F5F7; --card:#fff;
     --lanyard:#BC112A; --lanyard-dark:#9e0f22;
     --red-gradient:linear-gradient(160deg,#BC112A 0%,#E9553A 100%);
@@ -66,13 +68,14 @@
 
   .sp-app{max-width:720px;margin:0 auto;min-height:100vh;background:var(--paper);}
 
-  .sp-head{background:var(--red-gradient);color:#fff;padding:var(--sp-3) var(--sp-5);display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;row-gap:8px;gap:var(--sp-3);position:sticky;top:0;z-index:100;box-shadow:var(--shadow-md);}
+  .sp-head{background:var(--red-gradient);color:#fff;padding:calc(var(--sp-3) + env(safe-area-inset-top)) var(--sp-5) var(--sp-3);display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;row-gap:8px;gap:var(--sp-3);position:sticky;top:0;z-index:100;box-shadow:var(--shadow-md);}
   .sp-headid{display:flex;align-items:center;gap:12px;min-width:0;flex:1 1 200px;}
   .sp-headid .titlewrap{min-width:0;overflow:hidden;}
   .sp-head h1{font-size:var(--fs-xl);font-weight:700;font-family:var(--headline);letter-spacing:.2px;line-height:1.15;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
   .sp-head .sub{margin:2px 0 0;font-size:var(--fs-sm);opacity:.88;line-height:1.3;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
-  .sp-tabbtn{background:rgba(255,255,255,.16);color:#fff;border:1px solid rgba(255,255,255,.4);border-radius:var(--r-sm);padding:8px 13px;font-size:var(--fs-sm);font-weight:600;cursor:pointer;white-space:nowrap;flex-shrink:0;transition:background var(--dur-fast) var(--ease),transform var(--dur-fast) var(--ease);}
-  .sp-tabbtn:hover{background:rgba(255,255,255,.26);}
+  .sp-tabbtn{background:#fff;color:var(--lanyard);border:none;border-radius:var(--r-pill);padding:9px 16px;font-size:var(--fs-sm);font-weight:700;cursor:pointer;white-space:nowrap;flex-shrink:0;box-shadow:0 2px 8px rgba(0,0,0,.16);transition:background var(--dur-fast) var(--ease),transform var(--dur-fast) var(--ease),box-shadow var(--dur-fast) var(--ease);}
+  .sp-tabbtn:hover{background:#fff0f2;box-shadow:0 3px 10px rgba(0,0,0,.22);}
+  .sp-tabbtn:active{transform:scale(.96);}
   .sp-tabbtn:active{transform:scale(.97);}
 
   .sp-body{padding:var(--sp-5);}
@@ -123,22 +126,27 @@
   .sp-linkbtn:hover{color:var(--lanyard-dark);}
 
   .sp-vendorgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:var(--sp-3);}
-  .sp-vcard{background:#fff;border:1.5px solid var(--line);border-radius:var(--r-md);padding:var(--sp-3);cursor:pointer;text-align:left;font-size:var(--fs-base);font-weight:700;color:var(--ink);transition:border-color var(--dur-fast) var(--ease),transform var(--dur-fast) var(--ease),box-shadow var(--dur-fast) var(--ease);}
+  .sp-vcard{position:relative;background:#fff;border:1.5px solid var(--line);border-radius:var(--r-md);padding:var(--sp-3);cursor:pointer;text-align:left;font-size:var(--fs-base);font-weight:700;color:var(--ink);transition:border-color var(--dur-fast) var(--ease),transform var(--dur-fast) var(--ease),box-shadow var(--dur-fast) var(--ease);}
   .sp-vcard:hover{border-color:var(--lanyard);box-shadow:var(--shadow-sm);transform:translateY(-1px);}
+  .sp-vcard:active{transform:scale(.96);}
   .sp-vcard .code{display:block;margin-top:5px;font-size:var(--fs-xs);font-weight:700;letter-spacing:.6px;color:var(--mut);}
+  .sp-vcard .visited-check{position:absolute;top:8px;right:8px;width:18px;height:18px;border-radius:50%;background:var(--ok);color:#fff;font-size:11px;line-height:18px;text-align:center;}
 
   .sp-badge{background:var(--ink);color:#fff;border-radius:var(--r-sm);padding:11px 14px;font-size:var(--fs-sm);font-weight:700;display:flex;align-items:center;justify-content:space-between;gap:var(--sp-3);margin-bottom:var(--sp-4);}
   .sp-badge.sp-badge-stack{flex-direction:column;align-items:flex-start;gap:9px;}
   .sp-badge-who{font-weight:700;}
-  .sp-badge-links{display:flex;gap:16px;flex-wrap:wrap;font-weight:600;}
-  .sp-badge-links .sp-linkbtn{color:#fff;}
-  .sp-badge-links .sp-linkbtn:hover{color:#ddd;}
+  .sp-badge-links{display:flex;gap:10px;flex-wrap:wrap;font-weight:600;}
+  .sp-badge-links .sp-linkbtn{color:#fff;background:rgba(255,255,255,.14);border:1px solid rgba(255,255,255,.35);border-radius:var(--r-pill);padding:6px 13px;text-decoration:none;transition:background var(--dur-fast) var(--ease),transform var(--dur-fast) var(--ease);}
+  .sp-badge-links .sp-linkbtn:hover{background:rgba(255,255,255,.24);}
+  .sp-badge-links .sp-linkbtn:active{transform:scale(.95);}
   .sp-previewactions{display:flex;gap:18px;flex-wrap:wrap;margin-top:10px;align-items:center;}
   .sp-headbtns{display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end;flex-shrink:0;}
 
-  .sp-drop{border:2px dashed var(--lanyard);border-radius:var(--r-lg);background:var(--red-light);padding:34px 18px;text-align:center;cursor:pointer;transition:background var(--dur-fast) var(--ease),transform var(--dur-fast) var(--ease);}
+  .sp-drop{border:2px dashed var(--lanyard);border-radius:var(--r-lg);background:var(--red-light);padding:34px 18px;text-align:center;cursor:pointer;transition:background var(--dur-fast) var(--ease),transform var(--dur-fast) var(--ease),opacity var(--dur-fast) var(--ease);}
   .sp-drop:hover{background:#ffe4e8;}
   .sp-drop:active{transform:scale(.995);}
+  .sp-drop.disabled{border-color:var(--line);background:var(--paper);opacity:.6;cursor:not-allowed;pointer-events:none;}
+  .sp-drop.disabled .big,.sp-drop.disabled .small{color:var(--mut);}
   .sp-drop .icon{font-size:30px;display:block;margin-bottom:6px;}
   .sp-drop .big{font-size:var(--fs-md);font-weight:700;color:var(--lanyard);margin:0 0 4px;}
   .sp-drop .small{font-size:var(--fs-sm);color:var(--mut);margin:0;}
@@ -158,9 +166,12 @@
   .sp-h2{font-size:var(--fs-lg);margin:0 0 var(--sp-2);font-weight:700;font-family:var(--headline);line-height:1.25;}
   .sp-vhead{display:flex;justify-content:space-between;align-items:baseline;margin:var(--sp-2) 0 4px;}
   .sp-count{font-size:var(--fs-xs);color:var(--mut);font-weight:600;}
-  .sp-del{background:#fff;border:1px solid var(--line);color:var(--lanyard);padding:5px 11px;border-radius:var(--r-sm);font-size:var(--fs-xs);font-weight:700;cursor:pointer;transition:background var(--dur-fast) var(--ease),border-color var(--dur-fast) var(--ease);}
+  .sp-del{background:#fff;border:1px solid var(--line);color:var(--lanyard);padding:5px 11px;border-radius:var(--r-sm);font-size:var(--fs-xs);font-weight:700;cursor:pointer;transition:background var(--dur-fast) var(--ease),border-color var(--dur-fast) var(--ease),transform var(--dur-fast) var(--ease);}
+  .sp-del:active{transform:scale(.94);}
   .sp-del:hover{background:var(--red-light);border-color:var(--lanyard);}
-  .sp-back{background:none;border:none;color:var(--lanyard);font-size:var(--fs-sm);font-weight:600;cursor:pointer;padding:0;margin-bottom:var(--sp-3);text-decoration:underline;text-underline-offset:2px;}
+  .sp-back{display:inline-flex;align-items:center;background:#fff;border:1.5px solid var(--line);color:var(--lanyard);font-size:var(--fs-sm);font-weight:700;cursor:pointer;padding:7px 14px;border-radius:var(--r-pill);margin-bottom:var(--sp-3);box-shadow:var(--shadow-sm);transition:border-color var(--dur-fast) var(--ease),transform var(--dur-fast) var(--ease);}
+  .sp-back:hover{border-color:var(--lanyard);}
+  .sp-back:active{transform:scale(.96);}
 
   .sp-lb{list-style:none;margin:0;padding:0;}
   .sp-lb li{display:flex;align-items:center;gap:var(--sp-3);padding:9px 0;border-top:1px solid var(--line);font-size:var(--fs-base);}
@@ -175,19 +186,23 @@
   .sp-noteinput{margin-top:var(--sp-3);display:none;gap:var(--sp-2);flex-wrap:wrap;}
   .sp-noteinput.open{display:flex;animation:screenIn var(--dur-base) var(--ease);}
 
-  .sp-quote{display:flex;align-items:center;justify-content:center;gap:8px;width:100%;padding:12px;border:1.5px dashed var(--line);border-radius:var(--r-pill);background:#fff;cursor:pointer;font-size:var(--fs-base);font-weight:700;color:var(--mut);user-select:none;transition:border-color var(--dur-fast) var(--ease),color var(--dur-fast) var(--ease),background var(--dur-fast) var(--ease),box-shadow var(--dur-fast) var(--ease);}
+  .sp-quote{display:flex;align-items:center;justify-content:center;gap:8px;width:100%;padding:12px;border:1.5px dashed var(--line);border-radius:var(--r-pill);background:#fff;cursor:pointer;font-size:var(--fs-base);font-weight:700;color:var(--mut);user-select:none;transition:border-color var(--dur-fast) var(--ease),color var(--dur-fast) var(--ease),background var(--dur-fast) var(--ease),box-shadow var(--dur-fast) var(--ease),transform var(--dur-fast) var(--ease);}
+  .sp-quote:active{transform:scale(.98);}
   .sp-quote:hover{border-color:var(--lanyard);color:var(--lanyard);}
   .sp-quote.on{border:1.5px solid var(--lanyard);background:var(--red-gradient);color:#fff;box-shadow:0 3px 12px rgba(188,17,42,.32);}
 
-  .sp-prio{flex:1;padding:11px 6px;border:1.5px solid var(--line);border-radius:var(--r-sm);background:#fff;font-size:var(--fs-sm);font-weight:700;color:var(--ink);cursor:pointer;transition:border-color var(--dur-fast) var(--ease),background var(--dur-fast) var(--ease);}
+  .sp-prio{flex:1;padding:11px 6px;border:1.5px solid var(--line);border-radius:var(--r-sm);background:#fff;font-size:var(--fs-sm);font-weight:700;color:var(--ink);cursor:pointer;transition:border-color var(--dur-fast) var(--ease),background var(--dur-fast) var(--ease),transform var(--dur-fast) var(--ease);}
+  .sp-prio:active{transform:scale(.95);}
   .sp-prio.on{border-color:var(--lanyard);background:var(--red-light);color:var(--lanyard);}
 
-  .sp-evchip{background:#fff;border:1.5px solid var(--line);border-radius:var(--r-pill);padding:9px 15px;font-size:var(--fs-sm);font-weight:700;color:var(--ink);cursor:pointer;transition:border-color var(--dur-fast) var(--ease),background var(--dur-fast) var(--ease);}
+  .sp-evchip{background:#fff;border:1.5px solid var(--line);border-radius:var(--r-pill);padding:9px 15px;font-size:var(--fs-sm);font-weight:700;color:var(--ink);cursor:pointer;transition:border-color var(--dur-fast) var(--ease),background var(--dur-fast) var(--ease),transform var(--dur-fast) var(--ease);}
+  .sp-evchip:active{transform:scale(.95);}
   .sp-evchip:hover{border-color:var(--lanyard);color:var(--lanyard);}
   .sp-evchip.on{background:var(--red-gradient);border-color:var(--lanyard);color:#fff;}
 
   .sp-tabbar{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:var(--sp-4);position:sticky;top:0;background:var(--paper);padding:var(--sp-2) 0;z-index:10;}
-  .sp-tabchip{background:#fff;border:1.5px solid var(--line);border-radius:var(--r-pill);padding:9px 18px;font-size:var(--fs-sm);font-weight:700;color:var(--ink);cursor:pointer;transition:border-color var(--dur-fast) var(--ease),background var(--dur-fast) var(--ease),color var(--dur-fast) var(--ease);}
+  .sp-tabchip{background:#fff;border:1.5px solid var(--line);border-radius:var(--r-pill);padding:9px 18px;font-size:var(--fs-sm);font-weight:700;color:var(--ink);cursor:pointer;transition:border-color var(--dur-fast) var(--ease),background var(--dur-fast) var(--ease),color var(--dur-fast) var(--ease),transform var(--dur-fast) var(--ease);}
+  .sp-tabchip:active{transform:scale(.95);}
   .sp-tabchip:hover{border-color:var(--lanyard);color:var(--lanyard);}
   .sp-tabchip.on{background:var(--red-gradient);border-color:var(--lanyard);color:#fff;}
 
@@ -199,12 +214,15 @@
   .sp-heart{position:absolute;top:6px;right:6px;width:30px;height:30px;border-radius:50%;background:rgba(255,255,255,.94);border:1px solid var(--line);display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:17px;line-height:1;color:var(--lanyard);user-select:none;box-shadow:var(--shadow-sm);transition:transform var(--dur-fast) var(--ease),background var(--dur-fast) var(--ease);}
   .sp-heart:active{transform:scale(.88);}
   .sp-heart.on{background:var(--lanyard);border-color:var(--lanyard);color:#fff;}
+  @keyframes heartPop{0%{transform:scale(1);}35%{transform:scale(1.35);}65%{transform:scale(.92);}100%{transform:scale(1);}}
+  .sp-heart.pop{animation:heartPop 320ms var(--ease);}
   .sp-thumb{position:relative;}
   .sp-favtag{display:inline-block;background:var(--red-light);color:var(--lanyard);font-size:var(--fs-xs);font-weight:700;padding:2px 7px;border-radius:5px;margin-top:3px;}
 
   .sp-thumbs:not(.selecting) .sp-qcheck{display:none;}
   .sp-thumbs:not(.selecting) .sp-qitem:not(.requested){cursor:default;}
-  .sp-qitem{cursor:pointer;border:2px solid transparent;border-radius:var(--r-md);padding:3px;transition:border-color var(--dur-fast) var(--ease),background var(--dur-fast) var(--ease);}
+  .sp-qitem{cursor:pointer;border:2px solid transparent;border-radius:var(--r-md);padding:3px;transition:border-color var(--dur-fast) var(--ease),background var(--dur-fast) var(--ease),transform var(--dur-fast) var(--ease);}
+  .sp-qitem:active{transform:scale(.97);}
   .sp-qitem.sel{border-color:var(--lanyard);background:var(--red-light);}
   .sp-qitem.requested{cursor:default;opacity:.85;}
   .sp-qcheck{font-size:var(--fs-xs);font-weight:700;color:var(--mut);text-align:center;margin-top:3px;}
@@ -220,7 +238,7 @@
     .sp-boothgrid{grid-template-columns:1fr 1fr;gap:0 var(--sp-5);}
     .sp-boothgrid .sp-fieldgroup.span2{grid-column:1 / -1;}
   }
-  .sp-boothsticky{position:sticky;bottom:0;background:linear-gradient(to top,var(--card) 60%,rgba(255,255,255,0));padding-top:var(--sp-4);margin-top:var(--sp-2);}
+  .sp-boothsticky{position:sticky;bottom:0;background:linear-gradient(to top,var(--card) 60%,rgba(255,255,255,0));padding-top:var(--sp-4);padding-bottom:env(safe-area-inset-bottom);margin-top:var(--sp-2);}
   .sp-livedot-key{font-size:var(--fs-xs);color:var(--mut);margin-bottom:var(--sp-3);display:flex;gap:var(--sp-4);flex-wrap:wrap;}
   .sp-livedot-key span{display:inline-flex;align-items:center;gap:4px;}
   .sp-dot{display:inline-block;width:9px;height:9px;border-radius:50%;}
@@ -300,7 +318,7 @@ const body=document.getElementById('sp-body'), modeBtn=document.getElementById('
 // The Request a Quote tab only makes sense once someone is a signed-in attendee
 // browsing their own flow, and the Organizer view toggle needs to disappear
 // while a rep is acting as a visitor (their one deliberate way out is the
-// "I'm done" banner button, not a stray tap on the header) — both are
+// "I'm done" banner button, not a stray tap on the header) - both are
 // recalculated on every screen change rather than threaded through each
 // render function individually.
 function updateQuoteBtnVisibility(){
@@ -389,14 +407,43 @@ function bamPrompt(msg,inputType,defaultVal){
 }
 
 // Remember attendee identity on their own phone so it survives page reloads
-// (localStorage is fine here — this is a normal hosted page, not an artifact)
+// (localStorage is fine here - this is a normal hosted page, not an artifact)
 try{ const saved=localStorage.getItem('sp-attendee'); if(saved) attendee=JSON.parse(saved); }catch(e){}
 function saveAttendee(){ try{ localStorage.setItem('sp-attendee',JSON.stringify(attendee)); }catch(e){} }
+// Which tables this attendee has already snapped a photo at, so the table
+// picker can show a quiet "visited" mark. Device-local, not synced - it's
+// just a memory aid, not a record of truth.
+let visitedVendors=new Set();
+try{ const sv=localStorage.getItem('sp-visited'); if(sv) visitedVendors=new Set(JSON.parse(sv)); }catch(e){}
+function markVisited(vendorId){
+  if(visitedVendors.has(vendorId)) return;
+  visitedVendors.add(vendorId);
+  try{ localStorage.setItem('sp-visited',JSON.stringify([...visitedVendors])); }catch(e){}
+}
+function clearVisited(){
+  visitedVendors=new Set();
+  try{ localStorage.removeItem('sp-visited'); }catch(e){}
+}
+// A clear, momentary confirmation after a booth save - more certain than a
+// small toast in a loud trade-show environment. Auto-dismisses, or tap
+// anywhere to close early, same pattern as the photo zoom overlays.
+function showBoothSaveConfirm(name, allOk){
+  const ov=document.createElement('div');
+  ov.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:150;display:flex;align-items:center;justify-content:center;padding:20px;cursor:pointer;';
+  ov.innerHTML='<div style="background:#fff;border-radius:16px;padding:30px 28px;max-width:340px;width:100%;text-align:center;box-shadow:0 10px 40px rgba(0,0,0,.3);animation:screenIn 200ms ease">'+
+    '<div style="width:56px;height:56px;border-radius:50%;background:var(--ok);color:#fff;display:flex;align-items:center;justify-content:center;font-size:28px;margin:0 auto 14px">&#10003;</div>'+
+    '<div style="font-size:18px;font-weight:700;color:var(--ink);margin-bottom:6px">'+esc(name||'Visitor')+' saved</div>'+
+    '<div style="font-size:13.5px;color:var(--mut)">'+(allOk?'Ready for the next person.':'Will sync automatically once you\u2019re back online.')+'</div>'+
+  '</div>';
+  ov.onclick=()=>ov.remove();
+  document.body.appendChild(ov);
+  setTimeout(()=>{ if(document.body.contains(ov)) ov.remove(); },1800);
+}
 function actingBannerHTML(){
   if(!actingAsRep) return '';
   return '<div class="sp-badge" style="background:var(--ink);color:#fff;justify-content:space-between">'+
     '<span>Acting as '+esc((attendee&&attendee.name)||'visitor')+'</span>'+
-    '<button id="sp-actdone" class="sp-btn small" style="padding:6px 12px">I\u2019m done \u2014 next person</button>'+
+    '<button id="sp-actdone" class="sp-btn small" style="padding:6px 12px">I\u2019m done - next person</button>'+
   '</div>';
 }
 function wireActingBanner(){
@@ -404,6 +451,7 @@ function wireActingBanner(){
   if(b) b.onclick=()=>{
     actingAsRep=false; attendee=null; currentVendor=null;
     try{ localStorage.removeItem('sp-attendee'); }catch(e){}
+    clearVisited();
     renderBooth();
   };
 }
@@ -642,7 +690,7 @@ function applyOnlineState(){
   document.body.classList.toggle('is-offline', !verifiedOnline);
 }
 // navigator.onLine only reflects whether the device's network adapter is
-// connected to *something* — it's known to misreport "offline" on plenty of
+// connected to *something* - it's known to misreport "offline" on plenty of
 // phones and flaky wifi/cell handoffs. What we actually care about is whether
 // we can reach Firestore right now, so we confirm with a small real read
 // instead of trusting the browser's flag on its own, and keep re-checking so
@@ -652,7 +700,7 @@ async function verifyOnline(){
   try{ await getDoc(doc(db,'config','current')); verifiedOnline=true; }
   catch(e){ verifiedOnline=false; }
   applyOnlineState();
-  if(!was && verifiedOnline) syncQueue(); // just confirmed back online — flush anything queued right away
+  if(!was && verifiedOnline) syncQueue(); // just confirmed back online - flush anything queued right away
 }
 window.addEventListener('online',verifyOnline);
 window.addEventListener('offline',()=>{ verifiedOnline=false; applyOnlineState(); });
@@ -677,7 +725,7 @@ function notifyQuote(items,projectNote){
   if(!EMAILJS_PUBLIC_KEY||!EMAILJS_SERVICE_ID||!EMAILJS_TEMPLATE_ID) return; // notifications not configured
   const vendorNames=[...new Set(items.map(r=>r.vendorName).filter(Boolean))];
   const vendorSummary=vendorNames.length? vendorNames.join(', ') : 'the showcase floor';
-  const noteText=(projectNote?'PROJECT DETAILS: '+projectNote+' \u2014 ':'')+items.map((r,i)=>'Item '+(i+1)+' ('+(r.vendorName||'table')+'): '+(r.note||'(no note)')).join(' \u2022 ');
+  const noteText=(projectNote?'PROJECT DETAILS: '+projectNote+' - ':'')+items.map((r,i)=>'Item '+(i+1)+' ('+(r.vendorName||'table')+'): '+(r.note||'(no note)')).join(' \u2022 ');
   fetch('https://api.emailjs.com/api/v1.0/email/send',{
     method:'POST', headers:{'Content-Type':'application/json'},
     body:JSON.stringify({
@@ -815,12 +863,12 @@ function renderVendorPicker(){
         '</div>'
       : '')+
     '<div class="sp-card sp-card-primary"><span class="sp-label">Which table are you at?</span>'+
-    '<div class="sp-vendorgrid">'+vendors.map(v=>'<button class="sp-vcard" data-id="'+v.id+'">'+esc(v.name)+'<span class="code">'+esc(v.code)+'</span></button>').join('')+'</div></div>';
+    '<div class="sp-vendorgrid">'+vendors.map(v=>'<button class="sp-vcard" data-id="'+v.id+'">'+(visitedVendors.has(v.id)?'<span class="visited-check" title="You\u2019ve saved a photo here">&#10003;</span>':'')+esc(v.name)+'<span class="code">'+esc(v.code)+'</span></button>').join('')+'</div></div>';
   body.querySelectorAll('.sp-vcard').forEach(b=>b.onclick=()=>{ currentVendor=vendors.find(v=>v.id===b.dataset.id); attendee?renderDrop():renderIdentify(); });
   wireActingBanner();
   const scBtn=document.getElementById('sp-showcode'); if(scBtn) scBtn.onclick=showMyCode;
   const notMeBtn=document.getElementById('sp-notme');
-  if(notMeBtn) notMeBtn.onclick=()=>{attendee=null;try{localStorage.removeItem('sp-attendee');}catch(e){};renderIdentify();};
+  if(notMeBtn) notMeBtn.onclick=()=>{attendee=null;try{localStorage.removeItem('sp-attendee');}catch(e){};clearVisited();renderIdentify();};
 }
 
 function renderIdentify(){
@@ -873,6 +921,7 @@ function renderDrop(){
     '<div class="sp-previewactions" id="sp-previewactions" style="display:none">'+
       '<button type="button" class="sp-linkbtn" id="sp-addmore">+ Add another angle</button>'+
       '<button type="button" class="sp-linkbtn" id="sp-addnote-toggle">Add a note?</button>'+
+      '<button type="button" class="sp-linkbtn" id="sp-cancelphoto" style="color:var(--mut)">Cancel</button>'+
     '</div>'+
     '<div class="sp-noteinput" id="sp-noteui">'+
       '<input class="sp-input" id="sp-notetext" placeholder="Optional note, e.g. loved the walnut finish" maxlength="140" style="flex:1">'+
@@ -891,23 +940,61 @@ function renderDrop(){
   wireActingBanner();
   const fileInput=document.getElementById('sp-file');
   let addingMore=false;
+  // Preview blob URLs stay alive (not revoked on load) so a pending photo can
+  // be tapped to zoom before it's saved; cleaned up whenever the preview set
+  // changes or the capture is reset/canceled/saved.
+  let currentPreviewUrls=[];
+  function revokePreviewUrls(){
+    currentPreviewUrls.forEach(u=>{ try{ URL.revokeObjectURL(u); }catch(e){} });
+    currentPreviewUrls=[];
+  }
+  function resetCapture(){
+    pendingFiles=[];
+    revokePreviewUrls();
+    document.getElementById('sp-noteui').classList.remove('open');
+    document.getElementById('sp-addnote-toggle').style.display='inline-block';
+    document.getElementById('sp-notetext').value='';
+    document.getElementById('sp-previewactions').style.display='none';
+    const pv=document.getElementById('sp-preview'); pv.innerHTML=''; pv.style.display='none';
+    document.getElementById('sp-save').style.display='none';
+    document.getElementById('sp-drop').classList.remove('disabled');
+  }
   function renderPendingPreview(){
+    revokePreviewUrls();
     const pv=document.getElementById('sp-preview');
     pv.innerHTML='';
     pendingFiles.forEach(f=>{
       const u=URL.createObjectURL(f);
+      currentPreviewUrls.push(u);
       const d=document.createElement('div'); d.className='sp-thumb';
-      d.innerHTML='<img alt="Photo preview" style="height:120px"><div class="cap" style="color:var(--lanyard);font-weight:600">Ready to save</div>';
-      d.querySelector('img').src=u; d.querySelector('img').onload=()=>URL.revokeObjectURL(u);
+      d.innerHTML='<img alt="Photo preview, tap to zoom" style="height:120px;cursor:zoom-in"><div class="cap" style="color:var(--lanyard);font-weight:600">Ready to save</div>';
+      const img=d.querySelector('img');
+      img.src=u;
+      img.onclick=()=>{
+        const ov=document.createElement('div');
+        ov.style.cssText='position:fixed;inset:0;background:rgba(20,25,35,.92);display:flex;align-items:center;justify-content:center;z-index:99;cursor:zoom-out;padding:20px';
+        ov.innerHTML='<img src="'+u+'" style="max-width:100%;max-height:100%;border-radius:10px" alt="Full size preview">';
+        ov.onclick=()=>ov.remove();
+        document.body.appendChild(ov);
+      };
       pv.appendChild(d);
     });
     const hasPending=pendingFiles.length>0;
     pv.style.display=hasPending?'grid':'none';
     document.getElementById('sp-previewactions').style.display=hasPending?'flex':'none';
     document.getElementById('sp-save').style.display=hasPending?'inline-flex':'none';
+    // A photo is waiting to be saved: block the main "take a photo" zone so a
+    // stray tap can't silently swap it out and lose the shot. "Add another
+    // angle" stays live - that's the one deliberate way to take more without
+    // losing what's already pending.
+    document.getElementById('sp-drop').classList.toggle('disabled',hasPending);
   }
-  document.getElementById('sp-drop').onclick=()=>{ addingMore=false; fileInput.click(); };
+  document.getElementById('sp-drop').onclick=()=>{
+    if(pendingFiles.length) return; // save or cancel first
+    addingMore=false; fileInput.click();
+  };
   document.getElementById('sp-addmore').onclick=()=>{ addingMore=true; fileInput.click(); };
+  document.getElementById('sp-cancelphoto').onclick=resetCapture;
   document.getElementById('sp-addnote-toggle').onclick=()=>{
     document.getElementById('sp-noteui').classList.add('open');
     document.getElementById('sp-addnote-toggle').style.display='none';
@@ -937,6 +1024,7 @@ function renderDrop(){
         const {full,thumb}=await compressBoth(f);
         await submitPhoto(full,thumb,note,false);
         touchPresence(true);
+        markVisited(currentVendor.id);
         const d=document.createElement('div');d.className='sp-thumb';
         d.innerHTML='<img alt="Uploaded photo"><div class="cap">'+esc(note)+'</div>';
         d.querySelector('img').src=thumb; thumbs.prepend(d);
@@ -952,6 +1040,7 @@ function renderDrop(){
             vendorId:currentVendor.id, vendorName:currentVendor.name,
             name:attendee.name, company:attendee.company||'', email:attendee.email||'', attendeeId:attendee.pid||'',
             lookbook:!!(attendee&&attendee.lookbook), repPref:(attendee&&attendee.repPref)||'', note, full, thumb, tsClient:Date.now() });
+          markVisited(currentVendor.id);
           const d=document.createElement('div');d.className='sp-thumb';
           d.innerHTML='<img alt="Queued photo" style="opacity:.75"><div class="cap" style="color:var(--mut);font-weight:600">Will sync when back online</div>';
           d.querySelector('img').src=thumb; thumbs.prepend(d);
@@ -965,11 +1054,8 @@ function renderDrop(){
         }
       }
     }
-    pendingFiles=[]; btn.disabled=false; btn.textContent='Save'; btn.style.display='none';
-    document.getElementById('sp-noteui').classList.remove('open');
-    document.getElementById('sp-addnote-toggle').style.display='inline-block';
-    document.getElementById('sp-previewactions').style.display='none';
-    const pv=document.getElementById('sp-preview'); pv.innerHTML=''; pv.style.display='none';
+    pendingFiles=[]; btn.disabled=false; btn.textContent='Save';
+    resetCapture();
     loadQuoteSection();
   };
   loadQuoteSection();
@@ -1004,11 +1090,11 @@ async function showMyCode(){
 // remembers a person. Rep notes are INTERNAL, never shown on a visitor's link.
 let boothVisitor=null;
 async function renderBooth(){
-  sub.textContent='Booth mode \u2014 capture visitors';
+  sub.textContent='Booth mode - capture visitors';
   const eid=activeEventId;
   const ev=events.find(e=>e.id===eid);
   body.innerHTML=
-    '<div class="sp-badge" style="background:var(--ink);color:#fff"><span>&#128290; Booth mode'+(ev?' \u2014 '+esc(eventLabel(ev)):'')+'</span><button id="sp-boothexit" class="sp-linkbtn" style="color:#fff">Exit</button></div>'+
+    '<div class="sp-badge" style="background:var(--ink);color:#fff"><span>&#128290; Booth mode'+(ev?' - '+esc(eventLabel(ev)):'')+'</span><button id="sp-boothexit" class="sp-linkbtn" style="color:#fff">Exit</button></div>'+
     '<div class="sp-card sp-card-primary">'+
       '<div class="sp-h2">New visitor</div>'+
       '<p class="sp-note" style="margin:0 0 14px">Capture the person you\u2019re talking to. If they\u2019re on the app on their own phone, scan their code to link instantly.</p>'+
@@ -1049,8 +1135,8 @@ async function renderBooth(){
       '</div>'+
       '<div class="sp-boothsticky"><button class="sp-btn block" id="b-save">Save visitor</button></div>'+
     '</div>'+
-    '<div class="sp-card"><div class="sp-h2">&#128225; Live attendees'+(ev?' \u2014 '+esc(eventLabel(ev)):'')+'</div>'+
-      '<p class="sp-note" style="margin:0 0 8px">Sorted A\u2013Z. Tap a name to act as them again \u2014 add more photos, a note, or a quote.</p>'+
+    '<div class="sp-card"><div class="sp-h2">&#128225; Live attendees'+(ev?' - '+esc(eventLabel(ev)):'')+'</div>'+
+      '<p class="sp-note" style="margin:0 0 8px">Sorted A\u2013Z. Tap a name to act as them again - add more photos, a note, or a quote.</p>'+
       '<div class="sp-livedot-key">'+
         '<span><span class="sp-dot" style="background:#ffd54f"></span>Signed in, no activity</span>'+
         '<span><span class="sp-dot" style="background:#1d8a4e"></span>Active in last 30 min</span>'+
@@ -1071,6 +1157,7 @@ async function renderBooth(){
   document.getElementById('sp-actas').onclick=()=>{
     actingAsRep=true; attendee=null; currentVendor=null;
     try{ localStorage.removeItem('sp-attendee'); }catch(e){}
+    clearVisited();
     vendors=eventVendors(activeEventId);
     vendors.length===1 ? (currentVendor=vendors[0], renderIdentify()) : renderIdentify();
   };
@@ -1134,13 +1221,8 @@ async function renderBooth(){
     }
     updateQueueBanner();
     boothVisitor=null; boothPhotos=[];
-    // Offer the visitor's link so the rep can show/send it
-    const link=location.origin+location.pathname+'?me='+pid;
     renderBooth();
-    const t=document.createElement('div');
-    t.style.cssText='position:fixed;top:16px;left:50%;transform:translateX(-50%);background:#1d8a4e;color:#fff;padding:12px 18px;border-radius:9px;font-size:14px;font-weight:600;z-index:120;box-shadow:0 4px 14px rgba(0,0,0,.25);max-width:90vw;text-align:center';
-    t.innerHTML='&#9989; '+esc(name||'Visitor')+' saved'+(allOk?'':' (syncing when online)')+'.';
-    document.body.appendChild(t); setTimeout(()=>t.remove(),3200);
+    showBoothSaveConfirm(name, allOk);
   };
   loadBoothList(eid);
   loadLiveAttendees(eid);
@@ -1247,6 +1329,7 @@ async function toggleFav(rec,heartEl){
   rec.fav=to;
   heartEl.classList.toggle('on',to);
   heartEl.innerHTML=to?'&#9829;':'&#9825;';
+  heartEl.classList.remove('pop'); void heartEl.offsetWidth; heartEl.classList.add('pop');
   try{ await updateDoc(doc(db,'submissions',rec.id),{fav:to}); touchPresence(true); return true; }
   catch(e){
     // Weak signal: queue the change and keep the heart as the visitor set it.
@@ -1374,7 +1457,7 @@ async function renderRecap(pid){
     const liveInSet=eventOrder.includes(activeEventId);
     let viewEid=liveInSet?activeEventId:eventOrder[0];
     // Today's event shows directly; past events start tucked behind an explore
-    // prompt so the page reads as "here's today" first, not a pile of history \u2014
+    // prompt so the page reads as "here's today" first, not a pile of history -
     // unless there's nothing from today to show, in which case just show what
     // they've got.
     let pastExpanded=!liveInSet;
@@ -1413,7 +1496,7 @@ async function renderRecap(pid){
         '</div>';
 
       if(multiEvent && pastExpanded){
-        html+='<div class="sp-note" style="margin:-4px 2px 10px">Showing '+scope.length+' photo'+(scope.length===1?'':'s')+' from '+esc(eventName(viewEid))+(viewEid===activeEventId?' \u2014 today\u2019s show':' \u2014 a past show, now closed')+'.</div>';
+        html+='<div class="sp-note" style="margin:-4px 2px 10px">Showing '+scope.length+' photo'+(scope.length===1?'':'s')+' from '+esc(eventName(viewEid))+(viewEid===activeEventId?' - today\u2019s show':' - a past show, now closed')+'.</div>';
       }
 
       let quoteCardHtml='';
@@ -1421,17 +1504,23 @@ async function renderRecap(pid){
         const unrequested=scope.some(r=>!r.quote);
         quoteCardHtml='<div class="sp-card sp-card-primary" id="sp-quotecard-recap">'+
           '<div class="sp-h2">Request a quote</div>'+
-          '<p class="sp-note" style="margin:0 0 12px">Quotes are for when you have a real project or order in mind. Select the items and add your details, and your rep will follow up after the show with concrete pricing and next steps to move your order across the finish line.</p>';
+          '<p class="sp-note" style="margin:0 0 12px">Quotes are for when you have a real project or order in mind. Add the photos you\u2019d like priced and tell us a bit more, and your rep will follow up after the show with concrete pricing and next steps to move your order across the finish line.</p>';
         if(!unrequested){
           quoteCardHtml+='<div class="sp-empty" style="padding:6px 0">Every photo here already has a quote request in with your Branding Specialist.</div>';
         }else{
-          quoteCardHtml+='<button class="sp-quote" type="button" id="sp-quoterecap-toggle">Ready for a quote? Send email to your rep now.</button>'+
-            '<p class="sp-note" style="margin:10px 0" id="sp-quoterecap-intro">Your favorites are already picked for you below \u2014 tap any photo, from any table, to add or remove it.</p>'+
-            '<div class="sp-thumbs" id="sp-quoterecap-items"></div>'+
-            '<div id="sp-quoterecap-form" style="display:none;margin-top:14px">'+
-              '<span class="sp-label">Project details (optional)</span>'+
-              '<textarea class="sp-input" id="sp-quoterecap-note" rows="3" maxlength="500" placeholder="Anything that helps us quote it right: delivery date, quantities, sizes, colors, logo placement, budget\u2026" style="resize:vertical;font-family:inherit"></textarea>'+
-              '<button class="sp-btn block" id="sp-quoterecap-send" style="margin-top:12px" disabled>Request quote</button>'+
+          const favCount=favs.length;
+          quoteCardHtml+='<p class="sp-note" style="margin:0 0 10px" id="sp-quoterecap-intro">Nothing\u2019s added yet - pick how you\u2019d like to start.</p>'+
+            (favCount
+              ? '<button class="sp-quote" type="button" id="sp-quoterecap-usefavs">Request a quote for all your favorites ('+favCount+')?</button>'+
+                '<button type="button" class="sp-linkbtn" id="sp-quoterecap-browse" style="display:block;margin-top:10px">Or choose specific photos</button>'
+              : '<button class="sp-quote" type="button" id="sp-quoterecap-browse">Choose photos to add</button>')+
+            '<div id="sp-quoterecap-picker" style="display:none;margin-top:14px">'+
+              '<div class="sp-thumbs" id="sp-quoterecap-items"></div>'+
+              '<div id="sp-quoterecap-form" style="display:none;margin-top:14px">'+
+                '<span class="sp-label">Project details (optional)</span>'+
+                '<textarea class="sp-input" id="sp-quoterecap-note" rows="3" maxlength="500" placeholder="Anything that helps us quote it right: delivery date, quantities, sizes, colors, logo placement, budget\u2026" style="resize:vertical;font-family:inherit"></textarea>'+
+                '<button class="sp-btn block" id="sp-quoterecap-send" style="margin-top:12px" disabled>Request quote</button>'+
+              '</div>'+
             '</div>';
         }
         quoteCardHtml+='</div>';
@@ -1497,10 +1586,15 @@ async function renderRecap(pid){
     // until someone taps the toggle, whether they arrived here directly or via
     // the header's Request a Quote tab (which pre-opens it via autoOpenQuote).
     function bindQuoteRecap(scope){
-      const toggle=document.getElementById('sp-quoterecap-toggle');
+      const usefavsBtn=document.getElementById('sp-quoterecap-usefavs');
+      const browseBtn=document.getElementById('sp-quoterecap-browse');
+      const picker=document.getElementById('sp-quoterecap-picker');
       const formBox=document.getElementById('sp-quoterecap-form');
       const grid=document.getElementById('sp-quoterecap-items');
-      if(!toggle||!formBox||!grid) return;
+      if(!browseBtn||!picker||!formBox||!grid) return;
+      // Populated up front but kept hidden (picker starts display:none) so
+      // nothing reads as "already added" until someone actively picks a
+      // starting point below.
       grid.innerHTML=scope.map(r=>
         '<div class="sp-thumb sp-qitem'+(r.quote?' requested':'')+'" data-id="'+r.id+'">'+
           '<img src="'+r.thumb+'" alt="Your item">'+
@@ -1523,25 +1617,28 @@ async function renderRecap(pid){
           refreshBtn();
         };
       });
-      const openForm=()=>{
+      const openPicker=(preselectFavs)=>{
+        if(usefavsBtn) usefavsBtn.style.display='none';
+        browseBtn.style.display='none';
+        const intro=document.getElementById('sp-quoterecap-intro'); if(intro) intro.style.display='none';
+        picker.style.display='block';
         grid.classList.add('selecting');
-        toggle.style.display='none';
         formBox.style.display='block';
-        // Quick pick: a favorited item already means "yes, I love this" — start
-        // it pre-selected instead of making them re-tap what they already told
-        // us. They can still add or remove any item before sending.
-        grid.querySelectorAll('.sp-qitem:not(.requested)').forEach(el=>{
-          const r=scope.find(x=>x.id===el.dataset.id);
-          if(r && r.fav){
-            selected.add(el.dataset.id);
-            el.classList.add('sel');
-            const cb=el.querySelector('.sp-qcheck'); if(cb) cb.innerHTML='&#10003; Selected';
-          }
-        });
-        refreshBtn();
+        if(preselectFavs){
+          grid.querySelectorAll('.sp-qitem:not(.requested)').forEach(el=>{
+            const r=scope.find(x=>x.id===el.dataset.id);
+            if(r && r.fav){
+              selected.add(el.dataset.id);
+              el.classList.add('sel');
+              const cb=el.querySelector('.sp-qcheck'); if(cb) cb.innerHTML='&#10003; Selected';
+            }
+          });
+          refreshBtn();
+        }
         formBox.querySelector('textarea').focus();
       };
-      toggle.onclick=openForm;
+      if(usefavsBtn) usefavsBtn.onclick=()=>openPicker(true);
+      browseBtn.onclick=()=>openPicker(false);
       sendBtn.onclick=async ()=>{
         if(!selected.size) return;
         sendBtn.disabled=true; sendBtn.textContent='Sending\u2026';
@@ -1564,7 +1661,7 @@ async function renderRecap(pid){
           sendBtn.disabled=false; refreshBtn();
         }
       };
-      if(autoOpenQuote){ autoOpenQuote=false; openForm(); }
+      if(autoOpenQuote){ autoOpenQuote=false; openPicker(!!usefavsBtn); }
     }
 
     paint();
@@ -1692,14 +1789,14 @@ async function renderAdmin(){
     '<p class="sp-note" style="margin-top:0">Tables, Leads, and Reports all show the selected event only. "Copy to new event" brings the vendor list over and leaves all photos and leads behind. The LIVE event is the one attendees see when they open the main link; table QR links always route to their own event automatically.</p>'+
   '</div>';
 
-  const tablesHtml='<div class="sp-card sp-card-primary"><div class="sp-h2">Vendor tables \u2014 '+esc(eventLabel(selEvent))+'</div>'+
+  const tablesHtml='<div class="sp-card sp-card-primary"><div class="sp-h2">Vendor tables - '+esc(eventLabel(selEvent))+'</div>'+
     '<div class="sp-fieldgroup" style="display:flex;gap:8px"><input class="sp-input" id="sp-vname" placeholder="Add vendor, e.g. Maple &amp; Co. Furniture" style="flex:1"><button class="sp-btn small" id="sp-vadd">Add</button></div>'+
     '<p class="sp-note" style="margin-top:0">Each vendor has its own link below. Turn each into a QR code for its table. Scanning takes attendees straight to that vendor\u2019s upload page.</p>'+
     (vendors.length?vendors.map(v=>'<div class="sp-adminrow"><div style="display:flex;justify-content:space-between;align-items:center;gap:8px"><span class="sp-who">'+esc(v.name)+'</span><span style="display:flex;gap:6px;flex-shrink:0"><button class="sp-del" data-renamevendor="'+v.id+'" style="color:var(--ink);border-color:var(--line)">Rename</button><button class="sp-del" data-delvendor="'+v.id+'">Delete table</button></span></div><div class="sp-meta">Code '+esc(v.code)+'</div><div class="sp-qr"><a href="'+base+'?vendor='+v.id+'">'+base+'?vendor='+v.id+'</a></div></div>').join(''):'<div class="sp-empty">No vendors yet.</div>')+
   '</div>';
 
   let reportsHtml='<div class="sp-card sp-card-primary"><div class="sp-h2">Export &amp; data</div>'+
-    '<p class="sp-note" style="margin:0 0 10px">Export first \u2014 deleting an event\u2019s data can\u2019t be undone.</p>'+
+    '<p class="sp-note" style="margin:0 0 10px">Export first - deleting an event\u2019s data can\u2019t be undone.</p>'+
     '<div style="display:flex;gap:8px;flex-wrap:wrap">'+
       '<button class="sp-btn small ghost" id="sp-csv"'+(totalPhotos?'':' disabled')+'>Export leads CSV</button>'+
       '<button class="sp-btn small ghost" id="sp-zip"'+(totalPhotos?'':' disabled')+'>Download all photos (ZIP)</button>'+
@@ -1762,7 +1859,7 @@ async function renderAdmin(){
         (n.notes?'<div class="cap" style="margin-top:2px">'+esc(n.notes)+'</div>':'')+'</div>').join('')+
     '</div>';
   }
-  leadsHtml+='<div class="sp-card sp-card-primary"><div class="sp-h2">Submissions \u2014 '+esc(eventLabel(selEvent))+' ('+totalPhotos+')</div>';
+  leadsHtml+='<div class="sp-card sp-card-primary"><div class="sp-h2">Submissions - '+esc(eventLabel(selEvent))+' ('+totalPhotos+')</div>';
   if(!vendors.length) leadsHtml+='<div class="sp-empty">Add vendors to start collecting.</div>';
   for(const {vendor,recs} of all){
     leadsHtml+='<div class="sp-vhead"><span class="sp-who">'+esc(vendor.name)+'</span><span class="sp-count">'+recs.length+' photo'+(recs.length===1?'':'s')+'</span></div>';
@@ -1825,7 +1922,7 @@ async function renderAdmin(){
     };
     document.getElementById('sp-evdelete').onclick=async ()=>{
       const isLive=renderAdmin.sel===activeEventId;
-      if(!await bamConfirm('Delete "'+eventLabel(selEvent)+'" completely? This removes its vendors, photos, leads, and rep notes too'+(isLive?' \u2014 including the event attendees currently see as LIVE':'')+'. This can\u2019t be undone.','Continue')) return;
+      if(!await bamConfirm('Delete "'+eventLabel(selEvent)+'" completely? This removes its vendors, photos, leads, and rep notes too'+(isLive?' - including the event attendees currently see as LIVE':'')+'. This can\u2019t be undone.','Continue')) return;
       const check=await bamPrompt('Type DELETE to confirm:');
       if(check!=='DELETE') return;
       const btn=document.getElementById('sp-evdelete'); btn.disabled=true; btn.textContent='Deleting\u2026';
@@ -1923,7 +2020,7 @@ async function renderAdmin(){
             const notesPath=personFolder+'/notes.txt';
             const existing=zip.file(notesPath);
             let txt = existing ? await existing.async('string') : '';
-            txt += fname+': '+(r.repPref?'[REQUESTED REP: '+r.repPref+'] ':'')+(r.fav?'[FAVORITED] ':'')+(r.quote?'[QUOTE REQUESTED'+(r.quoteNote?' \u2014 '+r.quoteNote:'')+'] ':'')+(r.note||'')+'\r\n';
+            txt += fname+': '+(r.repPref?'[REQUESTED REP: '+r.repPref+'] ':'')+(r.fav?'[FAVORITED] ':'')+(r.quote?'[QUOTE REQUESTED'+(r.quoteNote?' - '+r.quoteNote:'')+'] ':'')+(r.note||'')+'\r\n';
             zip.file(notesPath, txt);
           }
         }
