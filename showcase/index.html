@@ -219,8 +219,6 @@
   .sp-thumb{position:relative;}
   .sp-favtag{display:inline-block;background:var(--red-light);color:var(--lanyard);font-size:var(--fs-xs);font-weight:700;padding:2px 7px;border-radius:5px;margin-top:3px;}
 
-  .sp-thumbs:not(.selecting) .sp-qcheck{display:none;}
-  .sp-thumbs:not(.selecting) .sp-qitem:not(.requested){cursor:default;}
   .sp-qitem{cursor:pointer;border:2px solid transparent;border-radius:var(--r-md);padding:3px;transition:border-color var(--dur-fast) var(--ease),background var(--dur-fast) var(--ease),transform var(--dur-fast) var(--ease);}
   .sp-qitem:active{transform:scale(.97);}
   .sp-qitem.sel{border-color:var(--lanyard);background:var(--red-light);}
@@ -868,7 +866,10 @@ function renderVendorPicker(){
   wireActingBanner();
   const scBtn=document.getElementById('sp-showcode'); if(scBtn) scBtn.onclick=showMyCode;
   const notMeBtn=document.getElementById('sp-notme');
-  if(notMeBtn) notMeBtn.onclick=()=>{attendee=null;try{localStorage.removeItem('sp-attendee');}catch(e){};clearVisited();renderIdentify();};
+  if(notMeBtn) notMeBtn.onclick=async ()=>{
+    if(!await bamConfirm('Not you? This will sign out of this device - you\u2019ll need to enter your info again to keep snapping.','Sign out')) return;
+    attendee=null; try{localStorage.removeItem('sp-attendee');}catch(e){} clearVisited(); renderIdentify();
+  };
 }
 
 function renderIdentify(){
@@ -1515,7 +1516,11 @@ async function renderRecap(pid){
                 '<button type="button" class="sp-linkbtn" id="sp-quoterecap-browse" style="display:block;margin-top:10px">Or choose specific photos</button>'
               : '<button class="sp-quote" type="button" id="sp-quoterecap-browse">Choose photos to add</button>')+
             '<div id="sp-quoterecap-picker" style="display:none;margin-top:14px">'+
-              '<div class="sp-thumbs" id="sp-quoterecap-items"></div>'+
+              '<div class="sp-label" id="sp-quoterecap-cart-label" style="display:none">Added to your quote</div>'+
+              '<div class="sp-empty" id="sp-quoterecap-cart-empty" style="display:none;padding:6px 0">Nothing added yet - tap photos below to add them.</div>'+
+              '<div class="sp-thumbs" id="sp-quoterecap-items" style="display:none"></div>'+
+              '<button type="button" class="sp-linkbtn" id="sp-quoterecap-addmore" style="display:none;margin-top:10px">+ Add more photos</button>'+
+              '<div class="sp-thumbs" id="sp-quoterecap-browsegrid" style="display:none;margin-top:10px"></div>'+
               '<div id="sp-quoterecap-form" style="display:none;margin-top:14px">'+
                 '<span class="sp-label">Project details (optional)</span>'+
                 '<textarea class="sp-input" id="sp-quoterecap-note" rows="3" maxlength="500" placeholder="Anything that helps us quote it right: delivery date, quantities, sizes, colors, logo placement, budget\u2026" style="resize:vertical;font-family:inherit"></textarea>'+
@@ -1590,51 +1595,67 @@ async function renderRecap(pid){
       const browseBtn=document.getElementById('sp-quoterecap-browse');
       const picker=document.getElementById('sp-quoterecap-picker');
       const formBox=document.getElementById('sp-quoterecap-form');
-      const grid=document.getElementById('sp-quoterecap-items');
-      if(!browseBtn||!picker||!formBox||!grid) return;
-      // Populated up front but kept hidden (picker starts display:none) so
-      // nothing reads as "already added" until someone actively picks a
-      // starting point below.
-      grid.innerHTML=scope.map(r=>
-        '<div class="sp-thumb sp-qitem'+(r.quote?' requested':'')+'" data-id="'+r.id+'">'+
-          '<img src="'+r.thumb+'" alt="Your item">'+
-          (r.quote ? '<span class="sp-quotetag">QUOTE REQUESTED</span>' : '<div class="sp-qcheck">Tap to select</div>')+
-          (r.note?'<div class="cap">'+esc(r.note)+'</div>':'')+
-        '</div>').join('');
+      const cartLabel=document.getElementById('sp-quoterecap-cart-label');
+      const cartEmpty=document.getElementById('sp-quoterecap-cart-empty');
+      const cartGrid=document.getElementById('sp-quoterecap-items');
+      const addMoreBtn=document.getElementById('sp-quoterecap-addmore');
+      const browseGrid=document.getElementById('sp-quoterecap-browsegrid');
+      if(!browseBtn||!picker||!formBox||!cartGrid) return;
+
       const selected=new Set();
+      let browseOpen=false;
       const sendBtn=document.getElementById('sp-quoterecap-send');
-      const refreshBtn=()=>{
+      const refreshSend=()=>{
         sendBtn.disabled=selected.size===0;
         sendBtn.textContent=selected.size? 'Request quote on '+selected.size+' item'+(selected.size===1?'':'s') : 'Request quote';
       };
-      refreshBtn();
-      grid.querySelectorAll('.sp-qitem:not(.requested)').forEach(el=>{
-        el.onclick=()=>{
-          if(!grid.classList.contains('selecting')) return;
-          const id=el.dataset.id;
-          if(selected.has(id)){ selected.delete(id); el.classList.remove('sel'); el.querySelector('.sp-qcheck').textContent='Tap to select'; }
-          else{ selected.add(id); el.classList.add('sel'); el.querySelector('.sp-qcheck').innerHTML='&#10003; Selected'; }
-          refreshBtn();
-        };
-      });
+      const card=(r,mode)=>'<div class="sp-thumb sp-qitem" data-id="'+r.id+'">'+
+        '<img src="'+r.thumb+'" alt="Your item">'+
+        '<div class="sp-qcheck">'+(mode==='cart'?'&#10003; Added, tap to remove':'Tap to add')+'</div>'+
+        (r.note?'<div class="cap">'+esc(r.note)+'</div>':'')+
+      '</div>';
+      // The quote area is a running list, not a browse-everything grid: it only
+      // ever shows what's actually going to be sent. Removing an item drops it
+      // straight back into the "add more" pool below instead of leaving a
+      // half-checked item sitting in the list.
+      function renderGrids(){
+        const cartItems=scope.filter(r=>selected.has(r.id));
+        const browseItems=scope.filter(r=>!selected.has(r.id) && !r.quote);
+        const hasCart=cartItems.length>0;
+        if(cartLabel) cartLabel.style.display=hasCart?'block':'none';
+        if(cartEmpty) cartEmpty.style.display=hasCart?'none':'block';
+        cartGrid.style.display=hasCart?'grid':'none';
+        cartGrid.innerHTML=cartItems.map(r=>card(r,'cart')).join('');
+        if(addMoreBtn){
+          addMoreBtn.style.display=browseItems.length?'inline-block':'none';
+          addMoreBtn.textContent=browseOpen?'Hide extra photos':'+ Add more photos';
+        }
+        if(browseGrid){
+          browseGrid.style.display=(browseOpen && browseItems.length)?'grid':'none';
+          browseGrid.innerHTML=browseItems.map(r=>card(r,'browse')).join('');
+        }
+        cartGrid.querySelectorAll('.sp-qitem').forEach(el=>{
+          el.onclick=()=>{ selected.delete(el.dataset.id); renderGrids(); };
+        });
+        if(browseGrid) browseGrid.querySelectorAll('.sp-qitem').forEach(el=>{
+          el.onclick=()=>{ selected.add(el.dataset.id); renderGrids(); };
+        });
+        refreshSend();
+      }
+      if(addMoreBtn) addMoreBtn.onclick=()=>{ browseOpen=!browseOpen; renderGrids(); };
       const openPicker=(preselectFavs)=>{
         if(usefavsBtn) usefavsBtn.style.display='none';
         browseBtn.style.display='none';
         const intro=document.getElementById('sp-quoterecap-intro'); if(intro) intro.style.display='none';
         picker.style.display='block';
-        grid.classList.add('selecting');
         formBox.style.display='block';
         if(preselectFavs){
-          grid.querySelectorAll('.sp-qitem:not(.requested)').forEach(el=>{
-            const r=scope.find(x=>x.id===el.dataset.id);
-            if(r && r.fav){
-              selected.add(el.dataset.id);
-              el.classList.add('sel');
-              const cb=el.querySelector('.sp-qcheck'); if(cb) cb.innerHTML='&#10003; Selected';
-            }
-          });
-          refreshBtn();
+          scope.forEach(r=>{ if(r.fav && !r.quote) selected.add(r.id); });
+        }else{
+          // Nothing to show in an empty cart yet, so jump straight to the add list.
+          browseOpen=true;
         }
+        renderGrids();
         formBox.querySelector('textarea').focus();
       };
       if(usefavsBtn) usefavsBtn.onclick=()=>openPicker(true);
@@ -1658,7 +1679,7 @@ async function renderRecap(pid){
         }catch(e){
           console.error(e);
           await bamAlert('Quote request didn\u2019t go through. Check your connection and try again.');
-          sendBtn.disabled=false; refreshBtn();
+          sendBtn.disabled=false; refreshSend();
         }
       };
       if(autoOpenQuote){ autoOpenQuote=false; openPicker(!!usefavsBtn); }
