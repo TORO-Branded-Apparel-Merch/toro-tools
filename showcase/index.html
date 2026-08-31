@@ -106,7 +106,7 @@
      ghost    = supportive / secondary action
      danger   = destructive action only
      text-link (.sp-linkbtn) = quiet in-flow navigation, not a decision */
-  .sp-btn{display:inline-flex;align-items:center;justify-content:center;gap:7px;background:var(--red-gradient);color:#fff;border:none;border-radius:var(--r-sm);padding:13px 20px;font-size:var(--fs-base);font-weight:700;cursor:pointer;box-shadow:var(--shadow-sm);transition:transform var(--dur-fast) var(--ease),box-shadow var(--dur-fast) var(--ease),filter var(--dur-fast) var(--ease);}
+  .sp-btn{display:inline-flex;align-items:center;justify-content:center;gap:7px;background:var(--red-gradient);color:#fff;border:none;border-radius:var(--r-sm);padding:13px 20px;font-size:var(--fs-base);font-weight:700;cursor:pointer;text-decoration:none;box-shadow:var(--shadow-sm);transition:transform var(--dur-fast) var(--ease),box-shadow var(--dur-fast) var(--ease),filter var(--dur-fast) var(--ease);}
   .sp-btn:hover{filter:brightness(1.05);box-shadow:var(--shadow-md);}
   .sp-btn:active{transform:scale(.98);}
   .sp-btn[disabled]{opacity:.45;cursor:default;box-shadow:none;filter:none;transform:none;}
@@ -195,9 +195,9 @@
   body.is-offline .sp-offnote{display:block;}
   body.is-offline .sp-needsnet{opacity:.45;pointer-events:none;filter:grayscale(60%);}
 
-  .sp-heart{position:absolute;top:6px;right:6px;width:30px;height:30px;border-radius:50%;background:rgba(255,255,255,.94);border:1px solid var(--line);display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:15px;line-height:1;user-select:none;box-shadow:var(--shadow-sm);transition:transform var(--dur-fast) var(--ease),background var(--dur-fast) var(--ease);}
+  .sp-heart{position:absolute;top:6px;right:6px;width:30px;height:30px;border-radius:50%;background:rgba(255,255,255,.94);border:1px solid var(--line);display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:17px;line-height:1;color:var(--lanyard);user-select:none;box-shadow:var(--shadow-sm);transition:transform var(--dur-fast) var(--ease),background var(--dur-fast) var(--ease);}
   .sp-heart:active{transform:scale(.88);}
-  .sp-heart.on{background:var(--lanyard);border-color:var(--lanyard);}
+  .sp-heart.on{background:var(--lanyard);border-color:var(--lanyard);color:#fff;}
   .sp-thumb{position:relative;}
   .sp-favtag{display:inline-block;background:var(--red-light);color:var(--lanyard);font-size:var(--fs-xs);font-weight:700;padding:2px 7px;border-radius:5px;margin-top:3px;}
 
@@ -240,7 +240,7 @@
       </div>
     </div>
     <div class="sp-headbtns">
-      <button class="sp-tabbtn" id="sp-quotebtn" style="display:none">&#128002; Request a Quote</button>
+      <button class="sp-tabbtn" id="sp-quotebtn" style="display:none">Request a Quote</button>
       <button class="sp-tabbtn" id="sp-modebtn">Organizer view</button>
     </div>
   </div>
@@ -249,7 +249,7 @@
 
 <div id="bam-overlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:10000;align-items:center;justify-content:center;">
   <div style="background:#fff;border-radius:12px;padding:28px 32px;max-width:420px;width:90%;box-shadow:0 8px 40px rgba(0,0,0,0.2);">
-    <div style="font-size:17px;font-weight:700;color:#BC112A;margin-bottom:12px;">&#128002; BAM the Bull says</div>
+    <div style="font-size:17px;font-weight:700;color:#BC112A;margin-bottom:12px;">BAM the Bull says</div>
     <div id="bam-msg" style="font-size:15px;color:#333;margin-bottom:14px;line-height:1.5;"></div>
     <input id="bam-input" style="display:none;width:100%;box-sizing:border-box;padding:10px 12px;font-size:15px;border:1.5px solid #E2E3E6;border-radius:8px;margin-bottom:14px;">
     <div id="bam-btns" style="display:flex;gap:10px;justify-content:flex-end;"></div>
@@ -362,9 +362,9 @@ function showHowTo(){
       '<div style="font-size:16px;font-weight:700;color:#1a1a1f;margin-bottom:12px">Welcome, '+esc(attendee.name.split(' ')[0])+'! Here\u2019s how it works:</div>'+
       '<div style="display:flex;flex-direction:column;gap:12px;font-size:14.5px;line-height:1.45">'+
         '<div style="display:flex;gap:10px"><span style="font-size:20px">&#128247;</span><span><b>Photos</b> are for anything that catches your eye. Snap as many as you like at every table, and they all save to My Photos.</span></div>'+
-        '<div style="display:flex;gap:10px"><span style="font-size:20px">&#10084;&#65039;</span><span><b>Favorites</b> are your top picks. Tap the heart on any photo, right at the table or later under My Photos, and it moves into your favorites section.</span></div>'+
-        '<div style="display:flex;gap:10px"><span style="font-size:20px">&#128002;</span><span><b>Quotes</b> are for when you have a real project or order in mind. Select the items and add your details, and your Branding Specialist will follow up after the show with concrete pricing and next steps to move your order across the finish line.</span></div>'+
-        '<div style="display:flex;gap:10px"><span style="font-size:20px">&#128233;</span><span><b>Then leave the rest to us.</b> Our team will reach out after the show to help with anything you saved.</span></div>'+
+        '<div><b>Favorites</b> are your top picks. Tap the heart on any photo, right at the table or later under My Photos, and it moves into your favorites section.</div>'+
+        '<div><b>Quotes</b> are for when you have a real project or order in mind. Select the items and add your details, and your Branding Specialist will follow up after the show with concrete pricing and next steps to move your order across the finish line.</div>'+
+        '<div><b>Then leave the rest to us.</b> Our team will reach out after the show to help with anything you saved.</div>'+
       '</div>';
     bamBtns.innerHTML='';
     const go=bamBtn('Got it, let\u2019s charge!',true);
@@ -392,7 +392,7 @@ function saveAttendee(){ try{ localStorage.setItem('sp-attendee',JSON.stringify(
 function actingBannerHTML(){
   if(!actingAsRep) return '';
   return '<div class="sp-badge" style="background:var(--ink);color:#fff;justify-content:space-between">'+
-    '<span>&#128100; Acting as '+esc((attendee&&attendee.name)||'visitor')+'</span>'+
+    '<span>Acting as '+esc((attendee&&attendee.name)||'visitor')+'</span>'+
     '<button id="sp-actdone" class="sp-btn small" style="padding:6px 12px">I\u2019m done \u2014 next person</button>'+
   '</div>';
 }
@@ -425,7 +425,7 @@ function showLookbookInfo(){
   const ov=document.createElement('div');
   ov.style.cssText='position:fixed;inset:0;background:rgba(20,25,35,.9);display:flex;align-items:center;justify-content:center;z-index:200;padding:24px';
   ov.innerHTML='<div style="background:#fff;border-radius:14px;padding:24px 26px;max-width:360px" onclick="event.stopPropagation()">'+
-    '<div style="font-size:16px;font-weight:700;color:#BC112A;margin-bottom:10px">&#128214; The TORO Monthly Lookbook</div>'+
+    '<div style="font-size:16px;font-weight:700;color:#BC112A;margin-bottom:10px">The TORO Monthly Lookbook</div>'+
     '<div style="font-size:14px;line-height:1.5;color:#333;margin-bottom:16px">'+LOOKBOOK_INFO+'</div>'+
     '<button id="lb-ok" style="width:100%;padding:11px;background:#BC112A;color:#fff;border:none;border-radius:8px;font-size:14px;font-weight:600;cursor:pointer">Got it</button>'+
   '</div>';
@@ -606,7 +606,7 @@ async function syncQueue(){
       const t=document.getElementById('sp-toast');
       if(t){
         const bits=[]; if(photos) bits.push(photos+' photo'+(photos===1?'':'s')); if(others) bits.push(others+' update'+(others===1?'':'s'));
-        t.innerHTML='&#128002; You\u2019re back online! We just synced '+bits.join(' and ')+' from this device.';
+        t.innerHTML='You\u2019re back online! We just synced '+bits.join(' and ')+' from this device.';
         t.style.display='block'; setTimeout(()=>t.style.display='none',3000);
       }
       updateQueueBanner();
@@ -632,7 +632,7 @@ async function updateQueueBanner(){
     b.onclick=()=>syncQueue();
     document.body.appendChild(b);
   }
-  b.innerHTML='&#128246; '+n+' item'+(n===1?'':'s')+' saved on this device, waiting for signal &middot; tap to retry';
+  b.innerHTML=n+' item'+(n===1?'':'s')+' saved on this device, waiting for signal &middot; tap to retry';
 }
 let verifiedOnline=navigator.onLine;
 function applyOnlineState(){
@@ -802,7 +802,7 @@ function renderVendorPicker(){
     return;
   }
   body.innerHTML=actingBannerHTML()+(attendee&&attendee.pid
-      ? '<div class="sp-badge sp-needsnet" style="justify-content:center"><a href="?me='+attendee.pid+'" style="color:var(--ink);font-weight:700;text-decoration:none">&#128247; My photos</a></div>'
+      ? '<a href="?me='+attendee.pid+'" class="sp-btn neutral block sp-needsnet" style="margin-bottom:16px">My Photos</a>'
       : '')+
     '<div class="sp-card sp-card-primary"><span class="sp-label">Which table are you at?</span>'+
     '<div class="sp-vendorgrid">'+vendors.map(v=>'<button class="sp-vcard" data-id="'+v.id+'">'+esc(v.name)+'<span class="code">'+esc(v.code)+'</span></button>').join('')+'</div></div>';
@@ -854,7 +854,7 @@ function renderIdentify(){
 function renderDrop(){
   body.innerHTML=actingBannerHTML()+'<button class="sp-back" id="sp-back">&larr; All tables</button>'+
     '<div class="sp-badge sp-badge-stack">'+
-      '<span class="sp-badge-who">&#127915; '+esc(attendee.name)+(attendee.company?' &middot; '+esc(attendee.company):'')+'</span>'+
+      '<span class="sp-badge-who">'+esc(attendee.name)+(attendee.company?' &middot; '+esc(attendee.company):'')+'</span>'+
       '<span class="sp-badge-links">'+
         '<button id="sp-showcode" class="sp-linkbtn">Show my code</button>'+
         '<a href="?me='+(attendee.pid||'')+(currentVendor?'&from='+currentVendor.id:'')+'" class="sp-needsnet sp-linkbtn">My photos</a>'+
@@ -876,7 +876,7 @@ function renderDrop(){
     '<div class="sp-thumbs" id="sp-thumbs"></div>'+
     '<div class="sp-toast" id="sp-toast"></div>'+
     '</div>'+
-    '<div class="sp-offnote" id="sp-quoteoffnote">&#128246; You\u2019re offline right now. You can still favorite photos, and everything saves on your device and syncs the moment you\u2019re back online.</div>'+
+    '<div class="sp-offnote" id="sp-quoteoffnote">You\u2019re offline right now. You can still favorite photos, and everything saves on your device and syncs the moment you\u2019re back online.</div>'+
     '<div class="sp-card" id="sp-quotecard" style="display:none">'+
       '<div class="sp-h2" style="margin:0 0 8px">Your photos from this table</div>'+
       '<p class="sp-note" style="margin:0 0 10px">Tap the heart on anything you love to add it to your favorites. Photos from all tables can be found in \u201cMy Photos\u201d above. Favoriting a photo will help keep it at the top of the list!</p>'+
@@ -939,7 +939,7 @@ function renderDrop(){
         d.innerHTML='<img alt="Uploaded photo"><div class="cap">'+esc(note)+'</div>';
         d.querySelector('img').src=thumb; thumbs.prepend(d);
         const t=document.getElementById('sp-toast');
-        t.innerHTML='&#128002; BAM! Saved to your collection. TORO will follow up with you after the show.';
+        t.innerHTML='BAM! Saved to your collection. TORO will follow up with you after the show.';
         t.style.display='block'; setTimeout(()=>t.style.display='none',2500);
       }catch(e){
         console.error(e);
@@ -951,10 +951,10 @@ function renderDrop(){
             name:attendee.name, company:attendee.company||'', email:attendee.email||'', attendeeId:attendee.pid||'',
             lookbook:!!(attendee&&attendee.lookbook), repPref:(attendee&&attendee.repPref)||'', note, full, thumb, tsClient:Date.now() });
           const d=document.createElement('div');d.className='sp-thumb';
-          d.innerHTML='<img alt="Queued photo" style="opacity:.75"><div class="cap" style="color:var(--mut);font-weight:600">&#128246; Will sync when back online</div>';
+          d.innerHTML='<img alt="Queued photo" style="opacity:.75"><div class="cap" style="color:var(--mut);font-weight:600">Will sync when back online</div>';
           d.querySelector('img').src=thumb; thumbs.prepend(d);
           const t=document.getElementById('sp-toast');
-          t.innerHTML='&#128002; No signal right now, so we saved this to your phone. It will sync on its own as soon as you\u2019re connected again.';
+          t.innerHTML='No signal right now, so we saved this to your phone. It will sync on its own as soon as you\u2019re connected again.';
           t.style.display='block'; setTimeout(()=>t.style.display='none',3000);
           updateQueueBanner();
         }catch(e2){
@@ -1244,7 +1244,7 @@ async function toggleFav(rec,heartEl){
   const to=!rec.fav;
   rec.fav=to;
   heartEl.classList.toggle('on',to);
-  heartEl.innerHTML=to?'&#10084;&#65039;':'&#129293;';
+  heartEl.innerHTML=to?'&#9829;':'&#9825;';
   try{ await updateDoc(doc(db,'submissions',rec.id),{fav:to}); touchPresence(true); return true; }
   catch(e){
     // Weak signal: queue the change and keep the heart as the visitor set it.
@@ -1252,7 +1252,7 @@ async function toggleFav(rec,heartEl){
     if(queued) return true;
     rec.fav=!to;
     heartEl.classList.toggle('on',!to);
-    heartEl.innerHTML=!to?'&#10084;&#65039;':'&#129293;';
+    heartEl.innerHTML=!to?'&#9829;':'&#9825;';
     console.error(e);
     bamAlert('We couldn\u2019t save that heart just now. Check your connection and give it another tap.');
     return false;
@@ -1275,8 +1275,8 @@ async function loadQuoteSection(){
     grid.innerHTML=recs.map(r=>
       '<div class="sp-thumb" data-id="'+r.id+'">'+
         '<img src="'+r.thumb+'" alt="Your item">'+
-        '<div class="sp-heart sp-needsnet'+(r.fav?' on':'')+'" data-fav="'+r.id+'" role="button" aria-label="Favorite">'+(r.fav?'&#10084;&#65039;':'&#129293;')+'</div>'+
-        (r.quote?'<span class="sp-quotetag">&#128002; QUOTE REQUESTED</span>':'')+
+        '<div class="sp-heart sp-needsnet'+(r.fav?' on':'')+'" data-fav="'+r.id+'" role="button" aria-label="Favorite">'+(r.fav?'&#9829;':'&#9825;')+'</div>'+
+        (r.quote?'<span class="sp-quotetag">QUOTE REQUESTED</span>':'')+
         (r.note?'<div class="cap">'+esc(r.note)+'</div>':'')+
       '</div>').join('');
     grid.querySelectorAll('[data-fav]').forEach(h=>{
@@ -1349,7 +1349,7 @@ async function renderRecap(pid){
       const fromLabel=theirs.length===1?theirs[0]:'an earlier showcase';
       crossEventNote='<div class="sp-card" style="border-left:4px solid var(--lanyard);background:var(--red-light)">'+
         '<div style="font-size:14.5px;line-height:1.5;color:var(--ink)">'+
-          '&#128002; <b>These are your photos from '+esc(fromLabel)+'.</b> '+
+          '<b>These are your photos from '+esc(fromLabel)+'.</b> '+
           'They\u2019re yours to keep, and your Branding Specialist still has them. '+
           'We\u2019re at <b>'+esc(eventLabel(liveEvent))+'</b> today, so if you\u2019re here with us, '+
           'scan the QR code at any table to start a fresh collection for this show.'+
@@ -1358,8 +1358,8 @@ async function renderRecap(pid){
     const card=r=>{
       const v=vById[r.vendorId];
       return '<div class="sp-thumb"><img src="'+r.thumb+'" alt="Your photo" loading="lazy" data-pid="'+esc(r.photoId||'')+'" data-code="'+esc(v?v.code:'')+'" style="cursor:zoom-in">'+
-      '<div class="sp-heart'+(r.fav?' on':'')+'" data-fav="'+r.id+'" role="button" aria-label="Favorite">'+(r.fav?'&#10084;&#65039;':'&#129293;')+'</div>'+
-      (r.quote?'<span class="sp-quotetag">&#128002; QUOTE</span>':'')+
+      '<div class="sp-heart'+(r.fav?' on':'')+'" data-fav="'+r.id+'" role="button" aria-label="Favorite">'+(r.fav?'&#9829;':'&#9825;')+'</div>'+
+      (r.quote?'<span class="sp-quotetag">QUOTE</span>':'')+
       (r.note?'<div class="cap">'+esc(r.note)+'</div>':'')+'</div>';
     };
 
@@ -1369,42 +1369,74 @@ async function renderRecap(pid){
     const eventOrder=events.slice().reverse().map(e=>e.id).filter(id=>theirEventIds.includes(id));
     theirEventIds.forEach(id=>{ if(!eventOrder.includes(id)) eventOrder.push(id); });
     const multiEvent=eventOrder.length>1;
-    let viewEid=eventOrder.includes(activeEventId)?activeEventId:eventOrder[0];
+    const liveInSet=eventOrder.includes(activeEventId);
+    let viewEid=liveInSet?activeEventId:eventOrder[0];
+    // Today's event shows directly; past events start tucked behind an explore
+    // prompt so the page reads as "here's today" first, not a pile of history \u2014
+    // unless there's nothing from today to show, in which case just show what
+    // they've got.
+    let pastExpanded=!liveInSet;
     const eventName=id=>eventLabel(events.find(x=>x.id===id));
 
     function paint(){
       recs.sort((a,b)=>(a.tsClient||0)-(b.tsClient||0));
       const scope=multiEvent?recs.filter(r=>r._eid===viewEid):recs;
       const favs=scope.filter(r=>r.fav), rest=scope.filter(r=>!r.fav);
-      // Quotes can only be requested for whichever event is live right now, so a
-      // visitor browsing an older show's photos sees the favorites/all-photos view
-      // without a quote option at all.
-      const canQuote=!!activeEventId && viewEid===activeEventId;
+      // Quotes can be requested from any event's photos now, not just today's.
+      const canQuote=scope.length>0;
+
+      let switcherHtml='';
+      if(multiEvent){
+        if(pastExpanded){
+          switcherHtml='<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px">'+
+              eventOrder.map(id=>{
+                const n=recs.filter(r=>r._eid===id).length;
+                return '<button class="sp-evchip'+(id===viewEid?' on':'')+'" data-ev="'+id+'">'+esc(eventName(id))+(id===activeEventId?' \u2022 Today':'')+' <span style="opacity:.7">('+n+')</span></button>';
+              }).join('')+
+            '</div>';
+        } else if(liveInSet){
+          switcherHtml='<button class="sp-linkbtn" id="sp-explorepast" style="margin-top:10px">Want to explore past event photos or request a quote from those ideas? Click here.</button>';
+        }
+      }
 
       let html=actingBannerHTML()+'<button class="sp-back" id="sp-recapback">&larr; '+(sameEvent?'Back to tables':'See what\u2019s on the floor today')+'</button>'+
         (crossEventNote||'')+
         '<div class="sp-card sp-card-primary"><div class="sp-h2">'+esc(who.name)+'\u2019s photos</div>'+
         '<p class="sp-note" style="margin:0">'+
-          (multiEvent
+          (multiEvent && pastExpanded
             ? 'You\u2019ve joined us at '+eventOrder.length+' showcases, with '+recs.length+' photo'+(recs.length===1?'':'s')+' saved in all. Pick a showcase below to look back through it.'
-            : recs.length+' photo'+(recs.length===1?'':'s')+' in your collection'+(favs.length?', including '+favs.length+' favorite'+(favs.length===1?'':'s'):'')+'. Bookmark this page so you can come back to it anytime, and TORO will follow up with you after the show.')+
-        '</p>'+
-        (multiEvent
-          ? '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px">'+
-              eventOrder.map(id=>{
-                const n=recs.filter(r=>r._eid===id).length;
-                return '<button class="sp-evchip'+(id===viewEid?' on':'')+'" data-ev="'+id+'">'+esc(eventName(id))+' <span style="opacity:.7">('+n+')</span></button>';
-              }).join('')+
-            '</div>'
-          : '')+
+            : scope.length+' photo'+(scope.length===1?'':'s')+' in your collection'+(favs.length?', including '+favs.length+' favorite'+(favs.length===1?'':'s'):'')+'. Bookmark this page so you can come back to it anytime, and TORO will follow up with you after the show.')+
+        '</p>'+switcherHtml+
         '<hr class="sp-divider">'+lookbookRowHTML('sp-lb-photos')+
         '</div>';
 
-      if(multiEvent){
-        html+='<div class="sp-note" style="margin:-4px 2px 10px">Showing '+scope.length+' photo'+(scope.length===1?'':'s')+' from '+esc(eventName(viewEid))+'.</div>';
+      if(multiEvent && pastExpanded){
+        html+='<div class="sp-note" style="margin:-4px 2px 10px">Showing '+scope.length+' photo'+(scope.length===1?'':'s')+' from '+esc(eventName(viewEid))+(viewEid===activeEventId?' \u2014 today\u2019s show':' \u2014 a past show, now closed')+'.</div>';
       }
 
-      html+='<div class="sp-card"><div class="sp-h2">&#10084;&#65039; Your favorites</div>';
+      let quoteCardHtml='';
+      if(canQuote && scope.length){
+        const unrequested=scope.some(r=>!r.quote);
+        quoteCardHtml='<div class="sp-card sp-card-primary" id="sp-quotecard-recap">'+
+          '<div class="sp-h2">Request a quote</div>'+
+          '<p class="sp-note" style="margin:0 0 12px">Quotes are for when you have a real project or order in mind. Select the items and add your details, and your rep will follow up after the show with concrete pricing and next steps to move your order across the finish line.</p>';
+        if(!unrequested){
+          quoteCardHtml+='<div class="sp-empty" style="padding:6px 0">Every photo here already has a quote request in with your Branding Specialist.</div>';
+        }else{
+          quoteCardHtml+='<button class="sp-quote" type="button" id="sp-quoterecap-toggle">Ready for a quote? Send email to your rep now.</button>'+
+            '<p class="sp-note" style="margin:10px 0" id="sp-quoterecap-intro">Your favorites are already picked for you below \u2014 tap any photo, from any table, to add or remove it.</p>'+
+            '<div class="sp-thumbs" id="sp-quoterecap-items"></div>'+
+            '<div id="sp-quoterecap-form" style="display:none;margin-top:14px">'+
+              '<span class="sp-label">Project details (optional)</span>'+
+              '<textarea class="sp-input" id="sp-quoterecap-note" rows="3" maxlength="500" placeholder="Anything that helps us quote it right: delivery date, quantities, sizes, colors, logo placement, budget\u2026" style="resize:vertical;font-family:inherit"></textarea>'+
+              '<button class="sp-btn block" id="sp-quoterecap-send" style="margin-top:12px" disabled>Request quote</button>'+
+            '</div>';
+        }
+        quoteCardHtml+='</div>';
+      }
+      html+=quoteCardHtml;
+
+      html+='<div class="sp-card"><div class="sp-h2">Your favorites</div>';
       html+= favs.length
         ? '<div class="sp-thumbs">'+favs.map(card).join('')+'</div>'
         : '<div class="sp-empty" style="padding:6px 0">Nothing here yet. Tap the heart on any photo below to move it up here.</div>';
@@ -1416,28 +1448,12 @@ async function renderRecap(pid){
         : '<div class="sp-empty" style="padding:6px 0">Every photo you\u2019ve taken is a favorite. Nicely done.</div>';
       html+='</div>';
 
-      if(canQuote && scope.length){
-        const unrequested=scope.some(r=>!r.quote);
-        html+='<div class="sp-card" id="sp-quotecard-recap"><div class="sp-h2">Request a quote</div>';
-        if(!unrequested){
-          html+='<div class="sp-empty" style="padding:6px 0">Every photo here already has a quote request in with your Branding Specialist.</div>';
-        }else{
-          html+='<p class="sp-note" style="margin:0 0 10px" id="sp-quoterecap-intro">Your favorites are already picked below \u2014 tap to add or remove any item, from any table, then add your details.</p>'+
-            '<button class="sp-quote" type="button" id="sp-quoterecap-toggle">&#128002; Ready for a quote? Send email to your rep now.</button>'+
-            '<div class="sp-thumbs" id="sp-quoterecap-items" style="margin-top:12px"></div>'+
-            '<div id="sp-quoterecap-form" style="display:none;margin-top:14px">'+
-              '<span class="sp-label">Project details (optional)</span>'+
-              '<textarea class="sp-input" id="sp-quoterecap-note" rows="3" maxlength="500" placeholder="Anything that helps us quote it right: delivery date, quantities, sizes, colors, logo placement, budget\u2026" style="resize:vertical;font-family:inherit"></textarea>'+
-              '<button class="sp-btn block" id="sp-quoterecap-send" style="margin-top:12px" disabled>Request quote</button>'+
-            '</div>';
-        }
-        html+='</div>';
-      }
-
       body.innerHTML=html;
       body.querySelectorAll('[data-ev]').forEach(b=>{
         b.onclick=()=>{ viewEid=b.dataset.ev; paint(); window.scrollTo({top:0,behavior:'smooth'}); };
       });
+      const exploreBtn=document.getElementById('sp-explorepast');
+      if(exploreBtn) exploreBtn.onclick=()=>{ pastExpanded=true; paint(); };
       bindPhotoHandlers();
       if(canQuote) bindQuoteRecap(scope);
     }
@@ -1486,7 +1502,7 @@ async function renderRecap(pid){
       grid.innerHTML=scope.map(r=>
         '<div class="sp-thumb sp-qitem'+(r.quote?' requested':'')+'" data-id="'+r.id+'">'+
           '<img src="'+r.thumb+'" alt="Your item">'+
-          (r.quote ? '<span class="sp-quotetag">&#128002; QUOTE REQUESTED</span>' : '<div class="sp-qcheck">Tap to select</div>')+
+          (r.quote ? '<span class="sp-quotetag">QUOTE REQUESTED</span>' : '<div class="sp-qcheck">Tap to select</div>')+
           (r.note?'<div class="cap">'+esc(r.note)+'</div>':'')+
         '</div>').join('');
       const selected=new Set();
@@ -1739,7 +1755,7 @@ async function renderAdmin(){
     const sorted=repNotes.slice().sort((a,b)=>{const o={hot:0,warm:1,cold:2};return (o[a.priority]??3)-(o[b.priority]??3)||(b.tsClient||0)-(a.tsClient||0);});
     leadsHtml+='<div class="sp-card"><div class="sp-h2">&#128290; Booth rep notes ('+repNotes.length+')</div>'+
       '<p class="sp-note" style="margin:0 0 10px">Captured by staff at the booth. &#128279; = linked to a visitor\u2019s photos. Export the CSV to see notes married with photo leads.</p>'+
-      sorted.map(n=>'<div class="sp-adminrow"><div style="display:flex;justify-content:space-between;gap:8px"><span class="sp-who">'+esc(n.visitorName||n.visitorEmail||'(no name)')+(n.repPref?'<span class="sp-reptag">&#128100; '+esc(n.repPref)+'</span>':'')+'</span><span class="sp-count">'+(ico[n.priority]||'')+(n.quote?' &#128002;':'')+(n.linkedPid?' &#128279;':'')+'</span></div>'+
+      sorted.map(n=>'<div class="sp-adminrow"><div style="display:flex;justify-content:space-between;gap:8px;align-items:flex-start"><span class="sp-who">'+esc(n.visitorName||n.visitorEmail||'(no name)')+(n.repPref?'<span class="sp-reptag">&#128100; '+esc(n.repPref)+'</span>':'')+'</span><span style="display:flex;align-items:center;gap:8px;flex-shrink:0"><span class="sp-count">'+(ico[n.priority]||'')+(n.quote?' &#128002;':'')+(n.linkedPid?' &#128279;':'')+'</span><button class="sp-del" data-delrepnote="'+n.id+'">Delete</button></span></div>'+
         (n.visitorCompany||n.visitorEmail?'<div class="sp-meta">'+[esc(n.visitorCompany||''),esc(n.visitorEmail||'')].filter(Boolean).join(' &middot; ')+'</div>':'')+
         (n.notes?'<div class="cap" style="margin-top:2px">'+esc(n.notes)+'</div>':'')+'</div>').join('')+
     '</div>';
@@ -1959,6 +1975,15 @@ async function renderAdmin(){
       b.disabled=true; b.textContent='Deleting…';
       try{ for(const r of rs){ await deleteSubmission(r); } renderAdmin(); }
       catch(e){ bamAlert(e.message); renderAdmin(); }
+    });
+
+    // delete a single booth rep note
+    body.querySelectorAll('[data-delrepnote]').forEach(b=>b.onclick=async ()=>{
+      const n=repNotes.find(x=>x.id===b.dataset.delrepnote); if(!n) return;
+      if(!await bamConfirm('Delete this rep note ('+(n.visitorName||n.visitorEmail||'no name')+')? This can\u2019t be undone.','Delete')) return;
+      b.disabled=true; b.textContent='…';
+      try{ await deleteDoc(doc(db,'repnotes',n.id)); renderAdmin(); }
+      catch(e){ bamAlert('Could not delete: '+e.message); b.disabled=false; b.textContent='Delete'; }
     });
 
     // tap a thumbnail -> fetch full-size photo on demand and show overlay
