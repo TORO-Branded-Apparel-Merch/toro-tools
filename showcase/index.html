@@ -185,6 +185,11 @@
   .sp-evchip:hover{border-color:var(--lanyard);color:var(--lanyard);}
   .sp-evchip.on{background:var(--red-gradient);border-color:var(--lanyard);color:#fff;}
 
+  .sp-tabbar{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:var(--sp-4);position:sticky;top:0;background:var(--paper);padding:var(--sp-2) 0;z-index:10;}
+  .sp-tabchip{background:#fff;border:1.5px solid var(--line);border-radius:var(--r-pill);padding:9px 18px;font-size:var(--fs-sm);font-weight:700;color:var(--ink);cursor:pointer;transition:border-color var(--dur-fast) var(--ease),background var(--dur-fast) var(--ease),color var(--dur-fast) var(--ease);}
+  .sp-tabchip:hover{border-color:var(--lanyard);color:var(--lanyard);}
+  .sp-tabchip.on{background:var(--red-gradient);border-color:var(--lanyard);color:#fff;}
+
   .sp-offdim{opacity:.45;pointer-events:none;filter:grayscale(60%);}
   .sp-offnote{display:none;background:var(--ink);color:#fff;border-radius:var(--r-sm);padding:10px 13px;font-size:var(--fs-sm);font-weight:600;margin-bottom:var(--sp-3);}
   body.is-offline .sp-offnote{display:block;}
@@ -292,11 +297,14 @@ let mode='attendee', vendors=[], attendee=null, currentVendor=null, pendingFiles
 let recapFromVendorId=null, autoOpenQuote=false;
 const body=document.getElementById('sp-body'), modeBtn=document.getElementById('sp-modebtn'), quoteBtn=document.getElementById('sp-quotebtn'), sub=document.getElementById('sp-sub');
 // The Request a Quote tab only makes sense once someone is a signed-in attendee
-// browsing their own flow, so it's recalculated on every screen change rather
-// than threaded through each render function individually.
+// browsing their own flow, and the Organizer view toggle needs to disappear
+// while a rep is acting as a visitor (their one deliberate way out is the
+// "I'm done" banner button, not a stray tap on the header) — both are
+// recalculated on every screen change rather than threaded through each
+// render function individually.
 function updateQuoteBtnVisibility(){
-  if(!quoteBtn) return;
-  quoteBtn.style.display=(mode==='attendee' && attendee && attendee.pid) ? 'inline-flex' : 'none';
+  if(quoteBtn) quoteBtn.style.display=(mode==='attendee' && attendee && attendee.pid) ? 'inline-flex' : 'none';
+  if(modeBtn) modeBtn.style.display=(mode==='attendee' && actingAsRep) ? 'none' : 'inline-flex';
 }
 quoteBtn.onclick=()=>{
   if(!attendee||!attendee.pid) return;
@@ -365,14 +373,15 @@ function showHowTo(){
     bamBtns.appendChild(go); bamShow();
   });
 }
-function bamPrompt(msg,inputType){
+function bamPrompt(msg,inputType,defaultVal){
   return new Promise(res=>{
     bamMsg.textContent=msg; bamBtns.innerHTML='';
-    bamInput.type=inputType||'text'; bamInput.style.display='block';
+    bamInput.type=inputType||'text'; bamInput.style.display='block'; bamInput.value=defaultVal||'';
     const no=bamBtn('Cancel',false); no.onclick=()=>{bamHide();res(null);};
     const yes=bamBtn('OK',true); yes.onclick=()=>{const v=bamInput.value;bamHide();res(v);};
     bamInput.onkeydown=e=>{ if(e.key==='Enter') yes.click(); };
     bamBtns.appendChild(no); bamBtns.appendChild(yes); bamShow(); bamInput.focus();
+    if(defaultVal) bamInput.select(); // pre-filled for a rename: select-all so typing just replaces it
   });
 }
 
@@ -625,12 +634,27 @@ async function updateQueueBanner(){
   }
   b.innerHTML='&#128246; '+n+' item'+(n===1?'':'s')+' saved on this device, waiting for signal &middot; tap to retry';
 }
+let verifiedOnline=navigator.onLine;
 function applyOnlineState(){
-  document.body.classList.toggle('is-offline', !navigator.onLine);
+  document.body.classList.toggle('is-offline', !verifiedOnline);
 }
-window.addEventListener('online',()=>{ applyOnlineState(); syncQueue(); });
-window.addEventListener('offline',applyOnlineState);
-applyOnlineState();
+// navigator.onLine only reflects whether the device's network adapter is
+// connected to *something* — it's known to misreport "offline" on plenty of
+// phones and flaky wifi/cell handoffs. What we actually care about is whether
+// we can reach Firestore right now, so we confirm with a small real read
+// instead of trusting the browser's flag on its own, and keep re-checking so
+// a false negative doesn't get stuck showing "offline" all day.
+async function verifyOnline(){
+  const was=verifiedOnline;
+  try{ await getDoc(doc(db,'config','current')); verifiedOnline=true; }
+  catch(e){ verifiedOnline=false; }
+  applyOnlineState();
+  if(!was && verifiedOnline) syncQueue(); // just confirmed back online — flush anything queued right away
+}
+window.addEventListener('online',verifyOnline);
+window.addEventListener('offline',()=>{ verifiedOnline=false; applyOnlineState(); });
+verifyOnline();
+setInterval(()=>{ if(document.visibilityState==='visible') verifyOnline(); },25000);
 setInterval(syncQueue,30000); // belt and suspenders: retry every 30s
 setTimeout(()=>{ syncQueue(); updateQueueBanner(); },2000); // sync anything left from a previous visit
 
@@ -1291,14 +1315,16 @@ function wireRecapBack(){
 
 async function renderRecap(pid){
   sub.textContent='Your showcase photos';
-  body.innerHTML='<div class="sp-empty">Rounding up your photos\u2026</div>';
+  body.innerHTML=actingBannerHTML()+'<div class="sp-empty">Rounding up your photos\u2026</div>';
+  wireActingBanner();
   try{
     const snap=await getDocs(query(collection(db,'submissions'),where('attendeeId','==',pid)));
     const recs=snap.docs.map(d=>({id:d.id,...d.data()})).sort((a,b)=>(a.tsClient||0)-(b.tsClient||0));
     if(!recs.length){
-      body.innerHTML='<button class="sp-back" id="sp-recapback">&larr; Back to tables</button>'+
+      body.innerHTML=actingBannerHTML()+'<button class="sp-back" id="sp-recapback">&larr; Back to tables</button>'+
         '<div class="sp-card"><div class="sp-empty">Nothing in your collection yet. Scan the QR code at any table and take the bull by the horns.</div></div>';
       wireRecapBack();
+      wireActingBanner();
       return;
     }
     const who=recs[0];
@@ -1355,7 +1381,7 @@ async function renderRecap(pid){
       // without a quote option at all.
       const canQuote=!!activeEventId && viewEid===activeEventId;
 
-      let html='<button class="sp-back" id="sp-recapback">&larr; '+(sameEvent?'Back to tables':'See what\u2019s on the floor today')+'</button>'+
+      let html=actingBannerHTML()+'<button class="sp-back" id="sp-recapback">&larr; '+(sameEvent?'Back to tables':'See what\u2019s on the floor today')+'</button>'+
         (crossEventNote||'')+
         '<div class="sp-card sp-card-primary"><div class="sp-h2">'+esc(who.name)+'\u2019s photos</div>'+
         '<p class="sp-note" style="margin:0">'+
@@ -1396,7 +1422,7 @@ async function renderRecap(pid){
         if(!unrequested){
           html+='<div class="sp-empty" style="padding:6px 0">Every photo here already has a quote request in with your Branding Specialist.</div>';
         }else{
-          html+='<p class="sp-note" style="margin:0 0 10px" id="sp-quoterecap-intro">Select items below from any table, then add your details.</p>'+
+          html+='<p class="sp-note" style="margin:0 0 10px" id="sp-quoterecap-intro">Your favorites are already picked below \u2014 tap to add or remove any item, from any table, then add your details.</p>'+
             '<button class="sp-quote" type="button" id="sp-quoterecap-toggle">&#128002; Ready for a quote? Send email to your rep now.</button>'+
             '<div class="sp-thumbs" id="sp-quoterecap-items" style="margin-top:12px"></div>'+
             '<div id="sp-quoterecap-form" style="display:none;margin-top:14px">'+
@@ -1418,6 +1444,7 @@ async function renderRecap(pid){
 
     function bindPhotoHandlers(){
       wireRecapBack();
+      wireActingBanner();
       wireLookbook(body, syncLookbookToSubs);
       body.querySelectorAll('[data-fav]').forEach(h=>{
         h.onclick=async ev=>{
@@ -1482,6 +1509,18 @@ async function renderRecap(pid){
         grid.classList.add('selecting');
         toggle.style.display='none';
         formBox.style.display='block';
+        // Quick pick: a favorited item already means "yes, I love this" — start
+        // it pre-selected instead of making them re-tap what they already told
+        // us. They can still add or remove any item before sending.
+        grid.querySelectorAll('.sp-qitem:not(.requested)').forEach(el=>{
+          const r=scope.find(x=>x.id===el.dataset.id);
+          if(r && r.fav){
+            selected.add(el.dataset.id);
+            el.classList.add('sel');
+            const cb=el.querySelector('.sp-qcheck'); if(cb) cb.innerHTML='&#10003; Selected';
+          }
+        });
+        refreshBtn();
         formBox.querySelector('textarea').focus();
       };
       toggle.onclick=openForm;
@@ -1496,7 +1535,7 @@ async function renderRecap(pid){
             catch(err){ await queueUpdate(r.id,{quote:true,quoteNote:projectNote}); }
             r.quote=true; r.quoteNote=projectNote;
           }
-          const online=navigator.onLine;
+          const online=verifiedOnline;
           touchPresence(true);
           if(online) notifyQuote(chosen,projectNote);
           paint();
@@ -1580,7 +1619,7 @@ async function renderAdmin(){
     try{ localStorage.setItem('sp-admin-unlocked','1'); }catch(e){}
   }
   if(pendingBooth){ pendingBooth=false; await loadAll(); renderBooth(); return; }
-  sub.textContent='Events, vendor tables, leads & leaderboard';
+  sub.textContent='Events, tables, leads & reports';
   body.innerHTML='<div class="sp-empty">Wrangling the herd…</div>';
   await loadAll();
   if(!events.length){
@@ -1609,10 +1648,18 @@ async function renderAdmin(){
   const lb=all.map(x=>({name:x.vendor.name,count:x.recs.length})).sort((a,b)=>b.count-a.count);
   const maxC=Math.max(1,...lb.map(l=>l.count));
 
-  let html='<div class="sp-card sp-card-primary"><div class="sp-h2">&#128197; Events</div>'+
+  // Organizer view used to be one long scroll of every card; it's now four
+  // tabs so a busy floor manager can jump straight to what they need instead
+  // of hunting through Events/Tables/Leaderboard/Trends/Rep notes/Submissions.
+  if(!renderAdmin.tab) renderAdmin.tab='events';
+  const tabs=[['events','Events'],['tables','Tables'],['leads','Leads'],['reports','Reports']];
+  const tabbar='<div class="sp-tabbar">'+tabs.map(([id,label])=>'<button class="sp-tabchip'+(renderAdmin.tab===id?' on':'')+'" data-admintab="'+id+'">'+label+'</button>').join('')+'</div>';
+
+  const eventsHtml='<div class="sp-card sp-card-primary"><div class="sp-h2">&#128197; Events</div>'+
     '<div class="sp-fieldgroup"><select class="sp-input" id="sp-evsel">'+events.map(e=>'<option value="'+e.id+'"'+(e.id===renderAdmin.sel?' selected':'')+'>'+esc(eventLabel(e))+(e.id===activeEventId?' \u2022 LIVE':'')+'</option>').join('')+'</select></div>'+
     '<div class="sp-fieldgroup" style="display:flex;gap:8px;flex-wrap:wrap">'+
       '<button class="sp-btn small ghost" id="sp-evnew">New event</button>'+
+      '<button class="sp-btn small ghost" id="sp-evrename">Rename event</button>'+
       '<button class="sp-btn small ghost" id="sp-evcopy">Copy to new event</button>'+
       (renderAdmin.sel!==activeEventId?'<button class="sp-btn small" id="sp-evactive">Make live for attendees</button>':'')+
     '</div>'+
@@ -1624,28 +1671,28 @@ async function renderAdmin(){
       '<button class="sp-btn small neutral" id="sp-boothlaunch">&#128290; Launch booth mode</button>'+
       '<button class="sp-btn small ghost" id="sp-orglock">&#128274; Lock this device</button>'+
     '</div>'+
-    '<p class="sp-note" style="margin-top:0">Everything below shows the selected event only. "Copy to new event" brings the vendor list over and leaves all photos and leads behind. The LIVE event is the one attendees see when they open the main link; table QR links always route to their own event automatically.</p>'+
-  '</div>'+
-  '<div class="sp-card"><div class="sp-h2">Vendor tables \u2014 '+esc(eventLabel(selEvent))+'</div>'+
+    '<p class="sp-note" style="margin-top:0">Tables, Leads, and Reports all show the selected event only. "Copy to new event" brings the vendor list over and leaves all photos and leads behind. The LIVE event is the one attendees see when they open the main link; table QR links always route to their own event automatically.</p>'+
+  '</div>';
+
+  const tablesHtml='<div class="sp-card sp-card-primary"><div class="sp-h2">Vendor tables \u2014 '+esc(eventLabel(selEvent))+'</div>'+
     '<div class="sp-fieldgroup" style="display:flex;gap:8px"><input class="sp-input" id="sp-vname" placeholder="Add vendor, e.g. Maple &amp; Co. Furniture" style="flex:1"><button class="sp-btn small" id="sp-vadd">Add</button></div>'+
     '<p class="sp-note" style="margin-top:0">Each vendor has its own link below. Turn each into a QR code for its table. Scanning takes attendees straight to that vendor\u2019s upload page.</p>'+
-    (vendors.length?vendors.map(v=>'<div class="sp-adminrow"><div style="display:flex;justify-content:space-between;align-items:center;gap:8px"><span class="sp-who">'+esc(v.name)+'</span><button class="sp-del" data-delvendor="'+v.id+'">Delete table</button></div><div class="sp-meta">Code '+esc(v.code)+'</div><div class="sp-qr"><a href="'+base+'?vendor='+v.id+'">'+base+'?vendor='+v.id+'</a></div></div>').join(''):'<div class="sp-empty">No vendors yet.</div>')+
-    '<hr class="sp-divider">'+
-    '<div class="sp-sectioneyebrow"><span class="sp-label" style="margin:0">Export this event\u2019s data</span></div>'+
+    (vendors.length?vendors.map(v=>'<div class="sp-adminrow"><div style="display:flex;justify-content:space-between;align-items:center;gap:8px"><span class="sp-who">'+esc(v.name)+'</span><span style="display:flex;gap:6px;flex-shrink:0"><button class="sp-del" data-renamevendor="'+v.id+'" style="color:var(--ink);border-color:var(--line)">Rename</button><button class="sp-del" data-delvendor="'+v.id+'">Delete table</button></span></div><div class="sp-meta">Code '+esc(v.code)+'</div><div class="sp-qr"><a href="'+base+'?vendor='+v.id+'">'+base+'?vendor='+v.id+'</a></div></div>').join(''):'<div class="sp-empty">No vendors yet.</div>')+
+  '</div>';
+
+  let reportsHtml='<div class="sp-card sp-card-primary"><div class="sp-h2">Export &amp; data</div>'+
+    '<p class="sp-note" style="margin:0 0 10px">Export first \u2014 deleting an event\u2019s data can\u2019t be undone.</p>'+
     '<div style="display:flex;gap:8px;flex-wrap:wrap">'+
       '<button class="sp-btn small ghost" id="sp-csv"'+(totalPhotos?'':' disabled')+'>Export leads CSV</button>'+
       '<button class="sp-btn small ghost" id="sp-zip"'+(totalPhotos?'':' disabled')+'>Download all photos (ZIP)</button>'+
       '<button class="sp-btn small danger" id="sp-delall">Delete this event\u2019s data</button>'+
-    '</div>'+
-    '</div>';
-
-  html+='<div class="sp-card"><div class="sp-h2">&#127942; Table leaderboard</div>';
-  if(!totalPhotos){ html+='<div class="sp-empty">No photos yet. The leaderboard will fill in once the stampede starts.</div>'; }
+    '</div></div>';
+  reportsHtml+='<div class="sp-card"><div class="sp-h2">&#127942; Table leaderboard</div>';
+  if(!totalPhotos){ reportsHtml+='<div class="sp-empty">No photos yet. The leaderboard will fill in once the stampede starts.</div>'; }
   else{
-    html+='<ul class="sp-lb">'+lb.map((l,i)=>'<li><span class="rank">'+(i+1)+'</span><span class="vn">'+esc(l.name)+'</span><span class="bar"><i style="width:'+Math.round(l.count/maxC*100)+'%"></i></span><span class="n">'+l.count+'</span></li>').join('')+'</ul>';
+    reportsHtml+='<ul class="sp-lb">'+lb.map((l,i)=>'<li><span class="rank">'+(i+1)+'</span><span class="vn">'+esc(l.name)+'</span><span class="bar"><i style="width:'+Math.round(l.count/maxC*100)+'%"></i></span><span class="n">'+l.count+'</span></li>').join('')+'</ul>';
   }
-  html+='</div>';
-
+  reportsHtml+='</div>';
   // ---- Trends across all events ----
   if(events.length>1){
     // group all vendors by normalized name; metrics per event from allSubs
@@ -1669,12 +1716,12 @@ async function renderAdmin(){
       }
     });
     const ranked=Object.values(groups).filter(g=>g.photos>0).sort((a,b)=>b.photos-a.photos);
-    html+='<div class="sp-card"><div class="sp-h2">&#128200; Vendor trends across all events</div>';
-    if(!ranked.length){ html+='<div class="sp-empty">No photos anywhere yet.</div>'; }
+    reportsHtml+='<div class="sp-card"><div class="sp-h2">&#128200; Vendor trends across all events</div>';
+    if(!ranked.length){ reportsHtml+='<div class="sp-empty">No photos anywhere yet.</div>'; }
     else{
-      html+='<p class="sp-note" style="margin:0 0 10px">Vendors matched by name across events. Photos / &#10084;&#65039; favorites / &#128002; quotes.</p>';
+      reportsHtml+='<p class="sp-note" style="margin:0 0 10px">Vendors matched by name across events. Photos / &#10084;&#65039; favorites / &#128002; quotes.</p>';
       for(const g of ranked){
-        html+='<div class="sp-adminrow"><div style="display:flex;justify-content:space-between;gap:8px;align-items:baseline"><span class="sp-who">'+esc(g.name)+'</span>'+
+        reportsHtml+='<div class="sp-adminrow"><div style="display:flex;justify-content:space-between;gap:8px;align-items:baseline"><span class="sp-who">'+esc(g.name)+'</span>'+
           '<span class="sp-count">'+g.photos+' / '+g.favs+' &#10084;&#65039; / '+g.quotes+' &#128002;</span></div>'+
           '<div class="sp-meta">'+events.map(e=>{
             const m=g.byEvent[e.id];
@@ -1682,216 +1729,256 @@ async function renderAdmin(){
           }).join(' &middot; ')+'</div></div>';
       }
     }
-    html+='</div>';
+    reportsHtml+='</div>';
   }
+
+  let leadsHtml='';
   // Booth rep notes card
   if(repNotes.length){
     const ico={hot:'&#128293;',warm:'&#127777;&#65039;',cold:'&#10052;&#65039;'};
     const sorted=repNotes.slice().sort((a,b)=>{const o={hot:0,warm:1,cold:2};return (o[a.priority]??3)-(o[b.priority]??3)||(b.tsClient||0)-(a.tsClient||0);});
-    html+='<div class="sp-card"><div class="sp-h2">&#128290; Booth rep notes ('+repNotes.length+')</div>'+
+    leadsHtml+='<div class="sp-card"><div class="sp-h2">&#128290; Booth rep notes ('+repNotes.length+')</div>'+
       '<p class="sp-note" style="margin:0 0 10px">Captured by staff at the booth. &#128279; = linked to a visitor\u2019s photos. Export the CSV to see notes married with photo leads.</p>'+
       sorted.map(n=>'<div class="sp-adminrow"><div style="display:flex;justify-content:space-between;gap:8px"><span class="sp-who">'+esc(n.visitorName||n.visitorEmail||'(no name)')+(n.repPref?'<span class="sp-reptag">&#128100; '+esc(n.repPref)+'</span>':'')+'</span><span class="sp-count">'+(ico[n.priority]||'')+(n.quote?' &#128002;':'')+(n.linkedPid?' &#128279;':'')+'</span></div>'+
         (n.visitorCompany||n.visitorEmail?'<div class="sp-meta">'+[esc(n.visitorCompany||''),esc(n.visitorEmail||'')].filter(Boolean).join(' &middot; ')+'</div>':'')+
         (n.notes?'<div class="cap" style="margin-top:2px">'+esc(n.notes)+'</div>':'')+'</div>').join('')+
     '</div>';
   }
-  html+='<div class="sp-card"><div class="sp-h2">Submissions \u2014 '+esc(eventLabel(selEvent))+' ('+totalPhotos+')</div>';
-  if(!vendors.length) html+='<div class="sp-empty">Add vendors to start collecting.</div>';
+  leadsHtml+='<div class="sp-card sp-card-primary"><div class="sp-h2">Submissions \u2014 '+esc(eventLabel(selEvent))+' ('+totalPhotos+')</div>';
+  if(!vendors.length) leadsHtml+='<div class="sp-empty">Add vendors to start collecting.</div>';
   for(const {vendor,recs} of all){
-    html+='<div class="sp-vhead"><span class="sp-who">'+esc(vendor.name)+'</span><span class="sp-count">'+recs.length+' photo'+(recs.length===1?'':'s')+'</span></div>';
-    if(!recs.length){ html+='<div class="sp-empty" style="padding:4px 0 14px">Nothing yet.</div>'; continue; }
+    leadsHtml+='<div class="sp-vhead"><span class="sp-who">'+esc(vendor.name)+'</span><span class="sp-count">'+recs.length+' photo'+(recs.length===1?'':'s')+'</span></div>';
+    if(!recs.length){ leadsHtml+='<div class="sp-empty" style="padding:4px 0 14px">Nothing yet.</div>'; continue; }
     const byPerson={};
     recs.forEach(r=>{const pk=r.name+'|'+(r.company||'');(byPerson[pk]=byPerson[pk]||[]).push(r);});
     for(const pk of Object.keys(byPerson)){
       const rs=byPerson[pk];
-      html+='<div class="sp-adminrow"><div style="display:flex;justify-content:space-between;align-items:center;gap:8px"><span class="sp-who">'+esc(rs[0].name)+(rs[0].repPref?'<span class="sp-reptag">&#128100; '+esc(rs[0].repPref)+'</span>':'')+'</span><button class="sp-del" data-delperson="'+rs.map(x=>x.id).join(',')+'">Delete entries ('+rs.length+')</button></div>'+
+      leadsHtml+='<div class="sp-adminrow"><div style="display:flex;justify-content:space-between;align-items:center;gap:8px"><span class="sp-who">'+esc(rs[0].name)+(rs[0].repPref?'<span class="sp-reptag">&#128100; '+esc(rs[0].repPref)+'</span>':'')+'</span><button class="sp-del" data-delperson="'+rs.map(x=>x.id).join(',')+'">Delete entries ('+rs.length+')</button></div>'+
         '<div class="sp-meta">'+(rs[0].company?esc(rs[0].company)+' &middot; ':'')+(rs[0].email?esc(rs[0].email)+' &middot; ':'')+new Date(rs[0].tsClient||0).toLocaleString()+'</div>'+
         '<div class="sp-thumbs">'+rs.map(r=>'<div class="sp-thumb"><img src="'+r.thumb+'" alt="Photo from '+esc(r.name)+'" loading="lazy" data-pid="'+esc(r.photoId||'')+'" style="cursor:zoom-in">'+(r.fav?'<span class="sp-favtag">&#10084;&#65039; FAV</span>':'')+(r.quote?'<span class="sp-quotetag">&#128002; QUOTE</span>'+(r.quoteNote?'<div class="cap" style="color:#5c4300;font-weight:600">'+esc(r.quoteNote)+'</div>':''):'')+'<button class="sp-del" data-delsub="'+r.id+'" style="width:100%;margin-top:3px;border-radius:0 0 6px 6px">Delete</button>'+(r.note?'<div class="cap">'+esc(r.note)+'</div>':'')+'</div>').join('')+'</div></div>';
     }
   }
-  html+='</div>';
-  body.innerHTML=html;
+  leadsHtml+='</div>';
 
-  document.getElementById('sp-vadd').onclick=async ()=>{
-    const inp=document.getElementById('sp-vname'); const name=inp.value.trim(); if(!name)return;
-    try{ await addVendor(name,renderAdmin.sel); renderAdmin(); }catch(e){ bamAlert('Could not add vendor: '+e.message); }
-  };
-  document.getElementById('sp-evsel').onchange=e=>{ renderAdmin.sel=e.target.value; renderAdmin(); };
-  document.getElementById('sp-evnew').onclick=async ()=>{
-    const name=await bamPrompt('Name the new event (e.g. TCU \u2013 Jul 29, 2026):');
-    if(!name||!name.trim()) return;
-    try{
-      const ev=await createEvent(name.trim());
-      if(vendors.length){
-        const copy=await bamConfirm('Copy the '+vendors.length+' vendor table'+(vendors.length===1?'':'s')+' from "'+eventLabel(selEvent)+'" into "'+name.trim()+'"? You can also add or remove tables after.','Copy tables');
-        if(copy) await copyEventVendors(renderAdmin.sel,ev.id);
-      }
-      renderAdmin.sel=ev.id; renderAdmin();
-    }catch(e){ bamAlert('Could not create event: '+e.message); }
-  };
-  document.getElementById('sp-evcopy').onclick=async ()=>{
-    const name=await bamPrompt('Name the new event (the '+vendors.length+' vendor table'+(vendors.length===1?'':'s')+' from "'+eventLabel(selEvent)+'" will be copied over):');
-    if(!name||!name.trim()) return;
-    try{
-      const ev=await createEvent(name.trim());
-      await copyEventVendors(renderAdmin.sel,ev.id);
-      renderAdmin.sel=ev.id; renderAdmin();
-    }catch(e){ bamAlert('Could not copy event: '+e.message); }
-  };
-  const evActiveBtn=document.getElementById('sp-evactive');
-  if(evActiveBtn) evActiveBtn.onclick=async ()=>{
-    try{ await setActiveEvent(renderAdmin.sel); renderAdmin(); }
-    catch(e){ bamAlert('Could not set live event: '+e.message); }
-  };
-  document.getElementById('sp-evdelete').onclick=async ()=>{
-    const isLive=renderAdmin.sel===activeEventId;
-    if(!await bamConfirm('Delete "'+eventLabel(selEvent)+'" completely? This removes its vendors, photos, leads, and rep notes too'+(isLive?' \u2014 including the event attendees currently see as LIVE':'')+'. This can\u2019t be undone.','Continue')) return;
-    const check=await bamPrompt('Type DELETE to confirm:');
-    if(check!=='DELETE') return;
-    const btn=document.getElementById('sp-evdelete'); btn.disabled=true; btn.textContent='Deleting\u2026';
-    try{
-      await deleteEventCascade(selEvent);
-      renderAdmin.sel=null; // let renderAdmin resolve the next valid event (or prompt for a first one)
-      renderAdmin();
-    }catch(e){ bamAlert('Could not delete event: '+e.message); btn.disabled=false; btn.textContent='Delete event'; }
-  };
-  document.getElementById('sp-orglock').onclick=async ()=>{
-    if(!await bamConfirm('Lock organizer access on this device? You\u2019ll need the passcode again next time.','Lock it')) return;
-    try{ localStorage.removeItem('sp-admin-unlocked'); }catch(e){}
-    adminUnlocked=false; mode='attendee'; modeBtn.textContent='Organizer view'; vendors=eventVendors(activeEventId); renderVendorPicker();
-  };
-  document.getElementById('sp-boothlaunch').onclick=async ()=>{
-    if(renderAdmin.sel!==activeEventId){
-      const ok=await bamConfirm('Booth mode captures visitors for the LIVE event. Make "'+eventLabel(selEvent)+'" live and start booth mode?','Make live & start');
-      if(!ok) return;
-      try{ await setActiveEvent(renderAdmin.sel); }catch(e){ bamAlert('Could not set live event: '+e.message); return; }
-    }
-    mode='booth'; boothVisitor=null; renderBooth();
-  };
-  document.getElementById('sp-csv').onclick=()=>{
-    const blob=new Blob([toCSV(subs,eventLabel(selEvent),repNotes)],{type:'text/csv'});
-    const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='brandabulls-live-leads-'+fsafe(eventLabel(selEvent))+'.csv';a.click();
-    URL.revokeObjectURL(a.href);
-  };
+  const tabBodies={events:eventsHtml, tables:tablesHtml, leads:leadsHtml, reports:reportsHtml};
+  body.innerHTML=tabbar+tabBodies[renderAdmin.tab];
 
-  document.getElementById('sp-zip').onclick=async ()=>{
-    const btn=document.getElementById('sp-zip');
-    btn.disabled=true; const orig='Download all photos (ZIP)';
-    try{
-      btn.textContent='Preparing…';
-      const JSZip=await loadJSZip();
-      const zip=new JSZip();
+  body.querySelectorAll('[data-admintab]').forEach(b=>b.onclick=()=>{ renderAdmin.tab=b.dataset.admintab; renderAdmin(); });
 
-      // Organize: folder per vendor -> folder per person; filename = person_table_number.jpg
-      // Track per person+vendor counters for numbering
-      const counters={};
-      const ordered=[...subs].sort((a,b)=>(a.tsClient||0)-(b.tsClient||0));
-      let done=0;
-      for(const r of ordered){
-        if(!r.photoId){ done++; continue; }
-        btn.textContent='Fetching '+(done+1)+'/'+subs.length+'…';
-        const img=await fetchFullPhoto(r.photoId);
-        done++;
-        if(!img) continue;
-        const person=fsafe(r.name)+(r.company?'_'+fsafe(r.company):'');
-        const table=fsafe(r.vendorName);
-        const ck=person+'|'+table;
-        counters[ck]=(counters[ck]||0)+1;
-        const num=String(counters[ck]).padStart(2,'0');
-        const fname=person+'_'+table+'_'+num+(r.quote?'_QUOTE':'')+'.jpg';
-        // folder structure: person first, vendor tables as subfolders under them
-        const personFolder=(r.name.trim())+(r.company?' ('+r.company.trim()+')':'');
-        const folder=personFolder+'/'+fsafe(r.vendorName);
-        const base64=img.split(',')[1];
-        zip.file(folder+'/'+fname, base64, {base64:true});
-        if(r.note||r.quote||r.fav){
-          // one notes.txt per person at the top of their folder, covering all tables
-          const notesPath=personFolder+'/notes.txt';
-          const existing=zip.file(notesPath);
-          let txt = existing ? await existing.async('string') : '';
-          txt += fname+': '+(r.repPref?'[REQUESTED REP: '+r.repPref+'] ':'')+(r.fav?'[FAVORITED] ':'')+(r.quote?'[QUOTE REQUESTED'+(r.quoteNote?' \u2014 '+r.quoteNote:'')+'] ':'')+(r.note||'')+'\r\n';
-          zip.file(notesPath, txt);
-        }
-      }
-      // include the leads CSV inside the zip too
-      zip.file('brandabulls-live-leads-'+fsafe(eventLabel(selEvent))+'.csv', toCSV(subs,eventLabel(selEvent),repNotes));
-
-      btn.textContent='Zipping…';
-      const blob=await zip.generateAsync({type:'blob'},(meta)=>{ btn.textContent='Zipping… '+Math.round(meta.percent)+'%'; });
-      const a=document.createElement('a');
-      a.href=URL.createObjectURL(blob); a.download='brandabulls-live-photos-'+fsafe(eventLabel(selEvent))+'.zip'; a.click();
-      URL.revokeObjectURL(a.href);
-      btn.textContent=orig; btn.disabled=false;
-    }catch(e){
-      console.error(e);
-      bamAlert('ZIP failed: '+(e.message||'unknown error')+'. Try again.');
-      btn.textContent=orig; btn.disabled=false;
-    }
-  };
-
-  const byId={}; subs.forEach(r=>byId[r.id]=r);
-
-  // delete one photo/entry
-  body.querySelectorAll('[data-delsub]').forEach(b=>b.onclick=async ()=>{
-    const r=byId[b.dataset.delsub]; if(!r) return;
-    if(!await bamConfirm('Delete this photo from '+r.name+'? This can\u2019t be undone.','Delete')) return;
-    b.disabled=true; b.textContent='…';
-    try{ await deleteSubmission(r); renderAdmin(); }
-    catch(e){ bamAlert(e.message); b.disabled=false; b.textContent='Delete'; }
-  });
-
-  // delete all of one person's entries at this table
-  body.querySelectorAll('[data-delperson]').forEach(b=>b.onclick=async ()=>{
-    const ids=b.dataset.delperson.split(','); const rs=ids.map(i=>byId[i]).filter(Boolean);
-    if(!rs.length) return;
-    if(!await bamConfirm('Delete all '+rs.length+' entr'+(rs.length===1?'y':'ies')+' from '+rs[0].name+' at this table? This can\u2019t be undone.','Delete')) return;
-    b.disabled=true; b.textContent='Deleting…';
-    try{ for(const r of rs){ await deleteSubmission(r); } renderAdmin(); }
-    catch(e){ bamAlert(e.message); renderAdmin(); }
-  });
-
-  // delete a vendor table (and all its entries)
-  body.querySelectorAll('[data-delvendor]').forEach(b=>b.onclick=async ()=>{
-    const v=vendors.find(x=>x.id===b.dataset.delvendor); if(!v) return;
-    const recs=subs.filter(r=>r.vendorId===v.id);
-    if(!await bamConfirm('Delete table "'+v.name+'" and its '+recs.length+' entr'+(recs.length===1?'y':'ies')+'? This can\u2019t be undone.','Delete')) return;
-    b.disabled=true; b.textContent='Deleting…';
-    try{ await deleteVendor(v,recs); allVendors=allVendors.filter(x=>x.id!==v.id); renderAdmin(); }
-    catch(e){ bamAlert(e.message); renderAdmin(); }
-  });
-
-  // delete EVERYTHING
-  document.getElementById('sp-delall').onclick=async ()=>{
-    if(!await bamConfirm('Delete all vendors, entries, and photos for "'+eventLabel(selEvent)+'"? Other events are untouched. This can\u2019t be undone.','Continue')) return;
-    const check=await bamPrompt('Type DELETE to confirm:');
-    if(check!=='DELETE') return;
-    const btn=document.getElementById('sp-delall'); btn.disabled=true;
-    try{
-      let n=0;
-      for(const r of subs){ btn.textContent='Deleting '+(++n)+'/'+subs.length+'…'; await deleteSubmission(r); }
-      for(const v of [...vendors]){ try{ await deleteDoc(doc(db,'vendors',v.id)); }catch(e){} }
-      allVendors=allVendors.filter(v=>!vset.has(v.id));
-      vendors=[]; renderAdmin();
-    }catch(e){ bamAlert(e.message); renderAdmin(); }
-  };
-
-  // tap a thumbnail -> fetch full-size photo on demand and show overlay
-  body.querySelectorAll('.sp-thumb img[data-pid]').forEach(im=>{
-    im.onclick=async ()=>{
-      const pid=im.dataset.pid; if(!pid) return;
-      im.style.opacity='.5';
+  if(renderAdmin.tab==='events'){
+    document.getElementById('sp-evsel').onchange=e=>{ renderAdmin.sel=e.target.value; renderAdmin(); };
+    document.getElementById('sp-evnew').onclick=async ()=>{
+      const name=await bamPrompt('Name the new event (e.g. TCU \u2013 Jul 29, 2026):');
+      if(!name||!name.trim()) return;
       try{
-        const full=await fetchFullPhoto(pid);
-        im.style.opacity='';
-        if(!full){ bamAlert('Full photo not found.'); return; }
-        const ov=document.createElement('div');
-        ov.style.cssText='position:fixed;inset:0;background:rgba(20,25,35,.92);display:flex;align-items:center;justify-content:center;z-index:99;cursor:zoom-out;padding:20px';
-        ov.innerHTML='<img src="'+full+'" style="max-width:100%;max-height:100%;border-radius:10px" alt="Full size photo">';
-        ov.onclick=()=>ov.remove();
-        document.body.appendChild(ov);
-      }catch(e){ im.style.opacity=''; bamAlert('Could not load photo. Check your connection.'); }
+        const ev=await createEvent(name.trim());
+        if(vendors.length){
+          const copy=await bamConfirm('Copy the '+vendors.length+' vendor table'+(vendors.length===1?'':'s')+' from "'+eventLabel(selEvent)+'" into "'+name.trim()+'"? You can also add or remove tables after.','Copy tables');
+          if(copy) await copyEventVendors(renderAdmin.sel,ev.id);
+        }
+        renderAdmin.sel=ev.id; renderAdmin();
+      }catch(e){ bamAlert('Could not create event: '+e.message); }
     };
-  });
+    document.getElementById('sp-evcopy').onclick=async ()=>{
+      const name=await bamPrompt('Name the new event (the '+vendors.length+' vendor table'+(vendors.length===1?'':'s')+' from "'+eventLabel(selEvent)+'" will be copied over):');
+      if(!name||!name.trim()) return;
+      try{
+        const ev=await createEvent(name.trim());
+        await copyEventVendors(renderAdmin.sel,ev.id);
+        renderAdmin.sel=ev.id; renderAdmin();
+      }catch(e){ bamAlert('Could not copy event: '+e.message); }
+    };
+    document.getElementById('sp-evrename').onclick=async ()=>{
+      const name=await bamPrompt('Rename this event:','text',selEvent.name);
+      if(name===null) return;
+      const trimmed=name.trim();
+      if(!trimmed || trimmed===selEvent.name) return;
+      if(trimmed.length>100){ await bamAlert('Event names need to be 100 characters or under.'); return; }
+      try{
+        await updateDoc(doc(db,'events',selEvent.id),{name:trimmed});
+        selEvent.name=trimmed;
+        renderAdmin();
+      }catch(e){ bamAlert('Could not rename: '+e.message); }
+    };
+    const evActiveBtn=document.getElementById('sp-evactive');
+    if(evActiveBtn) evActiveBtn.onclick=async ()=>{
+      try{ await setActiveEvent(renderAdmin.sel); renderAdmin(); }
+      catch(e){ bamAlert('Could not set live event: '+e.message); }
+    };
+    document.getElementById('sp-evdelete').onclick=async ()=>{
+      const isLive=renderAdmin.sel===activeEventId;
+      if(!await bamConfirm('Delete "'+eventLabel(selEvent)+'" completely? This removes its vendors, photos, leads, and rep notes too'+(isLive?' \u2014 including the event attendees currently see as LIVE':'')+'. This can\u2019t be undone.','Continue')) return;
+      const check=await bamPrompt('Type DELETE to confirm:');
+      if(check!=='DELETE') return;
+      const btn=document.getElementById('sp-evdelete'); btn.disabled=true; btn.textContent='Deleting\u2026';
+      try{
+        await deleteEventCascade(selEvent);
+        renderAdmin.sel=null; // let renderAdmin resolve the next valid event (or prompt for a first one)
+        renderAdmin();
+      }catch(e){ bamAlert('Could not delete event: '+e.message); btn.disabled=false; btn.textContent='Delete event'; }
+    };
+    document.getElementById('sp-orglock').onclick=async ()=>{
+      if(!await bamConfirm('Lock organizer access on this device? You\u2019ll need the passcode again next time.','Lock it')) return;
+      try{ localStorage.removeItem('sp-admin-unlocked'); }catch(e){}
+      adminUnlocked=false; mode='attendee'; modeBtn.textContent='Organizer view'; vendors=eventVendors(activeEventId); renderVendorPicker();
+    };
+    document.getElementById('sp-boothlaunch').onclick=async ()=>{
+      if(renderAdmin.sel!==activeEventId){
+        const ok=await bamConfirm('Booth mode captures visitors for the LIVE event. Make "'+eventLabel(selEvent)+'" live and start booth mode?','Make live & start');
+        if(!ok) return;
+        try{ await setActiveEvent(renderAdmin.sel); }catch(e){ bamAlert('Could not set live event: '+e.message); return; }
+      }
+      mode='booth'; boothVisitor=null; renderBooth();
+    };
+  }
+
+  if(renderAdmin.tab==='tables'){
+    document.getElementById('sp-vadd').onclick=async ()=>{
+      const inp=document.getElementById('sp-vname'); const name=inp.value.trim(); if(!name)return;
+      try{ await addVendor(name,renderAdmin.sel); renderAdmin(); }catch(e){ bamAlert('Could not add vendor: '+e.message); }
+    };
+    // rename a vendor table
+    body.querySelectorAll('[data-renamevendor]').forEach(b=>b.onclick=async ()=>{
+      const v=vendors.find(x=>x.id===b.dataset.renamevendor); if(!v) return;
+      const name=await bamPrompt('Rename this table:','text',v.name);
+      if(name===null) return;
+      const trimmed=name.trim();
+      if(!trimmed || trimmed===v.name) return;
+      if(trimmed.length>80){ await bamAlert('Table names need to be 80 characters or under.'); return; }
+      b.disabled=true; b.textContent='Renaming\u2026';
+      try{
+        await updateDoc(doc(db,'vendors',v.id),{name:trimmed});
+        v.name=trimmed;
+        const av=allVendors.find(x=>x.id===v.id); if(av) av.name=trimmed;
+        renderAdmin();
+      }catch(e){ bamAlert('Could not rename: '+e.message); renderAdmin(); }
+    });
+    // delete a vendor table (and all its entries)
+    body.querySelectorAll('[data-delvendor]').forEach(b=>b.onclick=async ()=>{
+      const v=vendors.find(x=>x.id===b.dataset.delvendor); if(!v) return;
+      const recs=subs.filter(r=>r.vendorId===v.id);
+      if(!await bamConfirm('Delete table "'+v.name+'" and its '+recs.length+' entr'+(recs.length===1?'y':'ies')+'? This can\u2019t be undone.','Delete')) return;
+      b.disabled=true; b.textContent='Deleting…';
+      try{ await deleteVendor(v,recs); allVendors=allVendors.filter(x=>x.id!==v.id); renderAdmin(); }
+      catch(e){ bamAlert(e.message); renderAdmin(); }
+    });
+  }
+
+  if(renderAdmin.tab==='reports'){
+    document.getElementById('sp-csv').onclick=()=>{
+      const blob=new Blob([toCSV(subs,eventLabel(selEvent),repNotes)],{type:'text/csv'});
+      const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='brandabulls-live-leads-'+fsafe(eventLabel(selEvent))+'.csv';a.click();
+      URL.revokeObjectURL(a.href);
+    };
+    document.getElementById('sp-zip').onclick=async ()=>{
+      const btn=document.getElementById('sp-zip');
+      btn.disabled=true; const orig='Download all photos (ZIP)';
+      try{
+        btn.textContent='Preparing…';
+        const JSZip=await loadJSZip();
+        const zip=new JSZip();
+
+        // Organize: folder per vendor -> folder per person; filename = person_table_number.jpg
+        // Track per person+vendor counters for numbering
+        const counters={};
+        const ordered=[...subs].sort((a,b)=>(a.tsClient||0)-(b.tsClient||0));
+        let done=0;
+        for(const r of ordered){
+          if(!r.photoId){ done++; continue; }
+          btn.textContent='Fetching '+(done+1)+'/'+subs.length+'…';
+          const img=await fetchFullPhoto(r.photoId);
+          done++;
+          if(!img) continue;
+          const person=fsafe(r.name)+(r.company?'_'+fsafe(r.company):'');
+          const table=fsafe(r.vendorName);
+          const ck=person+'|'+table;
+          counters[ck]=(counters[ck]||0)+1;
+          const num=String(counters[ck]).padStart(2,'0');
+          const fname=person+'_'+table+'_'+num+(r.quote?'_QUOTE':'')+'.jpg';
+          // folder structure: person first, vendor tables as subfolders under them
+          const personFolder=(r.name.trim())+(r.company?' ('+r.company.trim()+')':'');
+          const folder=personFolder+'/'+fsafe(r.vendorName);
+          const base64=img.split(',')[1];
+          zip.file(folder+'/'+fname, base64, {base64:true});
+          if(r.note||r.quote||r.fav){
+            // one notes.txt per person at the top of their folder, covering all tables
+            const notesPath=personFolder+'/notes.txt';
+            const existing=zip.file(notesPath);
+            let txt = existing ? await existing.async('string') : '';
+            txt += fname+': '+(r.repPref?'[REQUESTED REP: '+r.repPref+'] ':'')+(r.fav?'[FAVORITED] ':'')+(r.quote?'[QUOTE REQUESTED'+(r.quoteNote?' \u2014 '+r.quoteNote:'')+'] ':'')+(r.note||'')+'\r\n';
+            zip.file(notesPath, txt);
+          }
+        }
+        // include the leads CSV inside the zip too
+        zip.file('brandabulls-live-leads-'+fsafe(eventLabel(selEvent))+'.csv', toCSV(subs,eventLabel(selEvent),repNotes));
+
+        btn.textContent='Zipping…';
+        const blob=await zip.generateAsync({type:'blob'},(meta)=>{ btn.textContent='Zipping… '+Math.round(meta.percent)+'%'; });
+        const a=document.createElement('a');
+        a.href=URL.createObjectURL(blob); a.download='brandabulls-live-photos-'+fsafe(eventLabel(selEvent))+'.zip'; a.click();
+        URL.revokeObjectURL(a.href);
+        btn.textContent=orig; btn.disabled=false;
+      }catch(e){
+        console.error(e);
+        bamAlert('ZIP failed: '+(e.message||'unknown error')+'. Try again.');
+        btn.textContent=orig; btn.disabled=false;
+      }
+    };
+    document.getElementById('sp-delall').onclick=async ()=>{
+      if(!await bamConfirm('Delete all vendors, entries, and photos for "'+eventLabel(selEvent)+'"? Other events are untouched. This can\u2019t be undone.','Continue')) return;
+      const check=await bamPrompt('Type DELETE to confirm:');
+      if(check!=='DELETE') return;
+      const btn=document.getElementById('sp-delall'); btn.disabled=true;
+      try{
+        let n=0;
+        for(const r of subs){ btn.textContent='Deleting '+(++n)+'/'+subs.length+'…'; await deleteSubmission(r); }
+        for(const v of [...vendors]){ try{ await deleteDoc(doc(db,'vendors',v.id)); }catch(e){} }
+        allVendors=allVendors.filter(v=>!vset.has(v.id));
+        vendors=[]; renderAdmin();
+      }catch(e){ bamAlert(e.message); renderAdmin(); }
+    };
+  }
+
+  if(renderAdmin.tab==='leads'){
+    const byId={}; subs.forEach(r=>byId[r.id]=r);
+
+    // delete one photo/entry
+    body.querySelectorAll('[data-delsub]').forEach(b=>b.onclick=async ()=>{
+      const r=byId[b.dataset.delsub]; if(!r) return;
+      if(!await bamConfirm('Delete this photo from '+r.name+'? This can\u2019t be undone.','Delete')) return;
+      b.disabled=true; b.textContent='…';
+      try{ await deleteSubmission(r); renderAdmin(); }
+      catch(e){ bamAlert(e.message); b.disabled=false; b.textContent='Delete'; }
+    });
+
+    // delete all of one person's entries at this table
+    body.querySelectorAll('[data-delperson]').forEach(b=>b.onclick=async ()=>{
+      const ids=b.dataset.delperson.split(','); const rs=ids.map(i=>byId[i]).filter(Boolean);
+      if(!rs.length) return;
+      if(!await bamConfirm('Delete all '+rs.length+' entr'+(rs.length===1?'y':'ies')+' from '+rs[0].name+' at this table? This can\u2019t be undone.','Delete')) return;
+      b.disabled=true; b.textContent='Deleting…';
+      try{ for(const r of rs){ await deleteSubmission(r); } renderAdmin(); }
+      catch(e){ bamAlert(e.message); renderAdmin(); }
+    });
+
+    // tap a thumbnail -> fetch full-size photo on demand and show overlay
+    body.querySelectorAll('.sp-thumb img[data-pid]').forEach(im=>{
+      im.onclick=async ()=>{
+        const pid=im.dataset.pid; if(!pid) return;
+        im.style.opacity='.5';
+        try{
+          const full=await fetchFullPhoto(pid);
+          im.style.opacity='';
+          if(!full){ bamAlert('Full photo not found.'); return; }
+          const ov=document.createElement('div');
+          ov.style.cssText='position:fixed;inset:0;background:rgba(20,25,35,.92);display:flex;align-items:center;justify-content:center;z-index:99;cursor:zoom-out;padding:20px';
+          ov.innerHTML='<img src="'+full+'" style="max-width:100%;max-height:100%;border-radius:10px" alt="Full size photo">';
+          ov.onclick=()=>ov.remove();
+          document.body.appendChild(ov);
+        }catch(e){ im.style.opacity=''; bamAlert('Could not load photo. Check your connection.'); }
+      };
+    });
+  }
 }
 
 // ---- boot ----
