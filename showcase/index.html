@@ -127,13 +127,14 @@
   .sp-vcard:hover{border-color:var(--lanyard);box-shadow:var(--shadow-sm);transform:translateY(-1px);}
   .sp-vcard .code{display:block;margin-top:5px;font-size:var(--fs-xs);font-weight:700;letter-spacing:.6px;color:var(--mut);}
 
-  .sp-badge{background:var(--tag);border-radius:var(--r-sm);padding:11px 14px;font-size:var(--fs-sm);font-weight:700;display:flex;align-items:center;justify-content:space-between;gap:var(--sp-3);margin-bottom:var(--sp-4);}
+  .sp-badge{background:var(--ink);color:#fff;border-radius:var(--r-sm);padding:11px 14px;font-size:var(--fs-sm);font-weight:700;display:flex;align-items:center;justify-content:space-between;gap:var(--sp-3);margin-bottom:var(--sp-4);}
   .sp-badge.sp-badge-stack{flex-direction:column;align-items:flex-start;gap:9px;}
   .sp-badge-who{font-weight:700;}
   .sp-badge-links{display:flex;gap:16px;flex-wrap:wrap;font-weight:600;}
+  .sp-badge-links .sp-linkbtn{color:#fff;}
+  .sp-badge-links .sp-linkbtn:hover{color:#ddd;}
   .sp-previewactions{display:flex;gap:18px;flex-wrap:wrap;margin-top:10px;align-items:center;}
   .sp-headbtns{display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end;flex-shrink:0;}
-  .sp-badge button{background:none;border:none;text-decoration:underline;font-size:var(--fs-xs);cursor:pointer;color:var(--ink);font-weight:700;}
 
   .sp-drop{border:2px dashed var(--lanyard);border-radius:var(--r-lg);background:var(--red-light);padding:34px 18px;text-align:center;cursor:pointer;transition:background var(--dur-fast) var(--ease),transform var(--dur-fast) var(--ease);}
   .sp-drop:hover{background:#ffe4e8;}
@@ -208,7 +209,7 @@
   .sp-qitem.requested{cursor:default;opacity:.85;}
   .sp-qcheck{font-size:var(--fs-xs);font-weight:700;color:var(--mut);text-align:center;margin-top:3px;}
   .sp-qitem.sel .sp-qcheck{color:var(--lanyard);}
-  .sp-quotetag{display:inline-block;background:var(--tag);color:#5c4300;font-size:var(--fs-xs);font-weight:700;padding:2px 7px;border-radius:5px;margin-top:3px;}
+  .sp-quotetag{display:inline-block;background:var(--ink);color:#fff;font-size:var(--fs-xs);font-weight:700;padding:2px 7px;border-radius:5px;margin-top:3px;}
   .sp-reptag{display:inline-flex;align-items:center;gap:4px;background:#e8eefc;color:#2c4a9e;font-size:var(--fs-xs);font-weight:700;padding:3px 9px;border-radius:var(--r-pill);margin-left:8px;white-space:nowrap;}
   .sp-qr{margin-top:6px;}
   .sp-qr a{font-size:var(--fs-xs);color:var(--lanyard);}
@@ -249,7 +250,7 @@
 
 <div id="bam-overlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:10000;align-items:center;justify-content:center;">
   <div style="background:#fff;border-radius:12px;padding:28px 32px;max-width:420px;width:90%;box-shadow:0 8px 40px rgba(0,0,0,0.2);">
-    <div style="font-size:17px;font-weight:700;color:#BC112A;margin-bottom:12px;">BAM the Bull says</div>
+    <div id="bam-title" style="font-size:17px;font-weight:700;color:#BC112A;margin-bottom:12px;">BAM the Bull says</div>
     <div id="bam-msg" style="font-size:15px;color:#333;margin-bottom:14px;line-height:1.5;"></div>
     <input id="bam-input" style="display:none;width:100%;box-sizing:border-box;padding:10px 12px;font-size:15px;border:1.5px solid #E2E3E6;border-radius:8px;margin-bottom:14px;">
     <div id="bam-btns" style="display:flex;gap:10px;justify-content:flex-end;"></div>
@@ -340,7 +341,7 @@ function bamBtn(label,primary){
   return b;
 }
 function bamShow(){ bamOv.style.display='flex'; }
-function bamHide(){ bamOv.style.display='none'; bamInput.style.display='none'; bamInput.value=''; }
+function bamHide(){ bamOv.style.display='none'; bamInput.style.display='none'; bamInput.value=''; const t=document.getElementById('bam-title'); if(t) t.style.display=''; }
 function bamAlert(msg){
   return new Promise(res=>{
     bamMsg.textContent=msg; bamBtns.innerHTML='';
@@ -358,13 +359,15 @@ function bamConfirm(msg,confirmLabel){
 }
 function showHowTo(){
   return new Promise(res=>{
+    const title=document.getElementById('bam-title');
+    if(title) title.style.display='none';
     bamMsg.innerHTML=
-      '<div style="font-size:16px;font-weight:700;color:#1a1a1f;margin-bottom:12px">Welcome, '+esc(attendee.name.split(' ')[0])+'! Here\u2019s how it works:</div>'+
+      '<div style="font-size:16px;font-weight:700;color:var(--lanyard);margin-bottom:12px">Welcome, '+esc(attendee.name.split(' ')[0])+'! Here\u2019s how it works:</div>'+
       '<div style="display:flex;flex-direction:column;gap:12px;font-size:14.5px;line-height:1.45">'+
-        '<div style="display:flex;gap:10px"><span style="font-size:20px">&#128247;</span><span><b>Photos</b> are for anything that catches your eye. Snap as many as you like at every table, and they all save to My Photos.</span></div>'+
-        '<div><b>Favorites</b> are your top picks. Tap the heart on any photo, right at the table or later under My Photos, and it moves into your favorites section.</div>'+
-        '<div><b>Quotes</b> are for when you have a real project or order in mind. Select the items and add your details, and your Branding Specialist will follow up after the show with concrete pricing and next steps to move your order across the finish line.</div>'+
-        '<div><b>Then leave the rest to us.</b> Our team will reach out after the show to help with anything you saved.</div>'+
+        '<div style="display:flex;gap:10px"><span style="font-size:20px">&#128247;</span><span><b style="color:var(--lanyard)">Photos</b> are for anything that catches your eye. Snap as many as you like at every table, and they all save to My Photos.</span></div>'+
+        '<div style="display:flex;gap:10px"><span style="font-size:20px">&#10084;&#65039;</span><span><b style="color:var(--lanyard)">Favorites</b> are your top picks. Tap the heart on any photo, right at the table or later under My Photos, and it moves into your favorites section.</span></div>'+
+        '<div style="display:flex;gap:10px"><span style="font-size:20px">&#128002;</span><span><b style="color:var(--lanyard)">Quotes</b> are for when you have a real project or order in mind. Select the items and add your details, and your Branding Specialist will follow up after the show with concrete pricing and next steps to move your order across the finish line.</span></div>'+
+        '<div style="display:flex;gap:10px"><span style="font-size:20px">&#128233;</span><span><b style="color:var(--lanyard)">Then leave the rest to us.</b> Our team will reach out after the show to help with anything you saved.</span></div>'+
       '</div>';
     bamBtns.innerHTML='';
     const go=bamBtn('Got it, let\u2019s charge!',true);
@@ -802,12 +805,22 @@ function renderVendorPicker(){
     return;
   }
   body.innerHTML=actingBannerHTML()+(attendee&&attendee.pid
-      ? '<a href="?me='+attendee.pid+'" class="sp-btn neutral block sp-needsnet" style="margin-bottom:16px">My Photos</a>'
+      ? '<div class="sp-badge sp-badge-stack">'+
+          '<span class="sp-badge-who">'+esc(attendee.name)+(attendee.company?' &middot; '+esc(attendee.company):'')+'</span>'+
+          '<span class="sp-badge-links">'+
+            '<button id="sp-showcode" class="sp-linkbtn">Show my code</button>'+
+            '<a href="?me='+attendee.pid+'" class="sp-needsnet sp-linkbtn">My photos</a>'+
+            '<button id="sp-notme" class="sp-linkbtn">Not you?</button>'+
+          '</span>'+
+        '</div>'
       : '')+
     '<div class="sp-card sp-card-primary"><span class="sp-label">Which table are you at?</span>'+
     '<div class="sp-vendorgrid">'+vendors.map(v=>'<button class="sp-vcard" data-id="'+v.id+'">'+esc(v.name)+'<span class="code">'+esc(v.code)+'</span></button>').join('')+'</div></div>';
   body.querySelectorAll('.sp-vcard').forEach(b=>b.onclick=()=>{ currentVendor=vendors.find(v=>v.id===b.dataset.id); attendee?renderDrop():renderIdentify(); });
   wireActingBanner();
+  const scBtn=document.getElementById('sp-showcode'); if(scBtn) scBtn.onclick=showMyCode;
+  const notMeBtn=document.getElementById('sp-notme');
+  if(notMeBtn) notMeBtn.onclick=()=>{attendee=null;try{localStorage.removeItem('sp-attendee');}catch(e){};renderIdentify();};
 }
 
 function renderIdentify(){
@@ -853,14 +866,6 @@ function renderIdentify(){
 
 function renderDrop(){
   body.innerHTML=actingBannerHTML()+'<button class="sp-back" id="sp-back">&larr; All tables</button>'+
-    '<div class="sp-badge sp-badge-stack">'+
-      '<span class="sp-badge-who">'+esc(attendee.name)+(attendee.company?' &middot; '+esc(attendee.company):'')+'</span>'+
-      '<span class="sp-badge-links">'+
-        '<button id="sp-showcode" class="sp-linkbtn">Show my code</button>'+
-        '<a href="?me='+(attendee.pid||'')+(currentVendor?'&from='+currentVendor.id:'')+'" class="sp-needsnet sp-linkbtn">My photos</a>'+
-        '<button id="sp-notme" class="sp-linkbtn">Not you?</button>'+
-      '</span>'+
-    '</div>'+
     '<div class="sp-card sp-card-primary"><div class="sp-h2">'+esc(currentVendor.name)+'</div>'+
     '<div class="sp-drop" id="sp-drop"><span class="icon">&#128247;</span><p class="big">Tap here to take a photo</p><p class="small">Point your camera at the item you love. It saves straight to your collection, no other steps needed.</p></div>'+
     '<input type="file" id="sp-file" accept="image/*" capture="environment" multiple style="display:none">'+
@@ -879,14 +884,11 @@ function renderDrop(){
     '<div class="sp-offnote" id="sp-quoteoffnote">You\u2019re offline right now. You can still favorite photos, and everything saves on your device and syncs the moment you\u2019re back online.</div>'+
     '<div class="sp-card" id="sp-quotecard" style="display:none">'+
       '<div class="sp-h2" style="margin:0 0 8px">Your photos from this table</div>'+
-      '<p class="sp-note" style="margin:0 0 10px">Tap the heart on anything you love to add it to your favorites. Photos from all tables can be found in \u201cMy Photos\u201d above. Favoriting a photo will help keep it at the top of the list!</p>'+
+      '<p class="sp-note" style="margin:0 0 10px">Tap the heart on anything you love to add it to your favorites. Head back to the tables list to see photos from everywhere in \u201cMy Photos.\u201d Favoriting a photo will help keep it at the top of the list!</p>'+
       '<div class="sp-thumbs" id="sp-quoteitems"></div>'+
     '</div>';
   document.getElementById('sp-back').onclick=renderVendorPicker;
   wireActingBanner();
-  document.getElementById('sp-notme').onclick=()=>{attendee=null;try{localStorage.removeItem('sp-attendee');}catch(e){};renderIdentify();};
-  const scBtn=document.getElementById('sp-showcode'); if(scBtn) scBtn.onclick=showMyCode;
-  const scBig=document.getElementById('sp-showcode-big'); if(scBig) scBig.onclick=showMyCode;
   const fileInput=document.getElementById('sp-file');
   let addingMore=false;
   function renderPendingPreview(){
