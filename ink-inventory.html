@@ -1,0 +1,1112 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Ink Stock</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Fraunces:wght@500;600;700;800&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap');
+
+  :root{
+    /* brand tokens, matched to reference site */
+    --ink-black:#1a1a1f;
+    --paper:#F5F5F7;
+    --panel:#fff;
+    --ink-red:#BC112A;
+    --ink-red-dark:#9e0f22;
+    --red-gradient:linear-gradient(160deg,#BC112A 0%,#E9553A 100%);
+    --red-light:#fff0f2;
+    --line:#E2E3E6;
+    --line-strong:#cfd1d6;
+    --muted:#6b6f76;
+    --ok:#1a7f4b;
+    --low:#b3861e;
+    --out:#b3261e;
+    --out-light:#fdecea;
+
+    --sp-1:4px; --sp-2:8px; --sp-3:12px; --sp-4:16px; --sp-5:20px; --sp-6:28px; --sp-7:40px;
+    --r-sm:8px; --r-md:12px; --r-lg:16px; --r-pill:999px;
+    --shadow-sm:0 1px 3px rgba(20,20,30,.07);
+    --shadow-md:0 6px 20px rgba(20,20,30,.10);
+    --shadow-lg:0 14px 36px rgba(20,20,30,.18);
+    --dur-fast:120ms; --dur-base:200ms; --ease:cubic-bezier(.2,.7,.3,1);
+    --headline:'Fraunces',Georgia,'Times New Roman',serif;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    background:var(--paper);
+    color:var(--ink-black);
+    font-family:'Inter',-apple-system,BlinkMacSystemFont,system-ui,sans-serif;
+    -webkit-font-smoothing:antialiased;
+  }
+  ::selection{background:var(--red-light);color:var(--ink-red-dark);}
+  a:focus-visible, button:focus-visible, input:focus-visible, textarea:focus-visible, select:focus-visible{
+    outline:2px solid var(--ink-red); outline-offset:2px; border-radius:4px;
+  }
+  @media (prefers-reduced-motion: reduce){
+    *,*::before,*::after{animation-duration:.001ms !important;animation-iteration-count:1 !important;transition-duration:.001ms !important;}
+  }
+  .wrap{max-width:1180px;margin:0 auto;padding:0 0 80px;}
+
+  /* header */
+  header{
+    background:var(--red-gradient);
+    color:#fff;
+    display:flex;
+    align-items:flex-end;
+    justify-content:space-between;
+    gap:24px;
+    padding:34px 28px 26px;
+    margin-bottom:28px;
+    box-shadow:var(--shadow-md);
+  }
+  h1{
+    font-family:var(--headline);
+    font-weight:700;
+    font-size:36px;
+    letter-spacing:-0.01em;
+    margin:0 0 4px;
+  }
+  header p{margin:0;color:rgba(255,255,255,.88);font-size:14px;}
+  .stamp{
+    font-family:'JetBrains Mono',monospace;
+    font-size:12px;
+    color:rgba(255,255,255,.85);
+    text-align:right;
+    line-height:1.6;
+  }
+  .toolbar, .count-line, .grid, .empty{margin-left:28px;margin-right:28px;}
+
+  /* toolbar */
+  .toolbar{
+    display:flex;
+    flex-wrap:wrap;
+    gap:10px;
+    align-items:center;
+    margin-bottom:22px;
+  }
+  .toolbar input[type=text], .toolbar select{
+    font-family:'Inter',sans-serif;
+    font-size:14px;
+    padding:10px 13px;
+    border:1.5px solid var(--line);
+    background:var(--panel);
+    border-radius:var(--r-sm);
+    color:var(--ink-black);
+    transition:border-color var(--dur-fast) var(--ease);
+  }
+  .toolbar input[type=text]:focus, .toolbar select:focus{border-color:var(--ink-red);}
+  .toolbar input[type=text]{width:220px;}
+  .toolbar select{cursor:pointer;}
+  .spacer{flex:1;}
+  button{
+    display:inline-flex;align-items:center;justify-content:center;gap:7px;
+    font-family:'Inter',sans-serif;
+    font-weight:700;
+    font-size:14px;
+    padding:11px 18px;
+    border-radius:var(--r-sm);
+    border:none;
+    background:var(--red-gradient);
+    color:#fff;
+    cursor:pointer;
+    box-shadow:var(--shadow-sm);
+    transition:transform var(--dur-fast) var(--ease),box-shadow var(--dur-fast) var(--ease),filter var(--dur-fast) var(--ease);
+  }
+  button:hover{filter:brightness(1.05);box-shadow:var(--shadow-md);}
+  button:active{transform:scale(.98);}
+  button.secondary{
+    background:#fff;
+    color:var(--ink-red);
+    border:1.5px solid var(--ink-red);
+    box-shadow:none;
+  }
+  button.secondary:hover{background:var(--red-light);filter:none;box-shadow:none;}
+  button.ghost{
+    background:transparent;
+    border:1.5px solid var(--line-strong);
+    color:var(--muted);
+    font-weight:600;
+    padding:8px 12px;
+    box-shadow:none;
+  }
+  button.ghost:hover{background:var(--paper);filter:none;box-shadow:none;}
+
+  .count-line{
+    font-size:13px;
+    color:var(--muted);
+    margin-bottom:14px;
+  }
+
+  /* grid */
+  .grid{
+    display:grid;
+    grid-template-columns:repeat(auto-fill,minmax(220px,1fr));
+    gap:14px;
+  }
+  .card{
+    background:var(--panel);
+    border:1px solid var(--line);
+    border-radius:var(--r-md);
+    overflow:hidden;
+    display:flex;
+    flex-direction:column;
+    box-shadow:var(--shadow-sm);
+    transition:box-shadow var(--dur-fast) var(--ease),transform var(--dur-fast) var(--ease);
+  }
+  .card:hover{box-shadow:var(--shadow-md);transform:translateY(-1px);}
+  .swatch{
+    height:96px;
+    position:relative;
+    border-bottom:1px solid var(--line);
+  }
+  .swatch.no-color{
+    background:repeating-linear-gradient(135deg,#EDEDEF,#EDEDEF 8px,#F7F7F8 8px,#F7F7F8 16px);
+    display:flex;align-items:center;justify-content:center;
+  }
+  .swatch.no-color button{
+    padding:7px 13px;font-size:12px;box-shadow:none;
+  }
+  .status-dot{
+    position:absolute;
+    top:10px;right:10px;
+    width:9px;height:9px;
+    border-radius:50%;
+    box-shadow:0 0 0 2px rgba(255,255,255,.75);
+  }
+  .card-body{padding:13px 14px 14px;}
+  .card-name{
+    font-family:var(--headline);
+    font-weight:600;
+    font-size:16px;
+    margin:0 0 2px;
+  }
+  .card-pms{
+    font-family:'JetBrains Mono',monospace;
+    font-size:12px;
+    color:var(--muted);
+    margin:0 0 8px;
+  }
+  .card-meta{
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    font-size:12.5px;
+    color:var(--ink-black);
+  }
+  .card-meta .qty{font-weight:600;}
+  .card-meta .cat{
+    color:var(--muted);
+    font-size:11.5px;
+  }
+  .card-actions{
+    display:flex;
+    gap:6px;
+    margin-top:10px;
+    padding-top:10px;
+    border-top:1px solid var(--line);
+  }
+  .card-actions button{
+    flex:1;
+    padding:6px 8px;
+    font-size:12px;
+  }
+
+  .empty{
+    padding:60px 20px;
+    text-align:center;
+    color:var(--muted);
+    border:1.5px dashed var(--line-strong);
+    border-radius:var(--r-lg);
+  }
+
+  /* modal */
+  .overlay{
+    position:fixed;inset:0;
+    background:rgba(33,29,26,0.5);
+    display:none;
+    align-items:flex-start;
+    justify-content:center;
+    padding:50px 20px;
+    overflow:auto;
+    z-index:50;
+  }
+  .overlay.open{display:flex;}
+  .modal{
+    background:var(--panel);
+    width:100%;max-width:460px;
+    border-radius:var(--r-lg);
+    padding:26px 26px 22px;
+    box-shadow:var(--shadow-lg);
+  }
+  .modal h2{
+    font-family:var(--headline);
+    font-weight:600;
+    font-size:22px;
+    margin:0 0 4px;
+  }
+  .modal .sub{font-size:13px;color:var(--muted);margin:0 0 18px;line-height:1.5;}
+  .field{margin-bottom:14px;}
+  .field label{
+    display:block;
+    font-size:12px;
+    font-weight:700;
+    letter-spacing:.2px;
+    margin-bottom:6px;
+    color:var(--muted);
+  }
+  .field input[type=text], .field input[type=number], .field select, .field textarea{
+    width:100%;
+    font-family:'Inter',sans-serif;
+    font-size:14px;
+    padding:11px 12px;
+    border:1.5px solid var(--line);
+    border-radius:var(--r-sm);
+    background:#fff;
+    color:var(--ink-black);
+    transition:border-color var(--dur-fast) var(--ease);
+  }
+  .field input:focus, .field select:focus, .field textarea:focus{border-color:var(--ink-red);outline:2px solid var(--ink-red);outline-offset:1px;}
+  .field .hint{font-size:11.5px;color:var(--muted);margin-top:5px;}
+  .row2{display:flex;gap:10px;}
+  .row2 .field{flex:1;}
+  .colorpick{display:flex;gap:8px;align-items:center;}
+  .colorpick input[type=color]{
+    width:44px;height:40px;border:1.5px solid var(--line);border-radius:var(--r-sm);padding:2px;background:#fff;
+  }
+  .modal-actions{
+    display:flex;justify-content:flex-end;gap:8px;margin-top:18px;
+  }
+  .close-x{
+    position:absolute;top:14px;right:16px;
+    background:none;border:none;color:var(--muted);font-size:20px;padding:4px;
+    box-shadow:none;
+  }
+  .close-x:hover{filter:none;color:var(--ink-black);}
+  .modal{position:relative;}
+
+  /* match tool */
+  .match-results{margin-top:16px;display:flex;flex-direction:column;gap:8px;}
+  .match-row{
+    display:flex;align-items:center;gap:12px;
+    border:1px solid var(--line);border-radius:var(--r-md);padding:10px 12px;
+  }
+  .match-swatch{width:38px;height:38px;border-radius:var(--r-sm);border:1px solid var(--line-strong);flex-shrink:0;}
+  .match-info{flex:1;}
+  .match-name{font-weight:600;font-size:14px;}
+  .match-pms{font-family:'JetBrains Mono',monospace;font-size:11.5px;color:var(--muted);}
+  .match-delta{
+    font-family:'JetBrains Mono',monospace;
+    font-size:11.5px;
+    color:var(--muted);
+    text-align:right;
+    min-width:64px;
+  }
+  .match-delta b{color:var(--ink-black);font-size:13px;}
+
+  .modal.wide{max-width:640px;}
+  .drop{
+    border:1.5px dashed var(--line-strong);
+    border-radius:var(--r-md);
+    padding:22px;
+    text-align:center;
+    color:var(--muted);
+    font-size:13.5px;
+    margin-bottom:14px;
+    background:var(--paper);
+  }
+  .drop.drag{border-color:var(--ink-red);color:var(--ink-black);background:var(--red-light);}
+  .drop input[type=file]{display:none;}
+  .drop label{
+    display:inline-block;
+    margin-top:6px;
+    font-weight:700;
+    color:var(--ink-red);
+    text-decoration:underline;
+    cursor:pointer;
+  }
+  .field textarea#csvPaste{font-family:'JetBrains Mono',monospace;font-size:12px;}
+  .import-table-wrap{max-height:260px;overflow:auto;border:1px solid var(--line);border-radius:var(--r-md);margin-top:6px;}
+  table.import-table{width:100%;border-collapse:collapse;font-size:12.5px;}
+  table.import-table th{
+    position:sticky;top:0;background:var(--paper);text-align:left;
+    padding:8px 10px;border-bottom:1.5px solid var(--line);font-size:11px;
+    color:var(--muted);text-transform:none;
+  }
+  table.import-table td{padding:7px 10px;border-bottom:1px solid var(--line);}
+  table.import-table tr.row-bad td{color:var(--out);}
+  .swatch-chip{width:16px;height:16px;border-radius:4px;display:inline-block;vertical-align:middle;border:1px solid var(--line-strong);margin-right:6px;}
+  .swatch-chip.empty{background:repeating-linear-gradient(135deg,#EDEDEF,#EDEDEF 3px,#F7F7F8 3px,#F7F7F8 6px);}
+  .import-summary{font-size:13px;margin:12px 0;color:var(--muted);}
+  .import-summary b{color:var(--ink-black);}
+  .template-link{font-size:12.5px;color:var(--ink-red);text-decoration:underline;cursor:pointer;background:none;border:none;padding:0;font-family:inherit;font-weight:600;}
+
+  .toast{
+    position:fixed;bottom:22px;left:50%;transform:translateX(-50%);
+    background:var(--ink-black);color:#fff;
+    padding:10px 18px;border-radius:var(--r-pill);font-size:13.5px;
+    box-shadow:var(--shadow-md);
+    opacity:0;pointer-events:none;transition:opacity .2s ease;
+    z-index:100;
+  }
+  .toast.show{opacity:1;}
+
+  @media (max-width:600px){
+    .toolbar, .count-line, .grid, .empty{margin-left:16px;margin-right:16px;}
+    header{flex-direction:column;align-items:flex-start;gap:10px;padding:26px 18px 20px;}
+    .stamp{text-align:left;}
+  }
+</style>
+</head>
+<body>
+
+<div class="wrap">
+  <header>
+    <div>
+      <h1>Ink Stock</h1>
+      <p>Screen printing ink inventory — live &amp; shared across the shop</p>
+    </div>
+    <div class="stamp" id="statLine">loading…</div>
+  </header>
+
+  <div class="toolbar">
+    <input type="text" id="searchInput" placeholder="Search name or PMS…">
+    <select id="categoryFilter"><option value="">All categories</option></select>
+    <select id="stockFilter">
+      <option value="">All stock levels</option>
+      <option value="in">In stock</option>
+      <option value="low">Low stock</option>
+      <option value="out">Out of stock</option>
+    </select>
+    <select id="colorFilter">
+      <option value="">All colors</option>
+      <option value="missing">Missing color only</option>
+      <option value="set">Color set</option>
+    </select>
+    <select id="sortSelect">
+      <option value="name">Sort: Name A–Z</option>
+      <option value="name-desc">Sort: Name Z–A</option>
+      <option value="pms">Sort: PMS code</option>
+      <option value="qty-desc">Sort: Quantity (high–low)</option>
+      <option value="qty-asc">Sort: Quantity (low–high)</option>
+      <option value="updated">Sort: Recently updated</option>
+    </select>
+    <div class="spacer"></div>
+    <button class="secondary" id="openMatchBtn">Find closest match</button>
+    <button class="secondary" id="openImportBtn">Import CSV</button>
+    <button id="openAddBtn">+ Add ink</button>
+  </div>
+
+  <div class="count-line" id="countLine"></div>
+  <div class="grid" id="grid"></div>
+  <div class="empty" id="emptyState" style="display:none;">No inks in stock yet — add your first one to get started.</div>
+</div>
+
+<!-- Add / Edit modal -->
+<div class="overlay" id="addOverlay">
+  <div class="modal">
+    <button class="close-x" data-close="addOverlay">&times;</button>
+    <h2 id="addTitle">Add ink</h2>
+    <p class="sub">Enter the actual color of this ink as you have it — this is what powers matching later.</p>
+    <form id="addForm">
+      <input type="hidden" id="editId">
+      <div class="field">
+        <label>Ink name</label>
+        <input type="text" id="fName" placeholder="e.g. Athletic Red" required>
+      </div>
+      <div class="row2">
+        <div class="field">
+          <label>PMS code (optional)</label>
+          <input type="text" id="fPms" placeholder="e.g. 186 C">
+        </div>
+        <div class="field">
+          <label>Color <span style="font-weight:400;color:var(--muted);">(optional for now)</span></label>
+          <div class="colorpick">
+            <input type="color" id="fColor" value="#B23A2E">
+            <input type="text" id="fHex" placeholder="#B23A2E" style="width:100%">
+          </div>
+          <p class="hint">Leave blank if you don't have a measured value yet — you can add it later, but it won't be included in matching until you do.</p>
+        </div>
+      </div>
+      <div class="row2">
+        <div class="field">
+          <label>Category</label>
+          <select id="fCategory">
+            <option value="">Uncategorized</option>
+            <option>Base</option>
+            <option>Mixed</option>
+            <option>Metallic</option>
+            <option>Neon</option>
+            <option>White / Black</option>
+            <option>Specialty</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>Quantity on hand</label>
+          <input type="number" id="fQty" min="0" step="0.1" placeholder="0">
+        </div>
+      </div>
+      <div class="row2">
+        <div class="field">
+          <label>Unit</label>
+          <select id="fUnit">
+            <option>oz</option>
+            <option>lb</option>
+            <option>gal</option>
+            <option>qt</option>
+            <option>containers</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>Shelf / location</label>
+          <input type="text" id="fLocation" placeholder="e.g. Rack B3">
+        </div>
+      </div>
+      <div class="field">
+        <label>Notes</label>
+        <textarea id="fNotes" rows="2" placeholder="Mix ratio, supplier, curing notes…"></textarea>
+      </div>
+      <div class="modal-actions">
+        <button type="button" class="secondary" data-close="addOverlay">Cancel</button>
+        <button type="submit" id="saveBtn">Save ink</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Match modal -->
+<div class="overlay" id="matchOverlay">
+  <div class="modal">
+    <button class="close-x" data-close="matchOverlay">&times;</button>
+    <h2>Find closest match</h2>
+    <p class="sub">Enter the color you're trying to match (from a PMS book, art file, or swatch) and I'll find the closest inks you actually have in stock.</p>
+    <div class="field">
+      <label>Target color</label>
+      <div class="colorpick">
+        <input type="color" id="mColor" value="#2E5FB2">
+        <input type="text" id="mHex" placeholder="#2E5FB2" style="width:100%">
+      </div>
+    </div>
+    <div class="field">
+      <label>PMS reference (optional label only)</label>
+      <input type="text" id="mPms" placeholder="e.g. 300 C — for your own reference">
+    </div>
+    <button type="button" id="runMatchBtn" style="width:100%;">Search inventory</button>
+    <div class="match-results" id="matchResults"></div>
+  </div>
+</div>
+
+<!-- Import modal -->
+<div class="overlay" id="importOverlay">
+  <div class="modal wide">
+    <button class="close-x" data-close="importOverlay">&times;</button>
+    <h2>Import from CSV</h2>
+    <p class="sub">
+      Columns: <strong>name, pms, hex, category, qty, unit, location, notes</strong>
+      — only <strong>name</strong> is required. Rows without a hex code still import; they just won't show up in "Find closest match" until someone adds a color.
+      <button type="button" class="template-link" id="downloadTemplateBtn">Download a blank template</button>
+    </p>
+
+    <div class="drop" id="dropZone">
+      Drag a .csv file here, or
+      <label for="csvFile">choose a file</label>
+      <input type="file" id="csvFile" accept=".csv,text/csv">
+    </div>
+
+    <div class="field">
+      <label>…or paste CSV text directly</label>
+      <textarea id="csvPaste" rows="4" placeholder="name,pms,hex,category,qty,unit,location,notes
+Athletic Red,186 C,#B23A2E,Base,32,oz,Rack B3,"></textarea>
+    </div>
+
+    <button type="button" id="parseCsvBtn" style="width:100%;">Preview import</button>
+
+    <div id="importPreviewArea"></div>
+
+    <div class="modal-actions">
+      <button type="button" class="secondary" data-close="importOverlay">Cancel</button>
+      <button type="button" id="confirmImportBtn" style="display:none;">Import valid rows</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script type="module">
+/* ============================================================
+   FIREBASE SETUP
+   1. Go to https://console.firebase.google.com → Add project
+      (a fresh project, separate from your other apps)
+   2. In the project, go to Build → Firestore Database → Create
+      database → start in test mode (or use the rules below).
+   3. Go to Project settings → General → "Your apps" → add a
+      Web app → copy the firebaseConfig object it gives you →
+      paste it in place of the placeholder below.
+   4. In Firestore → Rules, a reasonable starting point for an
+      internal shop tool with no login system is:
+
+        rules_version = '2';
+        service cloud.firestore {
+          match /databases/{database}/documents {
+            match /inks/{inkId} {
+              allow read, write: if true;
+            }
+          }
+        }
+
+      That's open to anyone with the project's API key, which is
+      fine for a low-stakes internal inventory tool but worth
+      tightening later (e.g. Firebase Auth) if this ever holds
+      anything more sensitive.
+   ============================================================ */
+const firebaseConfig = {
+  apiKey: "AIzaSyA5FhJjHfcxcKvhiD2mNrFRHqY-BTQ7xxQ",
+  authDomain: "toro-color-system.firebaseapp.com",
+  projectId: "toro-color-system",
+  storageBucket: "toro-color-system.firebasestorage.app",
+  messagingSenderId: "527016778325",
+  appId: "1:527016778325:web:f128b8beabe645e79ad2dc"
+};
+
+const NEEDS_SETUP = firebaseConfig.apiKey === "YOUR_API_KEY";
+
+let inks = [];
+let db, inksCol;
+
+if(!NEEDS_SETUP){
+  const { initializeApp } = await import("https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js");
+  const { getFirestore, collection, doc, setDoc, deleteDoc, onSnapshot }
+    = await import("https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js");
+
+  const app = initializeApp(firebaseConfig);
+  db = getFirestore(app);
+  inksCol = collection(db, 'inks');
+
+  // real-time listener: any add/edit/delete from anyone on the team
+  // shows up here automatically, no manual reload needed.
+  onSnapshot(inksCol, snapshot => {
+    inks = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+    render();
+  }, err => {
+    document.getElementById('countLine').textContent = 'Could not connect to Firebase — check your config and Firestore rules.';
+    console.error(err);
+  });
+
+  window.__firestore = { db, inksCol, doc, setDoc, deleteDoc };
+}
+
+// ---------- storage ----------
+async function saveInk(ink){
+  if(NEEDS_SETUP) throw new Error('setup');
+  const { db, doc, setDoc } = window.__firestore;
+  await setDoc(doc(db, 'inks', ink.id), ink);
+}
+async function deleteInkById(id){
+  if(NEEDS_SETUP) throw new Error('setup');
+  const { db, doc, deleteDoc } = window.__firestore;
+  await deleteDoc(doc(db, 'inks', id));
+}
+
+if(NEEDS_SETUP){
+  document.getElementById('grid').innerHTML = '';
+  document.getElementById('emptyState').style.display = 'block';
+  document.getElementById('emptyState').innerHTML =
+    'This app needs a Firebase project connected before it can store anything. ' +
+    'See the setup comment at the top of the &lt;script&gt; tag in this file for the four steps, ' +
+    'then paste your project\'s config in and reload.';
+  document.getElementById('countLine').textContent = 'Not connected — Firebase setup needed';
+}
+
+// ---------- color math ----------
+function hexToRgb(hex){
+  hex = hex.replace('#','').trim();
+  if(hex.length===3) hex = hex.split('').map(c=>c+c).join('');
+  const num = parseInt(hex,16);
+  if(isNaN(num)) return null;
+  return { r:(num>>16)&255, g:(num>>8)&255, b:num&255 };
+}
+function rgbToLab({r,g,b}){
+  let [rr,gg,bb] = [r,g,b].map(v=>{
+    v/=255;
+    return v>0.04045 ? Math.pow((v+0.055)/1.055,2.4) : v/12.92;
+  });
+  rr*=100; gg*=100; bb*=100;
+  const x = rr*0.4124+gg*0.3576+bb*0.1805;
+  const y = rr*0.2126+gg*0.7152+bb*0.0722;
+  const z = rr*0.0193+gg*0.1192+bb*0.9505;
+  const ref = {x:95.047,y:100.0,z:108.883};
+  let [fx,fy,fz] = [x/ref.x,y/ref.y,z/ref.z].map(v=>{
+    return v>0.008856 ? Math.cbrt(v) : (7.787*v)+16/116;
+  });
+  return { L:(116*fy)-16, a:500*(fx-fy), b:200*(fy-fz) };
+}
+function deltaE(hexA, hexB){
+  const a = rgbToLab(hexToRgb(hexA));
+  const b = rgbToLab(hexToRgb(hexB));
+  return Math.sqrt((a.L-b.L)**2 + (a.a-b.a)**2 + (a.b-b.b)**2);
+}
+
+// ---------- status ----------
+function statusOf(ink){
+  const q = parseFloat(ink.qty)||0;
+  if(q<=0) return 'out';
+  if(q<5) return 'low';
+  return 'in';
+}
+const statusColor = { in:'var(--ok)', low:'var(--low)', out:'var(--out)' };
+const statusLabel = { in:'In stock', low:'Low stock', out:'Out of stock' };
+
+// ---------- render ----------
+function populateCategoryFilter(){
+  const sel = document.getElementById('categoryFilter');
+  const current = sel.value;
+  const cats = [...new Set(inks.map(i=>i.category).filter(Boolean))].sort();
+  sel.innerHTML = '<option value="">All categories</option>' + cats.map(c=>`<option value="${c}">${c}</option>`).join('');
+  sel.value = current;
+}
+
+function getFiltered(){
+  const q = document.getElementById('searchInput').value.trim().toLowerCase();
+  const cat = document.getElementById('categoryFilter').value;
+  const stock = document.getElementById('stockFilter').value;
+  const color = document.getElementById('colorFilter').value;
+  const sort = document.getElementById('sortSelect').value;
+
+  let list = inks.filter(ink=>{
+    if(q && !( (ink.name||'').toLowerCase().includes(q) || (ink.pms||'').toLowerCase().includes(q) )) return false;
+    if(cat && ink.category!==cat) return false;
+    if(stock && statusOf(ink)!==stock) return false;
+    const hasColor = ink.hex && /^#[0-9a-fA-F]{6}$/.test(ink.hex);
+    if(color==='missing' && hasColor) return false;
+    if(color==='set' && !hasColor) return false;
+    return true;
+  });
+
+  list.sort((a,b)=>{
+    switch(sort){
+      case 'name-desc': return (b.name||'').localeCompare(a.name||'');
+      case 'pms': return (a.pms||'zzz').localeCompare(b.pms||'zzz');
+      case 'qty-desc': return (parseFloat(b.qty)||0)-(parseFloat(a.qty)||0);
+      case 'qty-asc': return (parseFloat(a.qty)||0)-(parseFloat(b.qty)||0);
+      case 'updated': return (b.updatedAt||0)-(a.updatedAt||0);
+      default: return (a.name||'').localeCompare(b.name||'');
+    }
+  });
+  return list;
+}
+
+function render(){
+  populateCategoryFilter();
+  const list = getFiltered();
+  const grid = document.getElementById('grid');
+  const empty = document.getElementById('emptyState');
+
+  document.getElementById('countLine').textContent =
+    `${list.length} ink${list.length===1?'':'s'} shown · ${inks.length} total in database`;
+  document.getElementById('statLine').textContent =
+    `${inks.length} colors tracked · updated live`;
+
+  if(list.length===0){
+    grid.innerHTML='';
+    empty.style.display='block';
+    empty.textContent = inks.length===0
+      ? 'No inks in stock yet — add your first one to get started.'
+      : 'No inks match your filters.';
+    return;
+  }
+  empty.style.display='none';
+
+  grid.innerHTML = list.map(ink=>{
+    const st = statusOf(ink);
+    const hasColor = ink.hex && /^#[0-9a-fA-F]{6}$/.test(ink.hex);
+    const swatch = hasColor
+      ? `<div class="swatch" style="background:${ink.hex}"><span class="status-dot" style="background:${statusColor[st]}" title="${statusLabel[st]}"></span></div>`
+      : `<div class="swatch no-color"><span class="status-dot" style="background:${statusColor[st]}" title="${statusLabel[st]}"></span><button class="secondary" onclick="setColorQuick('${ink.id}')">+ Set color</button></div>`;
+    return `
+    <div class="card">
+      ${swatch}
+      <div class="card-body">
+        <p class="card-name">${escapeHtml(ink.name)}</p>
+        <p class="card-pms">${ink.pms ? escapeHtml(ink.pms) : '— no PMS ref —'} · ${hasColor ? ink.hex : 'no color set'}</p>
+        <div class="card-meta">
+          <span class="qty">${ink.qty} ${ink.unit||''}</span>
+          <span class="cat">${escapeHtml(ink.category||'')}</span>
+        </div>
+        <div class="card-actions">
+          <button class="ghost" onclick="editInk('${ink.id}')">Edit</button>
+          <button class="ghost" onclick="removeInk('${ink.id}')">Delete</button>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function escapeHtml(s){
+  return String(s||'').replace(/[&<>"']/g, m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+}
+
+// ---------- add / edit ----------
+function openAdd(){
+  document.getElementById('addTitle').textContent = 'Add ink';
+  document.getElementById('saveBtn').textContent = 'Save ink';
+  document.getElementById('addForm').reset();
+  document.getElementById('editId').value='';
+  document.getElementById('fColor').value = '#BC112A';
+  document.getElementById('fHex').value = '';
+  document.getElementById('addOverlay').classList.add('open');
+}
+window.setColorQuick = function(id){
+  editInk(id);
+  setTimeout(()=>document.getElementById('fHex').focus(), 50);
+}
+window.editInk = function(id){
+  const ink = inks.find(i=>i.id===id);
+  if(!ink) return;
+  document.getElementById('addTitle').textContent = 'Edit ink';
+  document.getElementById('saveBtn').textContent = 'Update ink';
+  document.getElementById('editId').value = ink.id;
+  document.getElementById('fName').value = ink.name;
+  document.getElementById('fPms').value = ink.pms||'';
+  document.getElementById('fColor').value = ink.hex || '#BC112A';
+  document.getElementById('fHex').value = ink.hex || '';
+  document.getElementById('fCategory').value = ink.category||'';
+  document.getElementById('fQty').value = ink.qty;
+  document.getElementById('fUnit').value = ink.unit||'oz';
+  document.getElementById('fLocation').value = ink.location||'';
+  document.getElementById('fNotes').value = ink.notes||'';
+  document.getElementById('addOverlay').classList.add('open');
+}
+window.removeInk = async function(id){
+  const ink = inks.find(i=>i.id===id);
+  if(!ink) return;
+  if(!confirm(`Delete "${ink.name}" from the database?`)) return;
+  try{
+    await deleteInkById(id);
+    showToast('Deleted');
+  }catch(e){
+    alert('Could not delete — check your Firebase setup.');
+  }
+}
+
+document.getElementById('fColor').addEventListener('input', e=>{
+  document.getElementById('fHex').value = e.target.value;
+});
+document.getElementById('fHex').addEventListener('input', e=>{
+  const v = e.target.value;
+  if(/^#?[0-9a-fA-F]{6}$/.test(v)){
+    document.getElementById('fColor').value = v.startsWith('#')?v:'#'+v;
+  }
+});
+
+document.getElementById('addForm').addEventListener('submit', async e=>{
+  e.preventDefault();
+  const id = document.getElementById('editId').value || (Date.now().toString(36)+Math.random().toString(36).slice(2,7));
+  let hex = document.getElementById('fHex').value.trim();
+  if(hex){
+    if(!hex.startsWith('#')) hex = '#'+hex;
+    if(!/^#[0-9a-fA-F]{6}$/.test(hex)){ alert('That hex code doesn\'t look right — use a format like #B23A2E, or leave it blank.'); return; }
+  } else {
+    hex = '';
+  }
+
+  const ink = {
+    id,
+    name: document.getElementById('fName').value.trim(),
+    pms: document.getElementById('fPms').value.trim(),
+    hex,
+    category: document.getElementById('fCategory').value,
+    qty: parseFloat(document.getElementById('fQty').value)||0,
+    unit: document.getElementById('fUnit').value,
+    location: document.getElementById('fLocation').value.trim(),
+    notes: document.getElementById('fNotes').value.trim(),
+    updatedAt: Date.now()
+  };
+
+  const btn = document.getElementById('saveBtn');
+  btn.disabled = true; btn.textContent = 'Saving…';
+  try{
+    await saveInk(ink);
+    closeOverlay('addOverlay');
+    showToast('Saved');
+  }catch(err){
+    alert('Could not save — please try again.');
+  }finally{
+    btn.disabled = false; btn.textContent = document.getElementById('editId').value ? 'Update ink' : 'Save ink';
+  }
+});
+
+// ---------- match tool ----------
+document.getElementById('mColor').addEventListener('input', e=>{
+  document.getElementById('mHex').value = e.target.value;
+});
+document.getElementById('mHex').addEventListener('input', e=>{
+  const v = e.target.value;
+  if(/^#?[0-9a-fA-F]{6}$/.test(v)){
+    document.getElementById('mColor').value = v.startsWith('#')?v:'#'+v;
+  }
+});
+
+document.getElementById('runMatchBtn').addEventListener('click', ()=>{
+  let hex = document.getElementById('mHex').value.trim();
+  if(!hex.startsWith('#')) hex = '#'+hex;
+  if(!/^#[0-9a-fA-F]{6}$/.test(hex)){ alert('Enter a valid hex color, e.g. #2E5FB2'); return; }
+
+  const withColor = inks.filter(ink=>ink.hex && /^#[0-9a-fA-F]{6}$/.test(ink.hex));
+  const skipped = inks.length - withColor.length;
+
+  if(withColor.length===0){
+    document.getElementById('matchResults').innerHTML = `<p style="color:var(--muted);font-size:13px;">None of your ${inks.length} ink${inks.length===1?'':'s'} have a color set yet, so there's nothing to compare against. Add a hex value to an ink first (open it and hit "Set color").</p>`;
+    return;
+  }
+
+  const scored = withColor.map(ink=>({ ink, d: deltaE(hex, ink.hex) }))
+    .sort((a,b)=>a.d-b.d)
+    .slice(0,5);
+
+  const note = skipped>0
+    ? `<p style="color:var(--muted);font-size:12px;margin:0 0 10px;">${skipped} ink${skipped===1?'':'s'} skipped — no color set yet.</p>`
+    : '';
+
+  document.getElementById('matchResults').innerHTML = note + scored.map(({ink,d})=>{
+    const closeness = d<2 ? 'Essentially identical' : d<10 ? 'Close match' : d<20 ? 'Noticeable difference' : 'Rough match only';
+    return `
+    <div class="match-row">
+      <div class="match-swatch" style="background:${ink.hex}"></div>
+      <div class="match-info">
+        <div class="match-name">${escapeHtml(ink.name)}</div>
+        <div class="match-pms">${ink.pms ? escapeHtml(ink.pms)+' · ' : ''}${ink.hex} · ${ink.qty} ${ink.unit||''} on hand</div>
+      </div>
+      <div class="match-delta">ΔE <b>${d.toFixed(1)}</b><br>${closeness}</div>
+    </div>`;
+  }).join('');
+});
+
+// ---------- CSV import ----------
+let parsedRows = []; // {data, valid, error}
+
+function parseCsvText(text){
+  // simple RFC4180-ish parser: handles quoted fields, escaped quotes, commas/newlines inside quotes
+  const rows = [];
+  let row = [], field = '', inQuotes = false;
+  for(let i=0;i<text.length;i++){
+    const c = text[i];
+    if(inQuotes){
+      if(c === '"'){
+        if(text[i+1] === '"'){ field += '"'; i++; }
+        else inQuotes = false;
+      } else field += c;
+    } else {
+      if(c === '"') inQuotes = true;
+      else if(c === ','){ row.push(field); field=''; }
+      else if(c === '\n' || c === '\r'){
+        if(c === '\r' && text[i+1] === '\n') i++;
+        row.push(field); field='';
+        if(row.some(f=>f.trim()!=='')) rows.push(row);
+        row = [];
+      } else field += c;
+    }
+  }
+  if(field.length || row.length){ row.push(field); if(row.some(f=>f.trim()!=='')) rows.push(row); }
+  return rows;
+}
+
+function normalizeHeader(h){ return h.trim().toLowerCase().replace(/[^a-z]/g,''); }
+
+function buildRowsFromCsv(text){
+  const raw = parseCsvText(text);
+  if(raw.length===0) return [];
+  const headers = raw[0].map(normalizeHeader);
+  const idx = {
+    name: headers.indexOf('name'),
+    pms: headers.indexOf('pms'),
+    hex: headers.findIndex(h=>h==='hex'||h==='color'||h==='hexcolor'),
+    category: headers.indexOf('category'),
+    qty: headers.findIndex(h=>h==='qty'||h==='quantity'),
+    unit: headers.indexOf('unit'),
+    location: headers.findIndex(h=>h==='location'||h==='shelf'),
+    notes: headers.indexOf('notes'),
+  };
+
+  const dataRows = raw.slice(1);
+  return dataRows.map(cols=>{
+    const get = i => i>=0 && i<cols.length ? cols[i].trim() : '';
+    let hex = get(idx.hex);
+    if(hex && !hex.startsWith('#')) hex = '#'+hex;
+    const name = get(idx.name);
+    const qtyRaw = get(idx.qty);
+    const qty = parseFloat(qtyRaw);
+    const hexProvided = hex !== '';
+    const hexValid = !hexProvided || /^#[0-9a-fA-F]{6}$/.test(hex);
+
+    const errors = [];
+    if(!name) errors.push('missing name');
+    if(hexProvided && !hexValid) errors.push('hex isn\'t a valid color code');
+
+    return {
+      data: {
+        name,
+        pms: get(idx.pms),
+        hex: (hexProvided && hexValid) ? hex : '',
+        category: get(idx.category) || '',
+        qty: isNaN(qty) ? 0 : qty,
+        unit: get(idx.unit) || 'oz',
+        location: get(idx.location),
+        notes: get(idx.notes),
+      },
+      valid: errors.length===0,
+      noColor: !hexProvided,
+      error: errors.join(', ')
+    };
+  });
+}
+
+function renderImportPreview(){
+  const area = document.getElementById('importPreviewArea');
+  const validCount = parsedRows.filter(r=>r.valid).length;
+  const badCount = parsedRows.length - validCount;
+
+  if(parsedRows.length===0){
+    area.innerHTML = '<p style="color:var(--muted);font-size:13px;">No rows found — check your CSV has a header row and at least one data row.</p>';
+    document.getElementById('confirmImportBtn').style.display='none';
+    return;
+  }
+
+  area.innerHTML = `
+    <div class="import-summary"><b>${validCount}</b> row${validCount===1?'':'s'} ready to import${badCount?`, <b style="color:var(--out)">${badCount}</b> skipped (errors below)`:''}.</div>
+    <div class="import-table-wrap">
+      <table class="import-table">
+        <thead><tr><th>Color</th><th>Name</th><th>PMS</th><th>Qty</th><th>Category</th><th>Status</th></tr></thead>
+        <tbody>
+          ${parsedRows.map(r=>`
+            <tr class="${r.valid?'':'row-bad'}">
+              <td>${r.data.hex ? `<span class="swatch-chip" style="background:${r.data.hex}"></span>${r.data.hex}` : `<span class="swatch-chip empty"></span>—`}</td>
+              <td>${escapeHtml(r.data.name||'—')}</td>
+              <td>${escapeHtml(r.data.pms||'—')}</td>
+              <td>${r.data.qty} ${r.data.unit||''}</td>
+              <td>${escapeHtml(r.data.category||'')}</td>
+              <td>${r.valid ? (r.noColor ? 'OK · no color yet' : 'OK') : escapeHtml(r.error)}</td>
+            </tr>`).join('')}
+        </tbody>
+      </table>
+    </div>
+  `;
+  document.getElementById('confirmImportBtn').style.display = validCount>0 ? 'inline-block' : 'none';
+}
+
+async function runParse(){
+  const fileInput = document.getElementById('csvFile');
+  const pasteText = document.getElementById('csvPaste').value;
+  let text = '';
+  if(fileInput.files && fileInput.files[0]){
+    text = await fileInput.files[0].text();
+  } else if(pasteText.trim()){
+    text = pasteText;
+  } else {
+    alert('Choose a CSV file or paste CSV text first.');
+    return;
+  }
+  parsedRows = buildRowsFromCsv(text);
+  renderImportPreview();
+}
+
+document.getElementById('parseCsvBtn').addEventListener('click', runParse);
+
+document.getElementById('confirmImportBtn').addEventListener('click', async ()=>{
+  const valid = parsedRows.filter(r=>r.valid);
+  if(valid.length===0) return;
+  const btn = document.getElementById('confirmImportBtn');
+  btn.disabled = true; btn.textContent = 'Importing…';
+  try{
+    for(const r of valid){
+      const id = Date.now().toString(36)+Math.random().toString(36).slice(2,7);
+      const ink = { id, updatedAt: Date.now(), ...r.data };
+      await saveInk(ink);
+    }
+    closeOverlay('importOverlay');
+    showToast(`Imported ${valid.length} ink${valid.length===1?'':'s'}`);
+    parsedRows = [];
+    document.getElementById('csvFile').value='';
+    document.getElementById('csvPaste').value='';
+    document.getElementById('importPreviewArea').innerHTML='';
+  }catch(e){
+    alert('Something went wrong during import — please try again.');
+  }finally{
+    btn.disabled = false; btn.textContent = 'Import valid rows';
+  }
+});
+
+document.getElementById('csvFile').addEventListener('change', ()=>{
+  document.getElementById('csvPaste').value='';
+});
+
+const dropZone = document.getElementById('dropZone');
+['dragenter','dragover'].forEach(evt=>{
+  dropZone.addEventListener(evt, e=>{ e.preventDefault(); dropZone.classList.add('drag'); });
+});
+['dragleave','drop'].forEach(evt=>{
+  dropZone.addEventListener(evt, e=>{ e.preventDefault(); dropZone.classList.remove('drag'); });
+});
+dropZone.addEventListener('drop', e=>{
+  const file = e.dataTransfer.files[0];
+  if(file){
+    const dt = new DataTransfer();
+    dt.items.add(file);
+    document.getElementById('csvFile').files = dt.files;
+    document.getElementById('csvPaste').value='';
+  }
+});
+
+document.getElementById('downloadTemplateBtn').addEventListener('click', ()=>{
+  const template = 'name,pms,hex,category,qty,unit,location,notes\nAthletic Red,186 C,#B23A2E,Base,32,oz,Rack B3,\nRoyal Blue,286 C,#2E5FB2,Base,18,oz,Rack B4,\n';
+  const blob = new Blob([template], {type:'text/csv'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = 'ink-stock-template.csv';
+  a.click();
+  URL.revokeObjectURL(url);
+});
+
+document.getElementById('openImportBtn').addEventListener('click', ()=>{
+  parsedRows = [];
+  document.getElementById('importPreviewArea').innerHTML='';
+  document.getElementById('confirmImportBtn').style.display='none';
+  document.getElementById('csvFile').value='';
+  document.getElementById('csvPaste').value='';
+  document.getElementById('importOverlay').classList.add('open');
+});
+
+// ---------- modal open/close ----------
+document.getElementById('openAddBtn').addEventListener('click', openAdd);
+document.getElementById('openMatchBtn').addEventListener('click', ()=>{
+  document.getElementById('matchResults').innerHTML='';
+  document.getElementById('matchOverlay').classList.add('open');
+});
+function closeOverlay(id){ document.getElementById(id).classList.remove('open'); }
+document.querySelectorAll('[data-close]').forEach(el=>{
+  el.addEventListener('click', ()=>closeOverlay(el.getAttribute('data-close')));
+});
+document.querySelectorAll('.overlay').forEach(ov=>{
+  ov.addEventListener('click', e=>{ if(e.target===ov) closeOverlay(ov.id); });
+});
+
+// ---------- filters ----------
+['searchInput','categoryFilter','stockFilter','colorFilter','sortSelect'].forEach(id=>{
+  document.getElementById(id).addEventListener('input', render);
+  document.getElementById(id).addEventListener('change', render);
+});
+
+// ---------- toast ----------
+let toastTimer;
+function showToast(msg){
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(()=>t.classList.remove('show'), 1800);
+}
+
+// initial render is triggered by the Firestore onSnapshot listener above
+// (or by the NEEDS_SETUP branch, if Firebase hasn't been configured yet)
+</script>
+</body>
+</html>
