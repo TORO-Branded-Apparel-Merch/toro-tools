@@ -156,12 +156,14 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
     </div>
   </div>
   <div class="container">
+    <div id="pending-payout-bar" style="display:none;"></div>
     <div class="summary-cards" id="summary-cards"></div>
     <div id="action-bar" style="display:flex;gap:10px;margin-bottom:20px;flex-wrap:wrap;align-items:center;">
       <div class="drop-zone" id="drop-zone" style="flex:1;min-width:200px;padding:14px;" onclick="if(event.target.tagName!=='INPUT')document.getElementById('file-input').click()">
         🐂 Drop or click to upload a quote JSON
       </div>
       <input type="file" id="file-input" accept=".json" multiple style="display:none;" onclick="event.stopPropagation()">
+      <button class="hdr-btn" style="background:white;color:var(--text);border:1px solid #ccc;white-space:nowrap;" onclick="openCommUploadModal()">📤 Add from spreadsheet</button>
     </div>
     <div id="section-ready"></div>
     <div id="section-active"></div>
@@ -196,7 +198,7 @@ const PW_KEY = 'toro_pw_debbie';
 const LOCK_KEY = 'toro_lock_debbie';
 const ATTEMPTS_KEY = 'toro_attempts_debbie';
 const DEFAULT_PW = 'Toro#Xp8sN';
-const PORTAL_VERSION = 'v2.35';
+const PORTAL_VERSION = 'v2.37';
 const FB_PATH = 'quotes/' + REP_LOWER;
 
 function bamAlert(msg, cb) {
@@ -431,6 +433,152 @@ function processFile(file) {
   r.readAsText(file);
 }
 
+// ── Spreadsheet import (alternative to dropping a Quote Builder JSON) ──────
+// Reads the "ALL SALES" tab of the commission tracker reps already use
+// (INVOICE #, COMPANY, SALES, COST) — no new template to fill out. Only the
+// raw dollars are pulled; MARGIN/COMMISSION on that sheet are that sheet's
+// own flat 50/50 formulas and are ignored here, since render()/quoteComm()
+// already compute commission properly (including the below-30%-margin
+// tiering) from net/sell, same as a JSON import.
+const COMM_UPLOAD_COLUMNS = [
+  {key:'quoteNum',      label:'INVOICE #', required:true},
+  {key:'clientCompany', label:'COMPANY',   required:false},
+  {key:'totalSell',     label:'SALES',     required:true},
+  {key:'totalNetCost',  label:'COST',      required:true},
+];
+
+function openCommUploadModal() {
+  const input = document.createElement('input');
+  input.type = 'file';
+  input.accept = '.xlsx,.xls,.csv';
+  input.onchange = e => { if(e.target.files[0]) handleCommUploadFile(e.target.files[0]); };
+  input.click();
+}
+
+function _commNormHeader(h) { return String(h||'').toLowerCase().replace(/[^a-z0-9]/g,''); }
+
+function handleCommUploadFile(file) {
+  const reader = new FileReader();
+  reader.onload = evt => {
+    try {
+      const wb = XLSX.read(evt.target.result, {type:'array', cellDates:true});
+      // Prefer the "ALL SALES" tab (the commission tracker's actual sheet name);
+      // fall back to the first sheet if this is some other workbook layout.
+      const sheetName = wb.SheetNames.find(n=>/all\s*sales/i.test(n)) || wb.SheetNames[0];
+      const ws = wb.Sheets[sheetName];
+      const rows = XLSX.utils.sheet_to_json(ws, {header:1, defval:''});
+      if(!rows.length) { bamAlert('That file looks empty.'); return; }
+
+      // The tracker has a title row above the real header ("SALES TRACKING"),
+      // so find whichever row actually contains "INVOICE #" rather than
+      // assuming row 1.
+      let headerRowIdx = rows.findIndex(r => r.some(c => _commNormHeader(c)==='invoice'));
+      if(headerRowIdx<0) headerRowIdx = 0;
+      const headerRow = rows[headerRowIdx].map(_commNormHeader);
+      const colIdx = {};
+      COMM_UPLOAD_COLUMNS.forEach(c => {
+        colIdx[c.key] = headerRow.indexOf(_commNormHeader(c.label));
+      });
+
+      const missing = COMM_UPLOAD_COLUMNS.filter(c=>c.required && colIdx[c.key]<0);
+      if(missing.length) {
+        bamAlert('Could not find column'+(missing.length>1?'s':'')+': <strong>'+missing.map(c=>c.label).join(', ')+'</strong> on the "'+sheetName+'" tab. Check this is the commission tracker file.');
+        return;
+      }
+
+      const parsed = [];
+      for(let i=headerRowIdx+1; i<rows.length; i++) {
+        const r = rows[i];
+        if(!r || r.every(v=>v==='' || v==null)) continue;
+        const get = key => colIdx[key]>=0 ? r[colIdx[key]] : '';
+        const quoteNum = String(get('quoteNum')||'').trim();
+        const clientCompany = String(get('clientCompany')||'').trim();
+        const totalSell = parseFloat(String(get('totalSell')).replace(/[$,]/g,''));
+        const totalNetCost = parseFloat(String(get('totalNetCost')).replace(/[$,]/g,''));
+        // Silently skip rows that aren't real invoices at all — the sheet's own
+        // "TOTAL SALES" subtotal row, and any unused blank template rows.
+        const hasFinancials = (!isNaN(totalSell) && totalSell>0) || (!isNaN(totalNetCost) && totalNetCost>0);
+        if(!quoteNum && !clientCompany && !hasFinancials) continue;
+
+        const rowErrors = [];
+        if(!quoteNum) rowErrors.push('missing INVOICE #');
+        if(isNaN(totalNetCost)) rowErrors.push('invalid COST');
+        if(isNaN(totalSell)) rowErrors.push('invalid SALES');
+        if(!isNaN(totalSell) && !isNaN(totalNetCost) && totalSell < totalNetCost) rowErrors.push('SALES is less than COST — check the numbers');
+        if(quotes.some(x=>String(x.quoteNum)===quoteNum)) rowErrors.push('Invoice #'+quoteNum+' already exists — skip or rename to avoid overwriting it');
+
+        const q = {
+          quoteNum, clientCompany, rep: REP,
+          totalNetCost: isNaN(totalNetCost)?0:totalNetCost, totalSell: isNaN(totalSell)?0:totalSell,
+          commissionSplit: 'standard', hasAM: false,
+          workflowStatus: 'active', status: {},
+        };
+        const estComm = rowErrors.length ? null : quoteComm(q);
+        parsed.push({row:i+1, q, errors:rowErrors, estComm});
+      }
+
+      if(!parsed.length) { bamAlert('No invoice rows found on the "'+sheetName+'" tab.'); return; }
+      showCommUploadPreview(parsed);
+    } catch(err) {
+      bamAlert('Could not read that file: '+err.message);
+    }
+  };
+  reader.readAsArrayBuffer(file);
+}
+
+function showCommUploadPreview(parsed) {
+  const good = parsed.filter(p=>!p.errors.length);
+  const fmtRow = n => '$'+Number(n||0).toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2});
+  const rowsHtml = parsed.map(p => `<tr style="${p.errors.length?'background:#fff3f3':''}">
+      <td style="padding:5px 8px;border-bottom:1px solid #eee;">${p.row}</td>
+      <td style="padding:5px 8px;border-bottom:1px solid #eee;">${esc(p.q.quoteNum)||'—'}</td>
+      <td style="padding:5px 8px;border-bottom:1px solid #eee;text-align:right;">${p.errors.length?'—':fmtRow(p.q.totalNetCost)}</td>
+      <td style="padding:5px 8px;border-bottom:1px solid #eee;text-align:right;">${p.errors.length?'—':fmtRow(p.q.totalSell)}</td>
+      <td style="padding:5px 8px;border-bottom:1px solid #eee;text-align:right;color:#16a34a;font-weight:600;">${p.errors.length?'—':fmtRow(p.estComm)}</td>
+      <td style="padding:5px 8px;border-bottom:1px solid #eee;color:#c0392b;font-size:11px;">${esc(p.errors.join('; '))}</td>
+    </tr>`).join('');
+
+  document.getElementById('bam-msg').innerHTML = `
+    <div style="text-align:left;">
+      <div style="font-weight:700;font-size:15px;margin-bottom:4px;">Review before adding</div>
+      <div style="font-size:12px;color:#666;margin-bottom:10px;">
+        ${good.length} row${good.length!==1?'s':''} ready to add${parsed.length-good.length?', '+(parsed.length-good.length)+' with problems (will be skipped)':''}.
+        These land in your Active Quotes, same as dropping a JSON — nothing is submitted for commission until you do that yourself.
+      </div>
+      <div style="max-height:280px;overflow:auto;border:1px solid #ddd;border-radius:6px;">
+        <table style="width:100%;border-collapse:collapse;font-size:12px;">
+          <thead><tr style="background:#fafafa;">
+            <th style="padding:5px 8px;text-align:left;">Row</th><th style="padding:5px 8px;text-align:left;">Invoice #</th>
+            <th style="padding:5px 8px;text-align:right;">Net</th><th style="padding:5px 8px;text-align:right;">Sell</th>
+            <th style="padding:5px 8px;text-align:right;">Est. Commission</th><th style="padding:5px 8px;text-align:left;">Issue</th>
+          </tr></thead>
+          <tbody>${rowsHtml}</tbody>
+        </table>
+      </div>
+    </div>`;
+  const btns = document.getElementById('bam-btns');
+  btns.innerHTML = '';
+  const cancel = document.createElement('button');
+  cancel.textContent = 'Cancel';
+  cancel.style.cssText = 'padding:8px 18px;background:#f0f0f0;color:#333;border:none;border-radius:6px;cursor:pointer;font-size:14px;';
+  cancel.onclick = () => document.getElementById('bam-overlay').classList.remove('open');
+  const ok = document.createElement('button');
+  ok.textContent = good.length ? `Add ${good.length} quote${good.length!==1?'s':''}` : 'Nothing to add';
+  ok.disabled = !good.length;
+  ok.style.cssText = 'padding:8px 18px;background:#BC112A;color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:14px;font-weight:600;'+(good.length?'':'opacity:.5;cursor:not-allowed;');
+  ok.onclick = () => {
+    if(!good.length) return;
+    good.forEach(p => { p.q._fbKey = fbKey(p.q); quotes.push(p.q); saveQuote(p.q); });
+    render();
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(quotes));
+    document.getElementById('bam-overlay').classList.remove('open');
+    setTimeout(()=>bamAlert(`✅ Added ${good.length} quote${good.length!==1?'s':''} to Active Quotes.`),150);
+  };
+  btns.appendChild(cancel);
+  btns.appendChild(ok);
+  document.getElementById('bam-overlay').classList.add('open');
+}
+
 // ── Render ─────────────────────────────────────────────────────────────────
 function fmt(n){return'$'+(parseFloat(n)||0).toFixed(2);}
 function pct(n){return(parseFloat(n)||0).toFixed(1)+'%';}
@@ -568,6 +716,25 @@ function render() {
   const active = quotes.filter(q=>!['readyForSubmission','submittedCommission','approvedForPayment','paid'].includes(q.workflowStatus));
   const archived = quotes.filter(q=>['submittedCommission','submitted','approvedForPayment','paid'].includes(q.workflowStatus));
   const all = [...ready,...active];
+
+  // Commission that's been submitted (or approved) but not yet paid out —
+  // everything archived except what's already marked Paid.
+  const unpaid = archived.filter(q=>q.workflowStatus!=='paid');
+  const unpaidComm = unpaid.reduce((a,q)=>a+finalRepComm(q),0);
+  const payoutBar = document.getElementById('pending-payout-bar');
+  if(unpaid.length){
+    payoutBar.style.display = '';
+    payoutBar.innerHTML =
+      '<div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;'+
+      'background:#eef0ff;border:1px solid #c7cbfa;border-radius:var(--radius);padding:14px 18px;margin-bottom:16px;">'+
+        '<span style="font-size:14px;font-weight:600;color:#3730a3;">💰 Submitted, not yet paid out</span>'+
+        '<span style="font-size:22px;font-weight:700;color:#3730a3;">'+fmt(unpaidComm)+
+          '<span style="font-size:12px;font-weight:500;color:#4338ca;margin-left:8px;">across '+unpaid.length+' quote'+(unpaid.length!==1?'s':'')+'</span></span>'+
+      '</div>';
+  } else {
+    payoutBar.style.display = 'none';
+    payoutBar.innerHTML = '';
+  }
 
   const totalSell = all.reduce((a,q)=>a+quoteTotal(q,'sell'),0);
   const totalComm = all.reduce((a,q)=>a+finalRepComm(q),0);
