@@ -77,6 +77,41 @@
   }
   .toolbar, .count-line, .grid, .empty{margin-left:28px;margin-right:28px;}
 
+  .tool-links{
+    display:flex;
+    flex-wrap:wrap;
+    align-items:center;
+    gap:8px;
+    margin:0 28px 22px;
+    padding:11px 15px;
+    background:var(--red-light);
+    border:1px solid #f3c9ce;
+    border-radius:var(--r-sm);
+    font-size:13px;
+  }
+  .tool-links-label{
+    font-weight:600;
+    color:var(--ink-black);
+    margin-right:2px;
+  }
+  .tool-links a{
+    color:var(--ink-red-dark);
+    font-weight:600;
+    text-decoration:none;
+    border-bottom:1.5px solid rgba(188,17,42,.35);
+    transition:border-color var(--dur-fast) var(--ease);
+  }
+  .tool-links a:hover{border-color:var(--ink-red-dark);}
+  .tool-links-sep{color:var(--line-strong);}
+  .tool-links-note{
+    color:var(--muted);
+    font-size:12px;
+    margin-left:auto;
+  }
+  @media (max-width:700px){
+    .tool-links-note{margin-left:0;flex-basis:100%;}
+  }
+
   /* toolbar */
   .toolbar{
     display:flex;
@@ -352,7 +387,7 @@
   .toast.show{opacity:1;}
 
   @media (max-width:600px){
-    .toolbar, .count-line, .grid, .empty{margin-left:16px;margin-right:16px;}
+    .toolbar, .count-line, .grid, .empty, .tool-links{margin-left:16px;margin-right:16px;}
     header{flex-direction:column;align-items:flex-start;gap:10px;padding:26px 18px 20px;}
     .stamp{text-align:left;}
   }
@@ -368,6 +403,18 @@
     </div>
     <div class="stamp" id="statLine">loading…</div>
   </header>
+
+  <div class="tool-links">
+    <span class="tool-links-label">Need a color you don't have logged yet?</span>
+    <a href="https://pantonecolors.net/pantone-to-hex/" target="_blank" rel="noopener noreferrer">
+      Pantone → Hex converter ↗
+    </a>
+    <span class="tool-links-sep">·</span>
+    <a href="https://pantonecolors.net/hex-to-pantone/" target="_blank" rel="noopener noreferrer">
+      Hex → Pantone converter ↗
+    </a>
+    <span class="tool-links-note">Unofficial reference only — always confirm against a physical swatch before mixing.</span>
+  </div>
 
   <div class="toolbar">
     <input type="text" id="searchInput" placeholder="Search name or PMS…">
