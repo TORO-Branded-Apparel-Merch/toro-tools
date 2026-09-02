@@ -1071,6 +1071,25 @@ function buildPOHTML(poNum, d) {
                 <td class="po-line-total">${fmt(rush)}</td>
                 <td><button onclick="const _tb=this.closest('tbody');this.closest('tr').remove();recalcPOTable(_tb);syncCurrentPOEdits();" style="border:none;background:none;cursor:pointer;color:#bbb;font-size:13px;padding:2px 4px;" title="Remove row">✕</button></td>
               </tr>`:''}
+              ${(h.hg_imp_areas||[]).map((a,ai)=>{
+                const aRun=parseFloat(a.run)||0, aSetup=parseFloat(a.setup)||0, n=ai+2;
+                let rows='';
+                if(aRun>0) rows+=`<tr>
+                <td>Run charge (Imprint ${n})</td>
+                <td><input class="po-field-edit po-calc" data-role="qty" value="${qty}" style="width:60px;text-align:center;" oninput="recalcPORow(this)"></td>
+                <td><input class="po-field-edit po-calc" data-role="cost" value="${fmt(aRun)}" style="width:80px;" oninput="recalcPORow(this)"></td>
+                <td class="po-line-total">${fmt(qty*aRun)}</td>
+                <td><button onclick="const _tb=this.closest('tbody');this.closest('tr').remove();recalcPOTable(_tb);syncCurrentPOEdits();" style="border:none;background:none;cursor:pointer;color:#bbb;font-size:13px;padding:2px 4px;" title="Remove row">✕</button></td>
+              </tr>`;
+                if(aSetup>0) rows+=`<tr>
+                <td>Setup / die charge (Imprint ${n})</td>
+                <td>1</td>
+                <td><input class="po-field-edit po-calc" data-role="flat" value="${fmt(aSetup)}" style="width:80px;" oninput="recalcPOTable(this)"></td>
+                <td class="po-line-total">${fmt(aSetup)}</td>
+                <td><button onclick="const _tb=this.closest('tbody');this.closest('tr').remove();recalcPOTable(_tb);syncCurrentPOEdits();" style="border:none;background:none;cursor:pointer;color:#bbb;font-size:13px;padding:2px 4px;" title="Remove row">✕</button></td>
+              </tr>`;
+                return rows;
+              }).join('')}
               ${(h.hg_misc_fees||[]).map(f=>`<tr>
                 <td><input class="po-field-edit" value="${f.desc||'Misc fee'}" style="font-style:italic;"></td>
                 <td>1</td>
@@ -1080,7 +1099,7 @@ function buildPOHTML(poNum, d) {
               </tr>`).join('')}
               <tr class="po-total-row" style="background:#f5f5f7;font-weight:700;">
                 <td colspan="3">Total</td>
-                <td class="po-grand-total">${fmt(qty*cost+(run?qty*run:0)+setup+rush+(h.hg_misc_fees||[]).reduce((a,f)=>a+(f.net||0),0))}</td>
+                <td class="po-grand-total">${fmt(qty*cost+(run?qty*run:0)+setup+rush+(h.hg_imp_areas||[]).reduce((a,ar)=>a+qty*(parseFloat(ar.run)||0)+(parseFloat(ar.setup)||0),0)+(h.hg_misc_fees||[]).reduce((a,f)=>a+(f.net||0),0))}</td>
                 <td></td>
               </tr>
             </tbody>
