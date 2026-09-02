@@ -75,6 +75,27 @@
     text-align:right;
     line-height:1.6;
   }
+  .header-right{
+    display:flex;
+    flex-direction:column;
+    align-items:flex-end;
+    gap:8px;
+  }
+  .lock-badge{
+    background:rgba(255,255,255,.16);
+    color:#fff;
+    border:1px solid rgba(255,255,255,.4);
+    box-shadow:none;
+    font-size:12px;
+    font-weight:600;
+    padding:6px 12px;
+  }
+  .lock-badge:hover{background:rgba(255,255,255,.26);filter:none;box-shadow:none;}
+  .lock-badge.unlocked{
+    background:#fff;
+    color:var(--ink-red-dark);
+    border-color:#fff;
+  }
   .toolbar, .count-line, .grid, .empty{margin-left:28px;margin-right:28px;}
 
   .tool-links{
@@ -401,7 +422,10 @@
       <h1>TORO Color System</h1>
       <p>Screen printing ink inventory — live &amp; shared across the shop</p>
     </div>
-    <div class="stamp" id="statLine">loading…</div>
+    <div class="header-right">
+      <div class="stamp" id="statLine">loading…</div>
+      <button type="button" id="lockBadge" class="lock-badge" title="Toggle editing">🔒 View only</button>
+    </div>
   </header>
 
   <div class="tool-links">
@@ -579,6 +603,26 @@ Athletic Red,186 C,#B23A2E,Base,32,oz,Rack B3,"></textarea>
 
 <div class="toast" id="toast"></div>
 
+<!-- Edit-lock modal -->
+<div class="overlay" id="pinOverlay">
+  <div class="modal">
+    <button class="close-x" data-close="pinOverlay">&times;</button>
+    <h2>Unlock editing</h2>
+    <p class="sub">Anyone can browse and search the color list. Enter the shop password to add, edit, delete, or import inks.</p>
+    <form id="pinForm">
+      <div class="field">
+        <label>Password</label>
+        <input type="password" id="pinInput" autocomplete="off" autofocus>
+      </div>
+      <p class="hint" id="pinError" style="display:none;color:var(--out);">That password isn't right — try again.</p>
+      <div class="modal-actions">
+        <button type="button" class="secondary" data-close="pinOverlay">Cancel</button>
+        <button type="submit">Unlock</button>
+      </div>
+    </form>
+  </div>
+</div>
+
 <script type="module">
 /* ============================================================
    FIREBASE SETUP
@@ -618,6 +662,20 @@ const firebaseConfig = {
 const NEEDS_SETUP = firebaseConfig.apiKey === "YOUR_API_KEY";
 
 let inks = [];
+
+/* ------------------------------------------------------------
+   EDIT LOCK (UI-only — casual protection, not real security)
+   This just hides/shows the add/edit/delete/import controls
+   behind a shared password so sales reps browsing the list don't
+   accidentally change something. It does NOT restrict what the
+   Firestore database itself accepts — anyone who can already
+   write to the project (e.g. via dev tools) isn't affected by
+   this. Change the password below to whatever you want the team
+   to use.
+   ------------------------------------------------------------ */
+const EDIT_PASSWORD = "toro2026";
+let editMode = sessionStorage.getItem('toro_edit_unlocked') === '1';
+
 let db, inksCol;
 
 if(!NEEDS_SETUP){
@@ -641,6 +699,44 @@ if(!NEEDS_SETUP){
 
   window.__firestore = { db, inksCol, doc, setDoc, deleteDoc };
 }
+
+// ---------- edit lock UI ----------
+function updateEditUI(){
+  const badge = document.getElementById('lockBadge');
+  badge.textContent = editMode ? '🔓 Editing • Lock' : '🔒 View only';
+  badge.classList.toggle('unlocked', editMode);
+  document.getElementById('openAddBtn').style.display = editMode ? '' : 'none';
+  document.getElementById('openImportBtn').style.display = editMode ? '' : 'none';
+  render();
+}
+
+document.getElementById('lockBadge').addEventListener('click', ()=>{
+  if(editMode){
+    editMode = false;
+    sessionStorage.removeItem('toro_edit_unlocked');
+    updateEditUI();
+    showToast('Editing locked');
+  } else {
+    document.getElementById('pinInput').value = '';
+    document.getElementById('pinError').style.display = 'none';
+    document.getElementById('pinOverlay').classList.add('open');
+    setTimeout(()=>document.getElementById('pinInput').focus(), 50);
+  }
+});
+
+document.getElementById('pinForm').addEventListener('submit', e=>{
+  e.preventDefault();
+  const val = document.getElementById('pinInput').value;
+  if(val === EDIT_PASSWORD){
+    editMode = true;
+    sessionStorage.setItem('toro_edit_unlocked', '1');
+    closeOverlay('pinOverlay');
+    updateEditUI();
+    showToast('Editing unlocked');
+  } else {
+    document.getElementById('pinError').style.display = 'block';
+  }
+});
 
 // ---------- storage ----------
 async function saveInk(ink){
@@ -768,7 +864,12 @@ function render(){
     const hasColor = ink.hex && /^#[0-9a-fA-F]{6}$/.test(ink.hex);
     const swatch = hasColor
       ? `<div class="swatch" style="background:${ink.hex}"><span class="status-dot" style="background:${statusColor[st]}" title="${statusLabel[st]}"></span></div>`
-      : `<div class="swatch no-color"><span class="status-dot" style="background:${statusColor[st]}" title="${statusLabel[st]}"></span><button class="secondary" onclick="setColorQuick('${ink.id}')">+ Set color</button></div>`;
+      : `<div class="swatch no-color"><span class="status-dot" style="background:${statusColor[st]}" title="${statusLabel[st]}"></span>${editMode ? `<button class="secondary" onclick="setColorQuick('${ink.id}')">+ Set color</button>` : ''}</div>`;
+    const actions = editMode ? `
+        <div class="card-actions">
+          <button class="ghost" onclick="editInk('${ink.id}')">Edit</button>
+          <button class="ghost" onclick="removeInk('${ink.id}')">Delete</button>
+        </div>` : '';
     return `
     <div class="card">
       ${swatch}
@@ -779,10 +880,7 @@ function render(){
           <span class="qty">${ink.qty} ${ink.unit||''}</span>
           <span class="cat">${escapeHtml(ink.category||'')}</span>
         </div>
-        <div class="card-actions">
-          <button class="ghost" onclick="editInk('${ink.id}')">Edit</button>
-          <button class="ghost" onclick="removeInk('${ink.id}')">Delete</button>
-        </div>
+        ${actions}
       </div>
     </div>`;
   }).join('');
@@ -794,6 +892,7 @@ function escapeHtml(s){
 
 // ---------- add / edit ----------
 function openAdd(){
+  if(!editMode) return;
   document.getElementById('addTitle').textContent = 'Add ink';
   document.getElementById('saveBtn').textContent = 'Save ink';
   document.getElementById('addForm').reset();
@@ -803,10 +902,12 @@ function openAdd(){
   document.getElementById('addOverlay').classList.add('open');
 }
 window.setColorQuick = function(id){
+  if(!editMode) return;
   editInk(id);
   setTimeout(()=>document.getElementById('fHex').focus(), 50);
 }
 window.editInk = function(id){
+  if(!editMode) return;
   const ink = inks.find(i=>i.id===id);
   if(!ink) return;
   document.getElementById('addTitle').textContent = 'Edit ink';
@@ -824,6 +925,7 @@ window.editInk = function(id){
   document.getElementById('addOverlay').classList.add('open');
 }
 window.removeInk = async function(id){
+  if(!editMode) return;
   const ink = inks.find(i=>i.id===id);
   if(!ink) return;
   if(!confirm(`Delete "${ink.name}" from the database?`)) return;
@@ -1059,6 +1161,7 @@ async function runParse(){
 document.getElementById('parseCsvBtn').addEventListener('click', runParse);
 
 document.getElementById('confirmImportBtn').addEventListener('click', async ()=>{
+  if(!editMode) return;
   const valid = parsedRows.filter(r=>r.valid);
   if(valid.length===0) return;
   const btn = document.getElementById('confirmImportBtn');
@@ -1114,6 +1217,7 @@ document.getElementById('downloadTemplateBtn').addEventListener('click', ()=>{
 });
 
 document.getElementById('openImportBtn').addEventListener('click', ()=>{
+  if(!editMode) return;
   parsedRows = [];
   document.getElementById('importPreviewArea').innerHTML='';
   document.getElementById('confirmImportBtn').style.display='none';
@@ -1154,6 +1258,7 @@ function showToast(msg){
 
 // initial render is triggered by the Firestore onSnapshot listener above
 // (or by the NEEDS_SETUP branch, if Firebase hasn't been configured yet)
+if(!NEEDS_SETUP) updateEditUI();
 </script>
 </body>
 </html>
