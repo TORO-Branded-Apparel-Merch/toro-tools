@@ -632,7 +632,8 @@ document.getElementById('csg-form').addEventListener('submit', async (e)=>{
     document.getElementById('csg-success').scrollIntoView({behavior:'smooth'});
   }catch(err){
     console.error(err);
-    showToast('Something went wrong sending this form ('+err.message+'). Please try again or contact your Branding Specialist directly.', true);
+    const reason = err && (err.text || err.message) ? (err.text || err.message) : (err && err.status ? 'EmailJS error '+err.status : 'unknown error, check the browser console');
+    showToast('Something went wrong sending this form ('+reason+'). Please try again or contact your Branding Specialist directly.', true);
     btn.disabled=false; btn.textContent='Submit intake form';
   }
 });
