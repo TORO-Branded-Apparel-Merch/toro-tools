@@ -415,12 +415,32 @@
 const EMAILJS_PUBLIC_KEY  = "YOUR_PUBLIC_KEY";
 const EMAILJS_SERVICE_ID  = "YOUR_SERVICE_ID";
 const EMAILJS_TEMPLATE_ID = "YOUR_TEMPLATE_ID";
-// The email address that should receive every submission. Also set this
-// as the "To email" on your EmailJS template so it isn't spoofable from here.
-const NOTIFY_EMAIL = "orders@toroapparel.example.com";
+
+// Where each rep's submissions should go. Fill in real addresses.
+// IMPORTANT: your EmailJS template's "To Email" field must be set to
+// {{to_email}} (not a fixed address) for this routing to actually work.
+const REP_EMAILS = {
+  "Shannon": "shannon@toromerch.com",
+  "Stephen": "stephen@toromerch.com",
+  "Amy":     "amy@toromerch.com",
+  "Julia":   "julia@toromerch.com",
+  "Debbie":  "debbie@toromerch.com",
+  "Lexi":    "lexi@toromerch.com"
+};
+// If no rep is picked, or the picked rep has no email on file above,
+// submissions fall back to this rep.
+const DEFAULT_REP = "Stephen";
+// Last-resort fallback if even DEFAULT_REP has no email configured above.
+const NOTIFY_EMAIL = "orders@toromerch.com";
 // ============================================================
 
 emailjs.init({ publicKey: EMAILJS_PUBLIC_KEY });
+
+function resolveRecipient(selectedRep){
+  if(selectedRep && REP_EMAILS[selectedRep]) return { rep: selectedRep, email: REP_EMAILS[selectedRep] };
+  if(REP_EMAILS[DEFAULT_REP]) return { rep: DEFAULT_REP, email: REP_EMAILS[DEFAULT_REP] };
+  return { rep: DEFAULT_REP, email: NOTIFY_EMAIL };
+}
 
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 
@@ -564,14 +584,17 @@ document.getElementById('csg-form').addEventListener('submit', async (e)=>{
   const extrasSummary = extras.length ? extras.map(rowToLine).join('\n') : 'None specified';
   const timestamp = new Date().toISOString();
 
+  const selectedRep = document.getElementById('f-rep').value.trim();
+  const recipient = resolveRecipient(selectedRep);
+
   const templateParams = {
-    to_email: NOTIFY_EMAIL,
+    to_email: recipient.email,
     from_name: name,
     from_email: email,
     phone,
     company: document.getElementById('f-company').value.trim(),
     po_number: document.getElementById('f-po').value.trim(),
-    rep: document.getElementById('f-rep').value.trim(),
+    rep: selectedRep || `${recipient.rep} (default, none selected)`,
     decoration_methods: selectedMethods.map(m => m==='Other' && otherDetail ? `Other (${otherDetail})` : m).join(', '),
     needed_by: document.getElementById('f-needby').value,
     firm_inhands: document.getElementById('f-firminhands').value,
