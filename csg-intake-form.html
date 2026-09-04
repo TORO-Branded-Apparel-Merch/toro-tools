@@ -414,9 +414,9 @@
 // EMAILJS CONFIGURATION - fill these in from your EmailJS account
 // (emailjs.com > Email Services / Email Templates / Account > API Keys)
 // ============================================================
-const EMAILJS_PUBLIC_KEY  = "YOUR_PUBLIC_KEY";
-const EMAILJS_SERVICE_ID  = "YOUR_SERVICE_ID";
-const EMAILJS_TEMPLATE_ID = "YOUR_TEMPLATE_ID";
+const EMAILJS_PUBLIC_KEY  = "KXcdoZGlBF-WMGCx-";
+const EMAILJS_SERVICE_ID  = "service_voerrg7";
+const EMAILJS_TEMPLATE_ID = "template_mk924wt";
 
 // Where each rep's submissions should go. Fill in real addresses.
 // IMPORTANT: your EmailJS template's "To Email" field must be set to
@@ -622,7 +622,7 @@ document.getElementById('csg-form').addEventListener('submit', async (e)=>{
   btn.disabled=true; btn.textContent='Submitting…';
 
   try{
-    if(EMAILJS_PUBLIC_KEY==='YOUR_PUBLIC_KEY'){
+    if(EMAILJS_PUBLIC_KEY==='YOUR_PUBLIC_KEY' || EMAILJS_SERVICE_ID==='YOUR_SERVICE_ID' || EMAILJS_TEMPLATE_ID==='YOUR_TEMPLATE_ID'){
       throw new Error('EmailJS is not configured yet (placeholder keys still in the code).');
     }
     await emailjs.send(EMAILJS_SERVICE_ID, EMAILJS_TEMPLATE_ID, templateParams);
