@@ -91,7 +91,7 @@
   .sp-toast.error{background:var(--danger);}
 
   /* item rows (garments supplied) */
-  .csg-itemrow{display:grid;grid-template-columns:1.9fr .9fr .8fr .7fr .6fr auto;gap:8px;align-items:end;margin-bottom:10px;}
+  .csg-itemrow{display:grid;grid-template-columns:2.2fr 1fr .8fr .6fr auto;gap:8px;align-items:end;margin-bottom:10px;}
   @media (max-width:640px){ .csg-itemrow{grid-template-columns:1fr 1fr;} .csg-itemrow .csg-col-desc{grid-column:1/-1;} .csg-itemrow .csg-rowactions{grid-column:1/-1;justify-content:flex-end;}}
   .csg-rowactions{display:flex;gap:6px;}
   .csg-rmrow,.csg-duprow{background:#fff;border:1.5px solid var(--line);color:var(--mut);width:44px;height:44px;flex:none;border-radius:var(--r-sm);cursor:pointer;font-size:16px;line-height:1;transition:border-color var(--dur-fast) var(--ease),color var(--dur-fast) var(--ease);}
@@ -99,7 +99,7 @@
   .csg-duprow{font-size:15px;}
   .csg-duprow:hover{border-color:var(--lanyard);color:var(--lanyard);}
   .csg-itemhead{display:none;}
-  @media (min-width:641px){ .csg-itemhead{display:grid;grid-template-columns:1.9fr .9fr .8fr .7fr .6fr auto;gap:8px;margin-bottom:6px;} .csg-itemhead span{font-size:var(--fs-xs);font-weight:700;color:var(--mut);letter-spacing:.3px;} .csg-itemrow .row-label{display:none;} }
+  @media (min-width:641px){ .csg-itemhead{display:grid;grid-template-columns:2.2fr 1fr .8fr .6fr auto;gap:8px;margin-bottom:6px;} .csg-itemhead span{font-size:var(--fs-xs);font-weight:700;color:var(--mut);letter-spacing:.3px;} .csg-itemrow .row-label{display:none;} }
 
   .csg-totalbar{display:flex;align-items:center;justify-content:space-between;background:var(--paper);border:1px solid var(--line);border-radius:var(--r-sm);padding:11px 14px;margin-top:6px;font-size:var(--fs-sm);font-weight:700;}
   .csg-totalbar .n{color:var(--lanyard);font-size:var(--fs-md);}
@@ -128,6 +128,18 @@
   .csg-method.on{background:var(--red-gradient);border-color:var(--lanyard);color:#fff;}
 
   .csg-successicon{width:56px;height:56px;border-radius:50%;background:var(--ok);color:#fff;display:flex;align-items:center;justify-content:center;font-size:28px;margin:0 auto 14px;}
+
+  .csg-summary{font-size:var(--fs-sm);}
+  .csg-summary h3{font-family:var(--headline);font-size:var(--fs-base);margin:18px 0 8px;color:var(--ink);}
+  .csg-summary h3:first-child{margin-top:0;}
+  .csg-summary .row{display:flex;justify-content:space-between;gap:12px;padding:5px 0;border-top:1px solid var(--line);}
+  .csg-summary .row:first-of-type{border-top:none;}
+  .csg-summary .row .k{color:var(--mut);flex:none;width:150px;}
+  .csg-summary .row .v{text-align:right;font-weight:600;flex:1;word-break:break-word;}
+  .csg-summary .line-list{margin:0;padding-left:18px;}
+  .csg-summary .line-list li{padding:2px 0;}
+  .csg-summary .empty-note{color:var(--mut);font-style:italic;}
+  .csg-summary .totalrow{display:flex;justify-content:space-between;font-weight:700;padding-top:6px;margin-top:4px;border-top:1px solid var(--line);}
 
   .sp-badge{background:var(--ink);color:#fff;border-radius:var(--r-sm);padding:11px 14px;font-size:var(--fs-sm);font-weight:700;margin-bottom:var(--sp-4);}
 
@@ -262,7 +274,6 @@
 
         <div class="csg-itemhead">
           <span>Item / style description</span>
-          <span>Brand</span>
           <span>Color</span>
           <span>Size</span>
           <span>Qty</span>
@@ -278,7 +289,6 @@
 
         <div class="csg-itemhead">
           <span>Item / style description</span>
-          <span>Brand</span>
           <span>Color</span>
           <span>Size</span>
           <span>Qty</span>
@@ -398,11 +408,17 @@
     </form>
 
     <!-- SUCCESS SCREEN -->
-    <div class="sp-card sp-card-primary" id="csg-success" style="display:none;text-align:center;">
+    <div class="sp-card sp-card-primary" id="csg-success" style="display:none;">
       <div class="csg-successicon">&#10003;</div>
       <h2 class="sp-h2" style="text-align:center;">Submitted</h2>
-      <p class="sp-cardintro" style="text-align:center;">Thanks, <span id="csg-successname"></span>, your intake form has been sent to your TORO Branding Specialist. Bring your listed items to your scheduled drop-off; a copy of this confirmation is below for your records.</p>
-      <button type="button" class="sp-btn ghost no-print" onclick="window.print()">Print / save this confirmation</button>
+      <p class="sp-cardintro" style="text-align:center;">Thanks, <span id="csg-successname"></span>, your intake form has been sent to your TORO Branding Specialist. Bring your listed items to your scheduled drop-off. A copy of your submission is below for your records.</p>
+      <div class="no-print" style="display:flex;gap:10px;justify-content:center;margin-bottom:20px;flex-wrap:wrap;">
+        <button type="button" class="sp-btn ghost" onclick="window.print()">Print / save this confirmation</button>
+        <button type="button" class="sp-btn ghost" id="csg-newform-btn">Submit a new form</button>
+      </div>
+
+      <div class="sp-divider"></div>
+      <div id="csg-summary" class="csg-summary"></div>
     </div>
 
   </div>
@@ -475,10 +491,6 @@ function makeItemRowFactory(wrap, totalElId){
         <input class="sp-input row-desc" type="text" placeholder="e.g. Nike Dri-FIT polo">
       </div>
       <div>
-        <label class="sp-label row-label">Brand</label>
-        <input class="sp-input row-brand" type="text" placeholder="Nike">
-      </div>
-      <div>
         <label class="sp-label row-label">Color</label>
         <input class="sp-input row-color" type="text" placeholder="Navy">
       </div>
@@ -496,7 +508,6 @@ function makeItemRowFactory(wrap, totalElId){
       </div>`;
     if(prefill){
       row.querySelector('.row-desc').value=prefill.desc||'';
-      row.querySelector('.row-brand').value=prefill.brand||'';
       row.querySelector('.row-color').value=prefill.color||'';
       row.querySelector('.row-size').value=prefill.size||'';
       row.querySelector('.row-qty').value=prefill.qty||'0';
@@ -505,7 +516,6 @@ function makeItemRowFactory(wrap, totalElId){
     row.querySelector('.csg-duprow').onclick=()=>{
       addRow({
         desc: row.querySelector('.row-desc').value,
-        brand: row.querySelector('.row-brand').value,
         color: row.querySelector('.row-color').value,
         size: row.querySelector('.row-size').value,
         qty: row.querySelector('.row-qty').value
@@ -523,7 +533,6 @@ function makeItemRowFactory(wrap, totalElId){
   function getRows(){
     return [...wrap.querySelectorAll('.csg-itemrow')].map(row=>({
       desc: row.querySelector('.row-desc').value.trim(),
-      brand: row.querySelector('.row-brand').value.trim(),
       color: row.querySelector('.row-color').value.trim(),
       size: row.querySelector('.row-size').value.trim(),
       qty: row.querySelector('.row-qty').value.trim()
@@ -555,7 +564,48 @@ wireCheck('csg-agreecheck','f-agree');
 // ---- signature date ----
 document.getElementById('f-sigdate').value = new Date().toLocaleDateString();
 
-// ---- submit ----
+// ---- printable summary ----
+function summaryRow(label, value){
+  return `<div class="row"><span class="k">${esc(label)}</span><span class="v">${value && String(value).trim() ? esc(value) : '<span class="empty-note">Not provided</span>'}</span></div>`;
+}
+function summaryLineList(rows){
+  if(!rows.length) return `<p class="empty-note">None specified</p>`;
+  return `<ul class="line-list">${rows.map(r=>`<li>${esc(r.qty)} x ${esc(r.desc)}${r.color?', '+esc(r.color):''}${r.size?', size '+esc(r.size):''}</li>`).join('')}</ul>`;
+}
+function renderSummary(data){
+  const wrap=document.getElementById('csg-summary');
+  wrap.innerHTML = `
+    <h3>Your information</h3>
+    ${summaryRow('Contact name', data.name)}
+    ${summaryRow('Company', data.company)}
+    ${summaryRow('Email', data.email)}
+    ${summaryRow('Phone', data.phone)}
+    ${summaryRow('PO number', data.po)}
+    ${summaryRow('Branding Specialist', data.repDisplay)}
+
+    <h3>Order details</h3>
+    ${summaryRow('Decoration method(s)', data.methodsDisplay)}
+    ${summaryRow('Needed-by / event date', data.neededBy)}
+    ${summaryRow('Firm in-hands date?', data.firmInhands)}
+    ${summaryRow('Rush job?', data.rush)}
+    ${summaryRow('Design / placement notes', data.designNotes)}
+
+    <h3>Goods supplied</h3>
+    ${summaryLineList(data.items)}
+    <div class="totalrow"><span>Total pieces</span><span>${esc(data.totalPieces)}</span></div>
+
+    <h3>Extra pieces for setup / spoilage</h3>
+    ${summaryLineList(data.extras)}
+    <div class="totalrow"><span>Total extra pieces</span><span>${esc(data.totalExtras)}</span></div>
+
+    <h3>Signature</h3>
+    ${summaryRow('Signed by', data.signedName)}
+    ${summaryRow('Date', data.signedDate)}
+    ${summaryRow('Submitted at', data.timestamp)}
+  `;
+}
+
+
 const toast=document.getElementById('csg-toast');
 function showToast(msg, isError){
   toast.textContent=msg;
@@ -588,7 +638,7 @@ document.getElementById('csg-form').addEventListener('submit', async (e)=>{
   const items=mainRows.getRows();
   const extras=extraRows.getRows();
 
-  const rowToLine = i => `${i.qty} x ${i.desc}${i.brand?' ('+i.brand+')':''}${i.color?', '+i.color:''}${i.size?', size '+i.size:''}`;
+  const rowToLine = i => `${i.qty} x ${i.desc}${i.color?', '+i.color:''}${i.size?', size '+i.size:''}`;
   const itemsSummary = items.map(rowToLine).join('\n');
   const extrasSummary = extras.length ? extras.map(rowToLine).join('\n') : 'None specified';
   const timestamp = new Date().toISOString();
@@ -626,6 +676,21 @@ document.getElementById('csg-form').addEventListener('submit', async (e)=>{
       throw new Error('EmailJS is not configured yet (placeholder keys still in the code).');
     }
     await emailjs.send(EMAILJS_SERVICE_ID, EMAILJS_TEMPLATE_ID, templateParams);
+    renderSummary({
+      name, company: templateParams.company, email, phone,
+      po: templateParams.po_number,
+      repDisplay: templateParams.rep,
+      methodsDisplay: templateParams.decoration_methods,
+      neededBy: templateParams.needed_by,
+      firmInhands: templateParams.firm_inhands,
+      rush: templateParams.rush,
+      designNotes: templateParams.design_notes,
+      items, totalPieces: total,
+      extras, totalExtras: extraTotal,
+      signedName: signame,
+      signedDate: templateParams.signed_date,
+      timestamp
+    });
     document.getElementById('csg-form').style.display='none';
     document.getElementById('csg-successname').textContent=name.split(' ')[0];
     document.getElementById('csg-success').style.display='block';
@@ -637,6 +702,39 @@ document.getElementById('csg-form').addEventListener('submit', async (e)=>{
     btn.disabled=false; btn.textContent='Submit intake form';
   }
 });
+
+// ---- submit a new form (reset) ----
+document.getElementById('csg-newform-btn').onclick=()=>{
+  const form=document.getElementById('csg-form');
+  form.reset();
+
+  // reset decoration method chips
+  document.querySelectorAll('.csg-method.on').forEach(el=>el.classList.remove('on'));
+  selectedMethods=[];
+  otherWrap.style.display='none';
+  otherInput.value='';
+
+  // reset item rows back to the default starting count
+  itemsWrap.innerHTML=''; mainRows.addRow(); mainRows.addRow();
+  extrasWrap.innerHTML=''; extraRows.addRow();
+
+  // reset checkboxes' visual state
+  document.getElementById('csg-countcheck').classList.remove('on');
+  document.getElementById('csg-agreecheck').classList.remove('on');
+
+  // reset signature date
+  document.getElementById('f-sigdate').value = new Date().toLocaleDateString();
+
+  // reset submit button and toast
+  const btn=document.getElementById('csg-submitbtn');
+  btn.disabled=false; btn.textContent='Submit intake form';
+  toast.style.display='none';
+
+  // swap screens
+  document.getElementById('csg-success').style.display='none';
+  form.style.display='block';
+  window.scrollTo({top:0, behavior:'smooth'});
+};
 </script>
 </body>
 </html>
