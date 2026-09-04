@@ -91,7 +91,7 @@
   .sp-toast.error{background:var(--danger);}
 
   /* item rows (garments supplied) */
-  .csg-itemrow{display:grid;grid-template-columns:2.2fr 1.2fr .9fr .8fr auto;gap:8px;align-items:end;margin-bottom:10px;}
+  .csg-itemrow{display:grid;grid-template-columns:1.9fr .9fr .8fr .7fr .6fr auto;gap:8px;align-items:end;margin-bottom:10px;}
   @media (max-width:640px){ .csg-itemrow{grid-template-columns:1fr 1fr;} .csg-itemrow .csg-col-desc{grid-column:1/-1;} .csg-itemrow .csg-rowactions{grid-column:1/-1;justify-content:flex-end;}}
   .csg-rowactions{display:flex;gap:6px;}
   .csg-rmrow,.csg-duprow{background:#fff;border:1.5px solid var(--line);color:var(--mut);width:44px;height:44px;flex:none;border-radius:var(--r-sm);cursor:pointer;font-size:16px;line-height:1;transition:border-color var(--dur-fast) var(--ease),color var(--dur-fast) var(--ease);}
@@ -99,7 +99,7 @@
   .csg-duprow{font-size:15px;}
   .csg-duprow:hover{border-color:var(--lanyard);color:var(--lanyard);}
   .csg-itemhead{display:none;}
-  @media (min-width:641px){ .csg-itemhead{display:grid;grid-template-columns:2.2fr 1.2fr .9fr .8fr auto;gap:8px;margin-bottom:6px;} .csg-itemhead span{font-size:var(--fs-xs);font-weight:700;color:var(--mut);letter-spacing:.3px;} .csg-itemrow .row-label{display:none;} }
+  @media (min-width:641px){ .csg-itemhead{display:grid;grid-template-columns:1.9fr .9fr .8fr .7fr .6fr auto;gap:8px;margin-bottom:6px;} .csg-itemhead span{font-size:var(--fs-xs);font-weight:700;color:var(--mut);letter-spacing:.3px;} .csg-itemrow .row-label{display:none;} }
 
   .csg-totalbar{display:flex;align-items:center;justify-content:space-between;background:var(--paper);border:1px solid var(--line);border-radius:var(--r-sm);padding:11px 14px;margin-top:6px;font-size:var(--fs-sm);font-weight:700;}
   .csg-totalbar .n{color:var(--lanyard);font-size:var(--fs-md);}
@@ -190,7 +190,7 @@
             <input class="sp-input" type="text" id="f-po" placeholder="e.g. SO-10432">
           </div>
           <div>
-            <label class="sp-label">Sales rep you're working with</label>
+            <label class="sp-label">Branding Specialist you're working with</label>
             <select class="sp-input" id="f-rep">
               <option value="">Not sure / no preference</option>
               <option value="Shannon">Shannon</option>
@@ -246,7 +246,7 @@
             <option value="Yes">Yes, items must be in my hands by this date</option>
             <option value="No">No, this is a target, some flexibility is okay</option>
           </select>
-          <p class="sp-note">A firm in-hands date means the finished, decorated goods need to be in your hands by that date, not just started. Flag this clearly so your rep can plan production and shipping accordingly.</p>
+          <p class="sp-note">A firm in-hands date means the finished, decorated goods need to be in your hands by that date, not just started. Flag this clearly so your Branding Specialist can plan production and shipping accordingly.</p>
         </div>
 
         <div class="sp-fieldgroup">
@@ -263,6 +263,7 @@
         <div class="csg-itemhead">
           <span>Item / style description</span>
           <span>Brand</span>
+          <span>Color</span>
           <span>Size</span>
           <span>Qty</span>
           <span></span>
@@ -278,6 +279,7 @@
         <div class="csg-itemhead">
           <span>Item / style description</span>
           <span>Brand</span>
+          <span>Color</span>
           <span>Size</span>
           <span>Qty</span>
           <span></span>
@@ -343,7 +345,7 @@
 <p>Production timelines begin only after all CSG items have been received, counted, and confirmed ready for decoration, and after final artwork approval (if applicable). Requested rush timelines may incur additional rush fees and are subject to TORO's capacity at the time of drop-off.</p>
 
 <h3>9. Storage &amp; pickup of finished goods</h3>
-<p>Customers are responsible for picking up finished goods within a timeframe communicated by their TORO representative. Goods not picked up within 30 days of TORO's completion notice may incur a storage fee, and after 60 days may be considered abandoned and donated or disposed of at TORO's discretion, without further liability to TORO.</p>
+<p>Customers are responsible for picking up finished goods within a timeframe communicated by their TORO Branding Specialist. Goods not picked up within 30 days of TORO's completion notice may incur a storage fee, and after 60 days may be considered abandoned and donated or disposed of at TORO's discretion, without further liability to TORO.</p>
 
 <h3>10. Ownership &amp; intellectual property</h3>
 <p>The customer confirms they own the goods being submitted, or are authorized by the owner to have them decorated, and that any artwork or branding supplied does not infringe any third party's copyright, trademark, or other intellectual property rights. The customer agrees to indemnify TORO against any claim, loss, or expense arising from a third-party IP claim related to customer-supplied goods or artwork.</p>
@@ -352,7 +354,7 @@
 <p>TORO is not responsible for loss of or damage to CSG items caused by events beyond its reasonable control, including fire, theft, natural disaster, or other casualty, separate from and in addition to the production-related risks described in Section 2. TORO does not carry insurance covering the replacement value of customer-owned goods while on its premises.</p>
 
 <h3>12. Payment</h3>
-<p>Standard decoration pricing and any applicable deposit will be confirmed by your TORO representative. Payment for decoration services is due according to the terms provided at order confirmation, regardless of the condition of the customer-supplied goods, except where TORO is at fault under Section 3.</p>
+<p>Standard decoration pricing and any applicable deposit will be confirmed by your TORO Branding Specialist. Payment for decoration services is due according to the terms provided at order confirmation, regardless of the condition of the customer-supplied goods, except where TORO is at fault under Section 3.</p>
 
 <h3>13. Governing law</h3>
 <p>This agreement is governed by the laws of the state in which the servicing TORO facility is located, without regard to conflict-of-law principles. Any dispute arising from this agreement will first be addressed through good-faith discussion between the parties.</p>
@@ -399,7 +401,7 @@
     <div class="sp-card sp-card-primary" id="csg-success" style="display:none;text-align:center;">
       <div class="csg-successicon">&#10003;</div>
       <h2 class="sp-h2" style="text-align:center;">Submitted</h2>
-      <p class="sp-cardintro" style="text-align:center;">Thanks, <span id="csg-successname"></span>, your intake form has been sent to your TORO representative. Bring your listed items to your scheduled drop-off; a copy of this confirmation is below for your records.</p>
+      <p class="sp-cardintro" style="text-align:center;">Thanks, <span id="csg-successname"></span>, your intake form has been sent to your TORO Branding Specialist. Bring your listed items to your scheduled drop-off; a copy of this confirmation is below for your records.</p>
       <button type="button" class="sp-btn ghost no-print" onclick="window.print()">Print / save this confirmation</button>
     </div>
 
@@ -477,6 +479,10 @@ function makeItemRowFactory(wrap, totalElId){
         <input class="sp-input row-brand" type="text" placeholder="Nike">
       </div>
       <div>
+        <label class="sp-label row-label">Color</label>
+        <input class="sp-input row-color" type="text" placeholder="Navy">
+      </div>
+      <div>
         <label class="sp-label row-label">Size(s)</label>
         <input class="sp-input row-size" type="text" placeholder="M-XL">
       </div>
@@ -491,6 +497,7 @@ function makeItemRowFactory(wrap, totalElId){
     if(prefill){
       row.querySelector('.row-desc').value=prefill.desc||'';
       row.querySelector('.row-brand').value=prefill.brand||'';
+      row.querySelector('.row-color').value=prefill.color||'';
       row.querySelector('.row-size').value=prefill.size||'';
       row.querySelector('.row-qty').value=prefill.qty||'0';
     }
@@ -499,6 +506,7 @@ function makeItemRowFactory(wrap, totalElId){
       addRow({
         desc: row.querySelector('.row-desc').value,
         brand: row.querySelector('.row-brand').value,
+        color: row.querySelector('.row-color').value,
         size: row.querySelector('.row-size').value,
         qty: row.querySelector('.row-qty').value
       });
@@ -516,6 +524,7 @@ function makeItemRowFactory(wrap, totalElId){
     return [...wrap.querySelectorAll('.csg-itemrow')].map(row=>({
       desc: row.querySelector('.row-desc').value.trim(),
       brand: row.querySelector('.row-brand').value.trim(),
+      color: row.querySelector('.row-color').value.trim(),
       size: row.querySelector('.row-size').value.trim(),
       qty: row.querySelector('.row-qty').value.trim()
     })).filter(i=>i.desc || parseInt(i.qty)>0);
@@ -579,7 +588,7 @@ document.getElementById('csg-form').addEventListener('submit', async (e)=>{
   const items=mainRows.getRows();
   const extras=extraRows.getRows();
 
-  const rowToLine = i => `${i.qty} x ${i.desc}${i.brand?' ('+i.brand+')':''}${i.size?', size '+i.size:''}`;
+  const rowToLine = i => `${i.qty} x ${i.desc}${i.brand?' ('+i.brand+')':''}${i.color?', '+i.color:''}${i.size?', size '+i.size:''}`;
   const itemsSummary = items.map(rowToLine).join('\n');
   const extrasSummary = extras.length ? extras.map(rowToLine).join('\n') : 'None specified';
   const timestamp = new Date().toISOString();
@@ -623,7 +632,7 @@ document.getElementById('csg-form').addEventListener('submit', async (e)=>{
     document.getElementById('csg-success').scrollIntoView({behavior:'smooth'});
   }catch(err){
     console.error(err);
-    showToast('Something went wrong sending this form ('+err.message+'). Please try again or contact your rep directly.', true);
+    showToast('Something went wrong sending this form ('+err.message+'). Please try again or contact your Branding Specialist directly.', true);
     btn.disabled=false; btn.textContent='Submit intake form';
   }
 });
