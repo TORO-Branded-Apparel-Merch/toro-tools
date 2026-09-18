@@ -1,0 +1,1394 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#BC112A">
+<title>GSI Order Tracker</title>
+<!-- ADOBE FONTS (optional): same as the Showcase app. Paste your Latienne Pro kit embed here to get the serif headlines.
+<link rel="stylesheet" href="https://use.typekit.net/KIT_ID.css">
+-->
+<style>
+  :root{
+    --ink:#1a1a1f; --paper:#F5F5F7; --card:#fff;
+    --lanyard:#BC112A; --lanyard-dark:#9e0f22;
+    --red-gradient:linear-gradient(160deg,#BC112A 0%,#E9553A 100%);
+    --red-light:#fff0f2;
+    --tag:#ffd54f; --ok:#1a7f4b; --ok-light:#e6f4ec;
+    --warn:#7a5400; --warn-light:#fff4d6;
+    --danger:#b3261e; --danger-light:#fdecea;
+    --line:#E2E3E6; --mut:#6b6f76;
+    --headline:"latienne-pro",Georgia,"Times New Roman",serif;
+    --sp-1:4px; --sp-2:8px; --sp-3:12px; --sp-4:16px; --sp-5:20px; --sp-6:28px; --sp-7:40px;
+    --fs-xs:11.5px; --fs-sm:13px; --fs-base:15px; --fs-md:16px; --fs-lg:18px; --fs-xl:21px;
+    --r-sm:8px; --r-md:12px; --r-lg:16px; --r-pill:999px;
+    --shadow-sm:0 1px 3px rgba(20,20,30,.07);
+    --shadow-md:0 6px 20px rgba(20,20,30,.10);
+    --shadow-lg:0 14px 36px rgba(20,20,30,.18);
+    --dur-fast:120ms; --dur-base:200ms; --ease:cubic-bezier(.2,.7,.3,1);
+  }
+  *{box-sizing:border-box;}
+  [hidden]{display:none !important;}
+  html{-webkit-text-size-adjust:100%;}
+  body{margin:0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;font-size:var(--fs-base);line-height:1.5;color:var(--ink);background:var(--paper);}
+  h1,h2,h3,p{margin:0;}
+  button,input,select,textarea{font-family:inherit;}
+  ::selection{background:var(--red-light);color:var(--lanyard-dark);}
+  :focus-visible{outline:2px solid var(--lanyard);outline-offset:2px;border-radius:4px;}
+  .hd :focus-visible{outline-color:#fff;}
+  @media (prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:.001ms !important;transition-duration:.001ms !important;}}
+
+  /* ---------- header ---------- */
+  .hd{background:var(--red-gradient);color:#fff;padding:var(--sp-3) var(--sp-6);display:flex;align-items:center;gap:var(--sp-3) var(--sp-5);flex-wrap:wrap;position:sticky;top:0;z-index:100;box-shadow:var(--shadow-md);}
+  .brand{flex:0 0 auto;min-width:0;}
+  .brand h1{font-family:var(--headline);font-size:var(--fs-xl);font-weight:700;letter-spacing:.2px;line-height:1.15;}
+  .brand p{font-size:var(--fs-sm);opacity:.88;line-height:1.3;margin-top:2px;}
+  .nav{display:flex;gap:8px;flex-wrap:wrap;flex:1 1 auto;}
+  .navbtn{background:rgba(255,255,255,.14);color:#fff;border:1px solid rgba(255,255,255,.35);border-radius:var(--r-pill);padding:8px 16px;font-size:var(--fs-sm);font-weight:700;cursor:pointer;white-space:nowrap;transition:background var(--dur-fast) var(--ease),transform var(--dur-fast) var(--ease);}
+  .navbtn:hover{background:rgba(255,255,255,.24);}
+  .navbtn:active{transform:scale(.96);}
+  .navbtn.on{background:#fff;color:var(--lanyard);border-color:#fff;box-shadow:0 2px 8px rgba(0,0,0,.16);}
+  .badge{display:inline-block;min-width:18px;padding:0 6px;margin-left:7px;border-radius:var(--r-pill);background:var(--tag);color:var(--ink);font-size:11px;line-height:18px;text-align:center;font-weight:800;}
+  .hact{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-left:auto;}
+  .hbtn{background:#fff;color:var(--lanyard);border:none;border-radius:var(--r-pill);padding:9px 16px;font-size:var(--fs-sm);font-weight:700;cursor:pointer;white-space:nowrap;box-shadow:0 2px 8px rgba(0,0,0,.16);transition:background var(--dur-fast) var(--ease),transform var(--dur-fast) var(--ease);}
+  .hbtn:hover{background:var(--red-light);}
+  .hbtn:active{transform:scale(.96);}
+  .hbtn.ghost{background:rgba(255,255,255,.14);color:#fff;border:1px solid rgba(255,255,255,.35);box-shadow:none;}
+  .hbtn.ghost:hover{background:rgba(255,255,255,.24);}
+  .banner{background:var(--ink);color:#fff;padding:9px var(--sp-6);font-size:var(--fs-sm);display:flex;gap:12px;align-items:center;justify-content:center;flex-wrap:wrap;text-align:center;}
+  .banner button{background:none;border:none;color:#fff;text-decoration:underline;text-underline-offset:2px;font-size:var(--fs-sm);font-weight:700;cursor:pointer;padding:0;}
+
+  .wrap{max-width:1320px;margin:0 auto;padding:var(--sp-5) var(--sp-6) 72px;}
+  .wrap.enter{animation:screenIn var(--dur-base) var(--ease);}
+  @keyframes screenIn{from{opacity:0;transform:translateY(6px);}to{opacity:1;transform:translateY(0);}}
+
+  /* ---------- shared pieces ---------- */
+  .card{background:var(--card);border:1px solid var(--line);border-radius:var(--r-lg);padding:var(--sp-4);margin-bottom:var(--sp-4);box-shadow:var(--shadow-sm);}
+  .card.flush{padding:0;overflow:hidden;}
+  .sp-h2{font-size:var(--fs-lg);font-weight:700;font-family:var(--headline);line-height:1.25;margin-bottom:var(--sp-2);}
+  .sp-label{display:block;font-size:var(--fs-xs);font-weight:700;letter-spacing:.3px;color:var(--mut);margin-bottom:6px;}
+  .sp-note{font-size:var(--fs-sm);color:var(--mut);margin-top:var(--sp-2);line-height:1.5;}
+  .sp-empty{color:var(--mut);font-size:var(--fs-base);padding:var(--sp-5) var(--sp-4);text-align:center;}
+  .sp-input{width:100%;padding:11px 13px;font-size:var(--fs-base);border:1.5px solid var(--line);border-radius:var(--r-sm);background:#fff;color:var(--ink);transition:border-color var(--dur-fast) var(--ease);}
+  .sp-input:focus{outline:2px solid var(--lanyard);outline-offset:1px;border-color:var(--lanyard);}
+  .sp-input::placeholder{color:#a7abb2;}
+  .sp-input:disabled{background:var(--paper);color:var(--mut);}
+  select.sp-input{appearance:none;-webkit-appearance:none;padding-right:32px;background:#fff url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1.5l5 5 5-5' fill='none' stroke='%236b6f76' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") no-repeat right 12px center;}
+  textarea.sp-input{resize:vertical;line-height:1.45;}
+  .sp-input.sm{padding:9px 12px;font-size:14px;width:auto;}
+  select.sp-input.sm{padding-right:32px;}
+  .sp-btn{display:inline-flex;align-items:center;justify-content:center;gap:7px;background:var(--red-gradient);color:#fff;border:none;border-radius:var(--r-sm);padding:12px 20px;font-size:var(--fs-base);font-weight:700;cursor:pointer;box-shadow:var(--shadow-sm);transition:transform var(--dur-fast) var(--ease),box-shadow var(--dur-fast) var(--ease),filter var(--dur-fast) var(--ease);}
+  .sp-btn:hover{filter:brightness(1.05);box-shadow:var(--shadow-md);}
+  .sp-btn:active{transform:scale(.98);}
+  .sp-btn[disabled]{opacity:.45;cursor:default;box-shadow:none;filter:none;transform:none;}
+  .sp-btn.ghost{background:#fff;color:var(--lanyard);border:1.5px solid var(--lanyard);box-shadow:none;}
+  .sp-btn.ghost:hover{background:var(--red-light);}
+  .sp-btn.danger{background:#fff;color:var(--danger);border:1.5px solid var(--danger);box-shadow:none;}
+  .sp-btn.danger:hover{background:var(--danger-light);}
+  .sp-btn.small{padding:9px 14px;font-size:var(--fs-sm);}
+  .sp-btn.block{width:100%;}
+  .linkbtn{background:none;border:none;color:var(--lanyard);font-size:var(--fs-sm);font-weight:600;cursor:pointer;padding:0;text-decoration:underline;text-underline-offset:2px;}
+  .linkbtn:hover{color:var(--lanyard-dark);}
+  .mut{color:var(--mut);}
+  .meta{font-size:var(--fs-xs);color:var(--mut);line-height:1.3;margin-top:2px;}
+  .chip{display:inline-flex;align-items:center;gap:4px;padding:2px 9px;border-radius:var(--r-pill);font-size:var(--fs-xs);font-weight:700;white-space:nowrap;line-height:1.5;border:1px solid transparent;}
+  .chip.ok{background:var(--ok-light);color:var(--ok);}
+  .chip.warn{background:var(--warn-light);color:var(--warn);}
+  .chip.danger{background:var(--danger-light);color:var(--danger);}
+  .chip.muted{background:var(--paper);color:var(--mut);border-color:var(--line);}
+  .chip.rep,.chip.team{background:var(--ink);color:#fff;}
+  .chip.type{background:#fff;color:var(--ink);border-color:var(--line);}
+  .chip.danger-o{background:#fff;color:var(--danger);border-color:var(--danger);}
+  .chip.warn-o{background:#fff;color:var(--warn);border-color:#e0b53a;}
+  .chip.vendor{background:var(--red-light);color:var(--lanyard);}
+  .chip.info{background:#e8eefc;color:#2c4a9e;}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:var(--sp-3) var(--sp-4);}
+  .span2{grid-column:1 / -1;}
+  .fg{min-width:0;}
+  .chk{display:flex;gap:14px;flex-wrap:wrap;padding-top:8px;}
+  .chk label,label.chk1{display:inline-flex;align-items:center;gap:7px;font-size:var(--fs-sm);font-weight:600;cursor:pointer;}
+  .chk input,label.chk1 input{width:16px;height:16px;accent-color:var(--lanyard);}
+  fieldset{border:none;margin:0;padding:0;min-width:0;}
+
+  /* ---------- orders view ---------- */
+  .kpis{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:var(--sp-3);margin-bottom:var(--sp-4);}
+  .kpi{display:flex;align-items:baseline;gap:12px;text-align:left;background:#fff;border:1px solid var(--line);border-radius:var(--r-lg);padding:14px 18px;box-shadow:var(--shadow-sm);cursor:pointer;color:var(--ink);transition:border-color var(--dur-fast) var(--ease),transform var(--dur-fast) var(--ease);}
+  .kpi:hover{border-color:var(--lanyard);}
+  .kpi:active{transform:scale(.98);}
+  .kpi .kn{font-family:var(--headline);font-size:30px;font-weight:700;line-height:1;}
+  .kpi .kl{font-size:var(--fs-sm);font-weight:700;color:var(--mut);}
+  .kpi.danger .kn{color:var(--danger);}
+  .kpi.warn .kn{color:var(--warn);}
+  .kpi.on{border-color:var(--lanyard);box-shadow:0 0 0 1px var(--lanyard);}
+  .toolbar{display:flex;gap:10px;flex-wrap:wrap;align-items:center;padding:12px 14px;margin-bottom:var(--sp-3);}
+  .toolbar .grow{flex:1 1 220px;max-width:340px;}
+  .toolbar .sp{margin-left:auto;display:flex;gap:8px;flex-wrap:wrap;}
+  .filterchip{display:inline-flex;align-items:center;gap:6px;background:var(--red-light);color:var(--lanyard);border:1.5px solid var(--lanyard);border-radius:var(--r-pill);padding:6px 6px 6px 12px;font-size:var(--fs-sm);font-weight:700;}
+  .filterchip button{background:var(--lanyard);color:#fff;border:none;width:20px;height:20px;border-radius:50%;cursor:pointer;font-size:12px;line-height:20px;padding:0;}
+  .tbl-wrap{overflow-x:auto;}
+  .tbl{width:100%;border-collapse:collapse;font-size:14px;}
+  .tbl th{text-align:left;font-size:var(--fs-xs);font-weight:700;color:var(--mut);padding:11px 12px;border-bottom:1px solid var(--line);white-space:nowrap;background:#fbfbfc;}
+  .thbtn{background:none;border:none;font:inherit;color:inherit;cursor:pointer;padding:0;}
+  .thbtn:hover{color:var(--lanyard);}
+  .tbl td{padding:11px 12px;border-top:1px solid var(--line);vertical-align:top;}
+  .tbl tbody tr:first-child td{border-top:none;}
+  .tbl tbody tr{cursor:pointer;transition:background var(--dur-fast) var(--ease);}
+  .tbl tbody tr:hover{background:#fafafb;}
+  .tbl td:first-child{box-shadow:inset 3px 0 0 transparent;}
+  .tbl tr.sev-danger td:first-child{box-shadow:inset 3px 0 0 var(--danger);}
+  .tbl tr.sev-warn td:first-child{box-shadow:inset 3px 0 0 #e0b53a;}
+  .c-po{font-weight:700;white-space:nowrap;}
+  .c-job{min-width:190px;max-width:300px;}
+  .c-job .job{font-weight:600;}
+  .due{white-space:nowrap;display:flex;gap:6px;align-items:center;}
+  .due-d{font-weight:600;}
+  .flags{display:flex;gap:4px;flex-wrap:wrap;margin-top:4px;align-items:center;}
+  .c-stage{min-width:210px;}
+  .stage-sel{width:100%;max-width:230px;appearance:none;-webkit-appearance:none;background:#fff url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1.5l5 5 5-5' fill='none' stroke='%236b6f76' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") no-repeat right 10px center;border:1.5px solid var(--line);border-radius:var(--r-sm);padding:6px 28px 6px 10px;font-size:var(--fs-sm);font-weight:700;color:var(--ink);cursor:pointer;}
+  .stage-sel:hover{border-color:var(--lanyard);}
+  .stage-sel.done{background-color:var(--ok-light);border-color:#bfe0cd;color:var(--ok);}
+  .pbar{display:flex;gap:2px;margin-top:6px;max-width:230px;}
+  .pbar i{flex:1;height:4px;border-radius:2px;background:var(--line);}
+  .pbar i.f{background:var(--red-gradient);}
+  .c-cm{white-space:nowrap;font-size:var(--fs-sm);color:var(--mut);font-weight:700;}
+
+  /* ---------- board ---------- */
+  .boardbar{display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-bottom:var(--sp-3);}
+  .boardbar .sp-note{margin:0;flex:1 1 300px;}
+  .board{display:flex;gap:12px;overflow-x:auto;padding-bottom:14px;align-items:flex-start;}
+  .bcol{flex:0 0 236px;background:#ebebee;border-radius:var(--r-md);padding:10px;min-height:140px;border:2px solid transparent;}
+  .bcol.opt{background:transparent;border:2px dashed var(--line);}
+  .bcol.opt.empty{flex-basis:150px;}
+  .bcol.over{border-color:var(--lanyard);background:var(--red-light);}
+  .bch{display:flex;align-items:center;justify-content:space-between;gap:8px;margin:2px 2px 10px;}
+  .bch b{font-size:var(--fs-sm);line-height:1.3;}
+  .bch .n{background:#fff;border:1px solid var(--line);border-radius:var(--r-pill);font-size:var(--fs-xs);font-weight:700;padding:1px 8px;color:var(--mut);}
+  .bch .optnote{display:block;font-size:var(--fs-xs);font-weight:600;color:var(--mut);}
+  .bcard{background:#fff;border:1px solid var(--line);border-radius:var(--r-md);padding:10px 11px;margin-bottom:8px;cursor:grab;box-shadow:var(--shadow-sm);transition:box-shadow var(--dur-fast) var(--ease),transform var(--dur-fast) var(--ease);}
+  .bcard:hover{box-shadow:var(--shadow-md);transform:translateY(-1px);}
+  .bcard.drag{opacity:.4;}
+  .bcard.sev-danger{border-left:3px solid var(--danger);}
+  .bcard.sev-warn{border-left:3px solid #e0b53a;}
+  .bc-top{display:flex;gap:6px;align-items:center;flex-wrap:wrap;}
+  .bc-top b{font-size:14px;margin-right:auto;}
+  .bc-job{font-size:var(--fs-sm);font-weight:600;margin:5px 0 7px;line-height:1.3;}
+  .bc-foot{display:flex;gap:4px;flex-wrap:wrap;}
+
+  /* ---------- needs attention ---------- */
+  .att-row{display:grid;grid-template-columns:minmax(220px,1.3fr) minmax(200px,2fr) 190px;gap:12px;align-items:center;padding:12px 4px;border-top:1px solid var(--line);cursor:pointer;}
+  .att-row:first-of-type{border-top:none;}
+  .att-row:hover{background:#fafafb;}
+  .att-main b{margin-right:6px;}
+  .att-why{display:flex;gap:6px;flex-wrap:wrap;}
+  .att-stage{font-size:var(--fs-sm);font-weight:700;color:var(--mut);text-align:right;}
+  .sec-head{display:flex;align-items:baseline;gap:10px;margin-bottom:2px;}
+  .sec-head .sp-h2{margin:0;}
+
+  /* ---------- drawer ---------- */
+  .scrim{position:fixed;inset:0;background:rgba(20,20,30,.42);opacity:0;pointer-events:none;transition:opacity var(--dur-base) var(--ease);z-index:190;}
+  .scrim.open{opacity:1;pointer-events:auto;}
+  .drawer{position:fixed;top:0;right:0;bottom:0;width:min(580px,100vw);background:var(--paper);z-index:200;transform:translateX(102%);transition:transform 240ms var(--ease);display:flex;flex-direction:column;box-shadow:var(--shadow-lg);}
+  .drawer.open{transform:translateX(0);}
+  .dr-head{background:#fff;padding:16px 20px 14px;border-bottom:1px solid var(--line);}
+  .dr-head .top{display:flex;justify-content:space-between;gap:12px;align-items:flex-start;}
+  .dr-head h2{font-family:var(--headline);font-size:var(--fs-xl);line-height:1.2;}
+  .dr-head .sub{font-size:var(--fs-base);font-weight:600;margin-top:2px;}
+  .dr-head .row{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:10px;}
+  .xbtn{background:#fff;border:1.5px solid var(--line);border-radius:50%;width:34px;height:34px;font-size:16px;cursor:pointer;color:var(--mut);flex:none;}
+  .xbtn:hover{border-color:var(--lanyard);color:var(--lanyard);}
+  .dr-body{flex:1;overflow-y:auto;padding:16px 20px 24px;}
+  .dr-sec{background:#fff;border:1px solid var(--line);border-radius:var(--r-lg);padding:14px 16px;margin-bottom:var(--sp-3);box-shadow:var(--shadow-sm);}
+  .dr-sec h3{font-family:var(--headline);font-size:var(--fs-md);margin-bottom:10px;display:flex;justify-content:space-between;align-items:baseline;gap:8px;}
+  .dr-sec h3 .saved{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;font-size:var(--fs-xs);font-weight:700;color:var(--ok);}
+  .dr-foot{background:#fff;border-top:1px solid var(--line);padding:12px 20px;display:flex;gap:10px;justify-content:space-between;flex-wrap:wrap;}
+  .attn{background:var(--danger-light);border:1px solid #f3c6c2;border-radius:var(--r-md);padding:10px 12px;margin-bottom:var(--sp-3);display:flex;gap:6px;flex-wrap:wrap;align-items:center;}
+  .attn.warn{background:var(--warn-light);border-color:#efd58a;}
+  .attn .lead{font-size:var(--fs-sm);font-weight:700;margin-right:4px;}
+  .archnote{background:var(--ink);color:#fff;border-radius:var(--r-md);padding:10px 12px;font-size:var(--fs-sm);font-weight:600;margin-bottom:var(--sp-3);}
+  .stepper{display:flex;gap:6px;flex-wrap:wrap;}
+  .step{background:#fff;border:1.5px solid var(--line);border-radius:var(--r-pill);padding:6px 12px;font-size:var(--fs-sm);font-weight:700;color:var(--ink);cursor:pointer;transition:border-color var(--dur-fast) var(--ease),transform var(--dur-fast) var(--ease);}
+  .step:hover{border-color:var(--lanyard);color:var(--lanyard);}
+  .step:active{transform:scale(.95);}
+  .step.done{background:var(--ok-light);border-color:#bfe0cd;color:var(--ok);}
+  .step.cur{background:var(--red-gradient);border-color:var(--lanyard);color:#fff;}
+  .step.opt{border-style:dashed;}
+  .step[disabled]{cursor:default;}
+  .adv{margin-top:12px;display:flex;gap:10px;align-items:center;flex-wrap:wrap;}
+  .cm{padding:10px 0;border-top:1px solid var(--line);}
+  .cm:first-child{border-top:none;padding-top:0;}
+  .cm-h{display:flex;gap:8px;align-items:center;flex-wrap:wrap;font-size:var(--fs-sm);}
+  .cm-t{color:var(--mut);font-size:var(--fs-xs);}
+  .cm-b{margin-top:4px;white-space:pre-wrap;word-break:break-word;font-size:14px;}
+  .hist{font-size:var(--fs-sm);padding:6px 0;border-top:1px solid var(--line);display:flex;gap:10px;justify-content:space-between;}
+  .hist:first-child{border-top:none;}
+  .hist span.t{color:var(--mut);font-size:var(--fs-xs);white-space:nowrap;}
+  details summary{cursor:pointer;font-weight:700;font-size:var(--fs-sm);color:var(--lanyard);}
+
+  /* ---------- modal + toast ---------- */
+  .mo{position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:1000;display:flex;align-items:center;justify-content:center;padding:16px;backdrop-filter:blur(1px);}
+  .mo-box{background:#fff;border-radius:var(--r-lg);box-shadow:var(--shadow-lg);padding:24px 26px;width:100%;max-width:440px;max-height:92vh;overflow-y:auto;animation:screenIn var(--dur-base) var(--ease);}
+  .mo-box.wide{max-width:640px;}
+  .mo-box .sp-h2{font-size:var(--fs-xl);margin-bottom:var(--sp-3);}
+  .mo-actions{display:flex;gap:10px;justify-content:flex-end;margin-top:18px;}
+  .seg{display:flex;gap:16px;flex-wrap:wrap;padding-top:4px;}
+  .seg label{display:inline-flex;gap:7px;align-items:center;font-weight:600;font-size:var(--fs-base);cursor:pointer;}
+  .seg input{accent-color:var(--lanyard);width:16px;height:16px;}
+  .toast{position:fixed;left:50%;bottom:26px;transform:translate(-50%,20px);background:var(--ok);color:#fff;border-radius:var(--r-sm);padding:11px 18px;font-size:var(--fs-base);font-weight:600;box-shadow:var(--shadow-lg);opacity:0;pointer-events:none;transition:opacity var(--dur-base) var(--ease),transform var(--dur-base) var(--ease);z-index:2000;max-width:min(560px,92vw);text-align:center;}
+  .toast.show{opacity:1;transform:translate(-50%,0);}
+  .toast.err{background:var(--danger);}
+  .toast.info{background:var(--ink);}
+
+  /* ---------- settings ---------- */
+  .setgrid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:0 var(--sp-4);align-items:start;}
+  .setgrid .full{grid-column:1 / -1;}
+  .reptbl{width:100%;border-collapse:collapse;font-size:14px;}
+  .reptbl td{padding:6px 6px 6px 0;vertical-align:middle;}
+  .reptbl td:first-child{width:64px;}
+  .rule{border:1px solid var(--line);border-radius:var(--r-md);padding:12px 14px;margin-bottom:10px;background:#fff;}
+  .rule.off{background:var(--paper);}
+  .rule.off .rule-top{opacity:.6;}
+  .rule-top{display:flex;gap:12px;align-items:center;flex-wrap:wrap;}
+  .rule-top select{flex:1 1 260px;}
+  .rule-to{display:flex;gap:12px;flex-wrap:wrap;font-size:var(--fs-sm);font-weight:600;}
+  .rule-to label{display:inline-flex;gap:6px;align-items:center;cursor:pointer;}
+  .rule-to input,.rule .on input{accent-color:var(--lanyard);width:16px;height:16px;}
+  .rule .on{display:inline-flex;gap:6px;align-items:center;font-weight:700;font-size:var(--fs-sm);cursor:pointer;}
+  .rule details{margin-top:10px;}
+  .rule details .fg{margin-top:10px;}
+  .statusline{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:12px;}
+  .logtbl{width:100%;border-collapse:collapse;font-size:var(--fs-sm);}
+  .logtbl td,.logtbl th{padding:8px 8px 8px 0;border-top:1px solid var(--line);text-align:left;vertical-align:top;}
+  .logtbl th{font-size:var(--fs-xs);color:var(--mut);border-top:none;}
+  code{background:var(--paper);border:1px solid var(--line);border-radius:5px;padding:1px 5px;font-size:12px;}
+  ol.steps{margin:8px 0 0;padding-left:20px;font-size:var(--fs-sm);line-height:1.6;}
+
+  @media (max-width:1000px){
+    .kpis{grid-template-columns:repeat(2,minmax(0,1fr));}
+    .setgrid{grid-template-columns:1fr;}
+    .att-row{grid-template-columns:1fr;}
+    .att-stage{text-align:left;}
+  }
+  @media (max-width:640px){
+    .hd{position:static;}
+    .hd,.wrap{padding-left:var(--sp-4);padding-right:var(--sp-4);}
+    .grid2{grid-template-columns:1fr;}
+  }
+</style>
+</head>
+<body>
+
+<header class="hd">
+  <div class="brand">
+    <h1>GSI Order Tracker</h1>
+    <p>Live order status for reps, ops and GSI</p>
+  </div>
+  <nav class="nav" aria-label="Views">
+    <button class="navbtn" data-view="orders">Orders</button>
+    <button class="navbtn" data-view="board">Board</button>
+    <button class="navbtn" data-view="attention">Needs attention<span class="badge" id="att-badge" hidden>0</span></button>
+    <button class="navbtn" data-view="archive">Archive</button>
+    <button class="navbtn" data-view="settings">Settings</button>
+  </nav>
+  <div class="hact">
+    <button class="hbtn" data-act="new">+ New order</button>
+    <button class="hbtn ghost" data-act="export">Export to Excel</button>
+    <button class="hbtn ghost" data-act="who" id="who-chip">Set your name</button>
+  </div>
+</header>
+
+<div class="banner" id="demo-banner" hidden>
+  <span>Preview mode: your 13 orders are loaded, but changes stay in this browser only and no email is sent.</span>
+  <button data-act="reset-demo">Reset preview data</button>
+</div>
+
+<main class="wrap" id="main"><div class="sp-empty">Loading…</div></main>
+
+<div class="scrim" id="scrim"></div>
+<aside class="drawer" id="drawer" role="dialog" aria-modal="true" aria-label="Order details"></aside>
+
+<div class="mo" id="modal" hidden>
+  <div class="mo-box" role="dialog" aria-modal="true" aria-labelledby="mo-title">
+    <h2 class="sp-h2" id="mo-title"></h2>
+    <div id="mo-body"></div>
+    <div class="mo-actions" id="mo-actions"></div>
+  </div>
+</div>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+<input type="file" id="file-import" accept=".csv,.xlsx,.xls" hidden>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script>
+/* =====================================================================
+   GSI ORDER TRACKER
+   ---------------------------------------------------------------------
+   SETUP (two things to fill in below; leave blank to run in preview mode)
+
+   1) FIREBASE  – stores the orders so everyone sees the same live data.
+      • Firebase console → Project settings → paste the same web-app config
+        block you use in the Showcase app (a new project also works).
+      • Firestore → Rules: allow read/write on the three collections used here:
+            match /gsi_orders/{id}   { allow read, write: if true; }
+            match /gsi_settings/{id} { allow read, write: if true; }
+            match /gsi_emailLog/{id} { allow read, write: if true; }
+        (Open rules match "anyone with the link". Tighten later if needed.)
+
+   2) EMAILJS  – sends the automated emails.
+      • Create an EmailJS email service + one template with:
+            To Email: {{to_email}}   From Name: {{from_name}}   Subject: {{subject}}
+            Content (Code Editor): <div style="white-space:pre-wrap">{{message}}</div>
+      • Paste the Service ID, Template ID and Public Key below.
+   ===================================================================== */
+const FIREBASE_CONFIG = {
+  apiKey: "",
+  authDomain: "",
+  projectId: "",
+  storageBucket: "",
+  messagingSenderId: "",
+  appId: ""
+};
+const EMAILJS_CONFIG = { serviceId: "", templateId: "", publicKey: "" };
+
+(() => {
+'use strict';
+
+/* ---------- constants ---------- */
+const COLL = { orders:'gsi_orders', settings:'gsi_settings', log:'gsi_emailLog' };
+const DEMO = !FIREBASE_CONFIG.projectId;
+const EMAIL_READY = !!(EMAILJS_CONFIG.serviceId && EMAILJS_CONFIG.templateId && EMAILJS_CONFIG.publicKey);
+
+const STAGES = [
+  {id:'submitted',       label:'Order submitted'},
+  {id:'received',        label:'Order received'},
+  {id:'proof_sent',      label:'Proof sent'},
+  {id:'proof_approved',  label:'Proof approved'},
+  {id:'in_production',   label:'In production'},
+  {id:'sample_complete', label:'Pre-production sample complete', optional:true},
+  {id:'sample_approved', label:'Pre-production sample approved', optional:true},
+  {id:'order_complete',  label:'Order complete'},
+  {id:'picked_up',       label:'Order picked up / delivered'}
+];
+const SI = Object.fromEntries(STAGES.map((s,i)=>[s.id,i]));
+const GOODS = {pending:'Not received', expected:'Expected', received:'Received'};
+const FILES = {pending:'Pending', uploaded:'Uploaded'};
+const DECO  = {SP:'Screen print', EMB:'Embroidery', BOTH:'Screen print + embroidery'};
+const RISK  = new Set(['blocked','goodslate','tight','soon']);
+const SIG='\n\nOpen in tracker: {order_url}';
+
+/* ---------- tiny helpers ---------- */
+const $  = (s,r=document)=>r.querySelector(s);
+const $$ = (s,r=document)=>[...r.querySelectorAll(s)];
+const esc = s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const uid = ()=>Math.random().toString(36).slice(2,9)+Date.now().toString(36).slice(-3);
+const clean = o=>JSON.parse(JSON.stringify(o));
+const pad = n=>String(n).padStart(2,'0');
+const todayISO = ()=>{const d=new Date();return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate());};
+const parseISO = s=>{const [y,m,d]=s.split('-').map(Number);return new Date(y,m-1,d);};
+const daysBetween = (a,b)=>Math.round((parseISO(b)-parseISO(a))/86400000);
+const fmtDate = iso=>iso?parseISO(iso).toLocaleDateString('en-US',{weekday:'short',month:'numeric',day:'numeric'}):'—';
+const fmtShort = iso=>iso?parseISO(iso).toLocaleDateString('en-US',{month:'numeric',day:'numeric'}):'—';
+const fmtTs = ts=>new Date(ts).toLocaleString('en-US',{month:'short',day:'numeric',hour:'numeric',minute:'2-digit'});
+const stageLabel = id=>(STAGES[SI[id]]||STAGES[0]).label;
+const splitEmails = s=>String(s||'').split(/[,;\s]+/).map(x=>x.trim()).filter(x=>/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(x));
+const byId = id=>orders.find(o=>o.id===id);
+const decoShort = d=>d==='BOTH'?'SP + EMB':(d||'SP');
+
+/* ---------- state ---------- */
+let orders=[], emailLog=[], settings=defaultSettings();
+let view='orders', openId=null, ready=false;
+let who=loadWho();
+const F={q:'',rep:'',type:'',stage:'open',quick:''};
+const AF={q:''};
+const sort={key:'due',dir:1};
+const main=$('#main');
+
+/* =====================================================================
+   SETTINGS DEFAULTS + EMAIL RULES
+   ===================================================================== */
+function defaultRules(){
+  const R=(id,trigger,to,subject,body)=>({id,on:true,trigger,to:Object.assign({rep:false,vendor:false,ops:false},to),extra:[],subject,body:body+SIG});
+  return [
+    R('r_new','order_added',{rep:true,vendor:true},'New order: {po} – {job}','{by} added a new order.\n\nPO: {po}\nJob: {job}\nRep: {rep}\nDue: {due}\nPrintavo: {link}'),
+    R('r_proof_sent','stage:proof_sent',{rep:true},'Proof ready for review: {po} – {job}','A proof has been sent for {po} – {job}.\n\nPlease review it and let us know if it is approved or needs changes.\nDue: {due}'),
+    R('r_proof_ok','stage:proof_approved',{vendor:true},'Proof approved: {po} – {job}','The proof for {po} – {job} is approved.\n\nGoods: {goods}\nProduction files: {files}\nDue: {due}'),
+    R('r_prod','stage:in_production',{rep:true},'In production: {po} – {job}','{po} – {job} is now in production.\n\nDue: {due}'),
+    R('r_samp_done','stage:sample_complete',{rep:true},'Pre-production sample ready: {po} – {job}','The pre-production sample for {po} – {job} is complete and ready for approval.'),
+    R('r_samp_ok','stage:sample_approved',{vendor:true},'Sample approved: {po} – {job}','The pre-production sample for {po} – {job} is approved. Go ahead with the full run.\n\nDue: {due}'),
+    R('r_complete','stage:order_complete',{rep:true,ops:true},'Order complete: {po} – {job}','{po} – {job} is complete and ready for pickup or delivery.'),
+    R('r_cm_vendor','comment:vendor',{rep:true},'New comment from {partner} on {po}','{by} ({partner}) commented on {po} – {job}:\n\n{comment}'),
+    R('r_cm_team','comment:team',{vendor:true},'New comment from {team} on {po}','{by} ({team}) commented on {po} – {job}:\n\n{comment}')
+  ];
+}
+function defaultSettings(){
+  return {
+    teamName:'Toro Merch', vendorName:'GSI',
+    reps: DEMO ? ['JH','SB','DG','AS','SR'].map(i=>({initials:i,name:'',email:i.toLowerCase()+'@example.com'})) : [],
+    vendorEmails: DEMO ? ['production@example.com'] : [],
+    opsEmails: DEMO ? ['ops@example.com'] : [],
+    emailEnabled: DEMO,
+    rules: defaultRules()
+  };
+}
+function triggerOptions(){
+  return [['order_added','A new order is added']]
+    .concat(STAGES.map(s=>['stage:'+s.id,'Stage changes to: '+s.label]))
+    .concat([['goods:received','Goods are marked received'],['files:uploaded','Production files are marked uploaded'],
+             ['comment:team',settings.teamName+' posts a comment'],['comment:vendor',settings.vendorName+' posts a comment']]);
+}
+const triggerLabel = t=>(triggerOptions().find(x=>x[0]===t)||[t,t])[1];
+
+function repInfo(ini){return (settings.reps||[]).find(r=>r.initials===ini)||{initials:ini,name:'',email:''};}
+function repLabel(ini){const r=repInfo(ini);return r.name?ini+' – '+r.name:ini;}
+function allRepInitials(){const s=new Set((settings.reps||[]).map(r=>r.initials));orders.forEach(o=>o.rep&&s.add(o.rep));return [...s].sort();}
+
+/* =====================================================================
+   STAGE + ATTENTION LOGIC
+   ===================================================================== */
+const stagesFor = o=>STAGES.filter(s=>!s.optional||o.sampleRequired);
+function nextStage(o){const cur=SI[o.stage];return stagesFor(o).find(s=>SI[s.id]>cur)||null;}
+const isDone = o=>SI[o.stage]>=SI.order_complete;
+
+function attention(o){
+  const out=[]; if(o.archived||SI[o.stage]>=SI.picked_up) return out;
+  const t=todayISO(), si=SI[o.stage], done=isDone(o);
+  if(o.due&&!done){
+    const d=daysBetween(t,o.due);
+    if(d<0) out.push({k:'overdue',sev:'danger',text:Math.abs(d)+'d past due'});
+    else if(d===0) out.push({k:'today',sev:'warn',text:'Due today'});
+    else if(d<=2&&si<SI.in_production) out.push({k:'soon',sev:'warn',text:'Due in '+d+'d, not in production'});
+  }
+  if(!done){
+    if(si>=SI.proof_approved){
+      if(o.goods!=='received') out.push({k:'blocked',sev:'danger',text:'Goods not received'});
+      if(o.files!=='uploaded') out.push({k:'blocked',sev:'danger',text:'Production files pending'});
+    }
+    if(o.goods==='expected'&&o.goodsDate){
+      if(o.goodsDate<t) out.push({k:'goodslate',sev:'danger',text:'Goods expected '+fmtShort(o.goodsDate)+', not marked received'});
+      else if(o.due&&daysBetween(o.goodsDate,o.due)<=1) out.push({k:'tight',sev:'warn',text:'Goods expected '+fmtShort(o.goodsDate)+', due '+fmtShort(o.due)});
+    }
+    if(o.rush||o.firm) out.push({k:'flag',sev:'info',text:o.rush?'Rush':'Firm date'});
+  }
+  return out;
+}
+const urgent = o=>attention(o).some(a=>a.sev==='danger'||(a.sev==='warn'&&a.k!=='today'));
+function rowSev(o){const a=attention(o);if(a.some(x=>x.sev==='danger'))return 'danger';if(a.some(x=>x.sev==='warn'&&x.k!=='today'))return 'warn';return '';}
+
+/* =====================================================================
+   IMPORT PARSING (understands the current Google Sheet layout)
+   ===================================================================== */
+function looseDate(s,year){
+  const m=String(s||'').match(/(\d{1,2})\/(\d{1,2})(?:\/(\d{2,4}))?/); if(!m) return '';
+  let y=m[3]?+m[3]:year; if(y<100) y+=2000;
+  const mo=+m[1], d=+m[2]; if(mo<1||mo>12||d<1||d>31) return '';
+  return y+'-'+pad(mo)+'-'+pad(d);
+}
+function parseDue(s,year){
+  const str=String(s||'').trim();
+  const rest=str.replace(/(\d{1,2})\/(\d{1,2})(?:\/(\d{2,4}))?/,'').replace(/^[\s\-–—:,]+/,'').trim();
+  return {due:looseDate(str,year),firm:/firm/i.test(str),rush:/rush/i.test(str),
+          timed:/\b(by|before)\s*\d{1,2}(:\d{2})?\s*(am|pm)?/i.test(str)||/\d\s*(am|pm)\b/i.test(str),dueNote:rest};
+}
+function parseGoods(s,year){
+  const t=String(s||'').trim();
+  if(!t) return {goods:'pending',goodsDate:'',goodsNote:''};
+  if(/received/i.test(t)) return {goods:'received',goodsDate:'',goodsNote:''};
+  const iso=looseDate(t,year);
+  if(iso) return {goods:'expected',goodsDate:iso,goodsNote:t.replace(/(\d{1,2})\/(\d{1,2})(?:\/(\d{2,4}))?/,'').replace(/^[\s\-–—:,]+/,'').trim()};
+  return {goods:'pending',goodsDate:'',goodsNote:t};
+}
+function parseArt(s){
+  const t=String(s||'').trim();
+  if(/approved/i.test(t)&&!/need|not|will|wait|pending/i.test(t)) return {proof:'approved',note:/^approved$/i.test(t)?'':t};
+  if(/test print|proof|sent|review/i.test(t)) return {proof:'sent',note:t};
+  return {proof:'none',note:t};
+}
+function parseFiles(s){
+  const t=String(s||'').trim();
+  if(/uploaded/i.test(t)&&!/will|not|need|pending/i.test(t)) return {files:'uploaded',filesNote:''};
+  return {files:'pending',filesNote:t};
+}
+const nk=s=>String(s||'').toLowerCase().replace(/[^a-z0-9]/g,'');
+function rowToOrder(raw,year){
+  const K={}; Object.keys(raw).forEach(k=>K[nk(k)]=String(raw[k]??'').trim());
+  const rawPo=K.po||K.pono||K.ponumber||'';
+  const m=rawPo.match(/^(.*?)[\s\-]+([A-Za-z]{1,4})$/);
+  const po=m?m[1].trim():rawPo;
+  const rep=((m?m[2]:K.rep)||'').toUpperCase();
+  const job=K.nickname||K.jobname||K.job||'';
+  if(!po&&!job) return null;
+  const due=parseDue(K.requestedcompletiondate||K.duedate||K.due,year);
+  const g=parseGoods(K.dategoodsdelivered||K.goods,year);
+  const art=parseArt(K.artstatus||K.proof);
+  const fl=parseFiles(K.dstsepsstatus||K.productionfiles||K.files);
+  const dr=(K.screenprintembroidery||K.decoration||K.type||'').toUpperCase();
+  const decoration=/BOTH|SP.*EMB|EMB.*SP|SCREEN.*EMB/.test(dr)?'BOTH':/EMB/.test(dr)?'EMB':'SP';
+  let stage=g.goods==='received'?'received':'submitted';
+  if(art.proof==='sent') stage='proof_sent';
+  if(art.proof==='approved') stage='proof_approved';
+  if(K.completed&&!/^(no|false|0)$/i.test(K.completed)) stage='order_complete';
+  const named=STAGES.find(s=>K.stage&&(nk(s.label)===nk(K.stage)||nk(s.id)===nk(K.stage)));
+  if(named) stage=named.id;
+  return Object.assign({po,rep,job,decoration,
+    submitted:looseDate(K.datesubmitted||K.submitted,year),
+    goodsNote:'',filesNote:'',
+    stage,sampleRequired:false,statusNote:art.note,
+    link:K.linktoworkorder||K.printavolink||K.link||'',
+    comments:[],history:[],archived:false},due,g,fl,
+    {goodsNote:g.goodsNote,filesNote:fl.filesNote});
+}
+function parseCSV(text){
+  const rows=[]; let row=[],f='',q=false; text=text.replace(/^\uFEFF/,'');
+  for(let i=0;i<text.length;i++){const c=text[i];
+    if(q){ if(c==='"'){ if(text[i+1]==='"'){f+='"';i++;} else q=false; } else f+=c; }
+    else if(c==='"') q=true;
+    else if(c===','){row.push(f);f='';}
+    else if(c==='\n'||c==='\r'){ if(c==='\r'&&text[i+1]==='\n') i++; row.push(f);f='';rows.push(row);row=[]; }
+    else f+=c;
+  }
+  if(f!==''||row.length){row.push(f);rows.push(row);}
+  return rows.filter(r=>r.some(c=>String(c).trim()!==''));
+}
+function rowsToObjects(rows){
+  if(!rows.length) return [];
+  const head=rows[0].map(h=>String(h).trim());
+  return rows.slice(1).map(r=>{const o={};head.forEach((h,i)=>o[h]=r[i]??'');return o;});
+}
+
+/* =====================================================================
+   PREVIEW-MODE SEED DATA (your current sheet, 13 open orders)
+   ===================================================================== */
+const SEED_CSV = `PO#,Nickname,Date Submitted,Requested Completion Date,Date Goods Delivered,Screen Print/Embroidery,Art Status,DST/SEPS Status,Link to Workorder,Completed
+71028-JH,FWCD BAND TEES & HOODIES,9/10,9/18,RECEIVED,SP,NEED TO SEE A TEST PRINT,UPLOADED,https://toromerch.printavo.com/work_orders/963ceb2a37b2f81ea3de84e98f63568a,
+71073-SB,TRUCKYARD OKC,9/10,9/18,RECEIVED,SP,APPROVED,UPLOADED,https://toromerch.printavo.com/work_orders/ef9a64112ebe51967c5217b52af0d859,
+71116-JH,FIELD TRIP TEES,9/10,9/16 - FIRM DATE PLEASE,RECEIVED,SP,APPROVED,UPLOADED,https://toromerch.printavo.com/work_orders/8f524c3a49f539b7173206357f724f15,
+70738-SB,COOKS UP AND AWAY,9/10,9/18,RECEIVED,SP,APPROVED,UPLOADED,https://toromerch.printavo.com/work_orders/1719d4735271319484e6c2f6cc06b9c3,
+71131-SB,RED RIVER BIRTHDAY TEES,9/10,9/18,RECEIVED,SP,APPROVED,UPLOADED,https://toromerch.printavo.com/work_orders/4159bc62e44bd7ed213d982a8d609394,
+71160-SB,CITY OF GP TRANSIT WORK SHIRTS,9/10,9/17 - FIRM DATE PLEASE,RECEIVED,EMB,APPROVED,UPLOADED,https://toromerch.printavo.com/work_orders/f29f259d8ecccf4127ec8047cd028e00,
+71078-SB,BBBS HATS,9/10,9/16 RUSH PER M,RECEIVED,EMB,APPROVED,UPLOADED,https://toromerch.printavo.com/work_orders/0ef5cc31138fd88283198c25723f16dc,
+70982-SB,COOPERS HATS AND SHIRTS,9/10,9/18,RECEIVED,EMB,APPROVED,UPLOADED,https://toromerch.printavo.com/work_orders/dad43b7e01579ada7eec2559ac5b2495,
+70998-DG,CHAMPIONSHIP HATS,9/10,9/18,RECEIVED,EMB,APPROVED,UPLOADED,https://toromerch.printavo.com/work_orders/7d4048f170cdfb8ff7ac0106e4625d9a,
+71081-AS,ZENITH HATS,9/10,9/18,RECEIVED,EMB,APPROVED,UPLOADED,https://toromerch.printavo.com/work_orders/b82b353a692a2f219d6b98f5760f4e65,
+70829-JH,TEXAS MAINENANCE HATS,9/10,9/18,RECEIVED,EMB,APPROVED,UPLOADED,https://toromerch.printavo.com/work_orders/d1c35b55be1f2fe44c4296f954cee8ed,
+71145-AS,VFW RUN,9/11,9/17 - FIRM DATE PLEASE,RECEIVED,SP,APPROVED,UPLOADED,https://toromerch.printavo.com/work_orders/fe3d84f978ef97ae7bd55694da51fb17,
+71322-SR,KODDI POLOS,9/16,9/22 BY 1PM PLEASE,9/21 FROM SANMAR,EMB,WILL HAVE BY FRIDAY,WILL UPLOAD BY FRIDAY,https://toromerch.printavo.com/work_orders/5a346f04778abecaba3706cd4ffa233d,
+`;
+function seedDemo(){
+  const now=Date.now();
+  const list=rowsToObjects(parseCSV(SEED_CSV)).map(r=>rowToOrder(r,2026)).filter(Boolean).map((o,i)=>Object.assign(o,{
+    id:'o'+(i+1),createdAt:now,updatedAt:now,history:[{ts:now,by:'Import',text:'Imported from spreadsheet'}]}));
+  const add=(po,c)=>{const o=list.find(x=>x.po===po);if(o)o.comments.push(Object.assign({id:uid()},c));};
+  add('71028',{ts:now-3*3600e3,by:'GSI (demo)',side:'vendor',text:'Test print is on the press table. Can someone take a look before we run the full job?'});
+  add('71028',{ts:now-2*3600e3,by:'Toro (demo)',side:'team',text:'On my way. I will confirm with the customer this afternoon.'});
+  add('71322',{ts:now-1*3600e3,by:'GSI (demo)',side:'vendor',text:'Polos arrive Monday from SanMar. We need art and files by end of day Friday to hit the Tuesday 1pm deadline.'});
+  return {orders:list,settings:defaultSettings(),log:[]};
+}
+
+/* =====================================================================
+   STORES: preview (browser only) and Firebase (live, shared)
+   ===================================================================== */
+const DemoStore={
+  key:'gsi_tracker_preview_v1', db:null,
+  load(){try{const r=localStorage.getItem(this.key);if(r)return JSON.parse(r);}catch(e){}return null;},
+  persist(){try{localStorage.setItem(this.key,JSON.stringify(this.db));}catch(e){}},
+  emit(){this.h.onOrders(this.db.orders.slice());this.h.onSettings(this.db.settings);this.h.onLog(this.db.log.slice().sort((a,b)=>b.ts-a.ts));},
+  async init(h){this.h=h;this.db=this.load()||seedDemo();this.persist();this.emit();},
+  async createOrder(data){const id='o'+uid();this.db.orders.push(Object.assign({id},data));this.persist();this.emit();return id;},
+  async createMany(list){list.forEach(d=>this.db.orders.push(Object.assign({id:'o'+uid()},d)));this.persist();this.emit();},
+  async updateOrder(id,patch,push){const o=this.db.orders.find(x=>x.id===id);if(!o)return;Object.assign(o,patch);
+    if(push)for(const k in push)o[k]=(o[k]||[]).concat(push[k]);this.persist();this.emit();},
+  async deleteOrder(id){this.db.orders=this.db.orders.filter(o=>o.id!==id);this.persist();this.emit();},
+  async saveSettings(s){this.db.settings=s;this.persist();this.emit();},
+  async addLog(e){this.db.log.unshift(e);this.db.log=this.db.log.slice(0,100);this.persist();this.emit();},
+  async reset(){this.db=seedDemo();this.persist();this.emit();}
+};
+const FbStore={
+  async init(h){
+    const V='10.12.0', base='https://www.gstatic.com/firebasejs/'+V+'/';
+    const [appM,fs]=await Promise.all([import(base+'firebase-app.js'),import(base+'firebase-firestore.js')]);
+    this.fs=fs; this.db=fs.getFirestore(appM.initializeApp(FIREBASE_CONFIG));
+    this.oc=fs.collection(this.db,COLL.orders);
+    await new Promise((resolve,reject)=>{
+      let first=true;
+      fs.onSnapshot(this.oc,snap=>{h.onOrders(snap.docs.map(d=>Object.assign({},d.data(),{id:d.id})));if(first){first=false;resolve();}},
+        err=>{if(first){first=false;reject(err);}else h.onError(err);});
+    });
+    fs.onSnapshot(fs.doc(this.db,COLL.settings,'config'),snap=>h.onSettings(snap.exists()?snap.data():null),err=>h.onError(err));
+    fs.onSnapshot(fs.query(fs.collection(this.db,COLL.log),fs.orderBy('ts','desc'),fs.limit(30)),snap=>h.onLog(snap.docs.map(d=>d.data())),()=>{});
+  },
+  async createOrder(data){const r=await this.fs.addDoc(this.oc,clean(data));return r.id;},
+  async createMany(list){
+    for(let i=0;i<list.length;i+=400){
+      const b=this.fs.writeBatch(this.db);
+      list.slice(i,i+400).forEach(d=>b.set(this.fs.doc(this.oc),clean(d)));
+      await b.commit();
+    }
+  },
+  async updateOrder(id,patch,push){
+    const data=clean(patch);
+    if(push)for(const k in push)data[k]=this.fs.arrayUnion(...clean(push[k]));
+    await this.fs.updateDoc(this.fs.doc(this.db,COLL.orders,id),data);
+  },
+  async deleteOrder(id){await this.fs.deleteDoc(this.fs.doc(this.db,COLL.orders,id));},
+  async saveSettings(s){await this.fs.setDoc(this.fs.doc(this.db,COLL.settings,'config'),clean(s));},
+  async addLog(e){await this.fs.addDoc(this.fs.collection(this.db,COLL.log),clean(e));}
+};
+const Store=DEMO?DemoStore:FbStore;
+
+const handlers={
+  onOrders(list){orders=list;if(ready)refresh();},
+  onSettings(s){settings=Object.assign(defaultSettings(),s||{});if(ready)refresh();},
+  onLog(list){emailLog=list;if(ready&&view==='settings')renderEmailLog();},
+  onError(err){console.error(err);toast('Lost connection to the database: '+(err&&err.message||err),'err');}
+};
+
+/* =====================================================================
+   TOAST / MODAL / PROFILE
+   ===================================================================== */
+let toastT;
+function toast(msg,kind){const t=$('#toast');t.textContent=msg;t.className='toast show '+(kind||'');clearTimeout(toastT);toastT=setTimeout(()=>t.className='toast',kind==='err'?6500:3200);}
+let savedT;
+function saved(){const s=$('#saved');if(!s)return;s.textContent='Saved';clearTimeout(savedT);savedT=setTimeout(()=>{const s2=$('#saved');if(s2)s2.textContent='';},1800);}
+
+let modalResolve=null, modalDismiss=true;
+function openModal({title,body,actions,dismissible=true,wide=false}){
+  return new Promise(res=>{
+    modalResolve=res; modalDismiss=dismissible;
+    $('#mo-title').textContent=title; $('#mo-body').innerHTML=body;
+    $('.mo-box').classList.toggle('wide',wide);
+    const act=$('#mo-actions');
+    act.innerHTML=actions.map((a,i)=>`<button class="sp-btn small ${a.kind||''}" data-mi="${i}">${esc(a.label)}</button>`).join('');
+    act.onclick=e=>{const b=e.target.closest('[data-mi]');if(!b)return;const a=actions[+b.dataset.mi];
+      if(a.validate&&!a.validate($('#mo-body')))return;closeModal(a.get?a.get($('#mo-body')):a.value);};
+    $('#modal').hidden=false;
+    setTimeout(()=>{const f=$('#mo-body input:not([type=radio]):not([type=checkbox]),#mo-body textarea');if(f)f.focus();},30);
+  });
+}
+function closeModal(v=null){if($('#modal').hidden)return;$('#modal').hidden=true;const r=modalResolve;modalResolve=null;if(r)r(v);}
+async function confirmBox(title,msg,ok='Confirm',danger=false){
+  return !!(await openModal({title,body:`<p>${msg}</p>`,actions:[{label:'Cancel',kind:'ghost',value:false},{label:ok,kind:danger?'danger':'',value:true}]}));
+}
+function loadWho(){try{const r=localStorage.getItem('gsi_tracker_who');if(r)return JSON.parse(r);}catch(e){}return null;}
+function saveWho(){try{localStorage.setItem('gsi_tracker_who',JSON.stringify(who));}catch(e){}}
+async function askWho(first){
+  const cur=who||{name:'',side:'team'};
+  const r=await openModal({
+    title:first?'Who’s using the tracker?':'Your name',dismissible:!first,
+    body:`<p class="sp-note" style="margin:0 0 14px">Changes and comments are stamped with your name so everyone can see who did what.</p>
+      <div class="fg" style="margin-bottom:14px"><label class="sp-label" for="who-name">Your name</label><input class="sp-input" id="who-name" value="${esc(cur.name)}" placeholder="First and last name"></div>
+      <div class="fg"><span class="sp-label">You work for</span><div class="seg">
+        <label><input type="radio" name="who-side" value="team" ${cur.side!=='vendor'?'checked':''}> ${esc(settings.teamName)}</label>
+        <label><input type="radio" name="who-side" value="vendor" ${cur.side==='vendor'?'checked':''}> ${esc(settings.vendorName)}</label></div></div>`,
+    actions:(first?[]:[{label:'Cancel',kind:'ghost',value:null}]).concat([{label:'Save',
+      validate:b=>{const i=$('#who-name',b);if(!i.value.trim()){i.focus();return false;}return true;},
+      get:b=>({name:$('#who-name',b).value.trim(),side:$('input[name=who-side]:checked',b).value})}])});
+  if(r){who=r;saveWho();updateChrome();}
+}
+const me=()=>(who&&who.name)||'Someone';
+const hist=text=>({ts:Date.now(),by:me(),text});
+
+/* =====================================================================
+   RENDER: chrome, dispatcher
+   ===================================================================== */
+function updateChrome(){
+  $$('.navbtn').forEach(b=>b.classList.toggle('on',b.dataset.view===view));
+  const n=orders.filter(o=>!o.archived&&SI[o.stage]<SI.picked_up&&urgent(o)).length;
+  const bd=$('#att-badge');bd.textContent=n;bd.hidden=!n;
+  $('#who-chip').textContent=who?who.name+' · '+(who.side==='vendor'?settings.vendorName:settings.teamName):'Set your name';
+  $('#demo-banner').hidden=!DEMO;
+}
+function setView(v){view=v;render();window.scrollTo({top:0});}
+function render(){
+  updateChrome();
+  main.classList.remove('enter');void main.offsetWidth;main.classList.add('enter');
+  ({orders:renderOrders,board:renderBoard,attention:renderAttention,archive:renderArchive,settings:renderSettings})[view]();
+}
+function refresh(){
+  updateChrome();
+  if(view==='orders')renderOrdersBody();
+  else if(view==='board')renderBoard(true);
+  else if(view==='attention')renderAttention(true);
+  else if(view==='archive')renderArchiveBody();
+  else if(view==='settings')renderEmailLog();
+  refreshDrawer();
+}
+
+/* ---------- shared cell renderers ---------- */
+const chip=(t,k='',title='')=>`<span class="chip ${k}"${title?` title="${esc(title)}"`:''}>${esc(t)}</span>`;
+const metaLine=t=>t?`<div class="meta">${esc(t)}</div>`:'';
+function goodsChip(o){
+  if(o.goods==='received')return chip('Received','ok');
+  if(o.goods==='expected'){const late=o.goodsDate&&o.goodsDate<todayISO();return chip('Expected '+(o.goodsDate?fmtShort(o.goodsDate):''),late?'danger':'warn');}
+  return chip('Not received','muted');
+}
+const filesChip=o=>o.files==='uploaded'?chip('Uploaded','ok'):chip('Pending','muted');
+function relDue(o){
+  if(!o.due||isDone(o))return '';
+  const d=daysBetween(todayISO(),o.due);
+  return d<0?chip(Math.abs(d)+'d overdue','danger'):d===0?chip('Today','warn'):d===1?chip('Tomorrow','warn'):chip('in '+d+'d','muted');
+}
+function dueCell(o){
+  if(!o.due)return '<span class="mut">—</span>';
+  const fl=[o.rush&&chip('Rush','danger-o'),o.firm&&chip('Firm','danger-o'),o.timed&&chip('By time','warn-o')].filter(Boolean).join('');
+  return `<div class="due"><span class="due-d">${fmtDate(o.due)}</span>${relDue(o)}</div>${fl||o.dueNote?`<div class="flags">${fl}${o.dueNote?`<span class="meta" style="margin:0">${esc(o.dueNote)}</span>`:''}</div>`:''}`;
+}
+function stageCell(o){
+  const list=stagesFor(o), idx=list.findIndex(s=>s.id===o.stage);
+  const opts=idx>=0?list:list.concat([STAGES[SI[o.stage]]]).sort((a,b)=>SI[a.id]-SI[b.id]);
+  return `<select class="stage-sel ${isDone(o)?'done':''}" data-stage="${o.id}" aria-label="Stage for ${esc(o.po)}">${opts.map(s=>`<option value="${s.id}"${s.id===o.stage?' selected':''}>${esc(s.label)}</option>`).join('')}</select>
+    <div class="pbar" title="Step ${idx+1} of ${list.length}">${list.map((s,i)=>`<i class="${i<=idx?'f':''}"></i>`).join('')}</div>`;
+}
+function rowHTML(o){
+  const sev=rowSev(o), n=(o.comments||[]).length;
+  return `<tr class="${sev?'sev-'+sev:''}" data-open="${o.id}" tabindex="0">
+    <td class="c-po">${esc(o.po)}</td>
+    <td class="c-job"><div class="job">${esc(o.job)}</div>${metaLine(o.statusNote)}</td>
+    <td>${o.rep?chip(o.rep,'rep',repLabel(o.rep)):'<span class="mut">—</span>'}</td>
+    <td>${chip(decoShort(o.decoration),'type',DECO[o.decoration])}</td>
+    <td>${dueCell(o)}</td>
+    <td>${goodsChip(o)}${metaLine(o.goodsNote)}</td>
+    <td>${filesChip(o)}${metaLine(o.filesNote)}</td>
+    <td class="c-stage">${stageCell(o)}</td>
+    <td class="c-cm">${n?`<span title="${n} comment${n===1?'':'s'}">💬 ${n}</span>`:''}</td></tr>`;
+}
+
+/* =====================================================================
+   VIEW: ORDERS
+   ===================================================================== */
+function filtered(){
+  const q=F.q.trim().toLowerCase(), t=todayISO();
+  const list=orders.filter(o=>!o.archived).filter(o=>{
+    if(F.stage==='open'){if(SI[o.stage]>=SI.picked_up)return false;}
+    else if(F.stage!=='all'&&o.stage!==F.stage)return false;
+    if(F.rep&&o.rep!==F.rep)return false;
+    if(F.type&&!(o.decoration===F.type||o.decoration==='BOTH'))return false;
+    if(q&&!(`${o.po} ${o.job} ${o.rep} ${o.statusNote} ${o.dueNote} ${o.goodsNote} ${o.filesNote}`.toLowerCase().includes(q)))return false;
+    if(F.quick){
+      const nd=!isDone(o);
+      if(F.quick==='overdue'&&!(o.due&&o.due<t&&nd))return false;
+      if(F.quick==='today'&&!(o.due===t&&nd))return false;
+      if(F.quick==='risk'&&!attention(o).some(a=>RISK.has(a.k)))return false;
+    }
+    return true;
+  });
+  const val={po:o=>o.po,job:o=>(o.job||'').toLowerCase(),rep:o=>o.rep,due:o=>o.due||'9999-12-31',stage:o=>SI[o.stage]}[sort.key];
+  list.sort((a,b)=>{
+    let c;
+    if(sort.key==='po')c=a.po.localeCompare(b.po,undefined,{numeric:true});
+    else{const x=val(a),y=val(b);c=x<y?-1:x>y?1:0;}
+    return (c*sort.dir)||a.po.localeCompare(b.po,undefined,{numeric:true});
+  });
+  return list;
+}
+function kpiHTML(){
+  const open=orders.filter(o=>!o.archived&&SI[o.stage]<SI.picked_up), t=todayISO();
+  const overdue=open.filter(o=>o.due&&o.due<t&&!isDone(o)).length;
+  const today=open.filter(o=>o.due===t&&!isDone(o)).length;
+  const risk=open.filter(o=>attention(o).some(a=>RISK.has(a.k))).length;
+  return [['','Open orders',open.length,''],['overdue','Past due',overdue,overdue?'danger':''],['today','Due today',today,today?'warn':''],['risk','At risk',risk,risk?'danger':'']]
+    .map(([q,l,n,c])=>`<button class="kpi ${c} ${F.quick===q&&q?'on':''}" data-quick="${q}"><span class="kn">${n}</span><span class="kl">${l}</span></button>`).join('');
+}
+function repOptions(sel,blank){return `<option value="">${blank}</option>`+allRepInitials().map(i=>`<option value="${esc(i)}"${i===sel?' selected':''}>${esc(repLabel(i))}</option>`).join('');}
+function renderOrders(){
+  main.innerHTML=`
+    <div class="kpis" id="kpis"></div>
+    <div class="card toolbar">
+      <input class="sp-input sm grow" id="f-q" type="search" placeholder="Search PO, job or note" value="${esc(F.q)}" aria-label="Search orders">
+      <select class="sp-input sm" id="f-rep" aria-label="Filter by rep">${repOptions(F.rep,'All reps')}</select>
+      <select class="sp-input sm" id="f-type" aria-label="Filter by decoration">
+        <option value="">All types</option><option value="SP"${F.type==='SP'?' selected':''}>Screen print</option><option value="EMB"${F.type==='EMB'?' selected':''}>Embroidery</option></select>
+      <select class="sp-input sm" id="f-stage" aria-label="Filter by stage">
+        <option value="open"${F.stage==='open'?' selected':''}>All open orders</option>
+        ${STAGES.map(s=>`<option value="${s.id}"${F.stage===s.id?' selected':''}>${esc(s.label)}</option>`).join('')}
+        <option value="all"${F.stage==='all'?' selected':''}>Everything (not archived)</option></select>
+      <span id="f-chip"></span>
+      <div class="sp"><button class="sp-btn small ghost" data-act="archive-done" id="btn-arch">Archive picked-up orders</button>
+        <button class="sp-btn small ghost" data-act="import">Import sheet</button></div>
+    </div>
+    <div class="card flush" id="otable"></div>`;
+  renderOrdersBody();
+}
+function renderOrdersBody(){
+  if(!$('#otable'))return;
+  $('#kpis').innerHTML=kpiHTML();
+  const qn={overdue:'Past due',today:'Due today',risk:'At risk'}[F.quick];
+  $('#f-chip').innerHTML=F.quick?`<span class="filterchip">${qn}<button data-act="clear-quick" aria-label="Clear filter">✕</button></span>`:'';
+  const nDone=orders.filter(o=>!o.archived&&o.stage==='picked_up').length;
+  const ab=$('#btn-arch');ab.hidden=!nDone;ab.textContent='Archive picked-up orders ('+nDone+')';
+  const list=filtered();
+  const all=orders.filter(o=>!o.archived);
+  if(!all.length){
+    $('#otable').innerHTML=`<div class="sp-empty"><p style="font-weight:700;color:var(--ink);margin-bottom:6px">No orders yet</p>Import your current sheet or add the first order.<div style="margin-top:14px;display:flex;gap:10px;justify-content:center"><button class="sp-btn small" data-act="new">+ New order</button><button class="sp-btn small ghost" data-act="import">Import sheet</button></div></div>`;
+    return;
+  }
+  if(!list.length){$('#otable').innerHTML='<div class="sp-empty">No orders match these filters.</div>';return;}
+  const th=(k,l)=>`<th><button class="thbtn" data-sort="${k}">${l}${sort.key===k?(sort.dir>0?' ▲':' ▼'):''}</button></th>`;
+  $('#otable').innerHTML=`<div class="tbl-wrap"><table class="tbl"><thead><tr>${th('po','PO #')}${th('job','Job')}${th('rep','Rep')}<th>Type</th>${th('due','Due')}<th>Goods</th><th>Files</th>${th('stage','Stage')}<th></th></tr></thead><tbody>${list.map(rowHTML).join('')}</tbody></table></div>`;
+}
+
+/* =====================================================================
+   VIEW: BOARD
+   ===================================================================== */
+function cardHTML(o){
+  const sev=rowSev(o), miss=[];
+  if(o.goods!=='received')miss.push(chip('Goods pending','warn-o'));
+  if(o.files!=='uploaded')miss.push(chip('Files pending','warn-o'));
+  return `<div class="bcard ${sev?'sev-'+sev:''}" draggable="true" data-open="${o.id}">
+    <div class="bc-top"><b>${esc(o.po)}</b>${o.rep?chip(o.rep,'rep',repLabel(o.rep)):''}${chip(decoShort(o.decoration),'type')}</div>
+    <div class="bc-job">${esc(o.job)}</div>
+    <div class="bc-foot">${o.due?chip('Due '+fmtDate(o.due),!isDone(o)&&o.due<todayISO()?'danger':!isDone(o)&&o.due===todayISO()?'warn':'muted'):''}${o.rush?chip('Rush','danger-o'):''}${o.firm?chip('Firm','danger-o'):''}${miss.join('')}</div></div>`;
+}
+function renderBoard(soft){
+  const list=orders.filter(o=>!o.archived&&(!F.rep||o.rep===F.rep));
+  const by={};STAGES.forEach(s=>by[s.id]=[]);
+  list.forEach(o=>(by[o.stage]||by.submitted).push(o));
+  STAGES.forEach(s=>by[s.id].sort((a,b)=>(a.due||'9999').localeCompare(b.due||'9999')||a.po.localeCompare(b.po,undefined,{numeric:true})));
+  const nDone=by.picked_up.length;
+  const sx=soft?($('.board')||{}).scrollLeft:0;
+  main.innerHTML=`<div class="boardbar">
+      <select class="sp-input sm" id="b-rep" aria-label="Filter by rep">${repOptions(F.rep,'All reps')}</select>
+      <p class="sp-note">Drag a card to another column to change its stage. Dashed columns are optional and only apply to orders that need a pre-production sample.</p>
+      ${nDone?`<button class="sp-btn small ghost" data-act="archive-done">Archive picked-up orders (${nDone})</button>`:''}</div>
+    <div class="board">${STAGES.map(s=>`<div class="bcol ${s.optional?'opt':''} ${s.optional&&!by[s.id].length?'empty':''}" data-stage-col="${s.id}">
+      <div class="bch"><b>${esc(s.label)}${s.optional?'<span class="optnote">Optional</span>':''}</b><span class="n">${by[s.id].length}</span></div>
+      ${by[s.id].map(cardHTML).join('')}</div>`).join('')}</div>`;
+  if(sx)$('.board').scrollLeft=sx;
+}
+
+/* =====================================================================
+   VIEW: NEEDS ATTENTION
+   ===================================================================== */
+function renderAttention(){
+  const open=orders.filter(o=>!o.archived&&SI[o.stage]<SI.picked_up).map(o=>({o,a:attention(o)}));
+  const groups=[
+    {t:'Past due',d:'The requested date has passed and the order isn’t complete.',test:a=>a.some(x=>x.k==='overdue')},
+    {t:'At risk',d:'Goods, files or timing could put the due date in danger.',test:a=>a.some(x=>RISK.has(x.k))},
+    {t:'Due today',d:'Requested for today and not yet complete.',test:a=>a.some(x=>x.k==='today')},
+    {t:'Firm and rush dates',d:'Orders with a firm or rush date that are still open.',test:a=>a.some(x=>x.k==='flag')}
+  ];
+  const used=new Set(); let html='',any=false;
+  groups.forEach(g=>{
+    const rows=open.filter(x=>!used.has(x.o.id)&&g.test(x.a)).sort((x,y)=>(x.o.due||'9999').localeCompare(y.o.due||'9999'));
+    if(!rows.length)return; any=true; rows.forEach(x=>used.add(x.o.id));
+    html+=`<div class="card"><div class="sec-head"><h2 class="sp-h2">${g.t}</h2><span class="sp-note" style="margin:0">${rows.length} order${rows.length===1?'':'s'}</span></div><p class="sp-note" style="margin:0 0 6px">${g.d}</p>
+      ${rows.map(({o,a})=>`<div class="att-row" data-open="${o.id}" tabindex="0">
+        <div class="att-main"><b>${esc(o.po)}</b>${esc(o.job)} ${o.rep?chip(o.rep,'rep'):''}</div>
+        <div class="att-why">${a.map(x=>chip(x.text,x.sev==='info'?'info':x.sev)).join('')}</div>
+        <div class="att-stage">${esc(stageLabel(o.stage))}</div></div>`).join('')}</div>`;
+  });
+  main.innerHTML=any?html:`<div class="card"><div class="sp-empty"><p style="font-weight:700;color:var(--ink);margin-bottom:4px">Nothing needs attention right now</p>Past-due, at-risk and due-today orders will show up here.</div></div>`;
+}
+
+/* =====================================================================
+   VIEW: ARCHIVE
+   ===================================================================== */
+function renderArchive(){
+  main.innerHTML=`<div class="card toolbar"><input class="sp-input sm grow" id="a-q" type="search" placeholder="Search archived orders" value="${esc(AF.q)}" aria-label="Search archive">
+    <p class="sp-note" style="margin:0">Archived orders stay searchable and download in the Archive tab of the Excel export.</p></div><div class="card flush" id="atable"></div>`;
+  renderArchiveBody();
+}
+function renderArchiveBody(){
+  if(!$('#atable'))return;
+  const q=AF.q.trim().toLowerCase();
+  const list=orders.filter(o=>o.archived&&(!q||`${o.po} ${o.job} ${o.rep}`.toLowerCase().includes(q))).sort((a,b)=>(b.archivedAt||0)-(a.archivedAt||0));
+  $('#atable').innerHTML=!list.length?'<div class="sp-empty">No archived orders yet. Orders you archive will be kept here.</div>':
+    `<div class="tbl-wrap"><table class="tbl"><thead><tr><th>PO #</th><th>Job</th><th>Rep</th><th>Type</th><th>Due</th><th>Final stage</th><th>Archived</th></tr></thead><tbody>${list.map(o=>`<tr data-open="${o.id}" tabindex="0">
+      <td class="c-po">${esc(o.po)}</td><td class="c-job"><div class="job">${esc(o.job)}</div></td>
+      <td>${o.rep?chip(o.rep,'rep'):'—'}</td><td>${chip(decoShort(o.decoration),'type')}</td><td>${fmtDate(o.due)}</td>
+      <td>${esc(stageLabel(o.stage))}</td><td>${o.archivedAt?fmtTs(o.archivedAt):'—'}${o.archivedBy?`<div class="meta">by ${esc(o.archivedBy)}</div>`:''}</td></tr>`).join('')}</tbody></table></div>`;
+}
+
+/* =====================================================================
+   DRAWER (order detail)
+   ===================================================================== */
+function blankOrder(){
+  return {po:'',rep:'',job:'',decoration:'SP',submitted:todayISO(),due:'',firm:false,rush:false,timed:false,dueNote:'',
+    goods:'pending',goodsDate:'',goodsNote:'',files:'pending',filesNote:'',stage:'submitted',sampleRequired:false,statusNote:'',link:'',
+    comments:[],history:[],archived:false};
+}
+function fieldsHTML(o){
+  const sel=(f,map,val)=>`<select class="sp-input" data-f="${f}">${Object.keys(map).map(k=>`<option value="${k}"${k===val?' selected':''}>${esc(map[k])}</option>`).join('')}</select>`;
+  const inp=(f,label,type='text',ph='',cls='')=>`<div class="fg ${cls}"><label class="sp-label">${label}</label><input class="sp-input" data-f="${f}" type="${type}" value="${esc(o[f]||'')}" placeholder="${esc(ph)}"></div>`;
+  return `<div class="grid2">
+    ${inp('po','PO #','text','e.g. 71028')}
+    <div class="fg"><label class="sp-label">Rep</label><select class="sp-input" data-f="rep">${repOptions(o.rep,'Unassigned')}</select></div>
+    ${inp('job','Job name','text','','span2')}
+    <div class="fg"><label class="sp-label">Decoration</label>${sel('decoration',DECO,o.decoration)}</div>
+    ${inp('submitted','Date submitted','date')}
+    ${inp('due','Due date','date')}
+    <div class="fg"><label class="sp-label">Due date flags</label><div class="chk">
+      <label><input type="checkbox" data-f="rush" ${o.rush?'checked':''}> Rush</label>
+      <label><input type="checkbox" data-f="firm" ${o.firm?'checked':''}> Firm date</label>
+      <label><input type="checkbox" data-f="timed" ${o.timed?'checked':''}> By a time</label></div></div>
+    ${inp('dueNote','Due date note','text','e.g. by 1pm','span2')}
+    <div class="fg"><label class="sp-label">Goods</label>${sel('goods',GOODS,o.goods)}</div>
+    ${inp('goodsDate','Goods expected on','date')}
+    ${inp('goodsNote','Goods note','text','e.g. from SanMar','span2')}
+    <div class="fg"><label class="sp-label">Production files (DST / SEPS)</label>${sel('files',FILES,o.files)}</div>
+    ${inp('filesNote','Files note','text','e.g. will upload by Friday')}
+    <div class="fg span2"><label class="chk1"><input type="checkbox" data-f="sampleRequired" ${o.sampleRequired?'checked':''}> Needs a pre-production sample</label>
+      <p class="sp-note" style="margin-top:4px">Adds the two sample stages to this order. Leave it off and they are skipped.</p></div>
+    ${inp('statusNote','Status note','text','Shown under the job name, e.g. need to see a test print','span2')}
+    ${inp('link','Printavo work order link','url','https://…','span2')}
+  </div>`;
+}
+function drHeadHTML(o){
+  return `<div class="top"><div><h2>${esc(o.po||'New order')}</h2><div class="sub">${esc(o.job)}</div></div><button class="xbtn" data-act="close-drawer" aria-label="Close">✕</button></div>
+    <div class="row">${o.rep?chip(repLabel(o.rep),'rep'):''}${chip(DECO[o.decoration]||'','type')}${o.link?`<a class="linkbtn" href="${esc(o.link)}" target="_blank" rel="noopener">Open in Printavo ↗</a>`:''}</div>`;
+}
+function attnHTML(o){
+  const a=attention(o).filter(x=>x.sev!=='info'); if(o.archived||!a.length)return '';
+  return `<div class="attn ${a.some(x=>x.sev==='danger')?'':'warn'}"><span class="lead">Needs attention:</span>${a.map(x=>chip(x.text,x.sev)).join('')}</div>`;
+}
+function stepperHTML(o){
+  const list=stagesFor(o), cur=SI[o.stage];
+  const opts=list.some(s=>s.id===o.stage)?list:list.concat([STAGES[cur]]).sort((a,b)=>SI[a.id]-SI[b.id]);
+  const nx=nextStage(o);
+  return `<div class="stepper">${opts.map(s=>{
+      const c=SI[s.id]<cur?'done':s.id===o.stage?'cur':'';
+      return `<button class="step ${c} ${s.optional?'opt':''}" data-act="set-stage" data-sid="${s.id}"${o.archived?' disabled':''}>${SI[s.id]<cur?'✓ ':''}${esc(s.label)}</button>`;}).join('')}</div>
+    ${!o.archived?`<div class="adv">${nx?`<button class="sp-btn small" data-act="advance">Move to: ${esc(nx.label)}</button>`:`<span class="sp-note" style="margin:0">Final stage reached.</span>`}</div>`:''}`;
+}
+function commentsHTML(o){
+  const c=o.comments||[];
+  if(!c.length)return '<p class="sp-note" style="margin:0">No comments yet. Post one to message the other side.</p>';
+  return c.slice().sort((a,b)=>a.ts-b.ts).map(x=>`<div class="cm"><div class="cm-h"><b>${esc(x.by)}</b>${chip(x.side==='vendor'?settings.vendorName:settings.teamName,x.side==='vendor'?'vendor':'team')}<span class="cm-t">${fmtTs(x.ts)}</span></div><div class="cm-b">${esc(x.text)}</div></div>`).join('');
+}
+function historyHTML(o){
+  const h=o.history||[];
+  return h.length?h.slice().sort((a,b)=>b.ts-a.ts).map(x=>`<div class="hist"><span>${esc(x.text)} <span class="mut">· ${esc(x.by)}</span></span><span class="t">${fmtTs(x.ts)}</span></div>`).join(''):'<p class="sp-note" style="margin:0">No changes recorded.</p>';
+}
+function drFootHTML(o){
+  return o.archived
+    ?`<button class="sp-btn small danger" data-act="delete">Delete permanently</button><button class="sp-btn small" data-act="restore">Restore to active orders</button>`
+    :`<button class="sp-btn small ghost" data-act="archive">Archive order</button><button class="sp-btn small ghost" data-act="close-drawer">Close</button>`;
+}
+function openDrawer(id){
+  const o=byId(id); if(!o)return;
+  openId=id;
+  $('#drawer').innerHTML=`<div class="dr-head" id="dr-head">${drHeadHTML(o)}</div>
+    <div class="dr-body">
+      ${o.archived?`<div class="archnote">Archived ${o.archivedAt?fmtTs(o.archivedAt):''}${o.archivedBy?' by '+esc(o.archivedBy):''}. Restore it to edit.</div>`:''}
+      <div id="dr-attn">${attnHTML(o)}</div>
+      <section class="dr-sec"><h3>Progress</h3><div id="dr-stage">${stepperHTML(o)}</div></section>
+      <section class="dr-sec"><h3>Details <span class="saved" id="saved"></span></h3><fieldset id="dr-fields" ${o.archived?'disabled':''}>${fieldsHTML(o)}</fieldset></section>
+      <section class="dr-sec"><h3>Comments <span class="sp-note" style="margin:0;font-family:inherit">Shared with ${esc(settings.vendorName)} and ${esc(settings.teamName)}</span></h3>
+        <div id="dr-comments">${commentsHTML(o)}</div>
+        <div style="margin-top:12px"><textarea class="sp-input" id="cm-text" rows="3" placeholder="Write an update or question"></textarea>
+        <div style="margin-top:8px;text-align:right"><button class="sp-btn small" data-act="comment">Post comment</button></div></div></section>
+      <section class="dr-sec"><details><summary>Change history (${(o.history||[]).length})</summary><div id="dr-history" style="margin-top:8px">${historyHTML(o)}</div></details></section>
+    </div>
+    <div class="dr-foot" id="dr-foot">${drFootHTML(o)}</div>`;
+  $('#drawer').classList.add('open');$('#scrim').classList.add('open');
+  const cm=$('#dr-comments');if(cm)cm.scrollTop=cm.scrollHeight;
+  try{history.replaceState(null,'','#order='+id);}catch(e){}
+}
+function closeDrawer(){
+  openId=null;$('#drawer').classList.remove('open');$('#scrim').classList.remove('open');
+  try{history.replaceState(null,'',location.pathname+location.search);}catch(e){}
+}
+function refreshDrawer(){
+  if(!openId)return;
+  const o=byId(openId);
+  if(!o){closeDrawer();return;}
+  const wasArch=$('#drawer .archnote')!==null;
+  if(wasArch!==!!o.archived){openDrawer(openId);return;}
+  $('#dr-head').innerHTML=drHeadHTML(o);
+  $('#dr-attn').innerHTML=attnHTML(o);
+  $('#dr-stage').innerHTML=stepperHTML(o);
+  const cmBox=$('#dr-comments'),atBottom=cmBox.scrollTop+cmBox.clientHeight>=cmBox.scrollHeight-8;
+  cmBox.innerHTML=commentsHTML(o);if(atBottom)cmBox.scrollTop=cmBox.scrollHeight;
+  $('#dr-history').innerHTML=historyHTML(o);
+  $('#dr-foot').innerHTML=drFootHTML(o);
+  const ds=$('#drawer details summary');if(ds)ds.textContent='Change history ('+(o.history||[]).length+')';
+  $$('#dr-fields [data-f]').forEach(el=>{
+    if(el===document.activeElement)return;
+    const v=o[el.dataset.f];
+    if(el.type==='checkbox')el.checked=!!v;else el.value=v==null?'':v;
+  });
+}
+function collectFields(root){
+  const out={};
+  $$('[data-f]',root).forEach(el=>{out[el.dataset.f]=el.type==='checkbox'?el.checked:el.value.trim();});
+  return out;
+}
+
+/* ---------- editing ---------- */
+const FIELD_LABELS={po:'PO #',rep:'Rep',job:'Job name',decoration:'Decoration',submitted:'Date submitted',due:'Due date',firm:'Firm date',rush:'Rush',timed:'By a time',dueNote:'Due note',goods:'Goods',goodsDate:'Goods expected',goodsNote:'Goods note',files:'Production files',filesNote:'Files note',sampleRequired:'Pre-production sample',statusNote:'Status note',link:'Printavo link'};
+function showVal(f,v){
+  if(typeof v==='boolean')return v?'yes':'no';
+  if(f==='goods')return GOODS[v]||v; if(f==='files')return FILES[v]||v; if(f==='decoration')return DECO[v]||v;
+  if(['submitted','due','goodsDate'].includes(f))return v?fmtShort(v):'blank';
+  return v?String(v).slice(0,60):'blank';
+}
+async function fieldChanged(id,f,val){
+  const o=byId(id); if(!o||o.archived)return;
+  const cur=o[f]==null?(typeof val==='boolean'?false:''):o[f];
+  if(cur===val)return;
+  if(f==='po'&&!val){toast('PO # can’t be blank.','err');refreshDrawer();return;}
+  const patch={[f]:val,updatedAt:Date.now()}, entries=[hist(`${FIELD_LABELS[f]}: ${showVal(f,cur)} → ${showVal(f,val)}`)];
+  if(f==='sampleRequired'&&!val&&STAGES[SI[o.stage]].optional){
+    patch.stage='in_production';entries.push(hist(`Stage: ${stageLabel(o.stage)} → In production (sample turned off)`));
+  }
+  const before=Object.assign({},o);
+  try{await Store.updateOrder(id,patch,{history:entries});saved();}catch(e){toast('Could not save: '+e.message,'err');return;}
+  const upd=Object.assign({},before,patch), trig=[];
+  if(f==='goods'&&val==='received')trig.push('goods:received');
+  if(f==='files'&&val==='uploaded')trig.push('files:uploaded');
+  if(patch.stage)trig.push('stage:'+patch.stage);
+  if(trig.length)fireTriggers(upd,trig,{by:me()});
+}
+async function setStage(id,stageId){
+  const o=byId(id); if(!o||o.stage===stageId||o.archived){refresh();return;}
+  const st=STAGES[SI[stageId]], patch={stage:stageId,updatedAt:Date.now()}, entries=[];
+  if(st.optional&&!o.sampleRequired){
+    const ok=await confirmBox('Turn on pre-production sample?',`${esc(o.po)} isn’t set up for a pre-production sample. Moving it to “${esc(st.label)}” will turn that on for this order.`,'Turn on and move');
+    if(!ok){refresh();return;}
+    patch.sampleRequired=true;entries.push(hist('Pre-production sample: no → yes'));
+  }
+  entries.push(hist(`Stage: ${stageLabel(o.stage)} → ${st.label}`));
+  const before=Object.assign({},o);
+  try{await Store.updateOrder(id,patch,{history:entries});}catch(e){toast('Could not save: '+e.message,'err');refresh();return;}
+  toast(`${o.po} → ${st.label}`);
+  fireTriggers(Object.assign({},before,patch),['stage:'+stageId],{by:me()});
+}
+async function postComment(){
+  const ta=$('#cm-text'),text=ta.value.trim(); if(!text||!openId)return;
+  if(!who){await askWho(true);if(!who)return;}
+  const o=byId(openId), entry={id:uid(),ts:Date.now(),by:me(),side:who.side,text};
+  try{await Store.updateOrder(openId,{updatedAt:Date.now()},{comments:[entry]});}catch(e){toast('Could not post: '+e.message,'err');return;}
+  ta.value='';
+  fireTriggers(o,['comment:'+who.side],{by:me(),comment:text});
+}
+async function archiveOrder(id){
+  const o=byId(id);if(!o)return;
+  await Store.updateOrder(id,{archived:true,archivedAt:Date.now(),archivedBy:me(),updatedAt:Date.now()},{history:[hist('Archived')]});
+  closeDrawer();toast(`${o.po} archived. Find it in the Archive tab.`,'info');
+}
+async function restoreOrder(id){
+  const o=byId(id);if(!o)return;
+  await Store.updateOrder(id,{archived:false,updatedAt:Date.now()},{history:[hist('Restored from archive')]});
+  toast(`${o.po} restored.`,'info');
+}
+async function deleteOrder(id){
+  const o=byId(id);if(!o)return;
+  if(!await confirmBox('Delete this order permanently?',`${esc(o.po)} – ${esc(o.job)} and its comments will be gone for good. Export to Excel first if you want a copy.`,'Delete permanently',true))return;
+  await Store.deleteOrder(id);closeDrawer();toast('Order deleted.','info');
+}
+async function archiveDone(){
+  const list=orders.filter(o=>!o.archived&&o.stage==='picked_up');if(!list.length)return;
+  if(!await confirmBox('Archive picked-up orders?',`${list.length} order${list.length===1?'':'s'} marked picked up / delivered will move to the Archive. You can still search them and they’re included in the Excel export.`,'Archive '+list.length))return;
+  for(const o of list)await Store.updateOrder(o.id,{archived:true,archivedAt:Date.now(),archivedBy:me(),updatedAt:Date.now()},{history:[hist('Archived')]});
+  toast(`${list.length} order${list.length===1?'':'s'} archived.`,'info');
+}
+async function newOrderModal(){
+  if(!who){await askWho(true);}
+  const r=await openModal({title:'New order',wide:true,body:fieldsHTML(blankOrder()),
+    actions:[{label:'Cancel',kind:'ghost',value:null},{label:'Create order',
+      validate:b=>{const d=collectFields(b);if(!d.po||!d.job){toast('Add a PO # and a job name.','err');return false;}return true;},
+      get:b=>collectFields(b)}]});
+  if(!r)return;
+  if(orders.some(x=>x.po.toLowerCase()===r.po.toLowerCase())&&!await confirmBox('PO already exists',`An order with PO ${esc(r.po)} is already in the tracker. Add this one anyway?`,'Add anyway'))return;
+  const now=Date.now();
+  const data=Object.assign(blankOrder(),r,{stage:'submitted',createdAt:now,updatedAt:now,history:[hist('Order created')]});
+  const id=await Store.createOrder(data);
+  toast(`${r.po} added.`);
+  fireTriggers(Object.assign({id},data),['order_added'],{by:me()});
+}
+
+/* =====================================================================
+   EMAIL AUTOMATION
+   ===================================================================== */
+function mergeVars(o,ctx){
+  const r=repInfo(o.rep), base=location.href.split('#')[0];
+  const due=!o.due?'not set':fmtDate(o.due)+(o.dueNote?' – '+o.dueNote:'')+([o.rush&&'RUSH',o.firm&&'FIRM DATE',o.timed&&'TIME-SPECIFIC'].filter(Boolean).length?' ('+[o.rush&&'RUSH',o.firm&&'FIRM DATE',o.timed&&'TIME-SPECIFIC'].filter(Boolean).join(', ')+')':'');
+  return {po:o.po,job:o.job,rep:o.rep?(r.name?r.name+' ('+o.rep+')':o.rep):'Unassigned',stage:stageLabel(o.stage),due,
+    goods:GOODS[o.goods]+(o.goods==='expected'&&o.goodsDate?' '+fmtShort(o.goodsDate):''),files:FILES[o.files],link:o.link||'—',
+    by:ctx.by||'Someone',comment:ctx.comment||'',order_url:base+'#order='+o.id,team:settings.teamName,partner:settings.vendorName,vendor:settings.vendorName};
+}
+const merge=(s,v)=>String(s||'').replace(/\{(\w+)\}/g,(m,k)=>k in v?v[k]:m);
+function recipients(rule,o){
+  const s=new Set(), add=e=>{if(e)s.add(e.toLowerCase());};
+  if(rule.to.rep)add(repInfo(o.rep).email);
+  if(rule.to.vendor)(settings.vendorEmails||[]).forEach(add);
+  if(rule.to.ops)(settings.opsEmails||[]).forEach(add);
+  (rule.extra||[]).forEach(add);
+  return [...s];
+}
+async function sendRaw(to,subject,message,fromName){
+  const res=await fetch('https://api.emailjs.com/api/v1.0/email/send',{method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({service_id:EMAILJS_CONFIG.serviceId,template_id:EMAILJS_CONFIG.templateId,user_id:EMAILJS_CONFIG.publicKey,
+      template_params:{to_email:to.join(','),subject,message,from_name:fromName||'GSI Order Tracker'}})});
+  if(!res.ok)throw new Error((await res.text())||res.status);
+}
+async function fireTriggers(o,triggers,ctx){
+  if(!settings.emailEnabled)return;
+  for(const rule of (settings.rules||[])){
+    if(!rule.on||!triggers.includes(rule.trigger))continue;
+    const to=recipients(rule,o), v=mergeVars(o,ctx);
+    const subject=merge(rule.subject,v), message=merge(rule.body,v);
+    const base={ts:Date.now(),po:o.po,trigger:rule.trigger,to:to.join(', '),subject};
+    if(!to.length){await logEmail(Object.assign(base,{status:'skipped',detail:'No email addresses set for this rule. Check Settings.'}));toast('Email skipped: no recipients with an email address.','info');continue;}
+    if(!EMAIL_READY){await logEmail(Object.assign(base,{status:'preview',detail:'EmailJS isn’t set up, so nothing was sent.'}));toast('Preview: email would go to '+to.length+' recipient'+(to.length===1?'':'s')+'.','info');continue;}
+    try{await sendRaw(to,subject,message,ctx.by);await logEmail(Object.assign(base,{status:'sent',detail:''}));toast('Email sent to '+to.length+' recipient'+(to.length===1?'':'s')+'.');}
+    catch(e){await logEmail(Object.assign(base,{status:'failed',detail:String(e.message||e).slice(0,200)}));toast('Email didn’t send: '+(e.message||e),'err');}
+  }
+}
+async function logEmail(e){try{await Store.addLog(e);}catch(err){console.warn(err);}}
+
+/* =====================================================================
+   EXPORT / IMPORT
+   ===================================================================== */
+const serial=iso=>{if(!iso)return '';const[y,m,d]=iso.split('-').map(Number);return Math.round(Date.UTC(y,m-1,d)/86400000)+25569;};
+function exportRow(o){
+  return {'PO #':o.po,'Rep':o.rep,'Job name':o.job,'Decoration':DECO[o.decoration]||o.decoration,
+    'Date submitted':serial(o.submitted),'Due date':serial(o.due),
+    'Due flags':[o.rush&&'Rush',o.firm&&'Firm date',o.timed&&'By a time'].filter(Boolean).join(', '),'Due note':o.dueNote||'',
+    'Goods':GOODS[o.goods]||'','Goods expected':serial(o.goodsDate),'Goods note':o.goodsNote||'',
+    'Files (DST/SEPS)':FILES[o.files]||'','Files note':o.filesNote||'','Stage':stageLabel(o.stage),
+    'Pre-production sample':o.sampleRequired?'Yes':'No','Status note':o.statusNote||'','Printavo link':o.link||'',
+    'Comments':(o.comments||[]).length,'Last updated':o.updatedAt?fmtTs(o.updatedAt):''};
+}
+const EXPORT_COLS=['PO #','Rep','Job name','Decoration','Date submitted','Due date','Due flags','Due note','Goods','Goods expected','Goods note','Files (DST/SEPS)','Files note','Stage','Pre-production sample','Status note','Printavo link','Comments','Last updated'];
+function makeSheet(rows,cols,dateCols){
+  const ws=XLSX.utils.json_to_sheet(rows,{header:cols});
+  ws['!cols']=cols.map(c=>({wch:Math.min(48,Math.max(c.length+3,...rows.map(r=>String(r[c]??'').length+1)))}));
+  const ref=XLSX.utils.decode_range(ws['!ref']||'A1');
+  cols.forEach((c,ci)=>{
+    for(let r=1;r<=ref.e.r;r++){
+      const cell=ws[XLSX.utils.encode_cell({r,c:ci})]; if(!cell)continue;
+      if(dateCols.includes(c)&&typeof cell.v==='number')cell.z='m/d/yyyy';
+      if(c==='Printavo link'&&cell.v){cell.l={Target:String(cell.v)};}
+    }
+  });
+  if(ws['!ref'])ws['!autofilter']={ref:ws['!ref']};
+  return ws;
+}
+function exportXlsx(){
+  if(!window.XLSX){toast('The Excel library didn’t load. Check your internet connection and try again.','err');return;}
+  const wb=XLSX.utils.book_new();
+  const active=orders.filter(o=>!o.archived).sort((a,b)=>(a.due||'9999').localeCompare(b.due||'9999')||a.po.localeCompare(b.po,undefined,{numeric:true}));
+  const arch=orders.filter(o=>o.archived).sort((a,b)=>(b.archivedAt||0)-(a.archivedAt||0));
+  const dates=['Date submitted','Due date','Goods expected'];
+  XLSX.utils.book_append_sheet(wb,makeSheet(active.map(exportRow),EXPORT_COLS,dates),'Active orders');
+  const ac=EXPORT_COLS.concat(['Archived on','Archived by']);
+  XLSX.utils.book_append_sheet(wb,makeSheet(arch.map(o=>Object.assign(exportRow(o),{'Archived on':o.archivedAt?fmtTs(o.archivedAt):'','Archived by':o.archivedBy||''})),ac,dates),'Archive');
+  const cc=['PO #','Job name','Posted','Author','Team','Comment'], crow=[];
+  orders.forEach(o=>(o.comments||[]).forEach(c=>crow.push({'PO #':o.po,'Job name':o.job,'Posted':c.ts,'Author':c.by,'Team':c.side==='vendor'?settings.vendorName:settings.teamName,'Comment':c.text})));
+  crow.sort((a,b)=>a.Posted-b.Posted).forEach(r=>r.Posted=fmtTs(r.Posted));
+  XLSX.utils.book_append_sheet(wb,makeSheet(crow,cc,[]),'Comments');
+  XLSX.writeFile(wb,'GSI-orders-'+todayISO()+'.xlsx');
+  toast('Downloaded '+active.length+' active and '+arch.length+' archived orders.');
+}
+async function handleImport(file){
+  try{
+    let rows;
+    if(/\.csv$/i.test(file.name))rows=rowsToObjects(parseCSV(await file.text()));
+    else{
+      if(!window.XLSX)throw new Error('The Excel reader didn’t load. Check your internet connection and try again.');
+      const wb=XLSX.read(await file.arrayBuffer(),{type:'array'});
+      rows=XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]],{raw:false,defval:''});
+    }
+    const year=new Date().getFullYear();
+    const parsed=rows.map(r=>rowToOrder(r,year)).filter(Boolean);
+    if(!parsed.length)throw new Error('No orders found. The first row should have headers like PO#, Nickname and Requested Completion Date.');
+    const have=new Set(orders.map(o=>(o.po+'|'+o.rep).toLowerCase()));
+    const fresh=parsed.filter(o=>!have.has((o.po+'|'+o.rep).toLowerCase()));
+    const skipped=parsed.length-fresh.length;
+    if(!fresh.length){toast('Nothing to import: all '+parsed.length+' orders are already in the tracker.','info');return;}
+    const ok=await confirmBox('Import '+fresh.length+' order'+(fresh.length===1?'':'s')+'?',
+      `Found ${parsed.length} in <b>${esc(file.name)}</b>: ${fresh.length} new${skipped?`, ${skipped} already in the tracker (skipped)`:''}.
+       <div class="sp-note">The rep is taken from the end of the PO # (like -JH). Dates with no year are set to ${year}. Stage is set from Art status: approved becomes Proof approved, a test print becomes Proof sent, and the rest start at Order received or Order submitted.</div>`,
+      'Import '+fresh.length);
+    if(!ok)return;
+    const now=Date.now();
+    await Store.createMany(fresh.map(o=>Object.assign(o,{createdAt:now,updatedAt:now,history:[hist('Imported from '+file.name)]})));
+    toast('Imported '+fresh.length+' order'+(fresh.length===1?'':'s')+'.');
+  }catch(e){toast(e.message||String(e),'err');}
+}
+
+/* =====================================================================
+   VIEW: SETTINGS
+   ===================================================================== */
+function ruleHTML(r){
+  return `<div class="rule ${r.on?'':'off'}" data-rule="${esc(r.id)}">
+    <div class="rule-top">
+      <label class="on"><input type="checkbox" data-rk="on" ${r.on?'checked':''}> On</label>
+      <select class="sp-input sm" data-rk="trigger" aria-label="When">${triggerOptions().map(([v,l])=>`<option value="${esc(v)}"${v===r.trigger?' selected':''}>${esc(l)}</option>`).join('')}</select>
+      <div class="rule-to"><span class="mut">Send to</span>
+        <label><input type="checkbox" data-rk="to.rep" ${r.to.rep?'checked':''}> Rep on the order</label>
+        <label><input type="checkbox" data-rk="to.vendor" ${r.to.vendor?'checked':''}> ${esc(settings.vendorName)}</label>
+        <label><input type="checkbox" data-rk="to.ops" ${r.to.ops?'checked':''}> Ops lead</label></div>
+      <button class="sp-del linkbtn" data-act="rule-del">Remove</button></div>
+    <details><summary>Edit message</summary>
+      <div class="fg"><label class="sp-label">Also send to (optional)</label><input class="sp-input" data-rk="extra" value="${esc((r.extra||[]).join(', '))}" placeholder="name@company.com, other@company.com"></div>
+      <div class="fg"><label class="sp-label">Subject</label><input class="sp-input" data-rk="subject" value="${esc(r.subject)}"></div>
+      <div class="fg"><label class="sp-label">Message</label><textarea class="sp-input" data-rk="body" rows="6">${esc(r.body)}</textarea></div>
+    </details></div>`;
+}
+function renderSettings(){
+  const S=settings;
+  main.innerHTML=`<div class="setgrid">
+    <div class="card"><h2 class="sp-h2">Teams and contacts</h2>
+      <div class="grid2">
+        <div class="fg"><label class="sp-label">Your team name</label><input class="sp-input" data-s="teamName" value="${esc(S.teamName)}"></div>
+        <div class="fg"><label class="sp-label">Production partner name</label><input class="sp-input" data-s="vendorName" value="${esc(S.vendorName)}"></div>
+        <div class="fg span2"><label class="sp-label">${esc(S.vendorName)} email addresses</label><textarea class="sp-input" rows="2" data-s="vendorEmails" placeholder="orders@example.com, production@example.com">${esc((S.vendorEmails||[]).join(', '))}</textarea></div>
+        <div class="fg span2"><label class="sp-label">Ops lead email addresses</label><textarea class="sp-input" rows="2" data-s="opsEmails" placeholder="ops@yourcompany.com">${esc((S.opsEmails||[]).join(', '))}</textarea>
+          <p class="sp-note">Separate several addresses with commas.</p></div>
+      </div></div>
+    <div class="card"><h2 class="sp-h2">Reps</h2>
+      <p class="sp-note" style="margin:0 0 8px">Reps are matched by the initials on each order. Add a name and email so they get their emails.</p>
+      <table class="reptbl">${allRepInitials().map(i=>{const r=repInfo(i);return `<tr><td>${chip(i,'rep')}</td>
+        <td><input class="sp-input sm" style="width:100%" data-rep="${esc(i)}" data-k="name" value="${esc(r.name)}" placeholder="Name" aria-label="Name for ${esc(i)}"></td>
+        <td><input class="sp-input sm" style="width:100%" data-rep="${esc(i)}" data-k="email" value="${esc(r.email)}" placeholder="Email" aria-label="Email for ${esc(i)}"></td>
+        <td><button class="linkbtn" data-act="rep-del" data-ini="${esc(i)}">Remove</button></td></tr>`;}).join('')}</table>
+      <div style="display:flex;gap:8px;margin-top:10px"><input class="sp-input sm" id="new-rep" maxlength="4" placeholder="Initials" style="width:100px"><button class="sp-btn small ghost" data-act="rep-add">Add rep</button></div></div>
+    <div class="card full"><h2 class="sp-h2">Email automation</h2>
+      <div class="statusline">
+        ${EMAIL_READY?chip('EmailJS connected','ok'):chip('EmailJS not set up: emails are logged, not sent','warn')}
+        <label class="chk1"><input type="checkbox" data-s="emailEnabled" ${S.emailEnabled?'checked':''}> Send automated emails</label>
+        <button class="sp-btn small ghost" data-act="email-test" style="margin-left:auto">Send a test email</button></div>
+      <p class="sp-note" style="margin:0 0 12px">Each rule sends when the thing in its first dropdown happens. The email goes out from the browser of whoever made the change.</p>
+      <div id="rules">${(S.rules||[]).map(ruleHTML).join('')}</div>
+      <button class="sp-btn small ghost" data-act="rule-add">Add a rule</button>
+      <p class="sp-note">Merge fields you can use in subject and message: <code>{po}</code> <code>{job}</code> <code>{rep}</code> <code>{stage}</code> <code>{due}</code> <code>{goods}</code> <code>{files}</code> <code>{link}</code> <code>{order_url}</code> <code>{by}</code> <code>{comment}</code> <code>{team}</code> <code>{partner}</code></p>
+      <details style="margin-top:10px"><summary>How to connect EmailJS</summary><ol class="steps">
+        <li>Create an EmailJS account, then go to <b>Email Services → Add New Service</b>, pick Gmail or Outlook, connect the mailbox the emails should come from, and copy the <b>Service ID</b>.</li>
+        <li>Go to <b>Email Templates → Create New Template</b>. Set To Email to <code>{{to_email}}</code>, From Name to <code>{{from_name}}</code>, and Subject to <code>{{subject}}</code>. For the content, open the Code Editor and paste <code>&lt;div style="white-space:pre-wrap"&gt;{{message}}&lt;/div&gt;</code> so line breaks are kept. Save, then copy the <b>Template ID</b>.</li>
+        <li>Go to <b>Account → API Keys</b> and copy the <b>Public Key</b>.</li>
+        <li>Paste the three values into <code>EMAILJS_CONFIG</code> at the top of this file, then re-upload it.</li>
+        <li>Come back here, click <b>Send a test email</b> and check that it arrives. Then tick <b>Send automated emails</b>.</li></ol></details></div>
+    <div class="card full"><h2 class="sp-h2">Email log</h2><div id="elog"></div></div>
+    <div class="card full"><h2 class="sp-h2">Data</h2>
+      <p class="sp-note" style="margin:0 0 10px">Export downloads every order as an Excel file: active orders, the archive and all comments each get their own tab.</p>
+      <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="sp-btn small" data-act="export">Export to Excel</button><button class="sp-btn small ghost" data-act="import">Import sheet (.csv or .xlsx)</button>${DEMO?'<button class="sp-btn small danger" data-act="reset-demo">Reset preview data</button>':''}</div></div>
+  </div>`;
+  renderEmailLog();
+}
+function renderEmailLog(){
+  const el=$('#elog');if(!el)return;
+  const chipFor={sent:'ok',failed:'danger',skipped:'warn',preview:'muted'};
+  el.innerHTML=!emailLog.length?'<p class="sp-note" style="margin:0">Nothing yet. Emails triggered by your rules will be listed here.</p>':
+    `<table class="logtbl"><thead><tr><th>When</th><th>Order</th><th>Trigger</th><th>To</th><th>Result</th></tr></thead><tbody>${emailLog.slice(0,25).map(e=>`<tr>
+      <td>${fmtTs(e.ts)}</td><td><b>${esc(e.po)}</b></td><td>${esc(triggerLabel(e.trigger))}</td><td>${esc(e.to)||'—'}</td>
+      <td>${chip({sent:'Sent',failed:'Failed',skipped:'Skipped',preview:'Preview only'}[e.status]||e.status,chipFor[e.status]||'muted')}${e.detail?`<div class="meta">${esc(e.detail)}</div>`:''}</td></tr>`).join('')}</tbody></table>`;
+}
+function persistSettings(){Store.saveSettings(settings).then(()=>toast('Saved.','info')).catch(e=>toast('Could not save settings: '+e.message,'err'));}
+function settingsChange(t){
+  if(t.dataset.s){
+    const k=t.dataset.s;
+    settings[k]=(k==='vendorEmails'||k==='opsEmails')?splitEmails(t.value):k==='emailEnabled'?t.checked:t.value.trim();
+    if(k==='teamName'||k==='vendorName'){updateChrome();renderSettings();}
+    persistSettings();
+  }else if(t.dataset.rep){
+    const r=(settings.reps||[]).find(x=>x.initials===t.dataset.rep);
+    if(r)r[t.dataset.k]=t.value.trim();
+    else{settings.reps=(settings.reps||[]).concat({initials:t.dataset.rep,name:'',email:'',[t.dataset.k]:t.value.trim()});}
+    persistSettings();
+  }else if(t.dataset.rk&&t.closest('[data-rule]')){
+    const box=t.closest('[data-rule]'), r=settings.rules.find(x=>x.id===box.dataset.rule), k=t.dataset.rk; if(!r)return;
+    if(k==='on'){r.on=t.checked;box.classList.toggle('off',!r.on);}
+    else if(k.startsWith('to.'))r.to[k.slice(3)]=t.checked;
+    else if(k==='extra')r.extra=splitEmails(t.value);
+    else r[k]=t.value;
+    persistSettings();
+  }
+}
+
+/* =====================================================================
+   EVENTS
+   ===================================================================== */
+async function act(name,el){
+  switch(name){
+    case 'new':return newOrderModal();
+    case 'export':return exportXlsx();
+    case 'who':return askWho(false);
+    case 'import':return $('#file-import').click();
+    case 'archive-done':return archiveDone();
+    case 'clear-quick':F.quick='';return renderOrdersBody();
+    case 'close-drawer':return closeDrawer();
+    case 'set-stage':if(openId)return setStage(openId,el.dataset.sid);break;
+    case 'advance':{const o=byId(openId),nx=o&&nextStage(o);if(nx)return setStage(openId,nx.id);break;}
+    case 'comment':return postComment();
+    case 'archive':return archiveOrder(openId);
+    case 'restore':return restoreOrder(openId);
+    case 'delete':return deleteOrder(openId);
+    case 'reset-demo':if(await confirmBox('Reset preview data?','This replaces the preview orders, comments and settings with the original 13 orders.','Reset',true)){await DemoStore.reset();toast('Preview data reset.','info');}break;
+    case 'rep-add':{const i=$('#new-rep').value.trim().toUpperCase().replace(/[^A-Z]/g,'');if(!i)return;
+      if(!(settings.reps||[]).some(r=>r.initials===i))settings.reps=(settings.reps||[]).concat({initials:i,name:'',email:''});
+      persistSettings();return renderSettings();}
+    case 'rep-del':settings.reps=(settings.reps||[]).filter(r=>r.initials!==el.dataset.ini);persistSettings();return renderSettings();
+    case 'rule-add':settings.rules=(settings.rules||[]).concat({id:'r_'+uid(),on:true,trigger:'order_added',to:{rep:true,vendor:false,ops:false},extra:[],subject:'Update on {po} – {job}',body:'{by} made a change to {po} – {job}.'+SIG});persistSettings();return renderSettings();
+    case 'rule-del':{const id=el.closest('[data-rule]').dataset.rule;
+      if(await confirmBox('Remove this rule?','It will stop sending emails for this trigger.','Remove',true)){settings.rules=settings.rules.filter(r=>r.id!==id);persistSettings();renderSettings();}break;}
+    case 'email-test':{
+      if(!EMAIL_READY){toast('Add your EmailJS keys at the top of the file first (see “How to connect EmailJS”).','err');return;}
+      const to=await openModal({title:'Send a test email',body:'<div class="fg"><label class="sp-label" for="te">Send to</label><input class="sp-input" id="te" type="email" placeholder="you@company.com"></div>',
+        actions:[{label:'Cancel',kind:'ghost',value:null},{label:'Send test',validate:b=>splitEmails($('#te',b).value).length>0,get:b=>splitEmails($('#te',b).value)}]});
+      if(to){try{await sendRaw(to,'Test from GSI Order Tracker','If you can read this, EmailJS is connected.',me());toast('Test email sent.');}catch(e){toast('Test failed: '+(e.message||e),'err');}}
+      break;}
+  }
+}
+document.addEventListener('click',e=>{
+  const t=e.target;
+  const a=t.closest('[data-act]');if(a){act(a.dataset.act,a);return;}
+  const v=t.closest('[data-view]');if(v){setView(v.dataset.view);return;}
+  if(t.id==='scrim'){closeDrawer();return;}
+  if(!main.contains(t))return;
+  const sb=t.closest('[data-sort]');
+  if(sb){const k=sb.dataset.sort;if(sort.key===k)sort.dir*=-1;else{sort.key=k;sort.dir=1;}renderOrdersBody();return;}
+  const q=t.closest('[data-quick]');
+  if(q){const v2=q.dataset.quick;F.quick=(F.quick===v2)?'':v2;F.stage='open';const fs=$('#f-stage');if(fs)fs.value='open';renderOrdersBody();return;}
+  const op=t.closest('[data-open]');
+  if(op&&!t.closest('select,a,button,input'))openDrawer(op.dataset.open);
+});
+document.addEventListener('keydown',e=>{
+  if(e.key==='Escape'){if(!$('#modal').hidden){if(modalDismiss)closeModal(null);}else if(openId)closeDrawer();return;}
+  if(e.key==='Enter'&&!$('#modal').hidden&&e.target.tagName==='INPUT'&&e.target.type!=='checkbox'&&e.target.type!=='radio'){
+    const p=$$('#mo-actions .sp-btn').filter(b=>!b.classList.contains('ghost')&&!b.classList.contains('danger'))[0];if(p){e.preventDefault();p.click();}return;}
+  if((e.key==='Enter'||e.key===' ')&&e.target.matches&&e.target.matches('tr[data-open],.att-row[data-open]')){e.preventDefault();openDrawer(e.target.dataset.open);}
+});
+document.addEventListener('input',e=>{
+  if(e.target.id==='f-q'){F.q=e.target.value;renderOrdersBody();}
+  else if(e.target.id==='a-q'){AF.q=e.target.value;renderArchiveBody();}
+});
+document.addEventListener('change',e=>{
+  const t=e.target;
+  if(t.matches('select[data-stage]')){setStage(t.dataset.stage,t.value);return;}
+  if(t.id==='f-rep'){F.rep=t.value;renderOrdersBody();return;}
+  if(t.id==='f-type'){F.type=t.value;renderOrdersBody();return;}
+  if(t.id==='f-stage'){F.stage=t.value;F.quick='';renderOrdersBody();return;}
+  if(t.id==='b-rep'){F.rep=t.value;renderBoard();return;}
+  if(t.id==='file-import'){if(t.files[0])handleImport(t.files[0]);t.value='';return;}
+  if(t.closest('#dr-fields')&&t.dataset.f){fieldChanged(openId,t.dataset.f,t.type==='checkbox'?t.checked:t.value.trim());return;}
+  if(view==='settings'&&main.contains(t))settingsChange(t);
+});
+/* board drag and drop */
+document.addEventListener('dragstart',e=>{const c=e.target.closest&&e.target.closest('.bcard');if(!c)return;e.dataTransfer.setData('text/plain',c.dataset.open);e.dataTransfer.effectAllowed='move';c.classList.add('drag');});
+document.addEventListener('dragend',e=>{$$('.bcard.drag,.bcol.over').forEach(x=>x.classList.remove('drag','over'));});
+document.addEventListener('dragover',e=>{const c=e.target.closest&&e.target.closest('.bcol');if(!c)return;e.preventDefault();$$('.bcol.over').forEach(x=>{if(x!==c)x.classList.remove('over');});c.classList.add('over');});
+document.addEventListener('drop',e=>{const c=e.target.closest&&e.target.closest('.bcol');if(!c)return;e.preventDefault();c.classList.remove('over');
+  const id=e.dataTransfer.getData('text/plain');if(id)setStage(id,c.dataset.stageCol);});
+window.addEventListener('hashchange',openFromHash);
+function openFromHash(){const m=location.hash.match(/^#order=(.+)$/);if(m&&byId(m[1]))openDrawer(decodeURIComponent(m[1]));}
+
+/* =====================================================================
+   BOOT
+   ===================================================================== */
+function showConnectError(e){
+  console.error(e);
+  main.innerHTML=`<div class="card"><h2 class="sp-h2">Can’t connect to the database</h2>
+    <p>${esc(e&&e.message||e)}</p>
+    <p class="sp-note">Check that <code>FIREBASE_CONFIG</code> at the top of this file is filled in, that Firestore is enabled for the project, and that the security rules allow the <code>gsi_orders</code>, <code>gsi_settings</code> and <code>gsi_emailLog</code> collections (see the setup notes in the file).</p></div>`;
+}
+(async function boot(){
+  updateChrome();
+  try{await Store.init(handlers);}catch(e){showConnectError(e);return;}
+  ready=true;
+  render();
+  openFromHash();
+  if(!who)askWho(true);
+})();
+})();
+</script>
+</body>
+</html>
