@@ -228,6 +228,24 @@
   .mo{position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:1000;display:flex;align-items:center;justify-content:center;padding:16px;backdrop-filter:blur(1px);}
   .mo-box{background:#fff;border-radius:var(--r-lg);box-shadow:var(--shadow-lg);padding:24px 26px;width:100%;max-width:440px;max-height:92vh;overflow-y:auto;animation:screenIn var(--dur-base) var(--ease);}
   .mo-box.wide{max-width:640px;}
+  .pvdrop{border:2px dashed var(--line);border-radius:var(--r-md);padding:16px;text-align:center;background:#fafafb;cursor:pointer;transition:border-color var(--dur-fast),background var(--dur-fast);}
+  .pvdrop:hover,.pvdrop.over,.pvdrop:focus-visible{border-color:var(--lanyard);background:var(--red-light);outline:none;}
+  .pvdrop b{display:block;font-size:var(--fs-base);margin-bottom:2px;}
+  .pvdrop span{font-size:var(--fs-sm);color:var(--mut);}
+  .pvpaste{margin:8px 0 0;font-size:var(--fs-sm);}
+  .pvpaste summary{cursor:pointer;color:var(--mut);}
+  .pvpaste textarea{margin:8px 0;}
+  .pvbox{margin:12px 0 4px;border-radius:var(--r-md);padding:10px 14px;font-size:var(--fs-sm);background:var(--ok-light);border:1px solid #bfe0cd;}
+  .pvbox.err{background:var(--danger-light);border-color:#f2c4bf;}
+  .pvbox.info{background:#f0f2f6;border-color:var(--line);}
+  .pvbox ul{margin:6px 0 0 18px;padding:0;}
+  .pvbox li{margin:2px 0;}
+  .fg.pv-need .sp-input,.fg.pv-ask .sp-input{border-color:#e0a800;background:var(--warn-light);}
+  .fg.pv-check .sp-input{border-color:#7fc8a0;}
+  .pvtag{display:inline-block;margin-left:6px;font-size:10.5px;font-weight:700;padding:1px 7px;border-radius:var(--r-pill);vertical-align:1px;letter-spacing:.02em;}
+  .pvtag.ok{background:var(--ok-light);color:var(--ok);}
+  .pvtag.check{background:#e8eefc;color:#2a4a9c;}
+  .pvtag.need,.pvtag.ask{background:var(--warn-light);color:var(--warn);}
   .mo-box .sp-h2{font-size:var(--fs-xl);margin-bottom:var(--sp-3);}
   .mo-actions{display:flex;gap:10px;justify-content:flex-end;margin-top:18px;}
   .seg{display:flex;gap:16px;flex-wrap:wrap;padding-top:4px;}
@@ -1079,16 +1097,232 @@ async function archiveDone(){
   for(const o of list)await Store.updateOrder(o.id,{archived:true,archivedAt:Date.now(),archivedBy:me(),updatedAt:Date.now()},{history:[hist('Archived')]});
   toast(`${list.length} order${list.length===1?'':'s'} archived.`,'info');
 }
+/* =====================================================================
+   PRINTAVO INTAKE  (drop a work order PDF, a saved page, or pasted text)
+   Everything is read in the browser. Only order details are kept: prices
+   and customer contact info are ignored on purpose.
+   ===================================================================== */
+const PDFJS_SRC='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js';
+const PDFJS_WORKER='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+let pdfjsPromise=null;
+function loadPdfJs(){
+  if(window.pdfjsLib) return Promise.resolve(window.pdfjsLib);
+  return pdfjsPromise||(pdfjsPromise=new Promise((res,rej)=>{
+    const sc=document.createElement('script'); sc.src=PDFJS_SRC;
+    sc.onload=()=>{window.pdfjsLib.GlobalWorkerOptions.workerSrc=PDFJS_WORKER;res(window.pdfjsLib);};
+    sc.onerror=()=>{pdfjsPromise=null;rej(new Error('Couldn’t load the PDF reader. Check your connection, or paste the work order text instead.'));};
+    document.head.appendChild(sc);
+  }));
+}
+async function pdfToText(buf){
+  const lib=await loadPdfJs();
+  const pdf=await lib.getDocument({data:new Uint8Array(buf)}).promise;
+  let out='';
+  for(let p=1;p<=pdf.numPages;p++){
+    const tc=await (await pdf.getPage(p)).getTextContent(), rows=[];
+    tc.items.forEach(it=>{
+      if(!it.str||!it.str.trim()) return;
+      const y=it.transform[5], x=it.transform[4];
+      let r=rows.find(r=>Math.abs(r.y-y)<3); if(!r){r={y,items:[]};rows.push(r);}
+      r.items.push({x,s:it.str.trim()});
+    });
+    rows.sort((a,b)=>b.y-a.y).forEach(r=>{out+=r.items.sort((a,b)=>a.x-b.x).map(i=>i.s).join(' ')+'\n';});
+    out+='\n';
+  }
+  return out;
+}
+function htmlToText(html){
+  const link=(html.match(/https?:\/\/[^\s"'<>]*printavo\.com\/work_orders\/[A-Za-z0-9]+/i)||[''])[0];
+  const doc=new DOMParser().parseFromString(html,'text/html');
+  doc.querySelectorAll('script,style,noscript,head').forEach(n=>n.remove());
+  // Keep neighbouring elements apart ("Created" + "September 14" must not fuse into one word)
+  doc.querySelectorAll('body *').forEach(n=>n.append(' '));
+  doc.querySelectorAll('br,p,div,tr,li,dt,dd,h1,h2,h3,h4,h5,h6,section,table,td,th').forEach(n=>n.append('\n'));
+  return {text:doc.body?doc.body.textContent:'',link};
+}
+async function printavoFileToText(file){
+  if(file.size>25*1024*1024) throw new Error('That file is too large to be a work order.');
+  const name=(file.name||'').toLowerCase();
+  if(name.endsWith('.pdf')||file.type==='application/pdf') return {text:await pdfToText(await file.arrayBuffer()),src:'the PDF'};
+  const raw=await file.text();
+  if(/\.html?$/.test(name)||/<html|<body|<!doctype/i.test(raw.slice(0,3000))) return Object.assign(htmlToText(raw),{src:'the saved page'});
+  return {text:raw,src:'the file'};
+}
+const MONTHS={jan:1,feb:2,mar:3,apr:4,may:5,jun:6,jul:7,aug:8,sep:9,oct:10,nov:11,dec:12};
+const DATE_RE='(?:[A-Za-z]{3,9}\\.?\\s+\\d{1,2},?\\s+\\d{4}|\\d{1,2}/\\d{1,2}/\\d{2,4})';
+function isoFromLong(t){
+  let m=String(t).match(/([A-Za-z]{3,9})\.?\s+(\d{1,2}),?\s+(\d{4})/);
+  if(m){const mo=MONTHS[m[1].slice(0,3).toLowerCase()]; if(mo) return m[3]+'-'+pad(mo)+'-'+pad(+m[2]);}
+  m=String(t).match(/(\d{1,2})\/(\d{1,2})\/(\d{2,4})/);
+  if(m){let y=+m[3]; if(y<100) y+=2000; return y+'-'+pad(+m[1])+'-'+pad(+m[2]);}
+  return '';
+}
+/* st values: ok = read straight from the work order, check = worked out from it (glance at it),
+   need = missing and required, ask = missing but worth filling in */
+function parsePrintavo(text,link){
+  const raw=String(text||'').replace(/\u00a0/g,' ');
+  const flat=raw.replace(/\s+/g,' ').trim();
+  const o={}, st={}, hint={};
+  // PO number (and a rep suffix, if the number carries one)
+  let m=flat.match(/Invoice\s*#\s*([A-Za-z0-9-]+)/i)||flat.match(/Work Order\s*#\s*([A-Za-z0-9-]+)/i);
+  if(m){const pm=m[1].match(/^(\d+)[-\s]+([A-Za-z]{1,4})$/); o.po=pm?pm[1]:m[1]; st.po='ok'; if(pm){o.rep=pm[2].toUpperCase();st.rep='ok';}}
+  else st.po='need';
+  // Job name sits between the invoice number and the thank-you line
+  m=flat.match(/Invoice\s*#\s*[A-Za-z0-9-]+\s+(.+?)\s+(?:Thank you for your business|Delivery Method|Created\b)/i);
+  if(m&&m[1].length<=140){o.job=m[1].trim();st.job='ok';} else st.job='need';
+  // Dates: label followed by a date, or a row of labels followed by a row of dates
+  const cut=flat.search(/Customer Billing/i), head=flat.slice(0,cut>0?cut:4000);
+  // In a PDF the two columns can interleave, so a label's date may not sit right after it.
+  // Look a short way past the label, stopping at the next label, and take the first date found.
+  const STOP=/\b(?:Created|Production Due Date|Customer Due Date|Delivery Method|Amount Outstanding|Total)\b/i;
+  const get=lab=>{
+    const m=new RegExp('\\b'+lab+'\\b','i').exec(head); if(!m) return '';
+    let tail=head.slice(m.index+m[0].length,m.index+m[0].length+140);
+    const stop=tail.search(STOP); if(stop>=0) tail=tail.slice(0,stop);
+    const d=tail.match(new RegExp(DATE_RE)); return d?isoFromLong(d[0]):'';
+  };
+  let created=get('Created'), pdue=get('Production Due Date'), cdue=get('Customer Due Date');
+  if(!created&&!pdue&&!cdue){
+    const iso=(head.match(new RegExp(DATE_RE,'g'))||[]).map(isoFromLong);
+    ['Created','Production Due Date','Customer Due Date'].filter(l=>new RegExp('\\b'+l,'i').test(head)).forEach((l,i)=>{
+      if(!iso[i]) return; if(l==='Created') created=iso[i]; else if(l==='Production Due Date') pdue=iso[i]; else cdue=iso[i];});
+  }
+  if(created){o.submitted=created;st.submitted='ok';}
+  const due=pdue||cdue;
+  if(due){o.due=due;st.due='ok';} else st.due='need';
+  if(pdue&&cdue&&pdue!==cdue) o.dueNote='Customer due '+fmtShort(cdue);
+  // Production notes + attached file names
+  let seg=(raw.match(/Production Notes([\s\S]*?)(?:Invoice\s*#)/i)||[])[1]||'';
+  if(seg.length>1500) seg='';
+  const EXT='pdf|eps|ai|dst|pes|exp|emb|png|jpe?g|svg|psd|cdr|ps|tiff?|gif|zip';
+  const fileRe=new RegExp('.+?\\.(?:'+EXT+')(?=\\s|$)','gi'), typeRe=new RegExp('^(?:'+EXT+')\\s+','i');
+  const noteLines=[], files=[];
+  seg.split('\n').map(l=>l.trim()).filter(Boolean).forEach(l=>{
+    const ch=l.match(fileRe);
+    if(ch){ch.forEach(c=>files.push(c.trim().replace(typeRe,'').trim()));const rest=l.replace(fileRe,'').trim();if(rest)noteLines.push(rest);}
+    else noteLines.push(l);
+  });
+  const notes=[...new Set(noteLines)].join('; ').slice(0,160);
+  if(notes){o.statusNote=notes;st.statusNote='ok';}
+  // Rush / firm / time flags only from the notes, never from the terms & conditions
+  if(/\brush\b/i.test(notes)) o.rush=true;
+  if(/\bfirm\b/i.test(notes)) o.firm=true;
+  if(/\b(by|before)\s*\d{1,2}(:\d{2})?\s*(am|pm)\b/i.test(notes)) o.timed=true;
+  // Decoration, from the line items only
+  const body=flat.split(/Item Total|Fees Total|By approving this invoice/i)[0];
+  const sp=/screen\s*print/i.test(body), emb=/embroider/i.test(body);
+  if(sp||emb){o.decoration=sp&&emb?'BOTH':emb?'EMB':'SP';st.decoration='ok';} else st.decoration='ask';
+  // Goods
+  const gre=/Goods\s*[•·*-]?\s*(Partially received|Received|Ordered|Not ordered|Need to order)(?:\s*PO\s*#\s*([A-Za-z]{0,2}\d+))?/gi, gs=[]; let g;
+  while((g=gre.exec(flat))) gs.push({s:g[1].toLowerCase(),po:g[2]});
+  if(gs.length){
+    o.goods=gs.every(x=>x.s==='received')?'received':gs.some(x=>x.s==='ordered'||x.s==='partially received')?'expected':'pending';
+    const gp=[...new Set(gs.map(x=>x.po).filter(Boolean))]; if(gp.length) o.goodsNote='Ordered on PO '+gp.join(', ');
+    st.goods='check'; if(o.goods==='expected') st.goodsDate='ask';
+  } else st.goods='ask';
+  // Production files
+  hint.files=files;
+  const prod=files.filter(f=>/\.(dst|pes|exp|emb|eps)$/i.test(f)||/sep/i.test(f));
+  if(prod.length){o.files='uploaded';o.filesNote=prod.join(', ').slice(0,160);st.files='check';}
+  else st.files='ask';
+  hint.proof=files.find(f=>/proof/i.test(f))||'';
+  st.proof='ask';
+  if(!o.rep) st.rep='need';
+  const l=link||(flat.match(/https?:\/\/[^\s"'<>]*printavo\.com\/work_orders\/[A-Za-z0-9]+/i)||[''])[0];
+  if(l){o.link=l;st.link='ok';} else st.link='ask';
+  const recognised=st.po==='ok'||st.job==='ok'||st.due==='ok'||st.submitted==='ok';
+  return {o,st,hint,recognised};
+}
+const PV_LABELS={po:'PO #',job:'Job name',rep:'Rep',decoration:'Decoration',due:'Due date',goods:'Goods',goodsDate:'Goods expected on',files:'Production files',proof:'Art / proof status',link:'Printavo link',submitted:'Date submitted'};
+const PV_TAG={ok:'From Printavo',check:'Please check',need:'Needed',ask:'Please fill in'};
+function pvWrap(root,k){const el=k==='proof'?$('[data-pv="proof"]',root):$('[data-f="'+k+'"]',root);return el?el.closest('.fg'):null;}
+function pvClear(root){
+  $$('.pvtag',root).forEach(t=>t.remove());
+  $$('.fg',root).forEach(f=>f.classList.remove('pv-ok','pv-check','pv-need','pv-ask'));
+}
+function pvApply(root,res,srcLabel,pv){
+  pvClear(root);
+  const {o,st,hint}=res;
+  if(st.link==='ask'&&$('[data-f="link"]',root).value) st.link='ok';
+  $$('[data-f]',root).forEach(el=>{const f=el.dataset.f; if(!(f in o)) return; if(el.type==='checkbox') el.checked=!!o[f]; else el.value=o[f];});
+  Object.keys(st).forEach(k=>{
+    const w=pvWrap(root,k); if(!w) return;
+    w.classList.add('pv-'+st[k]);
+    const lb=$('.sp-label',w); if(lb&&PV_TAG[st[k]]&&st[k]!=='ok') lb.insertAdjacentHTML('beforeend','<span class="pvtag '+st[k]+'">'+PV_TAG[st[k]]+'</span>');
+    else if(lb&&PV_LABELS[k]) lb.insertAdjacentHTML('beforeend','<span class="pvtag ok">From Printavo</span>');
+  });
+  const names=t=>Object.keys(st).filter(k=>st[k]===t&&PV_LABELS[k]).map(k=>PV_LABELS[k]);
+  const need=names('need'), ask=names('ask'), chk=names('check'), got=Object.keys(st).filter(k=>st[k]==='ok'&&PV_LABELS[k]).length;
+  const notes=[];
+  if(hint.proof) notes.push('A proof file is attached ('+esc(hint.proof)+'). Set the proof status once you know where it stands.');
+  if(o.rush||o.firm||o.timed) notes.push('The production notes mention a rush, firm date, or time, so those boxes are ticked.');
+  else notes.push('Rush, firm date and “by a time” aren’t in Printavo. Tick them if they apply.');
+  const box=$('#pv-box',root); box.className='pvbox'; box.hidden=false;
+  box.innerHTML='<b>Filled in from '+esc(srcLabel)+'.</b> '+got+' details read. Prices and customer contact info are ignored.<ul>'+
+    (need.length?'<li><b>Still needed:</b> '+need.join(', ')+'</li>':'')+
+    (ask.length?'<li><b>Worth filling in:</b> '+ask.join(', ')+'</li>':'')+
+    (chk.length?'<li><b>Please check:</b> '+chk.join(', ')+'</li>':'')+
+    notes.map(n=>'<li>'+n+'</li>').join('')+'</ul>';
+  pv.used=true;
+  const first=$('.fg.pv-need select,.fg.pv-need input',root)||$('.fg.pv-ask select,.fg.pv-ask input',root); if(first) setTimeout(()=>first.focus(),20);
+}
+function pvMessage(root,kind,html){const box=$('#pv-box',root);box.className='pvbox '+kind;box.hidden=false;box.innerHTML=html;}
+function pvWire(root,pv){
+  const zone=$('#pv-zone',root), inp=$('#pv-file',root);
+  const fromText=(text,link,src)=>{
+    const t=String(text||'').trim();
+    if(/^https?:\/\/\S*printavo\.com\/work_orders\/\S+$/i.test(t)){
+      const li=$('[data-f="link"]',root); li.value=t; const w=pvWrap(root,'link'); if(w) w.classList.remove('pv-ask');
+      pvMessage(root,'info','<b>Link added.</b> A browser can’t read another site’s page from a link, so drop the work order PDF (or a saved copy of the page) to fill in the rest.'); return;
+    }
+    const res=parsePrintavo(t,link);
+    if(!res.recognised){pvMessage(root,'err','<b>That doesn’t look like a Printavo work order.</b> Try the PDF from Printavo, or fill the form in by hand below.');return;}
+    pvApply(root,res,src,pv);
+  };
+  const fromFile=async f=>{
+    pvMessage(root,'info','Reading '+esc(f.name)+'…');
+    try{const r=await printavoFileToText(f); fromText(r.text,r.link,r.src);}
+    catch(e){pvMessage(root,'err','<b>Couldn’t read that file.</b> '+esc(e.message||e)+' You can paste the text below or fill the form in by hand.');}
+  };
+  zone.addEventListener('click',()=>inp.click());
+  zone.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();inp.click();}});
+  inp.addEventListener('change',()=>{const f=inp.files[0];inp.value='';if(f)fromFile(f);});
+  root.addEventListener('dragover',e=>{e.preventDefault();zone.classList.add('over');});
+  root.addEventListener('dragleave',e=>{if(!root.contains(e.relatedTarget))zone.classList.remove('over');});
+  root.addEventListener('drop',e=>{e.preventDefault();zone.classList.remove('over');const f=e.dataTransfer&&e.dataTransfer.files[0];if(f)fromFile(f);});
+  $('#pv-read',root).addEventListener('click',()=>{const t=$('#pv-text',root).value;if(t.trim())fromText(t,'','the pasted text');});
+}
 async function newOrderModal(){
   if(!who){await askWho(true);}
-  const r=await openModal({title:'New order',wide:true,body:fieldsHTML(blankOrder()),
+  const pv={used:false};
+  const body=`<div id="pv-zone" class="pvdrop" tabindex="0" role="button" aria-label="Choose a Printavo work order file">
+      <b>Start from a Printavo work order</b>
+      <span>Drop the work order PDF here (or a saved copy of the page), or click to choose a file. It’s read in your browser and isn’t uploaded anywhere.</span></div>
+    <input type="file" id="pv-file" accept=".pdf,.html,.htm,.txt" hidden>
+    <details class="pvpaste"><summary>Paste the work order text or link instead</summary>
+      <textarea id="pv-text" class="sp-input" rows="3" placeholder="Paste the text of the work order, or just its link"></textarea>
+      <button type="button" class="sp-btn small ghost" id="pv-read">Read it</button></details>
+    <div id="pv-box" class="pvbox" hidden></div>
+    <div class="fg" style="margin:14px 0 2px"><label class="sp-label">Art / proof status</label>
+      <select class="sp-input" data-pv="proof"><option value="">Choose…</option><option value="none">No proof sent yet</option><option value="sent">Proof sent</option><option value="approved">Proof approved</option></select></div>
+    <div style="height:8px"></div>${fieldsHTML(blankOrder())}`;
+  const pr=openModal({title:'New order',wide:true,body,
     actions:[{label:'Cancel',kind:'ghost',value:null},{label:'Create order',
-      validate:b=>{const d=collectFields(b);if(!d.po||!d.job){toast('Add a PO # and a job name.','err');return false;}return true;},
-      get:b=>collectFields(b)}]});
-  if(!r)return;
+      validate:b=>{const d=collectFields(b);
+        if(!d.po||!d.job){toast('Add a PO # and a job name.','err');return false;}
+        if(pv.used&&(!d.rep||!d.due)){toast('Pick a rep and a due date first. They’re highlighted.','err');const f=$('.fg.pv-need select,.fg.pv-need input',b);if(f)f.focus();return false;}
+        return true;},
+      get:b=>Object.assign(collectFields(b),{_proof:$('[data-pv="proof"]',b).value,_pv:pv.used})}]});
+  pvWire($('#mo-body'),pv);
+  setTimeout(()=>{const f=$('#mo-body [data-f="po"]');if(f&&!pv.used)f.focus();},60);
+  const r0=await pr;
+  if(!r0)return;
+  const {_proof,_pv,...r}=r0;
   if(orders.some(x=>x.po.toLowerCase()===r.po.toLowerCase())&&!await confirmBox('PO already exists',`An order with PO ${esc(r.po)} is already in the tracker. Add this one anyway?`,'Add anyway'))return;
   const now=Date.now();
-  const data=Object.assign(blankOrder(),r,{stage:'submitted',createdAt:now,updatedAt:now,history:[hist('Order created')]});
+  let stage='submitted';
+  if(_proof==='approved') stage='proof_approved'; else if(_proof==='sent') stage='proof_sent'; else if(_pv&&r.goods==='received') stage='received';
+  const data=Object.assign(blankOrder(),r,{stage,createdAt:now,updatedAt:now,history:[hist(_pv?'Order created from a Printavo work order':'Order created')]});
   const id=await Store.createOrder(data);
   toast(`${r.po} added.`);
   fireTriggers(Object.assign({id},data),['order_added'],{by:me()});
