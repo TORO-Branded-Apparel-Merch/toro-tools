@@ -199,7 +199,7 @@ const PW_KEY = 'toro_pw_shannon';
 const LOCK_KEY = 'toro_lock_shannon';
 const ATTEMPTS_KEY = 'toro_attempts_shannon';
 const DEFAULT_PW = 'Toro#Kw9mP';
-const PORTAL_VERSION = 'v2.38';
+const PORTAL_VERSION = 'v2.39';
 const FB_PATH = 'quotes/' + REP_LOWER;
 
 function bamAlert(msg, cb) {
@@ -747,8 +747,8 @@ function render() {
     return sell>0 ? (sell-net)/sell*100 : null;
   };
   const marginBar = document.getElementById('margin-stats-bar');
-  const mUnpaid = blendedMargin(unpaid), mPaid = blendedMargin(paidOnly), mAll = blendedMargin(archived);
-  if(archived.length){
+  const mActive = blendedMargin(all), mUnpaid = blendedMargin(unpaid), mPaid = blendedMargin(paidOnly), mAll = blendedMargin(archived);
+  if(all.length || archived.length){
     marginBar.style.display = '';
     const stat = (label,val,n,color) => '<div style="flex:1;min-width:150px;">'+
       '<div style="font-size:11px;font-weight:600;color:'+color+';text-transform:uppercase;letter-spacing:.03em;margin-bottom:2px;">'+label+'</div>'+
@@ -756,6 +756,7 @@ function render() {
         '<span style="font-size:11px;font-weight:500;color:#888;margin-left:6px;">'+n+' order'+(n!==1?'s':'')+'</span></div></div>';
     marginBar.innerHTML =
       '<div style="display:flex;flex-wrap:wrap;gap:16px;background:#fafafa;border:1px solid var(--border);border-radius:var(--radius);padding:14px 18px;margin-bottom:16px;">'+
+        stat('Active quotes', mActive, all.length, '#b7791f')+
         stat('Submitted, awaiting payment', mUnpaid, unpaid.length, '#4338ca')+
         stat('Paid out', mPaid, paidOnly.length, '#16a34a')+
         stat('Combined (all submitted)', mAll, archived.length, '#555')+
