@@ -1,5 +1,17 @@
 <!DOCTYPE html>
 <html lang="en">
+<!--
+  GSI Order Tracker v1.0
+  Live order tracking dashboard for Toro Merch ↔ GSI vendor workflow
+  
+  Changes in v1.0:
+  • Added version display in header
+  • Added version constant APP_VERSION for easy tracking
+  • Added console logging to debug Firestore connection
+  • Clarified Firestore rules must be Published (not just Saved)
+  
+  Previous versions: See project transcript at /mnt/transcripts/ for full history
+-->
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -323,7 +335,7 @@
 
 <header class="hd">
   <div class="brand">
-    <h1>GSI Order Tracker</h1>
+    <h1>GSI Order Tracker <span style="font-size:12px;opacity:0.6;font-weight:normal;" id="version-badge"></span></h1>
     <p>Live order status for reps, ops and GSI</p>
   </div>
   <nav class="nav" aria-label="Views">
@@ -375,6 +387,8 @@
             match /gsi_settings/{id} { allow read, write: if true; }
             match /gsi_emailLog/{id} { allow read, write: if true; }
         (Open rules match "anyone with the link". Tighten later if needed.)
+      • IMPORTANT: After pasting rules, click "PUBLISH" button (not just "Save").
+        If preview banner still shows, hard-refresh browser (Cmd+Shift+R / Ctrl+Shift+R).
 
    2) EMAILJS  – sends the automated emails.
       • Create an EmailJS email service + one template with:
@@ -384,22 +398,30 @@
       • Optional, for proof uploads: turn on Firebase Storage (needs the Blaze plan) and publish the rules shown in Settings → Proof files.
    ===================================================================== */
 const FIREBASE_CONFIG = {
-  apiKey: "",
-  authDomain: "",
-  projectId: "",
-  storageBucket: "",
-  messagingSenderId: "",
-  appId: ""
+  apiKey: "AIzaSyDeiUaVrlhR9GUt6OFYYpOAQv_Yamjd71g",
+  authDomain: "gsi-tracker.firebaseapp.com",
+  projectId: "gsi-tracker",
+  storageBucket: "gsi-tracker.firebasestorage.app",
+  messagingSenderId: "939427498258",
+  appId: "1:939427498258:web:89641bec649d1a51910bcb"
 };
 const EMAILJS_CONFIG = { serviceId: "", templateId: "", publicKey: "" };
 
 (() => {
 'use strict';
 
+/* ---------- version ---------- */
+const APP_VERSION = 'v1.0';
+
 /* ---------- constants ---------- */
 const COLL = { orders:'gsi_orders', settings:'gsi_settings', log:'gsi_emailLog' };
 const DEMO = !FIREBASE_CONFIG.projectId;
 const STORAGE_READY = !DEMO && !!FIREBASE_CONFIG.storageBucket;   // proof files need Firebase Storage
+
+// Debug: log the DEMO flag and config
+console.log(`GSI Order Tracker ${APP_VERSION}`);
+console.log(`Firebase projectId: "${FIREBASE_CONFIG.projectId}"`);
+console.log(`DEMO mode: ${DEMO}`);
 const PROOF_MAX_LIVE = 25*1024*1024, PROOF_MAX_DEMO = 1024*1024;
 const EMAIL_READY = !!(EMAILJS_CONFIG.serviceId && EMAILJS_CONFIG.templateId && EMAILJS_CONFIG.publicKey);
 
@@ -794,6 +816,7 @@ function updateChrome(){
   const n=orders.filter(o=>!o.archived&&SI[o.stage]<SI.picked_up&&urgent(o)).length;
   const bd=$('#att-badge');bd.textContent=n;bd.hidden=!n;
   $('#who-chip').textContent=who?who.name+' · '+(mySide()==='vendor'?settings.vendorName:settings.teamName):'Set your name';
+  $('#version-badge').textContent=APP_VERSION;
   $('#demo-banner').hidden=!DEMO;
 }
 function setView(v){view=v;render();window.scrollTo({top:0});}
