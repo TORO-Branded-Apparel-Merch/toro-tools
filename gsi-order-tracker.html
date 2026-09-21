@@ -155,10 +155,21 @@
   /* ---------- board ---------- */
   .boardbar{display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-bottom:var(--sp-3);}
   .boardbar .sp-note{margin:0;flex:1 1 300px;}
-  .board{display:flex;gap:12px;overflow-x:auto;padding-bottom:14px;align-items:flex-start;}
-  .bcol{flex:0 0 236px;background:#ebebee;border-radius:var(--r-md);padding:10px;min-height:140px;border:2px solid transparent;}
+  .wrap.wide{max-width:none;padding-left:20px;padding-right:20px;}
+  .board{display:flex;gap:12px;overflow-x:auto;padding-bottom:14px;align-items:flex-start;scrollbar-width:none;}
+  .board::-webkit-scrollbar{display:none;}
+  .board-top{position:sticky;top:var(--hd-h,64px);z-index:5;overflow-x:auto;overflow-y:hidden;height:16px;margin:0 0 8px;background:var(--paper);}
+  .board-top>div{height:1px;}
+  /* Styled so the bar is always visible, including on Macs that hide scrollbars by default */
+  .board-top::-webkit-scrollbar{height:12px;}
+  .board-top::-webkit-scrollbar-track{background:#e4e4e9;border-radius:8px;}
+  .board-top::-webkit-scrollbar-thumb{background:#a9a9b3;border-radius:8px;}
+  .board-top::-webkit-scrollbar-thumb:hover{background:var(--lanyard);}
+  @supports not selector(::-webkit-scrollbar){.board-top{scrollbar-color:#a9a9b3 #e4e4e9;}}
+  .board-top[hidden]{display:none;}
+  .bcol{flex:1 0 210px;max-width:340px;background:#ebebee;border-radius:var(--r-md);padding:10px;min-height:140px;border:2px solid transparent;}
   .bcol.opt{background:transparent;border:2px dashed var(--line);}
-  .bcol.opt.empty{flex-basis:150px;}
+  .bcol.opt.empty{flex:0 0 150px;}
   .bcol.over{border-color:var(--lanyard);background:var(--red-light);}
   .bch{display:flex;align-items:center;justify-content:space-between;gap:8px;margin:2px 2px 10px;}
   .bch b{font-size:var(--fs-sm);line-height:1.3;}
@@ -302,6 +313,7 @@
   }
   @media (max-width:640px){
     .hd{position:static;}
+    .board-top{top:0;}
     .hd,.wrap{padding-left:var(--sp-4);padding-right:var(--sp-4);}
     .grid2{grid-template-columns:1fr;}
   }
@@ -787,6 +799,7 @@ function updateChrome(){
 function setView(v){view=v;render();window.scrollTo({top:0});}
 function render(){
   updateChrome();
+  main.classList.toggle('wide',view==='board');
   main.classList.remove('enter');void main.offsetWidth;main.classList.add('enter');
   ({orders:renderOrders,board:renderBoard,attention:renderAttention,archive:renderArchive,settings:renderSettings})[view]();
 }
@@ -931,16 +944,30 @@ function renderBoard(soft){
   list.forEach(o=>(by[o.stage]||by.submitted).push(o));
   STAGES.forEach(s=>by[s.id].sort((a,b)=>(a.due||'9999').localeCompare(b.due||'9999')||a.po.localeCompare(b.po,undefined,{numeric:true})));
   const nDone=by.picked_up.length;
-  const sx=soft?($('.board')||{}).scrollLeft:0;
+  const sx=soft?($('#board')||{}).scrollLeft:0;
   main.innerHTML=`<div class="boardbar">
       <select class="sp-input sm" id="b-rep" aria-label="Filter by rep">${repOptions(F.rep,'All reps')}</select>
       <p class="sp-note">Drag a card to another column to change its stage. Dashed columns are optional and only apply to orders that need a pre-production sample.</p>
       ${nDone?`<button class="sp-btn small ghost" data-act="archive-done">Archive picked-up orders (${nDone})</button>`:''}</div>
-    <div class="board">${STAGES.map(s=>`<div class="bcol ${s.optional?'opt':''} ${s.optional&&!by[s.id].length?'empty':''}" data-stage-col="${s.id}">
+    <div class="board-top" id="board-top" aria-hidden="true"><div></div></div>
+    <div class="board" id="board">${STAGES.map(s=>`<div class="bcol ${s.optional?'opt':''} ${s.optional&&!by[s.id].length?'empty':''}" data-stage-col="${s.id}">
       <div class="bch"><b>${esc(s.label)}${s.optional?'<span class="optnote">Optional</span>':''}</b><span class="n">${by[s.id].length}</span></div>
       ${by[s.id].map(cardHTML).join('')}</div>`).join('')}</div>`;
+  syncBoardBar();
   if(sx)$('.board').scrollLeft=sx;
 }
+// The scrollbar lives above the columns. It mirrors the board's own horizontal scroll.
+function syncBoardBar(){
+  const bd=$('#board'), tp=$('#board-top'); if(!bd||!tp)return;
+  document.documentElement.style.setProperty('--hd-h',($('.hd').offsetHeight||64)+'px');
+  tp.firstElementChild.style.width=bd.scrollWidth+'px';
+  tp.hidden=bd.scrollWidth<=bd.clientWidth+1;
+  tp.scrollLeft=bd.scrollLeft;
+  let lock=false;
+  bd.onscroll=()=>{if(lock){lock=false;return;}if(tp.scrollLeft!==bd.scrollLeft){lock=true;tp.scrollLeft=bd.scrollLeft;}};
+  tp.onscroll=()=>{if(lock){lock=false;return;}if(bd.scrollLeft!==tp.scrollLeft){lock=true;bd.scrollLeft=tp.scrollLeft;}};
+}
+window.addEventListener('resize',()=>{if(view==='board')syncBoardBar();});
 
 /* =====================================================================
    VIEW: NEEDS ATTENTION
@@ -1147,23 +1174,18 @@ function proofsHTML(o){
 async function proofUploadModal(id){
   const o=byId(id); if(!o||o.archived)return;
   if(!who){await askWho(true);if(!who)return;}
-  const canFile=DEMO||STORAGE_READY, next=((latestProof(o)||{}).v||0)+1;
+  const next=((latestProof(o)||{}).v||0)+1;
   const body=`<p class="sp-note" style="margin:0 0 12px">Version ${next} for ${esc(o.po)} – ${esc(o.job)}.</p>
-    ${canFile?`<div class="fg"><label class="sp-label" for="pf-file">Proof file (PDF or image, up to ${DEMO?'1 MB in preview':'25 MB'})</label><input class="sp-input" type="file" id="pf-file" accept=".pdf,.png,.jpg,.jpeg,.gif,.webp,application/pdf,image/*"></div>
-      <p class="sp-note" style="margin:8px 0;text-align:center">or</p>`
-      :`<div class="pvbox info" style="margin:0 0 12px">File uploads need Firebase Storage, which isn’t set up. Paste a link to the proof instead (Google Drive, Dropbox and so on).</div>`}
-    <div class="fg"><label class="sp-label" for="pf-link">Link to the proof</label><input class="sp-input" type="url" id="pf-link" placeholder="https://…"></div>
-    <div class="fg" style="margin-top:12px"><label class="sp-label" for="pf-note">Note (optional)</label><textarea class="sp-input" id="pf-note" rows="2" placeholder="e.g. Second round, logo moved up per the customer"></textarea></div>`;
+    <div class="fg"><label class="sp-label" for="pf-link">Link to the proof</label><input class="sp-input" type="url" id="pf-link" placeholder="https://drive.google.com/… or https://1drv.ms/…" autofocus></div>
+    <p class="sp-note">Share a link from Google Drive, OneDrive, Dropbox or any cloud storage. Make sure the link is shareable.</p>
+    <div class="fg"><label class="sp-label" for="pf-note">Note (optional)</label><textarea class="sp-input" id="pf-note" rows="2" placeholder="e.g. Second round, logo moved up per the customer"></textarea></div>`;
   const r=await openModal({title:'Add a proof',body,actions:[{label:'Cancel',kind:'ghost',value:null},{label:'Add proof',
     validate:b=>{
-      const fi=$('#pf-file',b), f=fi&&fi.files[0], l=$('#pf-link',b).value.trim();
-      if(!f&&!l){toast('Choose a file or paste a link.','err');return false;}
-      if(f){
-        if(!/^(application\/pdf|image\/(png|jpe?g|gif|webp))$/i.test(proofMime(f))){toast('Proofs need to be a PDF or an image (PNG, JPG, GIF or WebP).','err');return false;}
-        const mx=DEMO?PROOF_MAX_DEMO:PROOF_MAX_LIVE; if(f.size>mx){toast('That file is '+fmtSize(f.size)+'. The limit is '+fmtSize(mx)+'.','err');return false;}
-      }else if(!/^https?:\/\/\S+$/i.test(l)){toast('Paste a full link that starts with https://','err');return false;}
+      const l=$('#pf-link',b).value.trim();
+      if(!l){toast('Paste a link to the proof.','err');return false;}
+      if(!/^https?:\/\/\S+$/i.test(l)){toast('Paste a full link that starts with https://','err');return false;}
       return true;},
-    get:b=>{const fi=$('#pf-file',b);return {file:(fi&&fi.files[0])||null,link:$('#pf-link',b).value.trim(),note:$('#pf-note',b).value.trim()};}}]});
+    get:b=>({file:null,link:$('#pf-link',b).value.trim(),note:$('#pf-note',b).value.trim()})}]});
   if(r)await addProof(id,r);
 }
 async function addProof(id,{file,link,note}){
@@ -1172,14 +1194,8 @@ async function addProof(id,{file,link,note}){
   if(SI[o.stage]>SI.proof_sent&&!await confirmBox('Move back to Proof sent?',`${esc(o.po)} is already at “${esc(stageLabel(o.stage))}”. Adding a new proof moves it back to “Proof sent” until the new proof is approved.`,'Add proof and move back'))return;
   const entry={id:uid(),v:1,kind:file?'file':'link',name:'',url:'',path:'',type:'',size:0,note:note||'',by:me(),side:mySide(),ts:Date.now(),status:'pending',decidedBy:'',decidedTs:0,decision:''};
   try{
-    if(file){
-      setStatus('Uploading '+file.name+'…');
-      const r=await Store.uploadProof(id,file,pct=>setStatus('Uploading '+file.name+'… '+pct+'%'));
-      Object.assign(entry,{name:file.name,url:r.url,path:r.path,type:proofMime(file),size:file.size});
-    }else{
-      let host='link';try{host=new URL(link).hostname.replace(/^www\./,'');}catch(e){}
-      Object.assign(entry,{name:'Proof link ('+host+')',url:link});
-    }
+    let host='link';try{host=new URL(link).hostname.replace(/^www\./,'');}catch(e){}
+    Object.assign(entry,{name:'Proof link ('+host+')',url:link});
   }catch(e){setStatus('');toast(e.message||String(e),'err');return;}
   setStatus('');
   o=byId(id)||o;                                        // the order may have changed during the upload
@@ -1300,7 +1316,6 @@ async function restoreOrder(id){
 async function deleteOrder(id){
   const o=byId(id);if(!o)return;
   if(!await confirmBox('Delete this order permanently?',`${esc(o.po)} – ${esc(o.job)} and its comments will be gone for good. Export to Excel first if you want a copy.`,'Delete permanently',true))return;
-  (o.proofs||[]).forEach(x=>{if(x.path)Store.removeFile(x.path);});
   await Store.deleteOrder(id);closeDrawer();toast('Order deleted.','info');
 }
 async function archiveDone(){
@@ -1708,25 +1723,8 @@ function renderSettings(){
         <input class="sp-input" type="number" min="0" max="60" data-s="staleDays" value="${esc(S.staleDays==null?3:S.staleDays)}">
         <p class="sp-note">Flagged orders show under “Check in with ${esc(S.vendorName)}” in Needs attention, where you can email them for a status in one click. Orders already in production get twice as long. Use 0 to turn this off.</p></div></div>
     <div class="card full"><h2 class="sp-h2">Proof files</h2>
-      <div class="statusline">${STORAGE_READY?chip('Firebase Storage connected','ok'):DEMO?chip('Preview: files stay in this browser (1 MB max)','muted'):chip('Storage not set up: proofs can be added by link only','warn')}</div>
-      <p class="sp-note" style="margin:0 0 8px">Add the proof ${esc(S.vendorName)} sends you on each order, then approve it or request changes there. Approving moves the order to Proof approved and emails ${esc(S.vendorName)}.</p>
-      <details><summary>How to connect Firebase Storage</summary><ol class="steps">
-        <li>In the Firebase console, open <b>Storage</b> (under Databases &amp; Storage, or Build) and click <b>Get started</b>. Storage needs the pay-as-you-go <b>Blaze</b> plan, which adds a billing account. Google’s free allowance is meant to cover a small number of files, so a few proofs a week shouldn’t come near it.</li>
-        <li>Pick a location, open the <b>Rules</b> tab, replace what’s there with the rules below, and click <b>Publish</b>.
-<pre>rules_version = '2';
-service firebase.storage {
-  match /b/{bucket}/o {
-    match /gsi_proofs/{orderId}/{fileName} {
-      allow read: if true;
-      allow create: if request.resource.size &lt; 25 * 1024 * 1024
-        &amp;&amp; (request.resource.contentType == 'application/pdf'
-            || request.resource.contentType.matches('image/.*'));
-      allow delete: if true;
-    }
-  }
-}</pre></li>
-        <li>Check that <code>storageBucket</code> is filled in inside <code>FIREBASE_CONFIG</code> (Project settings → Your apps), then re-upload this file.</li>
-        <li>No billing account? Skip all of this and paste a link to each proof (Google Drive, Dropbox) instead of uploading.</li></ol></details></div>
+      <p class="sp-note" style="margin:0 0 8px">When ${esc(S.vendorName)} sends you a proof, paste a link to it on the order. Approving the proof moves the order to Proof approved and emails ${esc(S.vendorName)} to go ahead with the job. Requesting changes emails them what to fix.</p>
+      <p class="sp-note" style="margin:0">Proofs stay as links only — no files are uploaded or stored, so there are no costs. Share a Google Drive link, OneDrive, Dropbox or anywhere else that has a shareable URL.</p></div>
     <div class="card full"><h2 class="sp-h2">Email automation</h2>
       <div class="statusline">
         ${EMAIL_READY?chip('EmailJS connected','ok'):chip('EmailJS not set up: emails are logged, not sent','warn')}
