@@ -246,6 +246,20 @@
   .pvtag.ok{background:var(--ok-light);color:var(--ok);}
   .pvtag.check{background:#e8eefc;color:#2a4a9c;}
   .pvtag.need,.pvtag.ask{background:var(--warn-light);color:var(--warn);}
+  .dr-sec h3.pfh{display:flex;align-items:center;gap:10px;}
+  .pfh .sp-btn{margin-left:auto;}
+  .pf{display:flex;gap:12px;border:1px solid var(--line);border-left-width:3px;border-radius:var(--r-md);padding:10px;margin-bottom:10px;background:#fff;}
+  .pf.st-pending{border-left-color:#e0b53a;}.pf.st-approved{border-left-color:var(--ok);}.pf.st-changes{border-left-color:var(--danger);}.pf.st-replaced{border-left-color:var(--line);}
+  .pf-th{width:84px;height:84px;object-fit:cover;border-radius:var(--r-sm);border:1px solid var(--line);flex:none;background:#f0f2f6;}
+  .pf-ic{display:flex;align-items:center;justify-content:center;font-weight:800;font-size:12px;color:var(--mut);letter-spacing:.04em;}
+  .pf.old{padding:8px;}.pf.old .pf-th{width:48px;height:48px;}
+  .pf-main{min-width:0;flex:1;}
+  .pf-name{font-weight:700;word-break:break-word;margin-bottom:2px;}
+  .pf-meta{font-size:var(--fs-sm);color:var(--mut);margin:2px 0 4px;}
+  .pf-dec{font-size:var(--fs-sm);margin:4px 0 0;white-space:pre-wrap;word-break:break-word;}
+  .pf-act{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px;}
+  .pfchip{margin:-2px 0 6px;}
+  .steps pre{background:#f4f5f7;border:1px solid var(--line);border-radius:var(--r-sm);padding:10px;overflow:auto;font-size:12px;line-height:1.45;margin:8px 0 0;}
   .mo-box .sp-h2{font-size:var(--fs-xl);margin-bottom:var(--sp-3);}
   .mo-actions{display:flex;gap:10px;justify-content:flex-end;margin-top:18px;}
   .seg{display:flex;gap:16px;flex-wrap:wrap;padding-top:4px;}
@@ -352,9 +366,10 @@
 
    2) EMAILJS  – sends the automated emails.
       • Create an EmailJS email service + one template with:
-            To Email: {{to_email}}   From Name: {{from_name}}   Subject: {{subject}}
+            To Email: {{to_email}}   From Name: {{from_name}}   Reply To: {{reply_to}}   Subject: {{subject}}
             Content (Code Editor): <div style="white-space:pre-wrap">{{message}}</div>
       • Paste the Service ID, Template ID and Public Key below.
+      • Optional, for proof uploads: turn on Firebase Storage (needs the Blaze plan) and publish the rules shown in Settings → Proof files.
    ===================================================================== */
 const FIREBASE_CONFIG = {
   apiKey: "",
@@ -372,6 +387,8 @@ const EMAILJS_CONFIG = { serviceId: "", templateId: "", publicKey: "" };
 /* ---------- constants ---------- */
 const COLL = { orders:'gsi_orders', settings:'gsi_settings', log:'gsi_emailLog' };
 const DEMO = !FIREBASE_CONFIG.projectId;
+const STORAGE_READY = !DEMO && !!FIREBASE_CONFIG.storageBucket;   // proof files need Firebase Storage
+const PROOF_MAX_LIVE = 25*1024*1024, PROOF_MAX_DEMO = 1024*1024;
 const EMAIL_READY = !!(EMAILJS_CONFIG.serviceId && EMAILJS_CONFIG.templateId && EMAILJS_CONFIG.publicKey);
 
 const STAGES = [
@@ -391,6 +408,7 @@ const FILES = {pending:'Pending', uploaded:'Uploaded'};
 const DECO  = {SP:'Screen print', EMB:'Embroidery', BOTH:'Screen print + embroidery'};
 const RISK  = new Set(['blocked','goodslate','tight','soon']);
 const SIG='\n\nOpen in tracker: {order_url}';
+const SIG_GSI='\n\nQuestions? Just reply to this email.';
 
 /* ---------- tiny helpers ---------- */
 const $  = (s,r=document)=>r.querySelector(s);
@@ -423,17 +441,20 @@ const main=$('#main');
    SETTINGS DEFAULTS + EMAIL RULES
    ===================================================================== */
 function defaultRules(){
-  const R=(id,trigger,to,subject,body)=>({id,on:true,trigger,to:Object.assign({rep:false,vendor:false,ops:false},to),extra:[],subject,body:body+SIG});
+  const R=(id,trigger,to,subject,body,on=true)=>({id,on,trigger,to:Object.assign({rep:false,vendor:false,ops:false},to),extra:[],subject,body:body+(to&&to.vendor?SIG_GSI:SIG)});
   return [
     R('r_new','order_added',{rep:true,vendor:true},'New order: {po} – {job}','{by} added a new order.\n\nPO: {po}\nJob: {job}\nRep: {rep}\nDue: {due}\nPrintavo: {link}'),
     R('r_proof_sent','stage:proof_sent',{rep:true},'Proof ready for review: {po} – {job}','A proof has been sent for {po} – {job}.\n\nPlease review it and let us know if it is approved or needs changes.\nDue: {due}'),
     R('r_proof_ok','stage:proof_approved',{vendor:true},'Proof approved: {po} – {job}','The proof for {po} – {job} is approved.\n\nGoods: {goods}\nProduction files: {files}\nDue: {due}'),
+    R('r_pf_up','proof:uploaded',{rep:true},'Proof {proof_version} ready for review: {po} – {job}','{by} added a proof for {po} – {job}.\n\nFile: {proof}\nNote: {proof_note}\nView the proof: {proof_url}\nDue: {due}',false),
+    R('r_pf_ok','proof:approved',{vendor:true},'Proof {proof_version} approved: {po} – {job}','{by} approved the proof for {po} – {job}.\n\nNote: {proof_note}\nGoods: {goods}\nProduction files: {files}\nDue: {due}'),
+    R('r_pf_chg','proof:changes',{vendor:true},'Changes requested on proof {proof_version}: {po} – {job}','{by} asked for changes to the proof for {po} – {job}.\n\nWhat needs to change: {proof_note}\n\nPlease upload a new version.\nDue: {due}'),
     R('r_prod','stage:in_production',{rep:true},'In production: {po} – {job}','{po} – {job} is now in production.\n\nDue: {due}'),
     R('r_samp_done','stage:sample_complete',{rep:true},'Pre-production sample ready: {po} – {job}','The pre-production sample for {po} – {job} is complete and ready for approval.'),
     R('r_samp_ok','stage:sample_approved',{vendor:true},'Sample approved: {po} – {job}','The pre-production sample for {po} – {job} is approved. Go ahead with the full run.\n\nDue: {due}'),
     R('r_complete','stage:order_complete',{rep:true,ops:true},'Order complete: {po} – {job}','{po} – {job} is complete and ready for pickup or delivery.'),
     R('r_cm_vendor','comment:vendor',{rep:true},'New comment from {partner} on {po}','{by} ({partner}) commented on {po} – {job}:\n\n{comment}'),
-    R('r_cm_team','comment:team',{vendor:true},'New comment from {team} on {po}','{by} ({team}) commented on {po} – {job}:\n\n{comment}')
+    R('r_cm_team','comment:team',{vendor:true},'New comment from {team} on {po}','{by} ({team}) commented on {po} – {job}:\n\n{comment}',false)
   ];
 }
 function defaultSettings(){
@@ -442,17 +463,18 @@ function defaultSettings(){
     reps: DEMO ? ['JH','SB','DG','AS','SR'].map(i=>({initials:i,name:'',email:i.toLowerCase()+'@example.com'})) : [],
     vendorEmails: DEMO ? ['production@example.com'] : [],
     opsEmails: DEMO ? ['ops@example.com'] : [],
-    emailEnabled: DEMO,
+    emailEnabled: DEMO, proofRulesSeeded: true, gsiUses: false, staleDays: 3,
     rules: defaultRules()
   };
 }
 function triggerOptions(){
   return [['order_added','A new order is added']]
     .concat(STAGES.map(s=>['stage:'+s.id,'Stage changes to: '+s.label]))
+    .concat([['proof:uploaded','A proof is uploaded'],['proof:approved','A proof is approved'],['proof:changes','Changes are requested on a proof']])
     .concat([['goods:received','Goods are marked received'],['files:uploaded','Production files are marked uploaded'],
              ['comment:team',settings.teamName+' posts a comment'],['comment:vendor',settings.vendorName+' posts a comment']]);
 }
-const triggerLabel = t=>(triggerOptions().find(x=>x[0]===t)||[t,t])[1];
+const triggerLabel = t=>t==='manual:status_request'?'Status request sent from the tracker':(triggerOptions().find(x=>x[0]===t)||[t,t])[1];
 
 function repInfo(ini){return (settings.reps||[]).find(r=>r.initials===ini)||{initials:ini,name:'',email:''};}
 function repLabel(ini){const r=repInfo(ini);return r.name?ini+' – '+r.name:ini;}
@@ -465,6 +487,12 @@ const stagesFor = o=>STAGES.filter(s=>!s.optional||o.sampleRequired);
 function nextStage(o){const cur=SI[o.stage];return stagesFor(o).find(s=>SI[s.id]>cur)||null;}
 const isDone = o=>SI[o.stage]>=SI.order_complete;
 
+function isoOf(ts){const d=new Date(ts);return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate());}
+function lastMove(o){
+  let t=o.createdAt||o.updatedAt||0;
+  (o.history||[]).forEach(h=>{if(h.ts>t&&/^(Stage:|Order created|Imported|Proof v|Restored)/.test(h.text))t=h.ts;});
+  return t;
+}
 function attention(o){
   const out=[]; if(o.archived||SI[o.stage]>=SI.picked_up) return out;
   const t=todayISO(), si=SI[o.stage], done=isDone(o);
@@ -484,6 +512,16 @@ function attention(o){
       else if(o.due&&daysBetween(o.goodsDate,o.due)<=1) out.push({k:'tight',sev:'warn',text:'Goods expected '+fmtShort(o.goodsDate)+', due '+fmtShort(o.due)});
     }
     if(o.rush||o.firm) out.push({k:'flag',sev:'info',text:o.rush?'Rush':'Firm date'});
+    const sd=(+settings.staleDays||0)*(si>=SI.in_production?2:1), lm=lastMove(o);
+    if(sd>0&&lm>0&&si<SI.order_complete){
+      const d=Math.floor((Date.now()-lm)/864e5);
+      const quiet=o.askedAt&&(Date.now()-o.askedAt)<864e5*sd;     // we already asked GSI recently, so give them time
+      if(d>=sd&&!quiet) out.push({k:'stale',sev:'info',text:'No movement in '+d+'d'+(o.askedAt?' · last asked '+fmtShort(isoOf(o.askedAt)):'')});
+    }
+    if(o.askedAt&&Date.now()-o.askedAt<7*864e5) out.push({k:'asked',sev:'info',text:'Asked '+settings.vendorName+' '+fmtShort(isoOf(o.askedAt))});
+    const lp=latestProof(o);
+    if(lp&&lp.status==='changes') out.push({k:'proofchg',sev:'warn',text:'Changes requested on proof v'+lp.v});
+    else if(lp&&lp.status==='pending') out.push({k:'proofwait',sev:'info',text:'Proof v'+lp.v+' waiting for review'});
   }
   return out;
 }
@@ -594,9 +632,9 @@ function seedDemo(){
   const list=rowsToObjects(parseCSV(SEED_CSV)).map(r=>rowToOrder(r,2026)).filter(Boolean).map((o,i)=>Object.assign(o,{
     id:'o'+(i+1),createdAt:now,updatedAt:now,history:[{ts:now,by:'Import',text:'Imported from spreadsheet'}]}));
   const add=(po,c)=>{const o=list.find(x=>x.po===po);if(o)o.comments.push(Object.assign({id:uid()},c));};
-  add('71028',{ts:now-3*3600e3,by:'GSI (demo)',side:'vendor',text:'Test print is on the press table. Can someone take a look before we run the full job?'});
+  add('71028',{ts:now-3*3600e3,by:'Toro (demo)',side:'team',text:'GSI says the test print is on the press table. Someone needs to look at it before they run the full job.'});
   add('71028',{ts:now-2*3600e3,by:'Toro (demo)',side:'team',text:'On my way. I will confirm with the customer this afternoon.'});
-  add('71322',{ts:now-1*3600e3,by:'GSI (demo)',side:'vendor',text:'Polos arrive Monday from SanMar. We need art and files by end of day Friday to hit the Tuesday 1pm deadline.'});
+  add('71322',{ts:now-1*3600e3,by:'Toro (demo)',side:'team',text:'GSI says the polos arrive Monday from SanMar. They need art and files by end of day Friday to hit the Tuesday 1pm deadline.'});
   return {orders:list,settings:defaultSettings(),log:[]};
 }
 
@@ -616,13 +654,19 @@ const DemoStore={
   async deleteOrder(id){this.db.orders=this.db.orders.filter(o=>o.id!==id);this.persist();this.emit();},
   async saveSettings(s){this.db.settings=s;this.persist();this.emit();},
   async addLog(e){this.db.log.unshift(e);this.db.log=this.db.log.slice(0,100);this.persist();this.emit();},
-  async reset(){this.db=seedDemo();this.persist();this.emit();}
+  async reset(){this.db=seedDemo();this.persist();this.emit();},
+  async uploadProof(id,file,onPct){
+    if(file.size>PROOF_MAX_DEMO)throw new Error('Preview mode keeps files in this browser, so proofs must be under 1 MB here. The live version allows up to 25 MB.');
+    const url=await new Promise((res,rej)=>{const r=new FileReader();r.onload=()=>res(r.result);r.onerror=()=>rej(new Error('Couldn’t read that file.'));r.readAsDataURL(file);});
+    if(onPct)onPct(100);return {url,path:''};
+  },
+  async removeFile(){}
 };
 const FbStore={
   async init(h){
     const V='10.12.0', base='https://www.gstatic.com/firebasejs/'+V+'/';
     const [appM,fs]=await Promise.all([import(base+'firebase-app.js'),import(base+'firebase-firestore.js')]);
-    this.fs=fs; this.db=fs.getFirestore(appM.initializeApp(FIREBASE_CONFIG));
+    this.fs=fs; this.app=appM.initializeApp(FIREBASE_CONFIG); this.db=fs.getFirestore(this.app);
     this.oc=fs.collection(this.db,COLL.orders);
     await new Promise((resolve,reject)=>{
       let first=true;
@@ -647,13 +691,39 @@ const FbStore={
   },
   async deleteOrder(id){await this.fs.deleteDoc(this.fs.doc(this.db,COLL.orders,id));},
   async saveSettings(s){await this.fs.setDoc(this.fs.doc(this.db,COLL.settings,'config'),clean(s));},
-  async addLog(e){await this.fs.addDoc(this.fs.collection(this.db,COLL.log),clean(e));}
+  async addLog(e){await this.fs.addDoc(this.fs.collection(this.db,COLL.log),clean(e));},
+  async storage(){
+    if(!this._st){this.sm=await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-storage.js');this._st=this.sm.getStorage(this.app);}
+    return this._st;
+  },
+  async uploadProof(id,file,onPct){
+    if(!STORAGE_READY)throw new Error('File storage isn’t set up yet. Paste a link to the proof instead, or see Settings → Proof files.');
+    let st;try{st=await this.storage();}catch(e){throw new Error('Couldn’t load file storage: '+(e.message||e));}
+    const m=this.sm, safe=file.name.replace(/[^\w.\- ]+/g,'_').slice(-80), path='gsi_proofs/'+id+'/'+Date.now()+'_'+safe, r=m.ref(st,path);
+    try{
+      await new Promise((res,rej)=>{
+        const t=m.uploadBytesResumable(r,file,{contentType:proofMime(file)});
+        t.on('state_changed',sn=>{if(onPct)onPct(Math.round(100*sn.bytesTransferred/Math.max(1,sn.totalBytes)));},rej,res);
+      });
+      return {url:await m.getDownloadURL(r),path};
+    }catch(e){
+      const c=String((e&&e.code)||'');
+      if(/unauthorized|unauthenticated/.test(c))throw new Error('Storage refused the upload. Check that the Storage rules from Settings → Proof files are published.');
+      if(/bucket-not-found|project-not-found/.test(c))throw new Error('Storage isn’t set up for this project yet. See Settings → Proof files.');
+      throw new Error('Upload failed: '+((e&&e.message)||c||'unknown error'));
+    }
+  },
+  async removeFile(path){try{const st=await this.storage();await this.sm.deleteObject(this.sm.ref(st,path));}catch(e){}}
 };
 const Store=DEMO?DemoStore:FbStore;
 
 const handlers={
   onOrders(list){orders=list;if(ready)refresh();},
-  onSettings(s){settings=Object.assign(defaultSettings(),s||{});if(ready)refresh();},
+  onSettings(s){
+    const seed=!!(s&&s.rules&&!s.proofRulesSeeded);   // settings saved before proof emails existed
+    settings=Object.assign(defaultSettings(),s||{});
+    if(seed){settings.rules=(s.rules||[]).concat(defaultRules().filter(r=>/^proof:/.test(r.trigger)));settings.proofRulesSeeded=true;}
+    if(ready)refresh();},
   onLog(list){emailLog=list;if(ready&&view==='settings')renderEmailLog();},
   onError(err){console.error(err);toast('Lost connection to the database: '+(err&&err.message||err),'err');}
 };
@@ -692,15 +762,16 @@ async function askWho(first){
     title:first?'Who’s using the tracker?':'Your name',dismissible:!first,
     body:`<p class="sp-note" style="margin:0 0 14px">Changes and comments are stamped with your name so everyone can see who did what.</p>
       <div class="fg" style="margin-bottom:14px"><label class="sp-label" for="who-name">Your name</label><input class="sp-input" id="who-name" value="${esc(cur.name)}" placeholder="First and last name"></div>
-      <div class="fg"><span class="sp-label">You work for</span><div class="seg">
+      ${settings.gsiUses?`<div class="fg"><span class="sp-label">You work for</span><div class="seg">
         <label><input type="radio" name="who-side" value="team" ${cur.side!=='vendor'?'checked':''}> ${esc(settings.teamName)}</label>
-        <label><input type="radio" name="who-side" value="vendor" ${cur.side==='vendor'?'checked':''}> ${esc(settings.vendorName)}</label></div></div>`,
+        <label><input type="radio" name="who-side" value="vendor" ${cur.side==='vendor'?'checked':''}> ${esc(settings.vendorName)}</label></div></div>`:''}`,
     actions:(first?[]:[{label:'Cancel',kind:'ghost',value:null}]).concat([{label:'Save',
       validate:b=>{const i=$('#who-name',b);if(!i.value.trim()){i.focus();return false;}return true;},
-      get:b=>({name:$('#who-name',b).value.trim(),side:$('input[name=who-side]:checked',b).value})}])});
+      get:b=>({name:$('#who-name',b).value.trim(),side:settings.gsiUses&&$('input[name=who-side]:checked',b)?$('input[name=who-side]:checked',b).value:'team'})}])});
   if(r){who=r;saveWho();updateChrome();}
 }
 const me=()=>(who&&who.name)||'Someone';
+const mySide=()=>settings.gsiUses&&who&&who.side==='vendor'?'vendor':'team';
 const hist=text=>({ts:Date.now(),by:me(),text});
 
 /* =====================================================================
@@ -710,7 +781,7 @@ function updateChrome(){
   $$('.navbtn').forEach(b=>b.classList.toggle('on',b.dataset.view===view));
   const n=orders.filter(o=>!o.archived&&SI[o.stage]<SI.picked_up&&urgent(o)).length;
   const bd=$('#att-badge');bd.textContent=n;bd.hidden=!n;
-  $('#who-chip').textContent=who?who.name+' · '+(who.side==='vendor'?settings.vendorName:settings.teamName):'Set your name';
+  $('#who-chip').textContent=who?who.name+' · '+(mySide()==='vendor'?settings.vendorName:settings.teamName):'Set your name';
   $('#demo-banner').hidden=!DEMO;
 }
 function setView(v){view=v;render();window.scrollTo({top:0});}
@@ -758,7 +829,7 @@ function rowHTML(o){
   const sev=rowSev(o), n=(o.comments||[]).length;
   return `<tr class="${sev?'sev-'+sev:''}" data-open="${o.id}" tabindex="0">
     <td class="c-po">${esc(o.po)}</td>
-    <td class="c-job"><div class="job">${esc(o.job)}</div>${metaLine(o.statusNote)}</td>
+    <td class="c-job"><div class="job">${esc(o.job)}</div>${metaLine(o.statusNote)}${proofChipLine(o)}</td>
     <td>${o.rep?chip(o.rep,'rep',repLabel(o.rep)):'<span class="mut">—</span>'}</td>
     <td>${chip(decoShort(o.decoration),'type',DECO[o.decoration])}</td>
     <td>${dueCell(o)}</td>
@@ -851,7 +922,7 @@ function cardHTML(o){
   if(o.files!=='uploaded')miss.push(chip('Files pending','warn-o'));
   return `<div class="bcard ${sev?'sev-'+sev:''}" draggable="true" data-open="${o.id}">
     <div class="bc-top"><b>${esc(o.po)}</b>${o.rep?chip(o.rep,'rep',repLabel(o.rep)):''}${chip(decoShort(o.decoration),'type')}</div>
-    <div class="bc-job">${esc(o.job)}</div>
+    <div class="bc-job">${esc(o.job)}</div>${proofChipLine(o)}
     <div class="bc-foot">${o.due?chip('Due '+fmtDate(o.due),!isDone(o)&&o.due<todayISO()?'danger':!isDone(o)&&o.due===todayISO()?'warn':'muted'):''}${o.rush?chip('Rush','danger-o'):''}${o.firm?chip('Firm','danger-o'):''}${miss.join('')}</div></div>`;
 }
 function renderBoard(soft){
@@ -877,16 +948,18 @@ function renderBoard(soft){
 function renderAttention(){
   const open=orders.filter(o=>!o.archived&&SI[o.stage]<SI.picked_up).map(o=>({o,a:attention(o)}));
   const groups=[
-    {t:'Past due',d:'The requested date has passed and the order isn’t complete.',test:a=>a.some(x=>x.k==='overdue')},
-    {t:'At risk',d:'Goods, files or timing could put the due date in danger.',test:a=>a.some(x=>RISK.has(x.k))},
+    {t:'Past due',d:'The requested date has passed and the order isn’t complete.',ask:true,test:a=>a.some(x=>x.k==='overdue')},
+    {t:'At risk',d:'Goods, files or timing could put the due date in danger.',ask:true,test:a=>a.some(x=>RISK.has(x.k))},
     {t:'Due today',d:'Requested for today and not yet complete.',test:a=>a.some(x=>x.k==='today')},
+    {t:'Proofs',d:'A proof is waiting for approval, or changes were requested and a new version is needed.',test:a=>a.some(x=>x.k==='proofchg'||x.k==='proofwait')},
+    {t:'Check in with '+settings.vendorName,d:'No stage change in a while. Email '+settings.vendorName+' for a status, or update the stage if you already know.',ask:true,test:a=>a.some(x=>x.k==='stale')},
     {t:'Firm and rush dates',d:'Orders with a firm or rush date that are still open.',test:a=>a.some(x=>x.k==='flag')}
   ];
   const used=new Set(); let html='',any=false;
   groups.forEach(g=>{
     const rows=open.filter(x=>!used.has(x.o.id)&&g.test(x.a)).sort((x,y)=>(x.o.due||'9999').localeCompare(y.o.due||'9999'));
     if(!rows.length)return; any=true; rows.forEach(x=>used.add(x.o.id));
-    html+=`<div class="card"><div class="sec-head"><h2 class="sp-h2">${g.t}</h2><span class="sp-note" style="margin:0">${rows.length} order${rows.length===1?'':'s'}</span></div><p class="sp-note" style="margin:0 0 6px">${g.d}</p>
+    html+=`<div class="card"><div class="sec-head"><h2 class="sp-h2">${g.t}</h2><span class="sp-note" style="margin:0">${rows.length} order${rows.length===1?'':'s'}</span>${g.ask?`<button class="sp-btn small" style="margin-left:12px" data-act="ask-gsi-group" data-ids="${rows.map(x=>x.o.id).join(',')}">Email ${esc(settings.vendorName)} about these</button>`:''}</div><p class="sp-note" style="margin:0 0 6px">${g.d}</p>
       ${rows.map(({o,a})=>`<div class="att-row" data-open="${o.id}" tabindex="0">
         <div class="att-main"><b>${esc(o.po)}</b>${esc(o.job)} ${o.rep?chip(o.rep,'rep'):''}</div>
         <div class="att-why">${a.map(x=>chip(x.text,x.sev==='info'?'info':x.sev)).join('')}</div>
@@ -963,12 +1036,12 @@ function stepperHTML(o){
   return `<div class="stepper">${opts.map(s=>{
       const c=SI[s.id]<cur?'done':s.id===o.stage?'cur':'';
       return `<button class="step ${c} ${s.optional?'opt':''}" data-act="set-stage" data-sid="${s.id}"${o.archived?' disabled':''}>${SI[s.id]<cur?'✓ ':''}${esc(s.label)}</button>`;}).join('')}</div>
-    ${!o.archived?`<div class="adv">${nx?`<button class="sp-btn small" data-act="advance">Move to: ${esc(nx.label)}</button>`:`<span class="sp-note" style="margin:0">Final stage reached.</span>`}</div>`:''}`;
+    ${!o.archived?`<div class="adv">${nx?`<button class="sp-btn small" data-act="advance">Move to: ${esc(nx.label)}</button>`:`<span class="sp-note" style="margin:0">Final stage reached.</span>`}${SI[o.stage]<SI.order_complete?`<button class="sp-btn small ghost" data-act="ask-gsi">Ask ${esc(settings.vendorName)} for an update</button>`:''}</div>`:''}`;
 }
 function commentsHTML(o){
   const c=o.comments||[];
-  if(!c.length)return '<p class="sp-note" style="margin:0">No comments yet. Post one to message the other side.</p>';
-  return c.slice().sort((a,b)=>a.ts-b.ts).map(x=>`<div class="cm"><div class="cm-h"><b>${esc(x.by)}</b>${chip(x.side==='vendor'?settings.vendorName:settings.teamName,x.side==='vendor'?'vendor':'team')}<span class="cm-t">${fmtTs(x.ts)}</span></div><div class="cm-b">${esc(x.text)}</div></div>`).join('');
+  if(!c.length)return settings.gsiUses?'<p class="sp-note" style="margin:0">No comments yet. Post one to message the other side.</p>':`<p class="sp-note" style="margin:0">No notes yet. Log what ${esc(settings.vendorName)} tells you by email or phone so the whole team can see it.</p>`;
+  return c.slice().sort((a,b)=>a.ts-b.ts).map(x=>`<div class="cm"><div class="cm-h"><b>${esc(x.by)}</b>${settings.gsiUses?chip(x.side==='vendor'?settings.vendorName:settings.teamName,x.side==='vendor'?'vendor':'team'):''}<span class="cm-t">${fmtTs(x.ts)}</span></div><div class="cm-b">${esc(x.text)}</div></div>`).join('');
 }
 function historyHTML(o){
   const h=o.history||[];
@@ -987,12 +1060,14 @@ function openDrawer(id){
       ${o.archived?`<div class="archnote">Archived ${o.archivedAt?fmtTs(o.archivedAt):''}${o.archivedBy?' by '+esc(o.archivedBy):''}. Restore it to edit.</div>`:''}
       <div id="dr-attn">${attnHTML(o)}</div>
       <section class="dr-sec"><h3>Progress</h3><div id="dr-stage">${stepperHTML(o)}</div></section>
+      <section class="dr-sec"><h3 class="pfh">Proofs${o.archived?'':'<button class="sp-btn small" data-act="proof-upload">Add a proof</button>'}</h3>
+        <div id="pf-status" class="sp-note" style="margin:0 0 6px"></div><div id="dr-proofs">${proofsHTML(o)}</div></section>
       <section class="dr-sec"><h3>Details <span class="saved" id="saved"></span></h3><fieldset id="dr-fields" ${o.archived?'disabled':''}>${fieldsHTML(o)}</fieldset></section>
-      <section class="dr-sec"><h3>Comments <span class="sp-note" style="margin:0;font-family:inherit">Shared with ${esc(settings.vendorName)} and ${esc(settings.teamName)}</span></h3>
+      <section class="dr-sec"><h3>${settings.gsiUses?'Comments':'Notes'} <span class="sp-note" style="margin:0;font-family:inherit">${settings.gsiUses?`Shared with ${esc(settings.vendorName)} and ${esc(settings.teamName)}`:`Only ${esc(settings.teamName)} sees these`}</span></h3>
         <div id="dr-comments">${commentsHTML(o)}</div>
-        <div style="margin-top:12px"><textarea class="sp-input" id="cm-text" rows="3" placeholder="Write an update or question"></textarea>
-        <div style="margin-top:8px;text-align:right"><button class="sp-btn small" data-act="comment">Post comment</button></div></div></section>
-      <section class="dr-sec"><details><summary>Change history (${(o.history||[]).length})</summary><div id="dr-history" style="margin-top:8px">${historyHTML(o)}</div></details></section>
+        <div style="margin-top:12px"><textarea class="sp-input" id="cm-text" rows="3" placeholder="${settings.gsiUses?'Write an update or question':'e.g. GSI says the run starts Tuesday'}"></textarea>
+        <div style="margin-top:8px;text-align:right"><button class="sp-btn small" data-act="comment">${settings.gsiUses?'Post comment':'Add note'}</button></div></div></section>
+      <section class="dr-sec"><details><summary id="hist-sum">Change history (${(o.history||[]).length})</summary><div id="dr-history" style="margin-top:8px">${historyHTML(o)}</div></details></section>
     </div>
     <div class="dr-foot" id="dr-foot">${drFootHTML(o)}</div>`;
   $('#drawer').classList.add('open');$('#scrim').classList.add('open');
@@ -1012,11 +1087,12 @@ function refreshDrawer(){
   $('#dr-head').innerHTML=drHeadHTML(o);
   $('#dr-attn').innerHTML=attnHTML(o);
   $('#dr-stage').innerHTML=stepperHTML(o);
+  const dp=$('#dr-proofs');if(dp)dp.innerHTML=proofsHTML(o);
   const cmBox=$('#dr-comments'),atBottom=cmBox.scrollTop+cmBox.clientHeight>=cmBox.scrollHeight-8;
   cmBox.innerHTML=commentsHTML(o);if(atBottom)cmBox.scrollTop=cmBox.scrollHeight;
   $('#dr-history').innerHTML=historyHTML(o);
   $('#dr-foot').innerHTML=drFootHTML(o);
-  const ds=$('#drawer details summary');if(ds)ds.textContent='Change history ('+(o.history||[]).length+')';
+  const ds=$('#hist-sum');if(ds)ds.textContent='Change history ('+(o.history||[]).length+')';
   $$('#dr-fields [data-f]').forEach(el=>{
     if(el===document.activeElement)return;
     const v=o[el.dataset.f];
@@ -1027,6 +1103,141 @@ function collectFields(root){
   const out={};
   $$('[data-f]',root).forEach(el=>{out[el.dataset.f]=el.type==='checkbox'?el.checked:el.value.trim();});
   return out;
+}
+
+/* ---------- proofs ---------- */
+function latestProof(o){return (o.proofs||[]).slice().sort((a,b)=>b.v-a.v)[0]||null;}
+function proofMime(f){
+  if(f.type)return f.type;
+  const e=((f.name||'').match(/\.(\w+)$/)||[])[1]||'';
+  return ({pdf:'application/pdf',png:'image/png',jpg:'image/jpeg',jpeg:'image/jpeg',gif:'image/gif',webp:'image/webp'})[e.toLowerCase()]||'application/octet-stream';
+}
+const fmtSize=b=>b>=1048576?(b/1048576).toFixed(1)+' MB':Math.max(1,Math.round(b/1024))+' KB';
+const canApprove=()=>!settings.gsiUses||mySide()==='team';
+function proofChipLine(o){
+  if(o.archived)return '';
+  const p=latestProof(o); if(!p)return '';
+  if(p.status==='pending')return `<div class="pfchip">${chip('Proof v'+p.v+' to approve','warn')}</div>`;
+  if(p.status==='changes')return `<div class="pfchip">${chip('Proof changes requested','danger')}</div>`;
+  return '';
+}
+function proofCardHTML(o,p,cur){
+  const isImg=/^image\//.test(p.type||'')||/^data:image\//.test(p.url||'');
+  const th=isImg&&p.url?`<img class="pf-th" src="${esc(p.url)}" alt="Proof preview">`
+    :`<div class="pf-th pf-ic">${p.kind==='link'?'LINK':/pdf/i.test((p.type||'')+(p.name||''))?'PDF':'FILE'}</div>`;
+  const lab={pending:['Waiting for approval','warn'],approved:['Approved','ok'],changes:['Changes requested','danger'],replaced:['Replaced by a newer version','muted']}[p.status]||['','muted'];
+  const dec=(p.status==='approved'||p.status==='changes')
+    ?`<div class="pf-dec"><b>${p.status==='approved'?'Approved':'Changes requested'} by ${esc(p.decidedBy)}</b> · ${fmtTs(p.decidedTs)}${p.decision?'<br>'+esc(p.decision):''}</div>`:'';
+  const btns=[`<button class="sp-btn small ghost" data-act="proof-open" data-pid="${esc(p.id)}">Open</button>`];
+  if(cur&&p.status==='pending'&&!o.archived){
+    if(canApprove())btns.push(`<button class="sp-btn small" data-act="proof-approve" data-pid="${esc(p.id)}">Approve proof</button>`,`<button class="sp-btn small ghost" data-act="proof-changes" data-pid="${esc(p.id)}">Request changes</button>`);
+    else btns.push(`<span class="sp-note" style="margin:0">Waiting for ${esc(settings.teamName)} to approve.</span>`);
+  }
+  return `<div class="pf st-${esc(p.status)} ${cur?'':'old'}">${th}<div class="pf-main">
+    <div class="pf-name">${esc(p.name||'Proof')} ${chip(lab[0],lab[1])}</div>
+    <div class="pf-meta">Version ${p.v} · added by ${esc(p.by)} · ${fmtTs(p.ts)}${p.size?' · '+fmtSize(p.size):''}</div>
+    ${p.note?`<div class="pf-dec">${esc(p.note)}</div>`:''}${dec}<div class="pf-act">${btns.join('')}</div></div></div>`;
+}
+function proofsHTML(o){
+  const P=(o.proofs||[]).slice().sort((a,b)=>b.v-a.v);
+  if(!P.length)return `<p class="sp-note" style="margin:0">No proofs yet. Upload the proof ${esc(settings.vendorName)} sends you, then approve it here or ask for changes.</p>`;
+  const old=P.slice(1);
+  return proofCardHTML(o,P[0],true)+(old.length?`<details><summary>Earlier versions (${old.length})</summary><div style="margin-top:8px">${old.map(x=>proofCardHTML(o,x,false)).join('')}</div></details>`:'');
+}
+async function proofUploadModal(id){
+  const o=byId(id); if(!o||o.archived)return;
+  if(!who){await askWho(true);if(!who)return;}
+  const canFile=DEMO||STORAGE_READY, next=((latestProof(o)||{}).v||0)+1;
+  const body=`<p class="sp-note" style="margin:0 0 12px">Version ${next} for ${esc(o.po)} – ${esc(o.job)}.</p>
+    ${canFile?`<div class="fg"><label class="sp-label" for="pf-file">Proof file (PDF or image, up to ${DEMO?'1 MB in preview':'25 MB'})</label><input class="sp-input" type="file" id="pf-file" accept=".pdf,.png,.jpg,.jpeg,.gif,.webp,application/pdf,image/*"></div>
+      <p class="sp-note" style="margin:8px 0;text-align:center">or</p>`
+      :`<div class="pvbox info" style="margin:0 0 12px">File uploads need Firebase Storage, which isn’t set up. Paste a link to the proof instead (Google Drive, Dropbox and so on).</div>`}
+    <div class="fg"><label class="sp-label" for="pf-link">Link to the proof</label><input class="sp-input" type="url" id="pf-link" placeholder="https://…"></div>
+    <div class="fg" style="margin-top:12px"><label class="sp-label" for="pf-note">Note (optional)</label><textarea class="sp-input" id="pf-note" rows="2" placeholder="e.g. Second round, logo moved up per the customer"></textarea></div>`;
+  const r=await openModal({title:'Add a proof',body,actions:[{label:'Cancel',kind:'ghost',value:null},{label:'Add proof',
+    validate:b=>{
+      const fi=$('#pf-file',b), f=fi&&fi.files[0], l=$('#pf-link',b).value.trim();
+      if(!f&&!l){toast('Choose a file or paste a link.','err');return false;}
+      if(f){
+        if(!/^(application\/pdf|image\/(png|jpe?g|gif|webp))$/i.test(proofMime(f))){toast('Proofs need to be a PDF or an image (PNG, JPG, GIF or WebP).','err');return false;}
+        const mx=DEMO?PROOF_MAX_DEMO:PROOF_MAX_LIVE; if(f.size>mx){toast('That file is '+fmtSize(f.size)+'. The limit is '+fmtSize(mx)+'.','err');return false;}
+      }else if(!/^https?:\/\/\S+$/i.test(l)){toast('Paste a full link that starts with https://','err');return false;}
+      return true;},
+    get:b=>{const fi=$('#pf-file',b);return {file:(fi&&fi.files[0])||null,link:$('#pf-link',b).value.trim(),note:$('#pf-note',b).value.trim()};}}]});
+  if(r)await addProof(id,r);
+}
+async function addProof(id,{file,link,note}){
+  let o=byId(id); if(!o)return;
+  const setStatus=t=>{const el=$('#pf-status');if(el)el.textContent=t;};
+  if(SI[o.stage]>SI.proof_sent&&!await confirmBox('Move back to Proof sent?',`${esc(o.po)} is already at “${esc(stageLabel(o.stage))}”. Adding a new proof moves it back to “Proof sent” until the new proof is approved.`,'Add proof and move back'))return;
+  const entry={id:uid(),v:1,kind:file?'file':'link',name:'',url:'',path:'',type:'',size:0,note:note||'',by:me(),side:mySide(),ts:Date.now(),status:'pending',decidedBy:'',decidedTs:0,decision:''};
+  try{
+    if(file){
+      setStatus('Uploading '+file.name+'…');
+      const r=await Store.uploadProof(id,file,pct=>setStatus('Uploading '+file.name+'… '+pct+'%'));
+      Object.assign(entry,{name:file.name,url:r.url,path:r.path,type:proofMime(file),size:file.size});
+    }else{
+      let host='link';try{host=new URL(link).hostname.replace(/^www\./,'');}catch(e){}
+      Object.assign(entry,{name:'Proof link ('+host+')',url:link});
+    }
+  }catch(e){setStatus('');toast(e.message||String(e),'err');return;}
+  setStatus('');
+  o=byId(id)||o;                                        // the order may have changed during the upload
+  entry.v=Math.max(0,...(o.proofs||[]).map(x=>x.v))+1;
+  const proofs=(o.proofs||[]).map(x=>x.status==='pending'?Object.assign({},x,{status:'replaced'}):x).concat(entry);
+  const patch={proofs,updatedAt:Date.now()}, entries=[hist(`Proof v${entry.v} added: ${entry.name}`)];
+  if(SI[o.stage]!==SI.proof_sent&&SI[o.stage]<SI.in_production){patch.stage='proof_sent';entries.push(hist(`Stage: ${stageLabel(o.stage)} → Proof sent`));}
+  try{await Store.updateOrder(id,patch,{history:entries});}catch(e){toast('Could not save: '+e.message,'err');return;}
+  toast(`Proof v${entry.v} added to ${o.po}.`);
+  fireTriggers(Object.assign({},o,patch),['proof:uploaded'],{by:me(),proof:entry.name,proofVersion:'v'+entry.v,proofNote:entry.note,proofUrl:entry.url});
+}
+async function decideProof(id,pid,decision){
+  const o=byId(id); if(!o||o.archived)return;
+  if(!who){await askWho(true);if(!who)return;}
+  if(!canApprove()){toast(`Only ${settings.teamName} can approve proofs.`,'err');return;}
+  const p=(o.proofs||[]).find(x=>x.id===pid); if(!p||p.status!=='pending')return;
+  const ok=decision==='approved';
+  const r=await openModal({title:ok?`Approve proof v${p.v}?`:`Request changes to proof v${p.v}`,
+    body:`<div class="fg"><label class="sp-label" for="pf-dn">${ok?'Note (optional)':'What needs to change?'}</label>
+      <textarea class="sp-input" id="pf-dn" rows="3" placeholder="${ok?'e.g. Customer approved by email on 9/18':'e.g. Make the logo a half inch larger and use the darker red'}"></textarea></div>
+      ${ok?`<p class="sp-note" style="margin-top:8px">${esc(o.po)} moves to Proof approved if it isn’t there already.</p>`:''}`,
+    actions:[{label:'Cancel',kind:'ghost',value:null},{label:ok?'Approve proof':'Send changes',kind:ok?'':'danger',
+      validate:b=>{if(!ok&&!$('#pf-dn',b).value.trim()){toast('Say what needs to change.','err');return false;}return true;},
+      get:b=>({text:$('#pf-dn',b).value.trim()})}]});
+  if(!r)return;
+  const proofs=(o.proofs||[]).map(x=>x.id===pid?Object.assign({},x,{status:ok?'approved':'changes',decidedBy:me(),decidedTs:Date.now(),decision:r.text}):x);
+  const patch={proofs,updatedAt:Date.now()};
+  const entries=[hist(ok?`Proof v${p.v} approved`+(r.text?': '+r.text:''):`Changes requested on proof v${p.v}: ${r.text}`)];
+  if(ok&&SI[o.stage]<SI.proof_approved){patch.stage='proof_approved';entries.push(hist(`Stage: ${stageLabel(o.stage)} → Proof approved`));}
+  try{await Store.updateOrder(id,patch,{history:entries});}catch(e){toast('Could not save: '+e.message,'err');return;}
+  toast(ok?`${o.po}: proof v${p.v} approved.`:`${o.po}: changes requested on proof v${p.v}.`);
+  fireTriggers(Object.assign({},o,patch),[ok?'proof:approved':'proof:changes'],{by:me(),proof:p.name,proofVersion:'v'+p.v,proofNote:r.text,proofUrl:p.url});
+}
+async function openProofFile(id,pid){
+  const o=byId(id), p=o&&(o.proofs||[]).find(x=>x.id===pid);
+  if(!p||!p.url||!/^(https?:|data:)/i.test(p.url))return;
+  if(/^data:/i.test(p.url)){
+    try{const blob=await (await fetch(p.url)).blob();window.open(URL.createObjectURL(blob),'_blank');}catch(e){toast('Couldn’t open that file.','err');}
+    return;
+  }
+  window.open(p.url,'_blank','noopener');
+}
+
+/* ---------- asking GSI for an update (GSI works by email, so we go to them) ---------- */
+async function askGsi(list){
+  list=(list||[]).filter(o=>o&&!o.archived); if(!list.length)return;
+  const gsi=settings.vendorName, to=(settings.vendorEmails||[]).slice();
+  if(!to.length){toast(`Add ${gsi}’s email address in Settings first.`,'err');return;}
+  if(!who){await askWho(true);if(!who)return;}
+  const one=list.length===1;
+  if(!await confirmBox(`Email ${esc(gsi)} for an update?`,one?`${esc(list[0].po)} – ${esc(list[0].job)}`:`${list.length} open orders, listed in one email.`,'Send email'))return;
+  const line=o=>`• ${o.po} – ${o.job} | due ${o.due?fmtShort(o.due):'not set'} | ${DECO[o.decoration]||''} | our tracker shows: ${stageLabel(o.stage)}`;
+  const subject=one?`Status check: ${list[0].po} – ${list[0].job}`:`Status check on ${list.length} open orders`;
+  const message=`Hi ${gsi} team,\n\nCould you reply with the current status of ${one?'this order':'these orders'}?\n\n${list.map(line).join('\n')}\n\nThank you,\n${me()}\n${settings.teamName}`;
+  const replyTo=(one&&repInfo(list[0].rep).email)||(settings.opsEmails||[])[0]||'';
+  await deliver({po:one?list[0].po:list.length+' orders',trigger:'manual:status_request'},to,subject,message,me(),replyTo);
+  const now=Date.now();
+  for(const o of list){try{await Store.updateOrder(o.id,{askedAt:now,updatedAt:now},{history:[hist(`Asked ${gsi} for a status update`)]});}catch(e){console.warn(e);}}
 }
 
 /* ---------- editing ---------- */
@@ -1071,10 +1282,10 @@ async function setStage(id,stageId){
 async function postComment(){
   const ta=$('#cm-text'),text=ta.value.trim(); if(!text||!openId)return;
   if(!who){await askWho(true);if(!who)return;}
-  const o=byId(openId), entry={id:uid(),ts:Date.now(),by:me(),side:who.side,text};
+  const o=byId(openId), entry={id:uid(),ts:Date.now(),by:me(),side:mySide(),text};
   try{await Store.updateOrder(openId,{updatedAt:Date.now()},{comments:[entry]});}catch(e){toast('Could not post: '+e.message,'err');return;}
   ta.value='';
-  fireTriggers(o,['comment:'+who.side],{by:me(),comment:text});
+  fireTriggers(o,['comment:'+mySide()],{by:me(),comment:text});
 }
 async function archiveOrder(id){
   const o=byId(id);if(!o)return;
@@ -1089,6 +1300,7 @@ async function restoreOrder(id){
 async function deleteOrder(id){
   const o=byId(id);if(!o)return;
   if(!await confirmBox('Delete this order permanently?',`${esc(o.po)} – ${esc(o.job)} and its comments will be gone for good. Export to Excel first if you want a copy.`,'Delete permanently',true))return;
+  (o.proofs||[]).forEach(x=>{if(x.path)Store.removeFile(x.path);});
   await Store.deleteOrder(id);closeDrawer();toast('Order deleted.','info');
 }
 async function archiveDone(){
@@ -1336,9 +1548,15 @@ function mergeVars(o,ctx){
   const due=!o.due?'not set':fmtDate(o.due)+(o.dueNote?' – '+o.dueNote:'')+([o.rush&&'RUSH',o.firm&&'FIRM DATE',o.timed&&'TIME-SPECIFIC'].filter(Boolean).length?' ('+[o.rush&&'RUSH',o.firm&&'FIRM DATE',o.timed&&'TIME-SPECIFIC'].filter(Boolean).join(', ')+')':'');
   return {po:o.po,job:o.job,rep:o.rep?(r.name?r.name+' ('+o.rep+')':o.rep):'Unassigned',stage:stageLabel(o.stage),due,
     goods:GOODS[o.goods]+(o.goods==='expected'&&o.goodsDate?' '+fmtShort(o.goodsDate):''),files:FILES[o.files],link:o.link||'—',
-    by:ctx.by||'Someone',comment:ctx.comment||'',order_url:base+'#order='+o.id,team:settings.teamName,partner:settings.vendorName,vendor:settings.vendorName};
+    by:ctx.by||'Someone',comment:ctx.comment||'',order_url:base+'#order='+o.id,team:settings.teamName,partner:settings.vendorName,vendor:settings.vendorName,
+    proof:ctx.proof||'',proof_version:ctx.proofVersion||'',proof_note:ctx.proofNote||'',proof_url:(ctx.proofUrl&&!/^data:/i.test(ctx.proofUrl))?ctx.proofUrl:''};
 }
-const merge=(s,v)=>String(s||'').replace(/\{(\w+)\}/g,(m,k)=>k in v?v[k]:m);
+// Lines whose merge fields are all empty (e.g. "Note: {proof_note}" with no note) are left out.
+const merge=(s,v)=>String(s||'').split('\n').map(line=>{
+  const toks=[...line.matchAll(/\{(\w+)\}/g)];
+  if(toks.length&&toks.every(t=>(t[1] in v)&&v[t[1]]===''))return null;
+  return line.replace(/\{(\w+)\}/g,(m,k)=>k in v?v[k]:m);
+}).filter(l=>l!==null).join('\n');
 function recipients(rule,o){
   const s=new Set(), add=e=>{if(e)s.add(e.toLowerCase());};
   if(rule.to.rep)add(repInfo(o.rep).email);
@@ -1347,23 +1565,26 @@ function recipients(rule,o){
   (rule.extra||[]).forEach(add);
   return [...s];
 }
-async function sendRaw(to,subject,message,fromName){
+async function sendRaw(to,subject,message,fromName,replyTo){
   const res=await fetch('https://api.emailjs.com/api/v1.0/email/send',{method:'POST',headers:{'Content-Type':'application/json'},
     body:JSON.stringify({service_id:EMAILJS_CONFIG.serviceId,template_id:EMAILJS_CONFIG.templateId,user_id:EMAILJS_CONFIG.publicKey,
-      template_params:{to_email:to.join(','),subject,message,from_name:fromName||'GSI Order Tracker'}})});
+      template_params:{to_email:to.join(','),subject,message,from_name:fromName||'GSI Order Tracker',reply_to:replyTo||''}})});
   if(!res.ok)throw new Error((await res.text())||res.status);
+}
+async function deliver(meta,to,subject,message,by,replyTo){
+  const base={ts:Date.now(),po:meta.po,trigger:meta.trigger,to:to.join(', '),subject};
+  if(!to.length){await logEmail(Object.assign(base,{status:'skipped',detail:'No email addresses set for this rule. Check Settings.'}));toast('Email skipped: no recipients with an email address.','info');return;}
+  if(!EMAIL_READY){await logEmail(Object.assign(base,{status:'preview',detail:'EmailJS isn’t set up, so nothing was sent.'}));toast('Preview: email would go to '+to.length+' recipient'+(to.length===1?'':'s')+'.','info');return;}
+  try{await sendRaw(to,subject,message,by,replyTo);await logEmail(Object.assign(base,{status:'sent',detail:''}));toast('Email sent to '+to.length+' recipient'+(to.length===1?'':'s')+'.');}
+  catch(e){await logEmail(Object.assign(base,{status:'failed',detail:String(e.message||e).slice(0,200)}));toast('Email didn’t send: '+(e.message||e),'err');}
 }
 async function fireTriggers(o,triggers,ctx){
   if(!settings.emailEnabled)return;
+  const replyTo=repInfo(o.rep).email||(settings.opsEmails||[])[0]||'';   // replies from GSI land with the rep
   for(const rule of (settings.rules||[])){
     if(!rule.on||!triggers.includes(rule.trigger))continue;
     const to=recipients(rule,o), v=mergeVars(o,ctx);
-    const subject=merge(rule.subject,v), message=merge(rule.body,v);
-    const base={ts:Date.now(),po:o.po,trigger:rule.trigger,to:to.join(', '),subject};
-    if(!to.length){await logEmail(Object.assign(base,{status:'skipped',detail:'No email addresses set for this rule. Check Settings.'}));toast('Email skipped: no recipients with an email address.','info');continue;}
-    if(!EMAIL_READY){await logEmail(Object.assign(base,{status:'preview',detail:'EmailJS isn’t set up, so nothing was sent.'}));toast('Preview: email would go to '+to.length+' recipient'+(to.length===1?'':'s')+'.','info');continue;}
-    try{await sendRaw(to,subject,message,ctx.by);await logEmail(Object.assign(base,{status:'sent',detail:''}));toast('Email sent to '+to.length+' recipient'+(to.length===1?'':'s')+'.');}
-    catch(e){await logEmail(Object.assign(base,{status:'failed',detail:String(e.message||e).slice(0,200)}));toast('Email didn’t send: '+(e.message||e),'err');}
+    await deliver({po:o.po,trigger:rule.trigger},to,merge(rule.subject,v),merge(rule.body,v),ctx.by,replyTo);
   }
 }
 async function logEmail(e){try{await Store.addLog(e);}catch(err){console.warn(err);}}
@@ -1409,6 +1630,10 @@ function exportXlsx(){
   orders.forEach(o=>(o.comments||[]).forEach(c=>crow.push({'PO #':o.po,'Job name':o.job,'Posted':c.ts,'Author':c.by,'Team':c.side==='vendor'?settings.vendorName:settings.teamName,'Comment':c.text})));
   crow.sort((a,b)=>a.Posted-b.Posted).forEach(r=>r.Posted=fmtTs(r.Posted));
   XLSX.utils.book_append_sheet(wb,makeSheet(crow,cc,[]),'Comments');
+  const pc=['PO #','Job name','Version','File or link','Status','Added by','Added','Decided by','Decided','Note','Decision note'], prow=[];
+  const pst={pending:'Waiting for approval',approved:'Approved',changes:'Changes requested',replaced:'Replaced'};
+  orders.forEach(o=>(o.proofs||[]).forEach(p=>prow.push({'PO #':o.po,'Job name':o.job,'Version':p.v,'File or link':p.kind==='link'?p.url:p.name,'Status':pst[p.status]||p.status,'Added by':p.by,'Added':fmtTs(p.ts),'Decided by':p.decidedBy||'','Decided':p.decidedTs?fmtTs(p.decidedTs):'','Note':p.note||'','Decision note':p.decision||''})));
+  XLSX.utils.book_append_sheet(wb,makeSheet(prow,pc,[]),'Proofs');
   XLSX.writeFile(wb,'GSI-orders-'+todayISO()+'.xlsx');
   toast('Downloaded '+active.length+' active and '+arch.length+' archived orders.');
 }
@@ -1476,6 +1701,32 @@ function renderSettings(){
         <td><input class="sp-input sm" style="width:100%" data-rep="${esc(i)}" data-k="email" value="${esc(r.email)}" placeholder="Email" aria-label="Email for ${esc(i)}"></td>
         <td><button class="linkbtn" data-act="rep-del" data-ini="${esc(i)}">Remove</button></td></tr>`;}).join('')}</table>
       <div style="display:flex;gap:8px;margin-top:10px"><input class="sp-input sm" id="new-rep" maxlength="4" placeholder="Initials" style="width:100px"><button class="sp-btn small ghost" data-act="rep-add">Add rep</button></div></div>
+    <div class="card full"><h2 class="sp-h2">How ${esc(S.vendorName)} is involved</h2>
+      <label class="chk1"><input type="checkbox" data-s="gsiUses" ${S.gsiUses?'checked':''}> ${esc(S.vendorName)} logs in to the tracker</label>
+      <p class="sp-note" style="margin:6px 0 12px">Leave this off if ${esc(S.vendorName)} works by email and phone, which is how it’s set up now. Your team keeps the tracker up to date, comments become internal notes, and ${esc(S.vendorName)} only receives the emails set up below. Turn it on if they’ll post their own updates.</p>
+      <div class="fg" style="max-width:360px"><label class="sp-label">Flag an order when its stage hasn’t changed in (days)</label>
+        <input class="sp-input" type="number" min="0" max="60" data-s="staleDays" value="${esc(S.staleDays==null?3:S.staleDays)}">
+        <p class="sp-note">Flagged orders show under “Check in with ${esc(S.vendorName)}” in Needs attention, where you can email them for a status in one click. Orders already in production get twice as long. Use 0 to turn this off.</p></div></div>
+    <div class="card full"><h2 class="sp-h2">Proof files</h2>
+      <div class="statusline">${STORAGE_READY?chip('Firebase Storage connected','ok'):DEMO?chip('Preview: files stay in this browser (1 MB max)','muted'):chip('Storage not set up: proofs can be added by link only','warn')}</div>
+      <p class="sp-note" style="margin:0 0 8px">Add the proof ${esc(S.vendorName)} sends you on each order, then approve it or request changes there. Approving moves the order to Proof approved and emails ${esc(S.vendorName)}.</p>
+      <details><summary>How to connect Firebase Storage</summary><ol class="steps">
+        <li>In the Firebase console, open <b>Storage</b> (under Databases &amp; Storage, or Build) and click <b>Get started</b>. Storage needs the pay-as-you-go <b>Blaze</b> plan, which adds a billing account. Google’s free allowance is meant to cover a small number of files, so a few proofs a week shouldn’t come near it.</li>
+        <li>Pick a location, open the <b>Rules</b> tab, replace what’s there with the rules below, and click <b>Publish</b>.
+<pre>rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+    match /gsi_proofs/{orderId}/{fileName} {
+      allow read: if true;
+      allow create: if request.resource.size &lt; 25 * 1024 * 1024
+        &amp;&amp; (request.resource.contentType == 'application/pdf'
+            || request.resource.contentType.matches('image/.*'));
+      allow delete: if true;
+    }
+  }
+}</pre></li>
+        <li>Check that <code>storageBucket</code> is filled in inside <code>FIREBASE_CONFIG</code> (Project settings → Your apps), then re-upload this file.</li>
+        <li>No billing account? Skip all of this and paste a link to each proof (Google Drive, Dropbox) instead of uploading.</li></ol></details></div>
     <div class="card full"><h2 class="sp-h2">Email automation</h2>
       <div class="statusline">
         ${EMAIL_READY?chip('EmailJS connected','ok'):chip('EmailJS not set up: emails are logged, not sent','warn')}
@@ -1484,10 +1735,10 @@ function renderSettings(){
       <p class="sp-note" style="margin:0 0 12px">Each rule sends when the thing in its first dropdown happens. The email goes out from the browser of whoever made the change.</p>
       <div id="rules">${(S.rules||[]).map(ruleHTML).join('')}</div>
       <button class="sp-btn small ghost" data-act="rule-add">Add a rule</button>
-      <p class="sp-note">Merge fields you can use in subject and message: <code>{po}</code> <code>{job}</code> <code>{rep}</code> <code>{stage}</code> <code>{due}</code> <code>{goods}</code> <code>{files}</code> <code>{link}</code> <code>{order_url}</code> <code>{by}</code> <code>{comment}</code> <code>{team}</code> <code>{partner}</code></p>
+      <p class="sp-note">Merge fields you can use in subject and message: <code>{po}</code> <code>{job}</code> <code>{rep}</code> <code>{stage}</code> <code>{due}</code> <code>{goods}</code> <code>{files}</code> <code>{link}</code> <code>{order_url}</code> <code>{by}</code> <code>{comment}</code> <code>{team}</code> <code>{partner}</code> <code>{proof}</code> <code>{proof_version}</code> <code>{proof_note}</code> <code>{proof_url}</code>. A line is left out when all of its fields are empty.</p>
       <details style="margin-top:10px"><summary>How to connect EmailJS</summary><ol class="steps">
         <li>Create an EmailJS account, then go to <b>Email Services → Add New Service</b>, pick Gmail or Outlook, connect the mailbox the emails should come from, and copy the <b>Service ID</b>.</li>
-        <li>Go to <b>Email Templates → Create New Template</b>. Set To Email to <code>{{to_email}}</code>, From Name to <code>{{from_name}}</code>, and Subject to <code>{{subject}}</code>. For the content, open the Code Editor and paste <code>&lt;div style="white-space:pre-wrap"&gt;{{message}}&lt;/div&gt;</code> so line breaks are kept. Save, then copy the <b>Template ID</b>.</li>
+        <li>Go to <b>Email Templates → Create New Template</b>. Set To Email to <code>{{to_email}}</code>, From Name to <code>{{from_name}}</code>, Reply To to <code>{{reply_to}}</code>, and Subject to <code>{{subject}}</code>. For the content, open the Code Editor and paste <code>&lt;div style="white-space:pre-wrap"&gt;{{message}}&lt;/div&gt;</code> so line breaks are kept. Save, then copy the <b>Template ID</b>.</li>
         <li>Go to <b>Account → API Keys</b> and copy the <b>Public Key</b>.</li>
         <li>Paste the three values into <code>EMAILJS_CONFIG</code> at the top of this file, then re-upload it.</li>
         <li>Come back here, click <b>Send a test email</b> and check that it arrives. Then tick <b>Send automated emails</b>.</li></ol></details></div>
@@ -1510,7 +1761,7 @@ function persistSettings(){Store.saveSettings(settings).then(()=>toast('Saved.',
 function settingsChange(t){
   if(t.dataset.s){
     const k=t.dataset.s;
-    settings[k]=(k==='vendorEmails'||k==='opsEmails')?splitEmails(t.value):k==='emailEnabled'?t.checked:t.value.trim();
+    settings[k]=(k==='vendorEmails'||k==='opsEmails')?splitEmails(t.value):(k==='emailEnabled'||k==='gsiUses')?t.checked:k==='staleDays'?Math.max(0,Math.min(60,parseInt(t.value,10)||0)):t.value.trim();
     if(k==='teamName'||k==='vendorName'){updateChrome();renderSettings();}
     persistSettings();
   }else if(t.dataset.rep){
@@ -1535,7 +1786,13 @@ async function act(name,el){
   switch(name){
     case 'new':return newOrderModal();
     case 'export':return exportXlsx();
-    case 'who':return askWho(false);
+    case 'who':{await askWho(false);refreshDrawer();return;}
+    case 'proof-upload':return proofUploadModal(openId);
+    case 'proof-approve':return decideProof(openId,el.dataset.pid,'approved');
+    case 'proof-changes':return decideProof(openId,el.dataset.pid,'changes');
+    case 'proof-open':return openProofFile(openId,el.dataset.pid);
+    case 'ask-gsi':return askGsi([byId(openId)]);
+    case 'ask-gsi-group':return askGsi(el.dataset.ids.split(',').map(byId));
     case 'import':return $('#file-import').click();
     case 'archive-done':return archiveDone();
     case 'clear-quick':F.quick='';return renderOrdersBody();
