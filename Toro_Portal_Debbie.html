@@ -199,7 +199,7 @@ const PW_KEY = 'toro_pw_debbie';
 const LOCK_KEY = 'toro_lock_debbie';
 const ATTEMPTS_KEY = 'toro_attempts_debbie';
 const DEFAULT_PW = 'Toro#Xp8sN';
-const PORTAL_VERSION = 'v2.39';
+const PORTAL_VERSION = 'v2.40';
 const FB_PATH = 'quotes/' + REP_LOWER;
 
 function bamAlert(msg, cb) {
@@ -747,8 +747,9 @@ function render() {
     return sell>0 ? (sell-net)/sell*100 : null;
   };
   const marginBar = document.getElementById('margin-stats-bar');
-  const mActive = blendedMargin(all), mUnpaid = blendedMargin(unpaid), mPaid = blendedMargin(paidOnly), mAll = blendedMargin(archived);
-  if(all.length || archived.length){
+  const everything = [...all, ...archived];
+  const mActive = blendedMargin(all), mUnpaid = blendedMargin(unpaid), mPaid = blendedMargin(paidOnly), mAll = blendedMargin(archived), mEverything = blendedMargin(everything);
+  if(everything.length){
     marginBar.style.display = '';
     const stat = (label,val,n,color) => '<div style="flex:1;min-width:150px;">'+
       '<div style="font-size:11px;font-weight:600;color:'+color+';text-transform:uppercase;letter-spacing:.03em;margin-bottom:2px;">'+label+'</div>'+
@@ -759,7 +760,8 @@ function render() {
         stat('Active quotes', mActive, all.length, '#b7791f')+
         stat('Submitted, awaiting payment', mUnpaid, unpaid.length, '#4338ca')+
         stat('Paid out', mPaid, paidOnly.length, '#16a34a')+
-        stat('Combined (all submitted)', mAll, archived.length, '#555')+
+        stat('Submitted + paid', mAll, archived.length, '#555')+
+        stat('Combined (everything)', mEverything, everything.length, '#7c2d12')+
       '</div>';
   } else {
     marginBar.style.display = 'none';
