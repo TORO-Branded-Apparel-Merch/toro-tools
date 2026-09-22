@@ -1,15 +1,16 @@
 <!DOCTYPE html>
 <html lang="en">
 <!--
-  GSI Order Tracker v1.1
+  GSI Order Tracker v1.2
   Live order tracking dashboard for Toro Merch ↔ GSI vendor workflow
   
-  Changes in v1.1:
+  Changes in v1.2:
   • Removed proof upload and approval system entirely (keep proof statuses and auto-emails)
   • Archive now saves the order's stage, restore brings it back to that stage (no purgatory)
   • Added delete order button for testing/cleanup (archive tab or drawer footer)
   • Removed Proofs tab from Excel exports
   • Simplified email rules: only stage changes and manual triggers remain
+  • Fixed: Removed leftover proof function references that caused console errors
   
   Changes in v1.0:
   • Added version display in header
@@ -417,7 +418,7 @@ const EMAILJS_CONFIG = { serviceId: "Operations", templateId: "template_1rn7bqs"
 'use strict';
 
 /* ---------- version ---------- */
-const APP_VERSION = 'v1.1';
+const APP_VERSION = 'v1.2';
 
 /* ---------- constants ---------- */
 const COLL = { orders:'gsi_orders', settings:'gsi_settings', log:'gsi_emailLog' };
@@ -555,9 +556,6 @@ function attention(o){
       if(d>=sd&&!quiet) out.push({k:'stale',sev:'info',text:'No movement in '+d+'d'+(o.askedAt?' · last asked '+fmtShort(isoOf(o.askedAt)):'')});
     }
     if(o.askedAt&&Date.now()-o.askedAt<7*864e5) out.push({k:'asked',sev:'info',text:'Asked '+settings.vendorName+' '+fmtShort(isoOf(o.askedAt))});
-    const lp=latestProof(o);
-    if(lp&&lp.status==='changes') out.push({k:'proofchg',sev:'warn',text:'Changes requested on proof v'+lp.v});
-    else if(lp&&lp.status==='pending') out.push({k:'proofwait',sev:'info',text:'Proof v'+lp.v+' waiting for review'});
   }
   return out;
 }
@@ -1118,7 +1116,6 @@ function refreshDrawer(){
   $('#dr-head').innerHTML=drHeadHTML(o);
   $('#dr-attn').innerHTML=attnHTML(o);
   $('#dr-stage').innerHTML=stepperHTML(o);
-  const dp=$('#dr-proofs');if(dp)dp.innerHTML=proofsHTML(o);
   const cmBox=$('#dr-comments'),atBottom=cmBox.scrollTop+cmBox.clientHeight>=cmBox.scrollHeight-8;
   cmBox.innerHTML=commentsHTML(o);if(atBottom)cmBox.scrollTop=cmBox.scrollHeight;
   $('#dr-history').innerHTML=historyHTML(o);
