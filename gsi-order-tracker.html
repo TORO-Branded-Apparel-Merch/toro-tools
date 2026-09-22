@@ -1,8 +1,15 @@
 <!DOCTYPE html>
 <html lang="en">
 <!--
-  GSI Order Tracker v1.0
+  GSI Order Tracker v1.1
   Live order tracking dashboard for Toro Merch ↔ GSI vendor workflow
+  
+  Changes in v1.1:
+  • Removed proof upload and approval system entirely (keep proof statuses and auto-emails)
+  • Archive now saves the order's stage, restore brings it back to that stage (no purgatory)
+  • Added delete order button for testing/cleanup (archive tab or drawer footer)
+  • Removed Proofs tab from Excel exports
+  • Simplified email rules: only stage changes and manual triggers remain
   
   Changes in v1.0:
   • Added version display in header
@@ -395,7 +402,6 @@
             To Email: {{to_email}}   From Name: {{from_name}}   Reply To: {{reply_to}}   Subject: {{subject}}
             Content (Code Editor): <div style="white-space:pre-wrap">{{message}}</div>
       • Paste the Service ID, Template ID and Public Key below.
-      • Optional, for proof uploads: turn on Firebase Storage (needs the Blaze plan) and publish the rules shown in Settings → Proof files.
    ===================================================================== */
 const FIREBASE_CONFIG = {
   apiKey: "AIzaSyDeiUaVrlhR9GUt6OFYYpOAQv_Yamjd71g",
@@ -411,7 +417,7 @@ const EMAILJS_CONFIG = { serviceId: "", templateId: "", publicKey: "" };
 'use strict';
 
 /* ---------- version ---------- */
-const APP_VERSION = 'v1.0';
+const APP_VERSION = 'v1.1';
 
 /* ---------- constants ---------- */
 const COLL = { orders:'gsi_orders', settings:'gsi_settings', log:'gsi_emailLog' };
@@ -480,9 +486,6 @@ function defaultRules(){
     R('r_new','order_added',{rep:true,vendor:true},'New order: {po} – {job}','{by} added a new order.\n\nPO: {po}\nJob: {job}\nRep: {rep}\nDue: {due}\nPrintavo: {link}'),
     R('r_proof_sent','stage:proof_sent',{rep:true},'Proof ready for review: {po} – {job}','A proof has been sent for {po} – {job}.\n\nPlease review it and let us know if it is approved or needs changes.\nDue: {due}'),
     R('r_proof_ok','stage:proof_approved',{vendor:true},'Proof approved: {po} – {job}','The proof for {po} – {job} is approved.\n\nGoods: {goods}\nProduction files: {files}\nDue: {due}'),
-    R('r_pf_up','proof:uploaded',{rep:true},'Proof {proof_version} ready for review: {po} – {job}','{by} added a proof for {po} – {job}.\n\nFile: {proof}\nNote: {proof_note}\nView the proof: {proof_url}\nDue: {due}',false),
-    R('r_pf_ok','proof:approved',{vendor:true},'Proof {proof_version} approved: {po} – {job}','{by} approved the proof for {po} – {job}.\n\nNote: {proof_note}\nGoods: {goods}\nProduction files: {files}\nDue: {due}'),
-    R('r_pf_chg','proof:changes',{vendor:true},'Changes requested on proof {proof_version}: {po} – {job}','{by} asked for changes to the proof for {po} – {job}.\n\nWhat needs to change: {proof_note}\n\nPlease upload a new version.\nDue: {due}'),
     R('r_prod','stage:in_production',{rep:true},'In production: {po} – {job}','{po} – {job} is now in production.\n\nDue: {due}'),
     R('r_samp_done','stage:sample_complete',{rep:true},'Pre-production sample ready: {po} – {job}','The pre-production sample for {po} – {job} is complete and ready for approval.'),
     R('r_samp_ok','stage:sample_approved',{vendor:true},'Sample approved: {po} – {job}','The pre-production sample for {po} – {job} is approved. Go ahead with the full run.\n\nDue: {due}'),
@@ -504,7 +507,6 @@ function defaultSettings(){
 function triggerOptions(){
   return [['order_added','A new order is added']]
     .concat(STAGES.map(s=>['stage:'+s.id,'Stage changes to: '+s.label]))
-    .concat([['proof:uploaded','A proof is uploaded'],['proof:approved','A proof is approved'],['proof:changes','Changes are requested on a proof']])
     .concat([['goods:received','Goods are marked received'],['files:uploaded','Production files are marked uploaded'],
              ['comment:team',settings.teamName+' posts a comment'],['comment:vendor',settings.vendorName+' posts a comment']]);
 }
@@ -730,24 +732,6 @@ const FbStore={
     if(!this._st){this.sm=await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-storage.js');this._st=this.sm.getStorage(this.app);}
     return this._st;
   },
-  async uploadProof(id,file,onPct){
-    if(!STORAGE_READY)throw new Error('File storage isn’t set up yet. Paste a link to the proof instead, or see Settings → Proof files.');
-    let st;try{st=await this.storage();}catch(e){throw new Error('Couldn’t load file storage: '+(e.message||e));}
-    const m=this.sm, safe=file.name.replace(/[^\w.\- ]+/g,'_').slice(-80), path='gsi_proofs/'+id+'/'+Date.now()+'_'+safe, r=m.ref(st,path);
-    try{
-      await new Promise((res,rej)=>{
-        const t=m.uploadBytesResumable(r,file,{contentType:proofMime(file)});
-        t.on('state_changed',sn=>{if(onPct)onPct(Math.round(100*sn.bytesTransferred/Math.max(1,sn.totalBytes)));},rej,res);
-      });
-      return {url:await m.getDownloadURL(r),path};
-    }catch(e){
-      const c=String((e&&e.code)||'');
-      if(/unauthorized|unauthenticated/.test(c))throw new Error('Storage refused the upload. Check that the Storage rules from Settings → Proof files are published.');
-      if(/bucket-not-found|project-not-found/.test(c))throw new Error('Storage isn’t set up for this project yet. See Settings → Proof files.');
-      throw new Error('Upload failed: '+((e&&e.message)||c||'unknown error'));
-    }
-  },
-  async removeFile(path){try{const st=await this.storage();await this.sm.deleteObject(this.sm.ref(st,path));}catch(e){}}
 };
 const Store=DEMO?DemoStore:FbStore;
 
@@ -865,7 +849,7 @@ function rowHTML(o){
   const sev=rowSev(o), n=(o.comments||[]).length;
   return `<tr class="${sev?'sev-'+sev:''}" data-open="${o.id}" tabindex="0">
     <td class="c-po">${esc(o.po)}</td>
-    <td class="c-job"><div class="job">${esc(o.job)}</div>${metaLine(o.statusNote)}${proofChipLine(o)}</td>
+    <td class="c-job"><div class="job">${esc(o.job)}</div>${metaLine(o.statusNote)}</td>
     <td>${o.rep?chip(o.rep,'rep',repLabel(o.rep)):'<span class="mut">—</span>'}</td>
     <td>${chip(decoShort(o.decoration),'type',DECO[o.decoration])}</td>
     <td>${dueCell(o)}</td>
@@ -958,7 +942,7 @@ function cardHTML(o){
   if(o.files!=='uploaded')miss.push(chip('Files pending','warn-o'));
   return `<div class="bcard ${sev?'sev-'+sev:''}" draggable="true" data-open="${o.id}">
     <div class="bc-top"><b>${esc(o.po)}</b>${o.rep?chip(o.rep,'rep',repLabel(o.rep)):''}${chip(decoShort(o.decoration),'type')}</div>
-    <div class="bc-job">${esc(o.job)}</div>${proofChipLine(o)}
+    <div class="bc-job">${esc(o.job)}</div>
     <div class="bc-foot">${o.due?chip('Due '+fmtDate(o.due),!isDone(o)&&o.due<todayISO()?'danger':!isDone(o)&&o.due===todayISO()?'warn':'muted'):''}${o.rush?chip('Rush','danger-o'):''}${o.firm?chip('Firm','danger-o'):''}${miss.join('')}</div></div>`;
 }
 function renderBoard(soft){
@@ -1001,7 +985,6 @@ function renderAttention(){
     {t:'Past due',d:'The requested date has passed and the order isn’t complete.',ask:true,test:a=>a.some(x=>x.k==='overdue')},
     {t:'At risk',d:'Goods, files or timing could put the due date in danger.',ask:true,test:a=>a.some(x=>RISK.has(x.k))},
     {t:'Due today',d:'Requested for today and not yet complete.',test:a=>a.some(x=>x.k==='today')},
-    {t:'Proofs',d:'A proof is waiting for approval, or changes were requested and a new version is needed.',test:a=>a.some(x=>x.k==='proofchg'||x.k==='proofwait')},
     {t:'Check in with '+settings.vendorName,d:'No stage change in a while. Email '+settings.vendorName+' for a status, or update the stage if you already know.',ask:true,test:a=>a.some(x=>x.k==='stale')},
     {t:'Firm and rush dates',d:'Orders with a firm or rush date that are still open.',test:a=>a.some(x=>x.k==='flag')}
   ];
@@ -1110,8 +1093,6 @@ function openDrawer(id){
       ${o.archived?`<div class="archnote">Archived ${o.archivedAt?fmtTs(o.archivedAt):''}${o.archivedBy?' by '+esc(o.archivedBy):''}. Restore it to edit.</div>`:''}
       <div id="dr-attn">${attnHTML(o)}</div>
       <section class="dr-sec"><h3>Progress</h3><div id="dr-stage">${stepperHTML(o)}</div></section>
-      <section class="dr-sec"><h3 class="pfh">Proofs${o.archived?'':'<button class="sp-btn small" data-act="proof-upload">Add a proof</button>'}</h3>
-        <div id="pf-status" class="sp-note" style="margin:0 0 6px"></div><div id="dr-proofs">${proofsHTML(o)}</div></section>
       <section class="dr-sec"><h3>Details <span class="saved" id="saved"></span></h3><fieldset id="dr-fields" ${o.archived?'disabled':''}>${fieldsHTML(o)}</fieldset></section>
       <section class="dr-sec"><h3>${settings.gsiUses?'Comments':'Notes'} <span class="sp-note" style="margin:0;font-family:inherit">${settings.gsiUses?`Shared with ${esc(settings.vendorName)} and ${esc(settings.teamName)}`:`Only ${esc(settings.teamName)} sees these`}</span></h3>
         <div id="dr-comments">${commentsHTML(o)}</div>
@@ -1153,113 +1134,6 @@ function collectFields(root){
   const out={};
   $$('[data-f]',root).forEach(el=>{out[el.dataset.f]=el.type==='checkbox'?el.checked:el.value.trim();});
   return out;
-}
-
-/* ---------- proofs ---------- */
-function latestProof(o){return (o.proofs||[]).slice().sort((a,b)=>b.v-a.v)[0]||null;}
-function proofMime(f){
-  if(f.type)return f.type;
-  const e=((f.name||'').match(/\.(\w+)$/)||[])[1]||'';
-  return ({pdf:'application/pdf',png:'image/png',jpg:'image/jpeg',jpeg:'image/jpeg',gif:'image/gif',webp:'image/webp'})[e.toLowerCase()]||'application/octet-stream';
-}
-const fmtSize=b=>b>=1048576?(b/1048576).toFixed(1)+' MB':Math.max(1,Math.round(b/1024))+' KB';
-const canApprove=()=>!settings.gsiUses||mySide()==='team';
-function proofChipLine(o){
-  if(o.archived)return '';
-  const p=latestProof(o); if(!p)return '';
-  if(p.status==='pending')return `<div class="pfchip">${chip('Proof v'+p.v+' to approve','warn')}</div>`;
-  if(p.status==='changes')return `<div class="pfchip">${chip('Proof changes requested','danger')}</div>`;
-  return '';
-}
-function proofCardHTML(o,p,cur){
-  const isImg=/^image\//.test(p.type||'')||/^data:image\//.test(p.url||'');
-  const th=isImg&&p.url?`<img class="pf-th" src="${esc(p.url)}" alt="Proof preview">`
-    :`<div class="pf-th pf-ic">${p.kind==='link'?'LINK':/pdf/i.test((p.type||'')+(p.name||''))?'PDF':'FILE'}</div>`;
-  const lab={pending:['Waiting for approval','warn'],approved:['Approved','ok'],changes:['Changes requested','danger'],replaced:['Replaced by a newer version','muted']}[p.status]||['','muted'];
-  const dec=(p.status==='approved'||p.status==='changes')
-    ?`<div class="pf-dec"><b>${p.status==='approved'?'Approved':'Changes requested'} by ${esc(p.decidedBy)}</b> · ${fmtTs(p.decidedTs)}${p.decision?'<br>'+esc(p.decision):''}</div>`:'';
-  const btns=[`<button class="sp-btn small ghost" data-act="proof-open" data-pid="${esc(p.id)}">Open</button>`];
-  if(cur&&p.status==='pending'&&!o.archived){
-    if(canApprove())btns.push(`<button class="sp-btn small" data-act="proof-approve" data-pid="${esc(p.id)}">Approve proof</button>`,`<button class="sp-btn small ghost" data-act="proof-changes" data-pid="${esc(p.id)}">Request changes</button>`);
-    else btns.push(`<span class="sp-note" style="margin:0">Waiting for ${esc(settings.teamName)} to approve.</span>`);
-  }
-  return `<div class="pf st-${esc(p.status)} ${cur?'':'old'}">${th}<div class="pf-main">
-    <div class="pf-name">${esc(p.name||'Proof')} ${chip(lab[0],lab[1])}</div>
-    <div class="pf-meta">Version ${p.v} · added by ${esc(p.by)} · ${fmtTs(p.ts)}${p.size?' · '+fmtSize(p.size):''}</div>
-    ${p.note?`<div class="pf-dec">${esc(p.note)}</div>`:''}${dec}<div class="pf-act">${btns.join('')}</div></div></div>`;
-}
-function proofsHTML(o){
-  const P=(o.proofs||[]).slice().sort((a,b)=>b.v-a.v);
-  if(!P.length)return `<p class="sp-note" style="margin:0">No proofs yet. Upload the proof ${esc(settings.vendorName)} sends you, then approve it here or ask for changes.</p>`;
-  const old=P.slice(1);
-  return proofCardHTML(o,P[0],true)+(old.length?`<details><summary>Earlier versions (${old.length})</summary><div style="margin-top:8px">${old.map(x=>proofCardHTML(o,x,false)).join('')}</div></details>`:'');
-}
-async function proofUploadModal(id){
-  const o=byId(id); if(!o||o.archived)return;
-  if(!who){await askWho(true);if(!who)return;}
-  const next=((latestProof(o)||{}).v||0)+1;
-  const body=`<p class="sp-note" style="margin:0 0 12px">Version ${next} for ${esc(o.po)} – ${esc(o.job)}.</p>
-    <div class="fg"><label class="sp-label" for="pf-link">Link to the proof</label><input class="sp-input" type="url" id="pf-link" placeholder="https://drive.google.com/… or https://1drv.ms/…" autofocus></div>
-    <p class="sp-note">Share a link from Google Drive, OneDrive, Dropbox or any cloud storage. Make sure the link is shareable.</p>
-    <div class="fg"><label class="sp-label" for="pf-note">Note (optional)</label><textarea class="sp-input" id="pf-note" rows="2" placeholder="e.g. Second round, logo moved up per the customer"></textarea></div>`;
-  const r=await openModal({title:'Add a proof',body,actions:[{label:'Cancel',kind:'ghost',value:null},{label:'Add proof',
-    validate:b=>{
-      const l=$('#pf-link',b).value.trim();
-      if(!l){toast('Paste a link to the proof.','err');return false;}
-      if(!/^https?:\/\/\S+$/i.test(l)){toast('Paste a full link that starts with https://','err');return false;}
-      return true;},
-    get:b=>({file:null,link:$('#pf-link',b).value.trim(),note:$('#pf-note',b).value.trim()})}]});
-  if(r)await addProof(id,r);
-}
-async function addProof(id,{file,link,note}){
-  let o=byId(id); if(!o)return;
-  const setStatus=t=>{const el=$('#pf-status');if(el)el.textContent=t;};
-  if(SI[o.stage]>SI.proof_sent&&!await confirmBox('Move back to Proof sent?',`${esc(o.po)} is already at “${esc(stageLabel(o.stage))}”. Adding a new proof moves it back to “Proof sent” until the new proof is approved.`,'Add proof and move back'))return;
-  const entry={id:uid(),v:1,kind:file?'file':'link',name:'',url:'',path:'',type:'',size:0,note:note||'',by:me(),side:mySide(),ts:Date.now(),status:'pending',decidedBy:'',decidedTs:0,decision:''};
-  try{
-    let host='link';try{host=new URL(link).hostname.replace(/^www\./,'');}catch(e){}
-    Object.assign(entry,{name:'Proof link ('+host+')',url:link});
-  }catch(e){setStatus('');toast(e.message||String(e),'err');return;}
-  setStatus('');
-  o=byId(id)||o;                                        // the order may have changed during the upload
-  entry.v=Math.max(0,...(o.proofs||[]).map(x=>x.v))+1;
-  const proofs=(o.proofs||[]).map(x=>x.status==='pending'?Object.assign({},x,{status:'replaced'}):x).concat(entry);
-  const patch={proofs,updatedAt:Date.now()}, entries=[hist(`Proof v${entry.v} added: ${entry.name}`)];
-  if(SI[o.stage]!==SI.proof_sent&&SI[o.stage]<SI.in_production){patch.stage='proof_sent';entries.push(hist(`Stage: ${stageLabel(o.stage)} → Proof sent`));}
-  try{await Store.updateOrder(id,patch,{history:entries});}catch(e){toast('Could not save: '+e.message,'err');return;}
-  toast(`Proof v${entry.v} added to ${o.po}.`);
-  fireTriggers(Object.assign({},o,patch),['proof:uploaded'],{by:me(),proof:entry.name,proofVersion:'v'+entry.v,proofNote:entry.note,proofUrl:entry.url});
-}
-async function decideProof(id,pid,decision){
-  const o=byId(id); if(!o||o.archived)return;
-  if(!who){await askWho(true);if(!who)return;}
-  if(!canApprove()){toast(`Only ${settings.teamName} can approve proofs.`,'err');return;}
-  const p=(o.proofs||[]).find(x=>x.id===pid); if(!p||p.status!=='pending')return;
-  const ok=decision==='approved';
-  const r=await openModal({title:ok?`Approve proof v${p.v}?`:`Request changes to proof v${p.v}`,
-    body:`<div class="fg"><label class="sp-label" for="pf-dn">${ok?'Note (optional)':'What needs to change?'}</label>
-      <textarea class="sp-input" id="pf-dn" rows="3" placeholder="${ok?'e.g. Customer approved by email on 9/18':'e.g. Make the logo a half inch larger and use the darker red'}"></textarea></div>
-      ${ok?`<p class="sp-note" style="margin-top:8px">${esc(o.po)} moves to Proof approved if it isn’t there already.</p>`:''}`,
-    actions:[{label:'Cancel',kind:'ghost',value:null},{label:ok?'Approve proof':'Send changes',kind:ok?'':'danger',
-      validate:b=>{if(!ok&&!$('#pf-dn',b).value.trim()){toast('Say what needs to change.','err');return false;}return true;},
-      get:b=>({text:$('#pf-dn',b).value.trim()})}]});
-  if(!r)return;
-  const proofs=(o.proofs||[]).map(x=>x.id===pid?Object.assign({},x,{status:ok?'approved':'changes',decidedBy:me(),decidedTs:Date.now(),decision:r.text}):x);
-  const patch={proofs,updatedAt:Date.now()};
-  const entries=[hist(ok?`Proof v${p.v} approved`+(r.text?': '+r.text:''):`Changes requested on proof v${p.v}: ${r.text}`)];
-  if(ok&&SI[o.stage]<SI.proof_approved){patch.stage='proof_approved';entries.push(hist(`Stage: ${stageLabel(o.stage)} → Proof approved`));}
-  try{await Store.updateOrder(id,patch,{history:entries});}catch(e){toast('Could not save: '+e.message,'err');return;}
-  toast(ok?`${o.po}: proof v${p.v} approved.`:`${o.po}: changes requested on proof v${p.v}.`);
-  fireTriggers(Object.assign({},o,patch),[ok?'proof:approved':'proof:changes'],{by:me(),proof:p.name,proofVersion:'v'+p.v,proofNote:r.text,proofUrl:p.url});
-}
-async function openProofFile(id,pid){
-  const o=byId(id), p=o&&(o.proofs||[]).find(x=>x.id===pid);
-  if(!p||!p.url||!/^(https?:|data:)/i.test(p.url))return;
-  if(/^data:/i.test(p.url)){
-    try{const blob=await (await fetch(p.url)).blob();window.open(URL.createObjectURL(blob),'_blank');}catch(e){toast('Couldn’t open that file.','err');}
-    return;
-  }
-  window.open(p.url,'_blank','noopener');
 }
 
 /* ---------- asking GSI for an update (GSI works by email, so we go to them) ---------- */
@@ -1328,13 +1202,14 @@ async function postComment(){
 }
 async function archiveOrder(id){
   const o=byId(id);if(!o)return;
-  await Store.updateOrder(id,{archived:true,archivedAt:Date.now(),archivedBy:me(),updatedAt:Date.now()},{history:[hist('Archived')]});
+  await Store.updateOrder(id,{archived:true,previousStage:o.stage,archivedAt:Date.now(),archivedBy:me(),updatedAt:Date.now()},{history:[hist('Archived')]});
   closeDrawer();toast(`${o.po} archived. Find it in the Archive tab.`,'info');
 }
 async function restoreOrder(id){
   const o=byId(id);if(!o)return;
-  await Store.updateOrder(id,{archived:false,updatedAt:Date.now()},{history:[hist('Restored from archive')]});
-  toast(`${o.po} restored.`,'info');
+  const toStage=o.previousStage||'submitted';
+  await Store.updateOrder(id,{archived:false,stage:toStage,updatedAt:Date.now()},{history:[hist(`Restored from archive to ${stageLabel(toStage)}`)]});
+  toast(`${o.po} restored to ${stageLabel(toStage)}.`,'info');
 }
 async function deleteOrder(id){
   const o=byId(id);if(!o)return;
@@ -1344,7 +1219,7 @@ async function deleteOrder(id){
 async function archiveDone(){
   const list=orders.filter(o=>!o.archived&&o.stage==='picked_up');if(!list.length)return;
   if(!await confirmBox('Archive picked-up orders?',`${list.length} order${list.length===1?'':'s'} marked picked up / delivered will move to the Archive. You can still search them and they’re included in the Excel export.`,'Archive '+list.length))return;
-  for(const o of list)await Store.updateOrder(o.id,{archived:true,archivedAt:Date.now(),archivedBy:me(),updatedAt:Date.now()},{history:[hist('Archived')]});
+  for(const o of list)await Store.updateOrder(o.id,{archived:true,previousStage:o.stage,archivedAt:Date.now(),archivedBy:me(),updatedAt:Date.now()},{history:[hist('Archived')]});
   toast(`${list.length} order${list.length===1?'':'s'} archived.`,'info');
 }
 /* =====================================================================
@@ -1586,8 +1461,7 @@ function mergeVars(o,ctx){
   const due=!o.due?'not set':fmtDate(o.due)+(o.dueNote?' – '+o.dueNote:'')+([o.rush&&'RUSH',o.firm&&'FIRM DATE',o.timed&&'TIME-SPECIFIC'].filter(Boolean).length?' ('+[o.rush&&'RUSH',o.firm&&'FIRM DATE',o.timed&&'TIME-SPECIFIC'].filter(Boolean).join(', ')+')':'');
   return {po:o.po,job:o.job,rep:o.rep?(r.name?r.name+' ('+o.rep+')':o.rep):'Unassigned',stage:stageLabel(o.stage),due,
     goods:GOODS[o.goods]+(o.goods==='expected'&&o.goodsDate?' '+fmtShort(o.goodsDate):''),files:FILES[o.files],link:o.link||'—',
-    by:ctx.by||'Someone',comment:ctx.comment||'',order_url:base+'#order='+o.id,team:settings.teamName,partner:settings.vendorName,vendor:settings.vendorName,
-    proof:ctx.proof||'',proof_version:ctx.proofVersion||'',proof_note:ctx.proofNote||'',proof_url:(ctx.proofUrl&&!/^data:/i.test(ctx.proofUrl))?ctx.proofUrl:''};
+    by:ctx.by||'Someone',comment:ctx.comment||'',order_url:base+'#order='+o.id,team:settings.teamName,partner:settings.vendorName,vendor:settings.vendorName};
 }
 // Lines whose merge fields are all empty (e.g. "Note: {proof_note}" with no note) are left out.
 const merge=(s,v)=>String(s||'').split('\n').map(line=>{
@@ -1668,10 +1542,6 @@ function exportXlsx(){
   orders.forEach(o=>(o.comments||[]).forEach(c=>crow.push({'PO #':o.po,'Job name':o.job,'Posted':c.ts,'Author':c.by,'Team':c.side==='vendor'?settings.vendorName:settings.teamName,'Comment':c.text})));
   crow.sort((a,b)=>a.Posted-b.Posted).forEach(r=>r.Posted=fmtTs(r.Posted));
   XLSX.utils.book_append_sheet(wb,makeSheet(crow,cc,[]),'Comments');
-  const pc=['PO #','Job name','Version','File or link','Status','Added by','Added','Decided by','Decided','Note','Decision note'], prow=[];
-  const pst={pending:'Waiting for approval',approved:'Approved',changes:'Changes requested',replaced:'Replaced'};
-  orders.forEach(o=>(o.proofs||[]).forEach(p=>prow.push({'PO #':o.po,'Job name':o.job,'Version':p.v,'File or link':p.kind==='link'?p.url:p.name,'Status':pst[p.status]||p.status,'Added by':p.by,'Added':fmtTs(p.ts),'Decided by':p.decidedBy||'','Decided':p.decidedTs?fmtTs(p.decidedTs):'','Note':p.note||'','Decision note':p.decision||''})));
-  XLSX.utils.book_append_sheet(wb,makeSheet(prow,pc,[]),'Proofs');
   XLSX.writeFile(wb,'GSI-orders-'+todayISO()+'.xlsx');
   toast('Downloaded '+active.length+' active and '+arch.length+' archived orders.');
 }
@@ -1745,9 +1615,6 @@ function renderSettings(){
       <div class="fg" style="max-width:360px"><label class="sp-label">Flag an order when its stage hasn’t changed in (days)</label>
         <input class="sp-input" type="number" min="0" max="60" data-s="staleDays" value="${esc(S.staleDays==null?3:S.staleDays)}">
         <p class="sp-note">Flagged orders show under “Check in with ${esc(S.vendorName)}” in Needs attention, where you can email them for a status in one click. Orders already in production get twice as long. Use 0 to turn this off.</p></div></div>
-    <div class="card full"><h2 class="sp-h2">Proof files</h2>
-      <p class="sp-note" style="margin:0 0 8px">When ${esc(S.vendorName)} sends you a proof, paste a link to it on the order. Approving the proof moves the order to Proof approved and emails ${esc(S.vendorName)} to go ahead with the job. Requesting changes emails them what to fix.</p>
-      <p class="sp-note" style="margin:0">Proofs stay as links only — no files are uploaded or stored, so there are no costs. Share a Google Drive link, OneDrive, Dropbox or anywhere else that has a shareable URL.</p></div>
     <div class="card full"><h2 class="sp-h2">Email automation</h2>
       <div class="statusline">
         ${EMAIL_READY?chip('EmailJS connected','ok'):chip('EmailJS not set up: emails are logged, not sent','warn')}
@@ -1756,7 +1623,7 @@ function renderSettings(){
       <p class="sp-note" style="margin:0 0 12px">Each rule sends when the thing in its first dropdown happens. The email goes out from the browser of whoever made the change.</p>
       <div id="rules">${(S.rules||[]).map(ruleHTML).join('')}</div>
       <button class="sp-btn small ghost" data-act="rule-add">Add a rule</button>
-      <p class="sp-note">Merge fields you can use in subject and message: <code>{po}</code> <code>{job}</code> <code>{rep}</code> <code>{stage}</code> <code>{due}</code> <code>{goods}</code> <code>{files}</code> <code>{link}</code> <code>{order_url}</code> <code>{by}</code> <code>{comment}</code> <code>{team}</code> <code>{partner}</code> <code>{proof}</code> <code>{proof_version}</code> <code>{proof_note}</code> <code>{proof_url}</code>. A line is left out when all of its fields are empty.</p>
+      <p class="sp-note">Merge fields you can use in subject and message: <code>{po}</code> <code>{job}</code> <code>{rep}</code> <code>{stage}</code> <code>{due}</code> <code>{goods}</code> <code>{files}</code> <code>{link}</code> <code>{order_url}</code> <code>{by}</code> <code>{comment}</code> <code>{team}</code> <code>{partner}</code>. A line is left out when all of its fields are empty.</p>
       <details style="margin-top:10px"><summary>How to connect EmailJS</summary><ol class="steps">
         <li>Create an EmailJS account, then go to <b>Email Services → Add New Service</b>, pick Gmail or Outlook, connect the mailbox the emails should come from, and copy the <b>Service ID</b>.</li>
         <li>Go to <b>Email Templates → Create New Template</b>. Set To Email to <code>{{to_email}}</code>, From Name to <code>{{from_name}}</code>, Reply To to <code>{{reply_to}}</code>, and Subject to <code>{{subject}}</code>. For the content, open the Code Editor and paste <code>&lt;div style="white-space:pre-wrap"&gt;{{message}}&lt;/div&gt;</code> so line breaks are kept. Save, then copy the <b>Template ID</b>.</li>
@@ -1808,10 +1675,6 @@ async function act(name,el){
     case 'new':return newOrderModal();
     case 'export':return exportXlsx();
     case 'who':{await askWho(false);refreshDrawer();return;}
-    case 'proof-upload':return proofUploadModal(openId);
-    case 'proof-approve':return decideProof(openId,el.dataset.pid,'approved');
-    case 'proof-changes':return decideProof(openId,el.dataset.pid,'changes');
-    case 'proof-open':return openProofFile(openId,el.dataset.pid);
     case 'ask-gsi':return askGsi([byId(openId)]);
     case 'ask-gsi-group':return askGsi(el.dataset.ids.split(',').map(byId));
     case 'import':return $('#file-import').click();
