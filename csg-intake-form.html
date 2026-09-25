@@ -431,8 +431,12 @@
 // (emailjs.com > Email Services / Email Templates / Account > API Keys)
 // ============================================================
 const EMAILJS_PUBLIC_KEY  = "KXcdoZGlBF-WMGCx-";
-const EMAILJS_SERVICE_ID  = "service_voerrg7";
+const EMAILJS_SERVICE_ID  = "Lexi";
 const EMAILJS_TEMPLATE_ID = "template_mk924wt";
+// A second template, sent to the CLIENT's own email as a confirmation copy.
+// Build it in EmailJS with "To Email" set to {{to_email}}, same as the main
+// template. Leave as the placeholder below to skip sending a client copy.
+const EMAILJS_CLIENT_TEMPLATE_ID = "YOUR_CLIENT_TEMPLATE_ID";
 
 // Where each rep's submissions should go. Fill in real addresses.
 // IMPORTANT: your EmailJS template's "To Email" field must be set to
@@ -676,6 +680,20 @@ document.getElementById('csg-form').addEventListener('submit', async (e)=>{
       throw new Error('EmailJS is not configured yet (placeholder keys still in the code).');
     }
     await emailjs.send(EMAILJS_SERVICE_ID, EMAILJS_TEMPLATE_ID, templateParams);
+
+    // Best-effort client confirmation copy. Sent to the client's own email,
+    // not the rep's, so it uses a separate to_email value. If this fails or
+    // isn't configured yet, the submission still counts as successful, the
+    // rep already has it, we just skip the client's copy.
+    if(EMAILJS_CLIENT_TEMPLATE_ID !== 'YOUR_CLIENT_TEMPLATE_ID'){
+      const clientParams = { ...templateParams, to_email: email };
+      try{
+        await emailjs.send(EMAILJS_SERVICE_ID, EMAILJS_CLIENT_TEMPLATE_ID, clientParams);
+      }catch(clientErr){
+        console.warn('Client confirmation email failed to send:', clientErr);
+      }
+    }
+
     renderSummary({
       name, company: templateParams.company, email, phone,
       po: templateParams.po_number,
