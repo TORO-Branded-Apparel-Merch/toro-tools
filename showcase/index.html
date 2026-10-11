@@ -153,6 +153,8 @@
 
   .sp-thumbs{display:grid;grid-template-columns:repeat(auto-fill,minmax(96px,1fr));gap:var(--sp-2);margin-top:var(--sp-3);}
   .sp-thumb img{width:100%;height:96px;object-fit:cover;border-radius:var(--r-sm);border:1px solid var(--line);display:block;}
+  .sp-notebtn{display:block;margin-top:4px;padding:4px 0;background:none;border:0;color:var(--lanyard);font:inherit;font-size:var(--fs-xs);font-weight:700;cursor:pointer;text-decoration:underline;text-underline-offset:2px;}
+  .sp-notebtn:active{opacity:.6;}
   .sp-thumb .cap{font-size:var(--fs-xs);color:var(--mut);margin-top:3px;line-height:1.3;max-height:28px;overflow:hidden;}
 
   .sp-note{font-size:var(--fs-sm);color:var(--mut);margin-top:var(--sp-2);line-height:1.5;}
@@ -638,7 +640,7 @@ async function processQueueItem(it){
       linkedPid:it.linkedPid||'', ts:serverTimestamp(), tsClient:it.tsClient
     });
   } else if(kind==='update'){
-    // deferred field update on an existing submission (quote / fav / lookbook / quoteNote)
+    // deferred field update on an existing submission (quote / fav / lookbook / quoteNote / note)
     await updateDoc(doc(db,'submissions',it.docId), it.fields);
   }
 }
@@ -1324,6 +1326,29 @@ async function boothScan(){
   }catch(e){ console.error(e); ov.remove(); bamAlert('Couldn\u2019t start the camera. Allow camera access, or enter the visitor by hand.'); }
 }
 
+// Add or edit the note on a photo that is already saved. Works offline too:
+// if the write fails it is queued and synced when signal returns.
+async function editNote(rec){
+  const old=rec.note||'';
+  bamInput.maxLength=140;
+  const v=await bamPrompt(old?'Edit your note on this photo.':'Add a note to this photo.','text',old);
+  bamInput.removeAttribute('maxlength');
+  if(v===null) return false;
+  const next=v.trim().slice(0,140);
+  if(next===old) return false;
+  rec.note=next;
+  try{ await updateDoc(doc(db,'submissions',rec.id),{note:next}); touchPresence(true); return true; }
+  catch(e){
+    const queued=await queueUpdate(rec.id,{note:next});
+    if(queued) return true;
+    rec.note=old;
+    console.error(e);
+    bamAlert('We couldn\u2019t save that note just now. Check your connection and try again.');
+    return false;
+  }
+}
+function noteBtnHTML(r){ return '<button class="sp-notebtn" data-note="'+r.id+'">'+(r.note?'Edit note':'Add a note')+'</button>'; }
+
 // Shared heart toggle. Optimistic UI with rollback if the save fails.
 async function toggleFav(rec,heartEl){
   const to=!rec.fav;
@@ -1363,8 +1388,15 @@ async function loadQuoteSection(){
         '<img src="'+r.thumb+'" alt="Your item">'+
         '<div class="sp-heart sp-needsnet'+(r.fav?' on':'')+'" data-fav="'+r.id+'" role="button" aria-label="Favorite">'+(r.fav?'&#9829;':'&#9825;')+'</div>'+
         (r.quote?'<span class="sp-quotetag">QUOTE REQUESTED</span>':'')+
-        (r.note?'<div class="cap">'+esc(r.note)+'</div>':'')+
+        (r.note?'<div class="cap">'+esc(r.note)+'</div>':'')+noteBtnHTML(r)+
       '</div>').join('');
+    grid.querySelectorAll('[data-note]').forEach(b=>{
+      b.onclick=async ev=>{
+        ev.stopPropagation();
+        const r=recs.find(x=>x.id===b.dataset.note);
+        if(r && await editNote(r)) loadQuoteSection();
+      };
+    });
     grid.querySelectorAll('[data-fav]').forEach(h=>{
       h.onclick=async ev=>{
         ev.stopPropagation();
@@ -1446,7 +1478,7 @@ async function renderRecap(pid){
       return '<div class="sp-thumb"><img src="'+r.thumb+'" alt="Your photo" loading="lazy" data-pid="'+esc(r.photoId||'')+'" data-code="'+esc(v?v.code:'')+'" style="cursor:zoom-in">'+
       '<div class="sp-heart'+(r.fav?' on':'')+'" data-fav="'+r.id+'" role="button" aria-label="Favorite">'+(r.fav?'&#9829;':'&#9825;')+'</div>'+
       (r.quote?'<span class="sp-quotetag">QUOTE</span>':'')+
-      (r.note?'<div class="cap">'+esc(r.note)+'</div>':'')+'</div>';
+      (r.note?'<div class="cap">'+esc(r.note)+'</div>':'')+noteBtnHTML(r)+'</div>';
     };
 
     // Photos are tagged with the event they were taken at. Someone who visits more
@@ -1558,6 +1590,13 @@ async function renderRecap(pid){
       wireRecapBack();
       wireActingBanner();
       wireLookbook(body, syncLookbookToSubs);
+      body.querySelectorAll('[data-note]').forEach(b=>{
+        b.onclick=async ev=>{
+          ev.stopPropagation();
+          const r=recs.find(x=>x.id===b.dataset.note);
+          if(r && await editNote(r)) paint();
+        };
+      });
       body.querySelectorAll('[data-fav]').forEach(h=>{
         h.onclick=async ev=>{
           ev.stopPropagation();
@@ -1810,7 +1849,11 @@ async function renderAdmin(){
     '<p class="sp-note" style="margin-top:0">Tables, Leads, and Reports all show the selected event only. "Copy to new event" brings the vendor list over and leaves all photos and leads behind. The LIVE event is the one attendees see when they open the main link; table QR links always route to their own event automatically.</p>'+
   '</div>';
 
-  const tablesHtml='<div class="sp-card sp-card-primary"><div class="sp-h2">Vendor tables - '+esc(eventLabel(selEvent))+'</div>'+
+  const tablesHtml='<div class="sp-card sp-card-primary"><div class="sp-h2">Main entrance link</div>'+
+    '<p class="sp-note" style="margin:0 0 10px">Put this one at check-in as your main QR code. It signs someone in and drops them on the full table list to browse from. Each table\u2019s own QR code below is just a shortcut back to that table if someone loses their place, not meant to be the first thing they scan.</p>'+
+    '<div class="sp-qr"><a href="'+base+'">'+base+'</a></div>'+
+  '</div>'+
+  '<div class="sp-card"><div class="sp-h2">Vendor tables - '+esc(eventLabel(selEvent))+'</div>'+
     '<div class="sp-fieldgroup" style="display:flex;gap:8px"><input class="sp-input" id="sp-vname" placeholder="Add vendor, e.g. Maple &amp; Co. Furniture" style="flex:1"><button class="sp-btn small" id="sp-vadd">Add</button></div>'+
     '<p class="sp-note" style="margin-top:0">Each vendor has its own link below. Turn each into a QR code for its table. Scanning takes attendees straight to that vendor\u2019s upload page.</p>'+
     (vendors.length?vendors.map(v=>'<div class="sp-adminrow"><div style="display:flex;justify-content:space-between;align-items:center;gap:8px"><span class="sp-who">'+esc(v.name)+'</span><span style="display:flex;gap:6px;flex-shrink:0"><button class="sp-del" data-renamevendor="'+v.id+'" style="color:var(--ink);border-color:var(--line)">Rename</button><button class="sp-del" data-delvendor="'+v.id+'">Delete table</button></span></div><div class="sp-meta">Code '+esc(v.code)+'</div><div class="sp-qr"><a href="'+base+'?vendor='+v.id+'">'+base+'?vendor='+v.id+'</a></div></div>').join(''):'<div class="sp-empty">No vendors yet.</div>')+
