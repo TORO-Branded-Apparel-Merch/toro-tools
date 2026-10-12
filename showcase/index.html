@@ -142,6 +142,14 @@
   .sp-badge-links .sp-linkbtn:active{transform:scale(.95);}
   .sp-previewactions{display:flex;gap:18px;flex-wrap:wrap;margin-top:10px;align-items:center;}
   .sp-headbtns{display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end;flex-shrink:0;}
+  /* Phones: title gets its own full-width row, buttons sit on a second row
+     so the title never has to squeeze next to them. */
+  @media (max-width:600px){
+    .sp-headid{flex:1 1 100%;}
+    .sp-headbtns{flex:1 1 100%;justify-content:stretch;flex-shrink:1;}
+    .sp-headbtns .sp-tabbtn{flex:1 1 0;text-align:center;}
+    .sp-headbtns:not(:has(.sp-tabbtn:not([style*="none"]))){display:none;}
+  }
 
   .sp-drop{border:2px dashed var(--lanyard);border-radius:var(--r-lg);background:var(--red-light);padding:34px 18px;text-align:center;cursor:pointer;transition:background var(--dur-fast) var(--ease),transform var(--dur-fast) var(--ease),opacity var(--dur-fast) var(--ease);}
   .sp-drop:hover{background:#ffe4e8;}
