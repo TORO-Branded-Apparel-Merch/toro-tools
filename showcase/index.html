@@ -70,9 +70,10 @@
 
   .sp-head{background:var(--red-gradient);color:#fff;padding:calc(var(--sp-3) + env(safe-area-inset-top)) var(--sp-5) var(--sp-3);display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;row-gap:8px;gap:var(--sp-3);position:sticky;top:0;z-index:100;box-shadow:var(--shadow-md);}
   .sp-headid{display:flex;align-items:center;gap:12px;min-width:0;flex:1 1 200px;}
-  .sp-headid .titlewrap{min-width:0;overflow:hidden;}
-  .sp-head h1{font-size:var(--fs-xl);font-weight:700;font-family:var(--headline);letter-spacing:.2px;line-height:1.15;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
-  .sp-head .sub{margin:2px 0 0;font-size:var(--fs-sm);opacity:.88;line-height:1.3;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .sp-headid .titlewrap{min-width:0;}
+  .sp-head h1{font-size:var(--fs-xl);font-weight:700;font-family:var(--headline);letter-spacing:.2px;line-height:1.15;overflow-wrap:anywhere;}
+  .sp-head .sub{margin:2px 0 0;font-size:var(--fs-sm);opacity:.88;line-height:1.3;overflow-wrap:anywhere;}
+  @media (max-width:420px){ .sp-head h1{font-size:calc(var(--fs-xl) - 3px);} .sp-head .sub{font-size:var(--fs-xs);} }
   .sp-tabbtn{background:#fff;color:var(--lanyard);border:none;border-radius:var(--r-pill);padding:9px 16px;font-size:var(--fs-sm);font-weight:700;cursor:pointer;white-space:nowrap;flex-shrink:0;box-shadow:0 2px 8px rgba(0,0,0,.16);transition:background var(--dur-fast) var(--ease),transform var(--dur-fast) var(--ease),box-shadow var(--dur-fast) var(--ease);}
   .sp-tabbtn:hover{background:#fff0f2;box-shadow:0 3px 10px rgba(0,0,0,.22);}
   .sp-tabbtn:active{transform:scale(.96);}
@@ -538,6 +539,8 @@ async function loadAll(){
   ]);
   events=evSnap.docs.map(d=>({id:d.id,...d.data()})).sort((a,b)=>(a.created||0)-(b.created||0));
   allVendors=vSnap.docs.map(d=>({id:d.id,...d.data()}));
+  // Numerical by table code (TBL-02 before TBL-10). Name is only a tiebreaker.
+  allVendors.sort((x,y)=>(x.code||'').localeCompare(y.code||'',undefined,{numeric:true})||(x.name||'').localeCompare(y.name||'',undefined,{sensitivity:'base'}));
   try{
     const c=await getDoc(doc(db,'config','current'));
     activeEventId=c.exists()? c.data().activeEventId : null;
