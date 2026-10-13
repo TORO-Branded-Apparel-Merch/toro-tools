@@ -796,6 +796,8 @@ async function notifyQuote(items,projectNote){
     note:items.length+' item'+(items.length===1?'':'s')+' selected. '+noteText,
     quote_link:pid?(base+'?me='+pid+'&quoted=1'):'',
     recap_link:pid?(base+'?me='+pid):'',
+    in_hands_date:(function(){ const d=(items.find(r=>r.inHandsDate)||{}).inHandsDate; return d?(fmtYMD(d)+(isUrgentDate(d)?' (URGENT, '+daysLabel(d)+')':'')):'No firm date'; })(),
+    urgent_tag:isUrgentDate((items.find(r=>r.inHandsDate)||{}).inHandsDate)?'URGENT: ':'',
     time:new Date().toLocaleString('en-US',{timeZone:REPORT_TZ})
   };
   try{ await postQuoteEmail(params); }
@@ -1511,6 +1513,7 @@ async function renderRecap(pid){
       return;
     }
     const who=recs[0];
+    let knownEmail=(String(who.email||'').trim()||((attendee&&attendee.pid===pid&&attendee.email)||'')).trim();
     // Attendee-facing view: intentionally no vendor/table names. Items are presented
     // as one TORO collection so the page can't be shopped to another supplier.
 
@@ -1576,7 +1579,9 @@ async function renderRecap(pid){
       if(!qs.length){
         h+='<div class="sp-card"><div class="sp-empty" style="padding:6px 0">No quote has been requested yet.</div></div>';
       }else{
+        const dates=[...new Set(qs.map(r=>r.inHandsDate).filter(Boolean))].sort();
         h+='<div class="sp-card"><div class="sp-h2">Project details</div>'+
+          '<p style="margin:0 0 10px;font-size:15px;font-weight:700">In-hands date: '+(dates.length?esc(dates.map(fmtYMD).join(', '))+(isUrgentDate(dates[0])?' <span class="sp-quotetag" style="position:static;display:inline-block;margin-left:6px">URGENT, '+esc(daysLabel(dates[0]))+'</span>':''):'<span style="font-weight:600;color:var(--mut)">no firm date</span>')+'</p>'+
           (proj.length?proj.map(t=>'<p style="margin:0 0 8px;font-size:15px;line-height:1.5;white-space:pre-wrap">'+esc(t)+'</p>').join(''):'<div class="sp-empty" style="padding:6px 0">No details added.</div>')+
           '</div>'+
           '<div class="sp-card"><div class="sp-h2">Photos to price</div><div class="sp-thumbs">'+
@@ -1659,8 +1664,16 @@ async function renderRecap(pid){
                 '<div class="sp-thumbs" id="sp-quoterecap-browsegrid" style="display:none"></div>'+
               '</div>'+
               '<div id="sp-quoterecap-form" style="display:none;margin-top:14px">'+
+                (knownEmail
+                  ? '<p class="sp-note" style="margin:0 0 12px">We\u2019ll send your quote to <b>'+esc(knownEmail)+'</b>.</p>'
+                  : '<span class="sp-label">Your email (required, so we can respond)</span>'+
+                    '<input class="sp-input" type="email" id="sp-quoterecap-email" autocomplete="email" inputmode="email" maxlength="120" placeholder="you@yourschool.edu" style="margin-bottom:12px">')+
+                '<label style="display:flex;align-items:center;gap:9px;font-size:14px;font-weight:600;color:var(--ink);cursor:pointer;margin-bottom:8px">'+
+                  '<input type="checkbox" id="sp-quoterecap-firm" style="width:18px;height:18px;flex:none"><span>I have a firm in-hands date</span></label>'+
+                '<div id="sp-quoterecap-datebox" style="display:none;margin-bottom:12px"><span class="sp-label">Date you need it in hand (required)</span>'+
+                  '<input class="sp-input" type="date" id="sp-quoterecap-date"></div>'+
                 '<span class="sp-label">Project details (optional)</span>'+
-                '<textarea class="sp-input" id="sp-quoterecap-note" rows="3" maxlength="500" placeholder="Anything that helps us quote it right: delivery date, quantities, sizes, colors, logo placement, budget\u2026" style="resize:vertical;font-family:inherit"></textarea>'+
+                '<textarea class="sp-input" id="sp-quoterecap-note" rows="3" maxlength="500" placeholder="Anything that helps us quote it right: quantities, sizes, colors, logo placement, budget\u2026" style="resize:vertical;font-family:inherit"></textarea>'+
                 '<button class="sp-btn block" id="sp-quoterecap-send" style="margin-top:12px" disabled>Request quote</button>'+
               '</div>'+
             '</div>';
@@ -1749,6 +1762,11 @@ async function renderRecap(pid){
 
       const selected=new Set();
       let browseOpen=false;
+      const firmEl=document.getElementById('sp-quoterecap-firm');
+      const dateBox=document.getElementById('sp-quoterecap-datebox');
+      const dateEl=document.getElementById('sp-quoterecap-date');
+      if(dateEl){ const t=new Date(); dateEl.min=t.getFullYear()+'-'+String(t.getMonth()+1).padStart(2,'0')+'-'+String(t.getDate()).padStart(2,'0'); }
+      if(firmEl) firmEl.onchange=()=>{ dateBox.style.display=firmEl.checked?'block':'none'; if(firmEl.checked&&dateEl) dateEl.focus(); };
       const sendBtn=document.getElementById('sp-quoterecap-send');
       const refreshSend=()=>{
         sendBtn.disabled=selected.size===0;
@@ -1817,14 +1835,47 @@ async function renderRecap(pid){
       browseBtn.onclick=()=>openPicker(false);
       sendBtn.onclick=async ()=>{
         if(!selected.size) return;
+        // We can't answer a quote without a way to reach them, so email is required here.
+        let emailVal=knownEmail;
+        if(!emailVal){
+          const emailEl=document.getElementById('sp-quoterecap-email');
+          const v=(emailEl&&emailEl.value||'').trim();
+          if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v)){
+            await bamAlert('Add your email so we can respond to your quote request.');
+            if(emailEl) emailEl.focus();
+            return;
+          }
+          emailVal=v.slice(0,120);
+        }
+        let inHands='';
+        if(firmEl&&firmEl.checked){
+          inHands=(dateEl&&dateEl.value)||'';
+          if(!inHands){
+            await bamAlert('Pick the date you need it in hand, or uncheck the box if your date is flexible.');
+            if(dateEl) dateEl.focus();
+            return;
+          }
+        }
         sendBtn.disabled=true; sendBtn.textContent='Sending\u2026';
         const chosen=scope.filter(r=>selected.has(r.id));
         const projectNote=(document.getElementById('sp-quoterecap-note').value||'').trim().slice(0,500);
         try{
+          // First time we have their email: save it on every photo so the report shows it.
+          if(emailVal!==knownEmail){
+            for(const r of recs){
+              if(String(r.email||'').trim()) continue;
+              try{ await updateDoc(doc(db,'submissions',r.id),{email:emailVal}); }
+              catch(err){ await queueUpdate(r.id,{email:emailVal}); }
+              r.email=emailVal;
+            }
+            knownEmail=emailVal;
+            if(attendee&&attendee.pid===pid){ attendee.email=emailVal; saveAttendee(); }
+          }
           for(const r of chosen){
-            try{ await updateDoc(doc(db,'submissions',r.id),{quote:true,quoteNote:projectNote}); }
-            catch(err){ await queueUpdate(r.id,{quote:true,quoteNote:projectNote}); }
-            r.quote=true; r.quoteNote=projectNote;
+            const f={quote:true,quoteNote:projectNote,inHandsDate:inHands};
+            try{ await updateDoc(doc(db,'submissions',r.id),f); }
+            catch(err){ await queueUpdate(r.id,f); }
+            r.quote=true; r.quoteNote=projectNote; r.inHandsDate=inHands;
           }
           touchPresence(true);
           notifyQuote(chosen,projectNote);
@@ -1857,6 +1908,23 @@ function fmtLocal(ms){
   try{ return new Date(ms).toLocaleString('en-US',{timeZone:REPORT_TZ,month:'short',day:'numeric',hour:'numeric',minute:'2-digit'}); }
   catch(e){ return new Date(ms).toISOString(); }
 }
+// 'YYYY-MM-DD' (from a date input) -> 'Dec 1, 2026'
+function fmtYMD(ymd){
+  const m=/^(\d{4})-(\d{2})-(\d{2})$/.exec(String(ymd||'')); if(!m) return '';
+  return new Date(+m[1],+m[2]-1,+m[3]).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'});
+}
+// A firm in-hands date this close (or already past) is treated as urgent.
+const URGENT_DAYS=21;
+function daysUntil(ymd){
+  const m=/^(\d{4})-(\d{2})-(\d{2})$/.exec(String(ymd||'')); if(!m) return null;
+  const now=new Date(); const today=new Date(now.getFullYear(),now.getMonth(),now.getDate());
+  return Math.round((new Date(+m[1],+m[2]-1,+m[3])-today)/86400000);
+}
+function isUrgentDate(ymd){ const d=daysUntil(ymd); return d!==null && d<=URGENT_DAYS; }
+function daysLabel(ymd){
+  const d=daysUntil(ymd); if(d===null) return '';
+  return d<0?'past due':(d===0?'today':(d+' day'+(d===1?'':'s')));
+}
 let exceljsPromise=null;
 function loadExcelJS(){
   if(window.ExcelJS) return Promise.resolve(window.ExcelJS);
@@ -1880,6 +1948,7 @@ const LEAD_COLS=[
   {h:'Requested rep',k:'rep',w:15,always:1},
   {h:'Quote requested',k:'quote',w:17},
   {h:'Quote request',k:'qlink',w:19,link:1,linkText:'View quote request'},
+  {h:'In-hands date',k:'inhands',w:20,always:1},
   {h:'Project details',k:'project',w:38,wrap:1},
   {h:'Favorites',k:'favs',w:10,always:1,num:1},
   {h:'Photos',k:'photos',w:8,always:1,num:1},
@@ -1947,7 +2016,7 @@ function buildLeads(subs,repNotes){
     p.booth.push(n); p.matchFlags.add(flag);
   });
 
-  const heatRank={Hot:0,Warm:1,Browsing:2};
+  const heatRank={Urgent:0,Hot:1,Warm:2,Browsing:3};
   const priRank={HOT:0,WARM:1,COLD:2};
   const people=[];
   const finalize=p=>{
@@ -1963,6 +2032,7 @@ function buildLeads(subs,repNotes){
     const qItems=p.subs.filter(r=>r.quote).length;
     const boothQuote=p.booth.some(n=>n.quote);
     const quote=qItems?('YES - '+qItems+' item'+(qItems===1?'':'s')+(boothQuote?' + booth':'')):(boothQuote?'YES - asked at booth':'');
+    const inhandsAll=p.subs.filter(r=>r.quote&&r.inHandsDate).map(r=>r.inHandsDate).sort();
     const projects=[]; p.subs.forEach(r=>{ const q=String(r.quoteNote||'').trim(); if(q && !projects.includes(q)) projects.push(q); });
     const tableMap={}; p.subs.forEach(r=>{ tableMap[r.vendorId||vLabel(r)]={label:vLabel(r),code:vSort(r)}; });
     const tables=Object.values(tableMap).sort((a,b)=>String(a.code).localeCompare(String(b.code),undefined,{numeric:true})||a.label.localeCompare(b.label,undefined,{numeric:true})).map(x=>x.label);
@@ -1971,9 +2041,13 @@ function buildLeads(subs,repNotes){
     const pris=p.booth.map(n=>String(n.priority||'').toUpperCase()).filter(x=>x in priRank).sort((a,b)=>priRank[a]-priRank[b]);
     const boothPri=pris[0]||'';
     let heat='Browsing';
-    if(qItems||boothQuote||boothPri==='HOT') heat='Hot';
+    const earliest=inhandsAll[0]||'';
+    const urgent=!!earliest && isUrgentDate(earliest);
+    if(urgent) heat='Urgent';
+    else if(qItems||boothQuote||boothPri==='HOT') heat='Hot';
     else if(favs||photoNotes.length||boothNotes.length||boothPri==='WARM') heat='Warm';
     const flags=[];
+    if(urgent) flags.push('URGENT: needed in hand by '+fmtYMD(earliest)+' ('+daysLabel(earliest)+')');
     if(p.pids.size>1) flags.push('Signed in '+p.pids.size+' times (merged)');
     if(!latest('email')) flags.push('No email on file');
     if(reps.length>1) flags.push('Asked for more than one rep: '+reps.join(', '));
@@ -1987,7 +2061,7 @@ function buildLeads(subs,repNotes){
       link:lastPid?(location.origin+location.pathname+'?me='+lastPid):'',
       qlink:(lastPid&&qItems)?(location.origin+location.pathname+'?me='+lastPid+'&quoted=1'):'',
       first:fmtLocal(evs.length?evs[0].ts:0), last:fmtLocal(evs.length?evs[evs.length-1].ts:0),
-      _qItems:qItems, _notes:photoNotes.length+boothNotes.length
+      inhands:inhandsAll[0]?(fmtYMD(inhandsAll[0])+' ('+daysLabel(inhandsAll[0])+')'):'', _inh:inhandsAll[0]||'9999-99-99', _qItems:qItems, _notes:photoNotes.length+boothNotes.length
     });
   };
   groups.forEach(finalize); boothOnly.forEach(finalize);
@@ -1995,13 +2069,13 @@ function buildLeads(subs,repNotes){
   const nameCount={}; people.forEach(p=>{ const k=norm(p.name); if(k) nameCount[k]=(nameCount[k]||0)+1; });
   people.forEach(p=>{ if(nameCount[norm(p.name)]>1) p.flags=(p.flags?p.flags+'\n':'')+'Same name on another row, possible duplicate'; });
   people.sort((a,b)=>
-    repRank(a.rep)-repRank(b.rep) || String(a.rep).localeCompare(String(b.rep)) ||
-    heatRank[a.heat]-heatRank[b.heat] || b.favs-a.favs || b._notes-a._notes || b.photos-a.photos ||
+    (a.heat==='Urgent'?0:1)-(b.heat==='Urgent'?0:1) || repRank(a.rep)-repRank(b.rep) || String(a.rep).localeCompare(String(b.rep)) ||
+    heatRank[a.heat]-heatRank[b.heat] || String(a._inh).localeCompare(String(b._inh)) || b.favs-a.favs || b._notes-a._notes || b.photos-a.photos ||
     String(a.name).localeCompare(String(b.name)));
 
   const photoRows=ordered.map(r=>({
     name:r.name||'', company:r.company||'', email:r.email||'', rep:r.repPref||NO_PREF, table:vLabel(r),
-    fav:r.fav?'YES':'', quote:r.quote?'YES':'', note:r.note||'', project:r.quoteNote||'', time:fmtLocal(r.tsClient), _ts:r.tsClient||0
+    fav:r.fav?'YES':'', quote:r.quote?'YES':'', note:r.note||'', project:r.quoteNote||'', inhands:(r.quote&&r.inHandsDate)?(fmtYMD(r.inHandsDate)+' ('+daysLabel(r.inHandsDate)+')'):'', time:fmtLocal(r.tsClient), _ts:r.tsClient||0
   })).sort((a,b)=>String(a.name).localeCompare(String(b.name),undefined,{sensitivity:'base'})||a._ts-b._ts);
   return {people,photoRows};
 }
@@ -2038,8 +2112,10 @@ async function buildLeadsWorkbook(subs,evName,repNotes){
         const cell=row.getCell(i+1);
         cell.alignment={vertical:'top',wrapText:!!c.wrap,horizontal:c.num?'center':'left'};
         if(c.link && p[c.k]){ cell.value={text:c.linkText,hyperlink:p[c.k]}; cell.font={color:{argb:RED},underline:true}; }
+        if(c.k==='inhands' && p.heat==='Urgent'){ cell.font={bold:true,color:{argb:RED}}; }
         if(c.k==='heat'){
-          if(p.heat==='Hot'){ cell.font={bold:true,color:{argb:RED}}; cell.fill={type:'pattern',pattern:'solid',fgColor:{argb:'FFFDE3E6'}}; }
+          if(p.heat==='Urgent'){ cell.value='URGENT'; cell.font={bold:true,color:{argb:'FFFFFFFF'}}; cell.fill={type:'pattern',pattern:'solid',fgColor:{argb:RED}}; }
+          else if(p.heat==='Hot'){ cell.font={bold:true,color:{argb:RED}}; cell.fill={type:'pattern',pattern:'solid',fgColor:{argb:'FFFDE3E6'}}; }
           else if(p.heat==='Warm'){ cell.font={bold:true,color:{argb:'FF333333'}}; }
           else { cell.font={color:{argb:'FF888888'}}; }
         }
@@ -2056,8 +2132,8 @@ async function buildLeadsWorkbook(subs,evName,repNotes){
   const pcols=[
     {h:'Name',k:'name',w:22},{h:'Company/Department',k:'company',w:26},{h:'Email',k:'email',w:30},
     {h:'Requested rep',k:'rep',w:15},{h:'Table',k:'table',w:14},{h:'Favorited',k:'fav',w:10},
-    {h:'Quote requested',k:'quote',w:16},{h:'Photo note',k:'note',w:42,wrap:1},{h:'Project details',k:'project',w:38,wrap:1},{h:'Time',k:'time',w:17}
-  ].filter(c=>c.k!=='project' || photoRows.some(r=>r.project));
+    {h:'Quote requested',k:'quote',w:16},{h:'Photo note',k:'note',w:42,wrap:1},{h:'Project details',k:'project',w:38,wrap:1},{h:'In-hands date',k:'inhands',w:15},{h:'Time',k:'time',w:17}
+  ].filter(c=>(c.k!=='project'&&c.k!=='inhands') || photoRows.some(r=>r[c.k]));
   const ws=wb.addWorksheet(tabName('Photo detail'),{views:[{state:'frozen',xSplit:1,ySplit:1}]});
   ws.columns=pcols.map(c=>({header:c.h,key:c.k,width:c.w}));
   photoRows.forEach(r=>{
