@@ -315,7 +315,7 @@ const ORGANIZER_PASSCODE = "toro2026";
 // Uses EmailJS (free tier, ~200 emails/month). See SETUP.md Part D to fill these in.
 // Leave blank to disable notifications; the quote flag still gets saved either way.
 const EMAILJS_PUBLIC_KEY = "KXcdoZGlBF-WMGCx-";
-const EMAILJS_SERVICE_ID = "service_voerrg7";
+const EMAILJS_SERVICE_ID = "Lexi"; // must match the Service ID shown in EmailJS exactly (case counts)
 const EMAILJS_TEMPLATE_ID = "template_dcxg9ec";
 // Quote routing: each quote email is addressed to the rep the visitor asked for.
 // Visitors who chose "No preference" (or a rep with a blank address below) go to
@@ -2166,6 +2166,7 @@ async function renderAdmin(){
     '<p class="sp-note" style="margin:0 0 10px">Export first - deleting an event\u2019s data can\u2019t be undone.</p>'+
     '<div style="display:flex;gap:8px;flex-wrap:wrap">'+
       '<button class="sp-btn small ghost" id="sp-csv"'+(totalPhotos?'':' disabled')+'>Export leads (Excel)</button>'+
+      '<button class="sp-btn small ghost" id="sp-testmail">Test quote email</button>'+
       '<button class="sp-btn small ghost" id="sp-zip"'+(totalPhotos?'':' disabled')+'>Download all photos (ZIP)</button>'+
       '<button class="sp-btn small danger" id="sp-delall">Delete this event\u2019s data</button>'+
     '</div></div>';
@@ -2356,6 +2357,20 @@ async function renderAdmin(){
         const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=f.name;a.click();
         URL.revokeObjectURL(a.href);
         if(f.fallback) bamAlert('The Excel tool couldn\u2019t load (check your connection), so we saved a simple CSV instead. Try again with signal for the full Excel file.');
+      }finally{ btn.textContent=orig; btn.disabled=false; }
+    };
+    document.getElementById('sp-testmail').onclick=async ()=>{
+      const btn=document.getElementById('sp-testmail'); const orig=btn.textContent;
+      btn.disabled=true; btn.textContent='Sending\u2026';
+      try{
+        await postQuoteEmail({
+          to_email:QUOTE_DEFAULT_EMAIL, rep_requested:'TEST', attendee_name:'Test Visitor', attendee_company:'Test Company',
+          attendee_email:'test@example.com', vendor_name:'Test table', note:'This is a test quote email sent from the Organizer view.',
+          quote_link:'', recap_link:'', time:new Date().toLocaleString('en-US',{timeZone:REPORT_TZ})
+        });
+        await bamAlert('Test email sent to '+QUOTE_DEFAULT_EMAIL+'. Give it a minute, then check the inbox and spam. If nothing shows up, open Email History in EmailJS.');
+      }catch(e){
+        await bamAlert('The test email did not go through. '+e.message+' | Service ID in the app: '+EMAILJS_SERVICE_ID+' | Template ID in the app: '+EMAILJS_TEMPLATE_ID);
       }finally{ btn.textContent=orig; btn.disabled=false; }
     };
     document.getElementById('sp-zip').onclick=async ()=>{
