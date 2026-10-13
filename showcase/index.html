@@ -317,6 +317,19 @@ const ORGANIZER_PASSCODE = "toro2026";
 const EMAILJS_PUBLIC_KEY = "KXcdoZGlBF-WMGCx-";
 const EMAILJS_SERVICE_ID = "service_voerrg7";
 const EMAILJS_TEMPLATE_ID = "template_dcxg9ec";
+// Quote routing: each quote email is addressed to the rep the visitor asked for.
+// Visitors who chose "No preference" (or a rep with a blank address below) go to
+// QUOTE_DEFAULT_EMAIL. For this to work, the EmailJS template's "To Email" field
+// must be {{to_email}} (see SETUP.md).
+const QUOTE_DEFAULT_EMAIL = "lexi@toromerch.com";
+const REP_EMAILS = {
+  Shannon: "shannon@toromerch.com",
+  Stephen: "stephen@toromerch.com",
+  Amy: "amy@toromerch.com",
+  Debbie: "debbie@toromerch.com",
+  Julia: "julia@toromerch.com",
+  Lexi: "lexi@toromerch.com"
+};
 
 // Optional: list your sales reps here so people can request one at sign-in
 // ("Is there a rep you'd like to work with?"). Add or remove names between the
@@ -332,7 +345,7 @@ const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 
 let mode='attendee', vendors=[], attendee=null, currentVendor=null, pendingFiles=[], adminUnlocked=false, pendingBooth=false, actingAsRep=false;
-let recapFromVendorId=null, autoOpenQuote=false;
+let recapFromVendorId=null, autoOpenQuote=false, quoteViewOnly=false;
 const body=document.getElementById('sp-body'), modeBtn=document.getElementById('sp-modebtn'), quoteBtn=document.getElementById('sp-quotebtn'), sub=document.getElementById('sp-sub');
 // The Request a Quote tab only makes sense once someone is a signed-in attendee
 // browsing their own flow, and the Organizer view toggle needs to disappear
@@ -660,6 +673,9 @@ async function processQueueItem(it){
       notes:it.notes||'', quote:!!it.quote, lookbook:!!it.lookbook, priority:it.priority||'warm', repPref:it.repPref||'',
       linkedPid:it.linkedPid||'', ts:serverTimestamp(), tsClient:it.tsClient
     });
+  } else if(kind==='email'){
+    try{ await postQuoteEmail(it.params); }
+    catch(e){ if(e.retry) throw e; console.error('Dropping quote email that can\u2019t be sent:',e); }
   } else if(kind==='update'){
     // deferred field update on an existing submission (quote / fav / lookbook / quoteNote / note)
     await updateDoc(doc(db,'submissions',it.docId), it.fields);
@@ -742,25 +758,53 @@ async function submitPhoto(full,thumb,note,quote){
     ts:serverTimestamp(), tsClient:Date.now()
   });
 }
-function notifyQuote(items,projectNote){
+// Posts one quote email through EmailJS. Returns normally on success, throws
+// {retry:true} for problems worth retrying later (no signal, server hiccup) and
+// {retry:false} for problems that will never fix themselves (bad template, etc).
+async function postQuoteEmail(params){
+  let res;
+  try{
+    res=await fetch('https://api.emailjs.com/api/v1.0/email/send',{
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({service_id:EMAILJS_SERVICE_ID, template_id:EMAILJS_TEMPLATE_ID, user_id:EMAILJS_PUBLIC_KEY, template_params:params})
+    });
+  }catch(e){ const err=new Error('Network error'); err.retry=true; throw err; }
+  if(res.ok) return;
+  let txt=''; try{ txt=await res.text(); }catch(e){}
+  const err=new Error('EmailJS said '+res.status+': '+txt);
+  err.retry=(res.status>=500||res.status===429);
+  throw err;
+}
+async function notifyQuote(items,projectNote){
   if(!EMAILJS_PUBLIC_KEY||!EMAILJS_SERVICE_ID||!EMAILJS_TEMPLATE_ID) return; // notifications not configured
+  if(!items||!items.length) return;
+  const first=items[0];
   const vendorNames=[...new Set(items.map(r=>r.vendorName).filter(Boolean))];
   const vendorSummary=vendorNames.length? vendorNames.join(', ') : 'the showcase floor';
-  const noteText=(projectNote?'PROJECT DETAILS: '+projectNote+' - ':'')+items.map((r,i)=>'Item '+(i+1)+' ('+(r.vendorName||'table')+'): '+(r.note||'(no note)')).join(' \u2022 ');
-  fetch('https://api.emailjs.com/api/v1.0/email/send',{
-    method:'POST', headers:{'Content-Type':'application/json'},
-    body:JSON.stringify({
-      service_id:EMAILJS_SERVICE_ID, template_id:EMAILJS_TEMPLATE_ID, user_id:EMAILJS_PUBLIC_KEY,
-      template_params:{
-        attendee_name:attendee.name,
-        attendee_company:attendee.company||'(none given)',
-        attendee_email:attendee.email||'(none given)',
-        vendor_name:vendorSummary,
-        note:items.length+' item'+(items.length===1?'':'s')+' selected. '+noteText,
-        time:new Date().toLocaleString()
-      }
-    })
-  }).catch(e=>console.error('Quote notification failed:',e)); // never block the attendee flow
+  const noteText=(projectNote?'PROJECT DETAILS: '+projectNote+' | ':'')+items.map((r,i)=>'Item '+(i+1)+' ('+(r.vendorName||'table')+'): '+(r.note||'(no note)')).join(' | ');
+  const repPref=first.repPref||(attendee&&attendee.repPref)||'';
+  const toEmail=(repPref&&REP_EMAILS[repPref])||QUOTE_DEFAULT_EMAIL;
+  const base=location.origin+location.pathname;
+  const pid=first.attendeeId||(attendee&&attendee.pid)||'';
+  const params={
+    to_email:toEmail,
+    rep_requested:repPref||'No preference',
+    attendee_name:first.name||(attendee&&attendee.name)||'',
+    attendee_company:first.company||(attendee&&attendee.company)||'(none given)',
+    attendee_email:first.email||(attendee&&attendee.email)||'(none given)',
+    vendor_name:vendorSummary,
+    note:items.length+' item'+(items.length===1?'':'s')+' selected. '+noteText,
+    quote_link:pid?(base+'?me='+pid+'&quoted=1'):'',
+    recap_link:pid?(base+'?me='+pid):'',
+    time:new Date().toLocaleString('en-US',{timeZone:REPORT_TZ})
+  };
+  try{ await postQuoteEmail(params); }
+  catch(e){
+    console.error('Quote notification failed:',e);
+    if(e.retry){ // no signal or a server hiccup: keep it on the device and try again later
+      try{ await qAdd({qid:'m'+Date.now().toString(36)+Math.random().toString(36).slice(2,7), kind:'email', params, tsClient:Date.now()}); updateQueueBanner(); }catch(e2){}
+    }
+  } // never block the attendee flow
 }
 async function fetchFullPhoto(photoId){
   const d=await getDoc(doc(db,'photos',photoId));
@@ -1517,7 +1561,39 @@ async function renderRecap(pid){
     let pastExpanded=!liveInSet;
     const eventName=id=>eventLabel(events.find(x=>x.id===id));
 
+    // Opened from a leads report link (?me=...&quoted=1): show only what they asked
+    // to have priced, with their project details, so a rep sees the request at a glance.
+    function paintQuoteView(){
+      const qs=recs.filter(r=>r.quote).sort((a,b)=>(a.tsClient||0)-(b.tsClient||0));
+      const proj=[...new Set(qs.map(r=>String(r.quoteNote||'').trim()).filter(Boolean))];
+      const bits=[who.company, who.email, who.repPref?('Wants to work with '+who.repPref):''].filter(Boolean).map(esc).join(' \u00b7 ');
+      let h=actingBannerHTML()+
+        '<div class="sp-pagehead"><div class="sp-pagehead-kicker">Quote request</div>'+
+          '<h2 class="sp-pagehead-title">'+esc(who.name)+'</h2>'+
+          '<div class="sp-pagehead-stats">'+qs.length+' item'+(qs.length===1?'':'s')+' to price</div>'+
+          (bits?'<div class="sp-pagehead-tip">'+bits+'</div>':'')+
+        '</div>';
+      if(!qs.length){
+        h+='<div class="sp-card"><div class="sp-empty" style="padding:6px 0">No quote has been requested yet.</div></div>';
+      }else{
+        h+='<div class="sp-card"><div class="sp-h2">Project details</div>'+
+          (proj.length?proj.map(t=>'<p style="margin:0 0 8px;font-size:15px;line-height:1.5;white-space:pre-wrap">'+esc(t)+'</p>').join(''):'<div class="sp-empty" style="padding:6px 0">No details added.</div>')+
+          '</div>'+
+          '<div class="sp-card"><div class="sp-h2">Photos to price</div><div class="sp-thumbs">'+
+          qs.map(r=>{ const v=vById[r.vendorId];
+            return '<div class="sp-thumb"><img src="'+r.thumb+'" alt="Photo to price" loading="lazy" data-pid="'+esc(r.photoId||'')+'" data-code="'+esc(v?v.code:'')+'" style="cursor:zoom-in">'+
+              (v&&v.code?'<div class="cap" style="font-weight:700;color:var(--ink)">Table '+esc(v.code)+'</div>':'')+
+              (r.note?'<div class="cap">'+esc(r.note)+'</div>':'')+'</div>'; }).join('')+
+          '</div></div>';
+      }
+      h+='<button class="sp-btn ghost block" id="sp-seeall">See all of their photos</button>';
+      body.innerHTML=h;
+      document.getElementById('sp-seeall').onclick=()=>{ quoteViewOnly=false; try{ history.replaceState(null,'','?me='+encodeURIComponent(pid)); }catch(e){} paint(); window.scrollTo({top:0}); };
+      bindPhotoHandlers();
+    }
+
     function paint(){
+      if(quoteViewOnly){ paintQuoteView(); return; }
       recs.sort((a,b)=>(a.tsClient||0)-(b.tsClient||0));
       const scope=multiEvent?recs.filter(r=>r._eid===viewEid):recs;
       const favs=scope.filter(r=>r.fav), rest=scope.filter(r=>!r.fav);
@@ -1750,9 +1826,8 @@ async function renderRecap(pid){
             catch(err){ await queueUpdate(r.id,{quote:true,quoteNote:projectNote}); }
             r.quote=true; r.quoteNote=projectNote;
           }
-          const online=verifiedOnline;
           touchPresence(true);
-          if(online) notifyQuote(chosen,projectNote);
+          notifyQuote(chosen,projectNote);
           paint();
           window.scrollTo({top:0,behavior:'smooth'});
         }catch(e){
@@ -1804,6 +1879,7 @@ const LEAD_COLS=[
   {h:'Email',k:'email',w:30,always:1},
   {h:'Requested rep',k:'rep',w:15,always:1},
   {h:'Quote requested',k:'quote',w:17},
+  {h:'Quote request',k:'qlink',w:19,link:1,linkText:'View quote request'},
   {h:'Project details',k:'project',w:38,wrap:1},
   {h:'Favorites',k:'favs',w:10,always:1,num:1},
   {h:'Photos',k:'photos',w:8,always:1,num:1},
@@ -1813,7 +1889,7 @@ const LEAD_COLS=[
   {h:'Booth priority',k:'boothPri',w:13},
   {h:'Lookbook',k:'lookbook',w:10},
   {h:'Flags',k:'flags',w:36,wrap:1},
-  {h:'Their photos',k:'link',w:16,link:1},
+  {h:'Their photos',k:'link',w:16,link:1,linkText:'Open their photos'},
   {h:'First activity',k:'first',w:17},
   {h:'Last activity',k:'last',w:17}
 ];
@@ -1909,6 +1985,7 @@ function buildLeads(subs,repNotes){
       photoNotes:photoNotes.join('\n'), booth:boothNotes.join('\n'), boothPri,
       lookbook:evs.some(e=>e.look)?'YES':'', flags:flags.join('\n'),
       link:lastPid?(location.origin+location.pathname+'?me='+lastPid):'',
+      qlink:(lastPid&&qItems)?(location.origin+location.pathname+'?me='+lastPid+'&quoted=1'):'',
       first:fmtLocal(evs.length?evs[0].ts:0), last:fmtLocal(evs.length?evs[evs.length-1].ts:0),
       _qItems:qItems, _notes:photoNotes.length+boothNotes.length
     });
@@ -1960,8 +2037,7 @@ async function buildLeadsWorkbook(subs,evName,repNotes){
       cols.forEach((c,i)=>{
         const cell=row.getCell(i+1);
         cell.alignment={vertical:'top',wrapText:!!c.wrap,horizontal:c.num?'center':'left'};
-        if(c.link && p.link) cell.value={text:'Open their photos',hyperlink:p.link};
-        if(c.link && p.link) cell.font={color:{argb:RED},underline:true};
+        if(c.link && p[c.k]){ cell.value={text:c.linkText,hyperlink:p[c.k]}; cell.font={color:{argb:RED},underline:true}; }
         if(c.k==='heat'){
           if(p.heat==='Hot'){ cell.font={bold:true,color:{argb:RED}}; cell.fill={type:'pattern',pattern:'solid',fgColor:{argb:'FFFDE3E6'}}; }
           else if(p.heat==='Warm'){ cell.font={bold:true,color:{argb:'FF333333'}}; }
@@ -2415,7 +2491,7 @@ modeBtn.onclick=()=>{
     await loadAll();
     const params=new URLSearchParams(location.search);
     const me=params.get('me');
-    if(me){ recapFromVendorId=params.get('from')||null; autoOpenQuote=params.get('quote')==='1'; renderRecap(me); return; }
+    if(me){ recapFromVendorId=params.get('from')||null; autoOpenQuote=params.get('quote')==='1'; quoteViewOnly=params.get('quoted')==='1'; renderRecap(me); return; }
     const fromUrl=vendorFromUrl();
     if(fromUrl){ currentVendor=fromUrl; vendors=eventVendors(fromUrl.eventId||activeEventId); }
     else vendors=eventVendors(activeEventId);
