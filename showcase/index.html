@@ -74,12 +74,12 @@
   .sp-head h1{font-size:var(--fs-xl);font-weight:700;font-family:var(--headline);letter-spacing:.2px;line-height:1.15;overflow-wrap:anywhere;}
   .sp-head .sub{margin:2px 0 0;font-size:var(--fs-sm);opacity:.88;line-height:1.3;overflow-wrap:anywhere;}
   @media (max-width:420px){ .sp-head h1{font-size:calc(var(--fs-xl) - 3px);} .sp-head .sub{font-size:var(--fs-xs);} }
-  .sp-tabbtn{background:#fff;color:var(--lanyard);border:none;border-radius:var(--r-pill);padding:9px 16px;font-size:var(--fs-sm);font-weight:700;cursor:pointer;white-space:nowrap;flex-shrink:0;box-shadow:0 2px 8px rgba(0,0,0,.16);transition:background var(--dur-fast) var(--ease),transform var(--dur-fast) var(--ease),box-shadow var(--dur-fast) var(--ease);}
+  .sp-tabbtn{background:#fff;color:var(--lanyard);border:none;border-radius:var(--r-pill);padding:9px 16px;font-size:var(--fs-sm);font-weight:700;cursor:pointer;white-space:nowrap;flex-shrink:0;align-items:center;justify-content:center;text-align:center;line-height:1.2;font-family:inherit;min-height:38px;box-shadow:0 2px 8px rgba(0,0,0,.16);transition:background var(--dur-fast) var(--ease),transform var(--dur-fast) var(--ease),box-shadow var(--dur-fast) var(--ease);}
   .sp-tabbtn:hover{background:#fff0f2;box-shadow:0 3px 10px rgba(0,0,0,.22);}
   .sp-tabbtn:active{transform:scale(.96);}
   .sp-tabbtn:active{transform:scale(.97);}
 
-  .sp-body{padding:var(--sp-5);}
+  .sp-body{padding:var(--sp-5);overflow-anchor:none;}
 
   /* ---- screen-transition: one quiet fade+rise moment on every render ---- */
   .sp-body.sp-enter{animation:screenIn var(--dur-base) var(--ease);}
@@ -89,6 +89,16 @@
   }
 
   /* ---- card system: one shape, two weights ---- */
+  /* Page title block: flat on the page, not a card, so it never reads as an action area */
+  .sp-pagehead{padding:var(--sp-2) var(--sp-1) var(--sp-4);margin-bottom:var(--sp-4);border-bottom:3px solid var(--lanyard);}
+  .sp-pagehead-kicker{font-size:var(--fs-xs);font-weight:800;letter-spacing:1.4px;text-transform:uppercase;color:var(--lanyard);}
+  .sp-pagehead-title{font-family:var(--headline);font-size:28px;line-height:1.1;margin:4px 0 8px;color:var(--ink);font-weight:700;overflow-wrap:anywhere;}
+  .sp-pagehead-stats{font-size:var(--fs-base);font-weight:700;color:var(--ink);line-height:1.4;}
+  .sp-pagehead-tip{font-size:var(--fs-sm);color:var(--mut);margin-top:6px;line-height:1.45;}
+  .sp-qcart{background:var(--red-light);border-radius:var(--r-md);padding:var(--sp-3);}
+  .sp-qcart .sp-thumbs{margin-top:var(--sp-2);}
+  .sp-qtray{border:2px dashed var(--line);border-radius:var(--r-md);padding:var(--sp-3);margin-top:var(--sp-3);}
+  .sp-qtray .sp-thumbs{margin-top:var(--sp-2);}
   .sp-card{background:var(--card);border:1px solid var(--line);border-radius:var(--r-lg);padding:var(--sp-4) var(--sp-4);margin-bottom:var(--sp-4);box-shadow:var(--shadow-sm);}
   .sp-card.sp-card-primary{border-top:3px solid var(--lanyard);box-shadow:var(--shadow-md);}
   .sp-card.sp-card-quiet{background:var(--paper);border:1px dashed var(--line);box-shadow:none;}
@@ -1530,14 +1540,17 @@ async function renderRecap(pid){
 
       let html=actingBannerHTML()+'<button class="sp-back" id="sp-recapback">&larr; '+(sameEvent?'Back to tables':'See what\u2019s on the floor today')+'</button>'+
         (crossEventNote||'')+
-        '<div class="sp-card sp-card-primary"><div class="sp-h2">'+esc(who.name)+'\u2019s photos</div>'+
-        '<p class="sp-note" style="margin:0">'+
-          (multiEvent && pastExpanded
-            ? 'You\u2019ve joined us at '+eventOrder.length+' showcases, with '+recs.length+' photo'+(recs.length===1?'':'s')+' saved in all. Pick a showcase below to look back through it.'
-            : scope.length+' photo'+(scope.length===1?'':'s')+' in your collection'+(favs.length?', including '+favs.length+' favorite'+(favs.length===1?'':'s'):'')+'. Bookmark this page so you can come back to it anytime, and TORO will follow up with you after the show.')+
-        '</p>'+switcherHtml+
-        '<hr class="sp-divider">'+lookbookRowHTML('sp-lb-photos')+
-        '</div>';
+        '<div class="sp-pagehead"><div class="sp-pagehead-kicker">My photos</div>'+
+          '<h2 class="sp-pagehead-title">'+esc(who.name)+'\u2019s photos</h2>'+
+          '<div class="sp-pagehead-stats">'+
+            (multiEvent && pastExpanded
+              ? 'You\u2019ve joined us at '+eventOrder.length+' showcases. Pick one below to look back through it.'
+              : scope.length+' photo'+(scope.length===1?'':'s')+' \u00b7 '+favs.length+' favorite'+(favs.length===1?'':'s')+(scope.some(r=>r.quote)?' \u00b7 '+scope.filter(r=>r.quote).length+' in a quote':''))+
+          '</div>'+
+          '<div class="sp-pagehead-tip">Bookmark this page to come back anytime. TORO will follow up after the show.</div>'+
+          switcherHtml+
+        '</div>'+
+        '<div class="sp-card">'+lookbookRowHTML('sp-lb-photos')+'</div>';
 
       if(multiEvent && pastExpanded){
         html+='<div class="sp-note" style="margin:-4px 2px 10px">Showing '+scope.length+' photo'+(scope.length===1?'':'s')+' from '+esc(eventName(viewEid))+(viewEid===activeEventId?' - today\u2019s show':' - a past show, now closed')+'.</div>';
@@ -1548,22 +1561,27 @@ async function renderRecap(pid){
         const unrequested=scope.some(r=>!r.quote);
         quoteCardHtml='<div class="sp-card sp-card-primary" id="sp-quotecard-recap">'+
           '<div class="sp-h2">Request a quote</div>'+
-          '<p class="sp-note" style="margin:0 0 12px">Quotes are for when you have a real project or order in mind. Add the photos you\u2019d like priced and tell us a bit more, and your rep will follow up after the show with concrete pricing and next steps to move your order across the finish line.</p>';
+          '<p class="sp-note" style="margin:0 0 12px">Got a real order in mind? Pick the photos you want priced and your Branding Specialist will follow up after the show.</p>';
         if(!unrequested){
           quoteCardHtml+='<div class="sp-empty" style="padding:6px 0">Every photo here already has a quote request in with your Branding Specialist.</div>';
         }else{
           const favCount=favs.length;
-          quoteCardHtml+='<p class="sp-note" style="margin:0 0 10px" id="sp-quoterecap-intro">Nothing\u2019s added yet - pick how you\u2019d like to start.</p>'+
-            (favCount
+          quoteCardHtml+=(favCount
               ? '<button class="sp-quote" type="button" id="sp-quoterecap-usefavs">Request a quote for all your favorites ('+favCount+')?</button>'+
                 '<button type="button" class="sp-linkbtn" id="sp-quoterecap-browse" style="display:block;margin-top:10px">Or choose specific photos</button>'
               : '<button class="sp-quote" type="button" id="sp-quoterecap-browse">Choose photos to add</button>')+
             '<div id="sp-quoterecap-picker" style="display:none;margin-top:14px">'+
-              '<div class="sp-label" id="sp-quoterecap-cart-label" style="display:none">Added to your quote</div>'+
-              '<div class="sp-empty" id="sp-quoterecap-cart-empty" style="display:none;padding:6px 0">Nothing added yet - tap photos below to add them.</div>'+
-              '<div class="sp-thumbs" id="sp-quoterecap-items" style="display:none"></div>'+
+              '<div class="sp-qcart">'+
+                '<div class="sp-label" id="sp-quoterecap-cart-label" style="display:none;margin:0">Added to your quote</div>'+
+                '<div class="sp-empty" id="sp-quoterecap-cart-empty" style="display:none;padding:6px 0">Nothing added yet. Tap photos below to add them.</div>'+
+                '<div class="sp-thumbs" id="sp-quoterecap-items" style="display:none"></div>'+
+              '</div>'+
               '<button type="button" class="sp-linkbtn" id="sp-quoterecap-addmore" style="display:none;margin-top:10px">+ Add more photos</button>'+
-              '<div class="sp-thumbs" id="sp-quoterecap-browsegrid" style="display:none;margin-top:10px"></div>'+
+              '<div class="sp-qtray" id="sp-quoterecap-tray" style="display:none">'+
+                '<div class="sp-label" style="margin:0">More photos to add</div>'+
+                '<p class="sp-note" style="margin:2px 0 0">Tap a photo to add it to your quote.</p>'+
+                '<div class="sp-thumbs" id="sp-quoterecap-browsegrid" style="display:none"></div>'+
+              '</div>'+
               '<div id="sp-quoterecap-form" style="display:none;margin-top:14px">'+
                 '<span class="sp-label">Project details (optional)</span>'+
                 '<textarea class="sp-input" id="sp-quoterecap-note" rows="3" maxlength="500" placeholder="Anything that helps us quote it right: delivery date, quantities, sizes, colors, logo placement, budget\u2026" style="resize:vertical;font-family:inherit"></textarea>'+
@@ -1650,6 +1668,7 @@ async function renderRecap(pid){
       const cartGrid=document.getElementById('sp-quoterecap-items');
       const addMoreBtn=document.getElementById('sp-quoterecap-addmore');
       const browseGrid=document.getElementById('sp-quoterecap-browsegrid');
+      const tray=document.getElementById('sp-quoterecap-tray');
       if(!browseBtn||!picker||!formBox||!cartGrid) return;
 
       const selected=new Set();
@@ -1664,6 +1683,16 @@ async function renderRecap(pid){
         '<div class="sp-qcheck">'+(mode==='cart'?'&#10003; Added, tap to remove':'Tap to add')+'</div>'+
         (r.note?'<div class="cap">'+esc(r.note)+'</div>':'')+
       '</div>';
+      // Adding or removing a photo re-draws the grids. Hold the grid you just
+      // tapped steady on screen so the page never jumps to a different spot.
+      const keepStill=(anchor,fn)=>{
+        const before=anchor.getBoundingClientRect().top;
+        fn();
+        if(anchor.offsetParent!==null){
+          const d=anchor.getBoundingClientRect().top-before;
+          if(Math.abs(d)>1) window.scrollBy(0,d);
+        }
+      };
       // The quote area is a running list, not a browse-everything grid: it only
       // ever shows what's actually going to be sent. Removing an item drops it
       // straight back into the "add more" pool below instead of leaving a
@@ -1680,15 +1709,16 @@ async function renderRecap(pid){
           addMoreBtn.style.display=browseItems.length?'inline-block':'none';
           addMoreBtn.textContent=browseOpen?'Hide extra photos':'+ Add more photos';
         }
+        if(tray) tray.style.display=(browseOpen && browseItems.length)?'block':'none';
         if(browseGrid){
           browseGrid.style.display=(browseOpen && browseItems.length)?'grid':'none';
           browseGrid.innerHTML=browseItems.map(r=>card(r,'browse')).join('');
         }
         cartGrid.querySelectorAll('.sp-qitem').forEach(el=>{
-          el.onclick=()=>{ selected.delete(el.dataset.id); renderGrids(); };
+          el.onclick=()=>{ keepStill(cartGrid,()=>{ selected.delete(el.dataset.id); renderGrids(); }); };
         });
         if(browseGrid) browseGrid.querySelectorAll('.sp-qitem').forEach(el=>{
-          el.onclick=()=>{ selected.add(el.dataset.id); renderGrids(); };
+          el.onclick=()=>{ keepStill(browseGrid,()=>{ selected.add(el.dataset.id); renderGrids(); }); };
         });
         refreshSend();
       }
@@ -1706,7 +1736,6 @@ async function renderRecap(pid){
           browseOpen=true;
         }
         renderGrids();
-        formBox.querySelector('textarea').focus();
       };
       if(usefavsBtn) usefavsBtn.onclick=()=>openPicker(true);
       browseBtn.onclick=()=>openPicker(false);
@@ -1745,53 +1774,240 @@ async function renderRecap(pid){
 }
 
 // ---------- ORGANIZER ----------
-function toCSV(subs,evName,repNotes){
+// ---------- LEADS EXPORT ----------
+// One row per PERSON (not per photo), sorted so each rep can work top to bottom.
+const REPORT_TZ='America/Chicago';
+function fmtLocal(ms){
+  if(!ms) return '';
+  try{ return new Date(ms).toLocaleString('en-US',{timeZone:REPORT_TZ,month:'short',day:'numeric',hour:'numeric',minute:'2-digit'}); }
+  catch(e){ return new Date(ms).toISOString(); }
+}
+let exceljsPromise=null;
+function loadExcelJS(){
+  if(window.ExcelJS) return Promise.resolve(window.ExcelJS);
+  if(!exceljsPromise){
+    exceljsPromise=new Promise((res,rej)=>{
+      const sc=document.createElement('script');
+      sc.src='https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js';
+      sc.onload=()=>window.ExcelJS?res(window.ExcelJS):rej(new Error('Excel library missing'));
+      sc.onerror=()=>{ exceljsPromise=null; rej(new Error('Could not load Excel library. Check your connection.')); };
+      document.head.appendChild(sc);
+    });
+  }
+  return exceljsPromise;
+}
+const NO_PREF='No preference';
+const LEAD_COLS=[
+  {h:'Lead',k:'heat',w:11,always:1},
+  {h:'Name',k:'name',w:22,always:1},
+  {h:'Company/Department',k:'company',w:26,always:1},
+  {h:'Email',k:'email',w:30,always:1},
+  {h:'Requested rep',k:'rep',w:15,always:1},
+  {h:'Quote requested',k:'quote',w:17},
+  {h:'Project details',k:'project',w:38,wrap:1},
+  {h:'Favorites',k:'favs',w:10,always:1,num:1},
+  {h:'Photos',k:'photos',w:8,always:1,num:1},
+  {h:'Tables visited',k:'tables',w:22,always:1},
+  {h:'Photo notes',k:'photoNotes',w:42,wrap:1},
+  {h:'Booth notes',k:'booth',w:42,wrap:1},
+  {h:'Booth priority',k:'boothPri',w:13},
+  {h:'Lookbook',k:'lookbook',w:10},
+  {h:'Flags',k:'flags',w:36,wrap:1},
+  {h:'Their photos',k:'link',w:16,link:1},
+  {h:'First activity',k:'first',w:17},
+  {h:'Last activity',k:'last',w:17}
+];
+// Reps in A to Z order so each tab is easy to find; "No preference" goes last.
+function repRank(rep){ return rep===NO_PREF ? 1 : 0; }
+function buildLeads(subs,repNotes){
   repNotes=repNotes||[];
   const norm=x=>String(x||'').trim().toLowerCase();
-  // Build lookup of photo-side people by pid, email, and name
+  const vById={}; allVendors.forEach(v=>{ vById[v.id]=v; });
+  const vLabel=r=>(vById[r.vendorId]&&vById[r.vendorId].name)||r.vendorName||'table';
+  const vSort=r=>(vById[r.vendorId]&&vById[r.vendorId].code)||'';
+
+  // Union-find: photos from the same email OR the same sign-in id are one person,
+  // even if they signed in more than once with different companies.
+  const parent={};
+  const find=x=>{ if(parent[x]===undefined) parent[x]=x; while(parent[x]!==x) x=parent[x]; return x; };
+  const union=(a,b)=>{ a=find(a); b=find(b); if(a!==b) parent[b]=a; };
+  const tokensOf=r=>{
+    const t=[];
+    if(r.attendeeId) t.push('pid:'+r.attendeeId);
+    if(r.email && norm(r.email)) t.push('email:'+norm(r.email));
+    if(!t.length) t.push('name:'+norm(r.name));
+    return t;
+  };
+  const ordered=[...subs].sort((a,b)=>(a.tsClient||0)-(b.tsClient||0));
+  ordered.forEach(r=>{ const t=tokensOf(r); find(t[0]); for(let i=1;i<t.length;i++) union(t[0],t[i]); });
+
+  const groups=new Map();
+  const newPerson=()=>({subs:[],booth:[],pids:new Set(),matchFlags:new Set()});
+  ordered.forEach(r=>{
+    const root=find(tokensOf(r)[0]);
+    if(!groups.has(root)) groups.set(root,newPerson());
+    const p=groups.get(root); p.subs.push(r); if(r.attendeeId) p.pids.add(r.attendeeId);
+  });
+  // lookup tables for matching booth notes back to photo people
   const byPid={}, byEmail={}, byName={};
-  subs.forEach(r=>{
-    if(r.attendeeId) byPid[r.attendeeId]=r;
-    if(r.email) byEmail[norm(r.email)]=r;
-    if(r.name) byName[norm(r.name)]=r;
+  groups.forEach((p,root)=>{
+    p.subs.forEach(r=>{
+      if(r.attendeeId) byPid[r.attendeeId]=p;
+      if(r.email && norm(r.email)) byEmail[norm(r.email)]=p;
+      if(r.name) byName[norm(r.name)]=p;
+    });
   });
-  // Assign match info + a shared group id so related rows sort together
-  let grp=0; const groupFor={};
-  const keyOf=r=>r.attendeeId||('email:'+norm(r.email))||('name:'+norm(r.name))||('row'+(grp++));
-  function ensureGroup(k){ if(!groupFor[k]) groupFor[k]='G'+String(++grp).padStart(3,'0'); return groupFor[k]; }
-
-  const rows=[['Match','Match group','Source','Event','Vendor','Name','Company/Department','Email','Requested Rep','Lookbook opt-in','Favorited','Quote requested','Priority','Rep notes','Item note / Project details','Recap link','Timestamp']];
-
-  // Photo submissions
-  subs.forEach(r=>{
-    const k=r.attendeeId?('pid:'+r.attendeeId):(r.email?('email:'+norm(r.email)):('name:'+norm(r.name)));
-    const g=ensureGroup(k);
-    rows.push(['','',g,evName,r.vendorName,r.name,r.company||'',r.email||'',r.repPref||'',r.lookbook?'YES':'',r.fav?'YES':'',r.quote?'YES':'','',
-      '', [r.note||'',r.quoteNote||''].filter(Boolean).join(' | '),
-      r.attendeeId?(location.origin+location.pathname+'?me='+r.attendeeId):'',
-      new Date(r.tsClient||0).toISOString()]);
-  });
-
-  // Rep notes, matched back to a photo person where possible
-  repNotes.forEach(n=>{
-    let match='NONE', partner=null;
-    if(n.linkedPid && byPid[n.linkedPid]){ match='LINKED'; partner=byPid[n.linkedPid]; }
-    else if(n.visitorEmail && byEmail[norm(n.visitorEmail)]){ match='EMAIL'; partner=byEmail[norm(n.visitorEmail)]; }
-    else if(n.visitorName && byName[norm(n.visitorName)]){ match='LIKELY: '+n.visitorName; partner=byName[norm(n.visitorName)]; }
-    let g;
-    if(partner){
-      const pk=partner.attendeeId?('pid:'+partner.attendeeId):(partner.email?('email:'+norm(partner.email)):('name:'+norm(partner.name)));
-      g=ensureGroup(pk);
-    } else { g=ensureGroup('rep:'+(n.id||Math.random())); }
-    rows.push([match,g,'Rep note',evName,'',n.visitorName||'',n.visitorCompany||'',n.visitorEmail||'',n.repPref||'',n.lookbook?'YES':'','',n.quote?'YES':'',(n.priority||'').toUpperCase(),
-      n.notes||'', '', '', new Date(n.tsClient||0).toISOString()]);
+  const boothOnly=new Map();
+  [...repNotes].sort((a,b)=>(a.tsClient||0)-(b.tsClient||0)).forEach(n=>{
+    let p=null, flag='';
+    if(n.linkedPid && byPid[n.linkedPid]){ p=byPid[n.linkedPid]; flag='Booth note linked to their photos'; }
+    else if(n.visitorEmail && byEmail[norm(n.visitorEmail)]){ p=byEmail[norm(n.visitorEmail)]; flag='Booth note matched by email'; }
+    else if(n.visitorName && byName[norm(n.visitorName)]){ p=byName[norm(n.visitorName)]; flag='Booth note matched by name only, please confirm'; }
+    else {
+      const k=norm(n.visitorEmail)?('e:'+norm(n.visitorEmail)):(norm(n.visitorName)?('n:'+norm(n.visitorName)):('id:'+n.id));
+      if(!boothOnly.has(k)){ const np=newPerson(); np.boothOnly=true; boothOnly.set(k,np); }
+      p=boothOnly.get(k); flag='Booth only, no photos yet';
+    }
+    p.booth.push(n); p.matchFlags.add(flag);
   });
 
-  // Sort by match group so a person's photo row(s) and rep note sit together
-  const header=rows.shift();
-  rows.sort((a,b)=> String(a[1]).localeCompare(String(b[1])) || String(a[2]).localeCompare(String(b[2])));
-  rows.unshift(header);
-  return rows.map(r=>r.map(c=>'"'+String(c).replace(/"/g,'""')+'"').join(',')).join('\r\n');
+  const heatRank={Hot:0,Warm:1,Browsing:2};
+  const priRank={HOT:0,WARM:1,COLD:2};
+  const people=[];
+  const finalize=p=>{
+    const evs=[];
+    p.subs.forEach(r=>evs.push({ts:r.tsClient||0,name:r.name,company:r.company,email:r.email,rep:r.repPref,look:r.lookbook}));
+    p.booth.forEach(n=>evs.push({ts:n.tsClient||0,name:n.visitorName,company:n.visitorCompany,email:n.visitorEmail,rep:n.repPref,look:n.lookbook}));
+    evs.sort((a,b)=>a.ts-b.ts);
+    const latest=f=>{ for(let i=evs.length-1;i>=0;i--){ if(evs[i][f] && String(evs[i][f]).trim()) return String(evs[i][f]).trim(); } return ''; };
+    const companies=[]; evs.forEach(e=>{ const c=String(e.company||'').trim(); if(c && !companies.some(x=>norm(x)===norm(c))) companies.push(c); });
+    const reps=[]; evs.forEach(e=>{ const c=String(e.rep||'').trim(); if(c && !reps.includes(c)) reps.push(c); });
+    const rep=latest('rep')||NO_PREF;
+    const favs=p.subs.filter(r=>r.fav).length;
+    const qItems=p.subs.filter(r=>r.quote).length;
+    const boothQuote=p.booth.some(n=>n.quote);
+    const quote=qItems?('YES - '+qItems+' item'+(qItems===1?'':'s')+(boothQuote?' + booth':'')):(boothQuote?'YES - asked at booth':'');
+    const projects=[]; p.subs.forEach(r=>{ const q=String(r.quoteNote||'').trim(); if(q && !projects.includes(q)) projects.push(q); });
+    const tableMap={}; p.subs.forEach(r=>{ tableMap[r.vendorId||vLabel(r)]={label:vLabel(r),code:vSort(r)}; });
+    const tables=Object.values(tableMap).sort((a,b)=>String(a.code).localeCompare(String(b.code),undefined,{numeric:true})||a.label.localeCompare(b.label,undefined,{numeric:true})).map(x=>x.label);
+    const photoNotes=p.subs.filter(r=>String(r.note||'').trim()).map(r=>vLabel(r)+': '+String(r.note).trim());
+    const boothNotes=p.booth.filter(n=>String(n.notes||'').trim()).map(n=>String(n.notes).trim());
+    const pris=p.booth.map(n=>String(n.priority||'').toUpperCase()).filter(x=>x in priRank).sort((a,b)=>priRank[a]-priRank[b]);
+    const boothPri=pris[0]||'';
+    let heat='Browsing';
+    if(qItems||boothQuote||boothPri==='HOT') heat='Hot';
+    else if(favs||photoNotes.length||boothNotes.length||boothPri==='WARM') heat='Warm';
+    const flags=[];
+    if(p.pids.size>1) flags.push('Signed in '+p.pids.size+' times (merged)');
+    if(!latest('email')) flags.push('No email on file');
+    if(reps.length>1) flags.push('Asked for more than one rep: '+reps.join(', '));
+    p.matchFlags.forEach(f=>flags.push(f));
+    const lastPid=[...p.subs].reverse().map(r=>r.attendeeId).find(Boolean);
+    people.push({
+      heat, name:latest('name'), company:companies.join(' / '), email:latest('email'), rep,
+      quote, project:projects.join('\n'), favs, photos:p.subs.length, tables:tables.join(', '),
+      photoNotes:photoNotes.join('\n'), booth:boothNotes.join('\n'), boothPri,
+      lookbook:evs.some(e=>e.look)?'YES':'', flags:flags.join('\n'),
+      link:lastPid?(location.origin+location.pathname+'?me='+lastPid):'',
+      first:fmtLocal(evs.length?evs[0].ts:0), last:fmtLocal(evs.length?evs[evs.length-1].ts:0),
+      _qItems:qItems, _notes:photoNotes.length+boothNotes.length
+    });
+  };
+  groups.forEach(finalize); boothOnly.forEach(finalize);
+  // Same name on more than one row (e.g. one sign-in forgot the email)
+  const nameCount={}; people.forEach(p=>{ const k=norm(p.name); if(k) nameCount[k]=(nameCount[k]||0)+1; });
+  people.forEach(p=>{ if(nameCount[norm(p.name)]>1) p.flags=(p.flags?p.flags+'\n':'')+'Same name on another row, possible duplicate'; });
+  people.sort((a,b)=>
+    repRank(a.rep)-repRank(b.rep) || String(a.rep).localeCompare(String(b.rep)) ||
+    heatRank[a.heat]-heatRank[b.heat] || b.favs-a.favs || b._notes-a._notes || b.photos-a.photos ||
+    String(a.name).localeCompare(String(b.name)));
+
+  const photoRows=ordered.map(r=>({
+    name:r.name||'', company:r.company||'', email:r.email||'', rep:r.repPref||NO_PREF, table:vLabel(r),
+    fav:r.fav?'YES':'', quote:r.quote?'YES':'', note:r.note||'', project:r.quoteNote||'', time:fmtLocal(r.tsClient), _ts:r.tsClient||0
+  })).sort((a,b)=>String(a.name).localeCompare(String(b.name),undefined,{sensitivity:'base'})||a._ts-b._ts);
+  return {people,photoRows};
+}
+function activeLeadCols(people){
+  return LEAD_COLS.filter(c=>c.always || people.some(p=>String(p[c.k]||'').length>0));
+}
+async function buildLeadsWorkbook(subs,evName,repNotes){
+  const ExcelJS=await loadExcelJS();
+  const {people,photoRows}=buildLeads(subs,repNotes);
+  const cols=activeLeadCols(people);
+  const RED='FFBC112A';
+  const wb=new ExcelJS.Workbook(); wb.creator='Brandabulls Live!'; wb.created=new Date();
+  const used=new Set();
+  const tabName=n=>{
+    let base=String(n||'Sheet').replace(/[\\\/\?\*\[\]:]/g,'').trim().slice(0,31)||'Sheet', nm=base, i=2;
+    while(used.has(nm.toLowerCase())){ nm=base.slice(0,28)+' '+i; i++; }
+    used.add(nm.toLowerCase()); return nm;
+  };
+  const styleHeader=ws=>{
+    const hr=ws.getRow(1); hr.height=24;
+    hr.eachCell(c=>{
+      c.font={bold:true,color:{argb:'FFFFFFFF'},size:11};
+      c.fill={type:'pattern',pattern:'solid',fgColor:{argb:RED}};
+      c.alignment={vertical:'middle',horizontal:'left',wrapText:true};
+    });
+    ws.autoFilter={from:{row:1,column:1},to:{row:1,column:ws.columns.length}};
+  };
+  const peopleSheet=(name,list)=>{
+    const ws=wb.addWorksheet(tabName(name),{views:[{state:'frozen',xSplit:2,ySplit:1}]});
+    ws.columns=cols.map(c=>({header:c.h,key:c.k,width:c.w}));
+    list.forEach(p=>{
+      const row=ws.addRow(cols.map(c=>c.link?'':p[c.k]));
+      cols.forEach((c,i)=>{
+        const cell=row.getCell(i+1);
+        cell.alignment={vertical:'top',wrapText:!!c.wrap,horizontal:c.num?'center':'left'};
+        if(c.link && p.link) cell.value={text:'Open their photos',hyperlink:p.link};
+        if(c.link && p.link) cell.font={color:{argb:RED},underline:true};
+        if(c.k==='heat'){
+          if(p.heat==='Hot'){ cell.font={bold:true,color:{argb:RED}}; cell.fill={type:'pattern',pattern:'solid',fgColor:{argb:'FFFDE3E6'}}; }
+          else if(p.heat==='Warm'){ cell.font={bold:true,color:{argb:'FF333333'}}; }
+          else { cell.font={color:{argb:'FF888888'}}; }
+        }
+      });
+    });
+    styleHeader(ws);
+    return ws;
+  };
+  peopleSheet('All leads',people);
+  const repOrder=[]; people.forEach(p=>{ if(!repOrder.includes(p.rep)) repOrder.push(p.rep); });
+  repOrder.forEach(rep=>peopleSheet(rep,people.filter(p=>p.rep===rep)));
+
+  // Photo-level detail
+  const pcols=[
+    {h:'Name',k:'name',w:22},{h:'Company/Department',k:'company',w:26},{h:'Email',k:'email',w:30},
+    {h:'Requested rep',k:'rep',w:15},{h:'Table',k:'table',w:14},{h:'Favorited',k:'fav',w:10},
+    {h:'Quote requested',k:'quote',w:16},{h:'Photo note',k:'note',w:42,wrap:1},{h:'Project details',k:'project',w:38,wrap:1},{h:'Time',k:'time',w:17}
+  ].filter(c=>c.k!=='project' || photoRows.some(r=>r.project));
+  const ws=wb.addWorksheet(tabName('Photo detail'),{views:[{state:'frozen',xSplit:1,ySplit:1}]});
+  ws.columns=pcols.map(c=>({header:c.h,key:c.k,width:c.w}));
+  photoRows.forEach(r=>{
+    const row=ws.addRow(pcols.map(c=>r[c.k]));
+    pcols.forEach((c,i)=>{ row.getCell(i+1).alignment={vertical:'top',wrapText:!!c.wrap}; });
+  });
+  styleHeader(ws);
+  return wb;
+}
+// Plain CSV used only if the Excel library can't load (for example, spotty signal).
+function leadsCSV(subs,repNotes){
+  const {people}=buildLeads(subs,repNotes);
+  const cols=activeLeadCols(people);
+  const q=c=>'"'+String(c==null?'':c).replace(/"/g,'""')+'"';
+  return '﻿'+[cols.map(c=>q(c.h)).join(',')].concat(people.map(p=>cols.map(c=>q(p[c.k])).join(','))).join('\r\n');
+}
+async function leadsFile(subs,evName,repNotes){
+  const base='brandabulls-live-leads-'+fsafe(evName);
+  try{
+    const wb=await buildLeadsWorkbook(subs,evName,repNotes);
+    const buf=await wb.xlsx.writeBuffer();
+    return {name:base+'.xlsx',data:buf,mime:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',fallback:false};
+  }catch(e){
+    console.error(e);
+    return {name:base+'.csv',data:leadsCSV(subs,repNotes),mime:'text/csv;charset=utf-8',fallback:true};
+  }
 }
 
 async function renderAdmin(){
@@ -1873,7 +2089,7 @@ async function renderAdmin(){
   let reportsHtml='<div class="sp-card sp-card-primary"><div class="sp-h2">Export &amp; data</div>'+
     '<p class="sp-note" style="margin:0 0 10px">Export first - deleting an event\u2019s data can\u2019t be undone.</p>'+
     '<div style="display:flex;gap:8px;flex-wrap:wrap">'+
-      '<button class="sp-btn small ghost" id="sp-csv"'+(totalPhotos?'':' disabled')+'>Export leads CSV</button>'+
+      '<button class="sp-btn small ghost" id="sp-csv"'+(totalPhotos?'':' disabled')+'>Export leads (Excel)</button>'+
       '<button class="sp-btn small ghost" id="sp-zip"'+(totalPhotos?'':' disabled')+'>Download all photos (ZIP)</button>'+
       '<button class="sp-btn small danger" id="sp-delall">Delete this event\u2019s data</button>'+
     '</div></div>';
@@ -1928,7 +2144,7 @@ async function renderAdmin(){
     const ico={hot:'&#128293;',warm:'&#127777;&#65039;',cold:'&#10052;&#65039;'};
     const sorted=repNotes.slice().sort((a,b)=>{const o={hot:0,warm:1,cold:2};return (o[a.priority]??3)-(o[b.priority]??3)||(b.tsClient||0)-(a.tsClient||0);});
     leadsHtml+='<div class="sp-card"><div class="sp-h2">&#128290; Booth rep notes ('+repNotes.length+')</div>'+
-      '<p class="sp-note" style="margin:0 0 10px">Captured by staff at the booth. &#128279; = linked to a visitor\u2019s photos. Export the CSV to see notes married with photo leads.</p>'+
+      '<p class="sp-note" style="margin:0 0 10px">Captured by staff at the booth. &#128279; = linked to a visitor\u2019s photos. Export the leads spreadsheet to see these notes combined with each person\u2019s photo activity.</p>'+
       sorted.map(n=>'<div class="sp-adminrow"><div style="display:flex;justify-content:space-between;gap:8px;align-items:flex-start"><span class="sp-who">'+esc(n.visitorName||n.visitorEmail||'(no name)')+(n.repPref?'<span class="sp-reptag">&#128100; '+esc(n.repPref)+'</span>':'')+'</span><span style="display:flex;align-items:center;gap:8px;flex-shrink:0"><span class="sp-count">'+(ico[n.priority]||'')+(n.quote?' &#128002;':'')+(n.linkedPid?' &#128279;':'')+'</span><button class="sp-del" data-delrepnote="'+n.id+'">Delete</button></span></div>'+
         (n.visitorCompany||n.visitorEmail?'<div class="sp-meta">'+[esc(n.visitorCompany||''),esc(n.visitorEmail||'')].filter(Boolean).join(' &middot; ')+'</div>':'')+
         (n.notes?'<div class="cap" style="margin-top:2px">'+esc(n.notes)+'</div>':'')+'</div>').join('')+
@@ -2055,10 +2271,16 @@ async function renderAdmin(){
   }
 
   if(renderAdmin.tab==='reports'){
-    document.getElementById('sp-csv').onclick=()=>{
-      const blob=new Blob([toCSV(subs,eventLabel(selEvent),repNotes)],{type:'text/csv'});
-      const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='brandabulls-live-leads-'+fsafe(eventLabel(selEvent))+'.csv';a.click();
-      URL.revokeObjectURL(a.href);
+    document.getElementById('sp-csv').onclick=async ()=>{
+      const btn=document.getElementById('sp-csv'); const orig=btn.textContent;
+      btn.disabled=true; btn.textContent='Building…';
+      try{
+        const f=await leadsFile(subs,eventLabel(selEvent),repNotes);
+        const blob=new Blob([f.data],{type:f.mime});
+        const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=f.name;a.click();
+        URL.revokeObjectURL(a.href);
+        if(f.fallback) bamAlert('The Excel tool couldn\u2019t load (check your connection), so we saved a simple CSV instead. Try again with signal for the full Excel file.');
+      }finally{ btn.textContent=orig; btn.disabled=false; }
     };
     document.getElementById('sp-zip').onclick=async ()=>{
       const btn=document.getElementById('sp-zip');
@@ -2099,8 +2321,9 @@ async function renderAdmin(){
             zip.file(notesPath, txt);
           }
         }
-        // include the leads CSV inside the zip too
-        zip.file('brandabulls-live-leads-'+fsafe(eventLabel(selEvent))+'.csv', toCSV(subs,eventLabel(selEvent),repNotes));
+        // include the leads spreadsheet inside the zip too
+        const lf=await leadsFile(subs,eventLabel(selEvent),repNotes);
+        zip.file(lf.name, lf.data);
 
         btn.textContent='Zipping…';
         const blob=await zip.generateAsync({type:'blob'},(meta)=>{ btn.textContent='Zipping… '+Math.round(meta.percent)+'%'; });
