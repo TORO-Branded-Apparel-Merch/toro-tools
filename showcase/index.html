@@ -1631,6 +1631,7 @@ async function renderRecap(pid){
 
     // Opened from a leads report link (?me=...&quoted=1): show only what they asked
     // to have priced, with their project details, so a rep sees the request at a glance.
+    const startedQuoteOnly=quoteViewOnly;
     function paintQuoteView(){
       const qs=recs.filter(r=>r.quote);
       const reqs=groupQuoteRequests(recs);
@@ -1691,7 +1692,9 @@ async function renderRecap(pid){
         }
       }
 
-      let html=actingBannerHTML()+'<button class="sp-back" id="sp-recapback">&larr; '+(sameEvent?'Back to tables':'See what\u2019s on the floor today')+'</button>'+
+      let html=actingBannerHTML()+(startedQuoteOnly
+        ? '<button class="sp-back" id="sp-backquote">&larr; Back to quote request</button>'
+        : '<button class="sp-back" id="sp-recapback">&larr; '+(sameEvent?'Back to tables':'See what\u2019s on the floor today')+'</button>')+
         (crossEventNote||'')+
         '<div class="sp-pagehead"><div class="sp-pagehead-kicker">My photos</div>'+
           '<h2 class="sp-pagehead-title">'+esc(who.name)+'\u2019s photos</h2>'+
@@ -1781,6 +1784,8 @@ async function renderRecap(pid){
 
     function bindPhotoHandlers(){
       wireRecapBack();
+      const bq=document.getElementById('sp-backquote');
+      if(bq) bq.onclick=()=>{ quoteViewOnly=true; try{ history.replaceState(null,'','?me='+encodeURIComponent(pid)+'&quoted=1'); }catch(e){} paint(); window.scrollTo({top:0}); };
       wireActingBanner();
       wireLookbook(body, syncLookbookToSubs);
       body.querySelectorAll('[data-note]').forEach(b=>{
