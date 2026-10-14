@@ -324,7 +324,7 @@ const EMAILJS_CLIENT_TEMPLATE_ID = "template_pnkel9a";
 // Visitors who chose "No preference" (or a rep with a blank address below) go to
 // QUOTE_DEFAULT_EMAIL. For this to work, the EmailJS template's "To Email" field
 // must be {{to_email}} (see SETUP.md).
-const QUOTE_DEFAULT_EMAIL = "stephen@toromerch.com";
+const QUOTE_DEFAULT_EMAIL = "lexi@toromerch.com"; // temporary while testing; switch back to stephen@toromerch.com
 const REP_EMAILS = {
   Shannon: "shannon@toromerch.com",
   Stephen: "stephen@toromerch.com",
@@ -2520,12 +2520,19 @@ async function renderAdmin(){
     };
     document.getElementById('sp-testmail').onclick=async ()=>{
       const btn=document.getElementById('sp-testmail'); const orig=btn.textContent;
+      // Test emails go only to the address typed here, never to a rep or a real visitor.
+      let last=''; try{ last=localStorage.getItem('sp-test-email')||''; }catch(e){}
+      const addr=((await bamPrompt('Send the test emails to which address?','email',last))||'').trim();
+      if(!addr) return;
+      if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(addr)){ await bamAlert('That email doesn\u2019t look right. Try again.'); return; }
+      try{ localStorage.setItem('sp-test-email',addr); }catch(e){}
       btn.disabled=true; btn.textContent='Sending\u2026';
       try{
-        const sample=[{vendorId:'',vendorName:'Test table',note:'Sample note from the test button',name:'Test Visitor',company:'Test Company',email:QUOTE_DEFAULT_EMAIL,attendeeId:'',repPref:'',inHandsDate:'',tsClient:Date.now()}];
+        const sample=[{vendorId:'',vendorName:'Test table',note:'Sample note from the test button',name:'Test Visitor',company:'Test Company',email:addr,attendeeId:'',repPref:'',inHandsDate:'',tsClient:Date.now()}];
         const {repParams,clientParams}=buildQuoteEmails(sample,'Sample project details');
+        repParams.to_email=addr; repParams.rep_requested='TEST (no rep)';
         await postQuoteEmail(repParams,EMAILJS_TEMPLATE_ID);
-        let msg='Team email sent to '+QUOTE_DEFAULT_EMAIL+'.';
+        let msg='Team email sent to '+addr+'.';
         if(clientParams){ await postQuoteEmail(clientParams,EMAILJS_CLIENT_TEMPLATE_ID); msg+=' Visitor copy sent there too.'; }
         else msg+=' The visitor copy is off (no client template ID in the app).';
         await bamAlert(msg+' Give it a minute, then check the inbox and spam. If nothing shows up, open Email History in EmailJS.');
