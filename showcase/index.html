@@ -348,6 +348,7 @@ const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 
 let mode='attendee', vendors=[], attendee=null, currentVendor=null, pendingFiles=[], adminUnlocked=false, pendingBooth=false, actingAsRep=false;
+const APP_BUILD='2026.10.13-d';
 let recapFromVendorId=null, autoOpenQuote=false, quoteViewOnly=false;
 const body=document.getElementById('sp-body'), modeBtn=document.getElementById('sp-modebtn'), quoteBtn=document.getElementById('sp-quotebtn'), sub=document.getElementById('sp-sub');
 // The Request a Quote tab only makes sense once someone is a signed-in attendee
@@ -1632,6 +1633,7 @@ async function renderRecap(pid){
     // Opened from a leads report link (?me=...&quoted=1): show only what they asked
     // to have priced, with their project details, so a rep sees the request at a glance.
     const startedQuoteOnly=quoteViewOnly;
+    let quoteFromPhotos=false, justSentQuote=false;
     function paintQuoteView(){
       const qs=recs.filter(r=>r.quote);
       const reqs=groupQuoteRequests(recs);
@@ -1664,9 +1666,9 @@ async function renderRecap(pid){
             '</div></div>';
         });
       }
-      h+='<button class="sp-btn ghost block" id="sp-seeall">See all of their photos</button>';
+      h+='<button class="sp-btn ghost block" id="sp-seeall">'+(quoteFromPhotos?'Back to my photos':'See all of their photos')+'</button>';
       body.innerHTML=h;
-      document.getElementById('sp-seeall').onclick=()=>{ quoteViewOnly=false; try{ history.replaceState(null,'','?me='+encodeURIComponent(pid)); }catch(e){} paint(); window.scrollTo({top:0}); };
+      document.getElementById('sp-seeall').onclick=()=>{ quoteViewOnly=false; quoteFromPhotos=false; try{ history.replaceState(null,'','?me='+encodeURIComponent(pid)); }catch(e){} paint(); window.scrollTo({top:0}); };
       bindPhotoHandlers();
     }
 
@@ -1695,6 +1697,7 @@ async function renderRecap(pid){
       let html=actingBannerHTML()+(startedQuoteOnly
         ? '<button class="sp-back" id="sp-backquote">&larr; Back to quote request</button>'
         : '<button class="sp-back" id="sp-recapback">&larr; '+(sameEvent?'Back to tables':'See what\u2019s on the floor today')+'</button>')+
+        (justSentQuote?'<div class="sp-card sp-card-primary"><div class="sp-h2">Your quote request is in</div><p class="sp-note" style="margin:0 0 12px">Your Branding Specialist will follow up. We also sent a copy to your email.</p><button class="sp-btn block" id="sp-viewquotes2" type="button">View my quote request</button></div>':'')+
         (crossEventNote||'')+
         '<div class="sp-pagehead"><div class="sp-pagehead-kicker">My photos</div>'+
           '<h2 class="sp-pagehead-title">'+esc(who.name)+'\u2019s photos</h2>'+
@@ -1704,6 +1707,7 @@ async function renderRecap(pid){
               : scope.length+' photo'+(scope.length===1?'':'s')+' \u00b7 '+favs.length+' favorite'+(favs.length===1?'':'s')+(scope.some(r=>r.quote)?' \u00b7 '+scope.filter(r=>r.quote).length+' in a quote':''))+
           '</div>'+
           '<div class="sp-pagehead-tip">Bookmark this page to come back anytime. TORO will follow up after the show.</div>'+
+          (recs.some(r=>r.quote)?'<button class="sp-linkbtn" id="sp-viewquotes" type="button" style="margin-top:10px">View my quote '+(groupQuoteRequests(recs).length>1?'requests':'request')+'</button>':'')+
           switcherHtml+
         '</div>'+
         '<div class="sp-card">'+lookbookRowHTML('sp-lb-photos')+'</div>';
@@ -1712,6 +1716,7 @@ async function renderRecap(pid){
         html+='<div class="sp-note" style="margin:-4px 2px 10px">Showing '+scope.length+' photo'+(scope.length===1?'':'s')+' from '+esc(eventName(viewEid))+(viewEid===activeEventId?' - today\u2019s show':' - a past show, now closed')+'.</div>';
       }
 
+      justSentQuote=false;
       let quoteCardHtml='';
       if(canQuote && scope.length){
         const unrequested=scope.some(r=>!r.quote);
@@ -1772,6 +1777,7 @@ async function renderRecap(pid){
         : '<div class="sp-empty" style="padding:6px 0">Every photo you\u2019ve taken is a favorite. Nicely done.</div>';
       html+='</div>';
 
+      html+='<div style="text-align:center;font-size:11px;color:var(--mut);opacity:.7;margin:18px 0 6px">App version '+APP_BUILD+'</div>';
       body.innerHTML=html;
       body.querySelectorAll('[data-ev]').forEach(b=>{
         b.onclick=()=>{ viewEid=b.dataset.ev; paint(); window.scrollTo({top:0,behavior:'smooth'}); };
@@ -1784,6 +1790,7 @@ async function renderRecap(pid){
 
     function bindPhotoHandlers(){
       wireRecapBack();
+      ['sp-viewquotes','sp-viewquotes2'].forEach(id=>{ const el=document.getElementById(id); if(el) el.onclick=()=>{ quoteViewOnly=true; quoteFromPhotos=true; try{ history.replaceState(null,'','?me='+encodeURIComponent(pid)+'&quoted=1'); }catch(e){} paint(); window.scrollTo({top:0}); }; });
       const bq=document.getElementById('sp-backquote');
       if(bq) bq.onclick=()=>{ quoteViewOnly=true; try{ history.replaceState(null,'','?me='+encodeURIComponent(pid)+'&quoted=1'); }catch(e){} paint(); window.scrollTo({top:0}); };
       wireActingBanner();
@@ -1971,6 +1978,7 @@ async function renderRecap(pid){
           }
           touchPresence(true);
           notifyQuote(chosen,projectNote);
+          justSentQuote=true;
           paint();
           window.scrollTo({top:0,behavior:'smooth'});
         }catch(e){
