@@ -1632,30 +1632,36 @@ async function renderRecap(pid){
     // Opened from a leads report link (?me=...&quoted=1): show only what they asked
     // to have priced, with their project details, so a rep sees the request at a glance.
     function paintQuoteView(){
-      const qs=recs.filter(r=>r.quote).sort((a,b)=>(a.tsClient||0)-(b.tsClient||0));
-      const proj=[...new Set(qs.map(r=>String(r.quoteNote||'').trim()).filter(Boolean))];
-      const altQ=[...new Set(qs.map(r=>String(r.quoteEmail||'').trim()).filter(Boolean))].join(', ');
-      const bits=[who.company, who.email, altQ?('Also send quote to '+altQ):'', who.repPref?('Wants to work with '+who.repPref):''].filter(Boolean).map(esc).join(' \u00b7 ');
+      const qs=recs.filter(r=>r.quote);
+      const reqs=groupQuoteRequests(recs);
+      const bits=[who.company, who.email, who.repPref?('Wants to work with '+who.repPref):''].filter(Boolean).map(esc).join(' \u00b7 ');
       let h=actingBannerHTML()+
-        '<div class="sp-pagehead"><div class="sp-pagehead-kicker">Quote request</div>'+
+        '<div class="sp-pagehead"><div class="sp-pagehead-kicker">Quote '+(reqs.length>1?'requests':'request')+'</div>'+
           '<h2 class="sp-pagehead-title">'+esc(who.name)+'</h2>'+
-          '<div class="sp-pagehead-stats">'+qs.length+' item'+(qs.length===1?'':'s')+' to price</div>'+
+          '<div class="sp-pagehead-stats">'+(reqs.length>1?(reqs.length+' separate requests \u00b7 '):'')+qs.length+' item'+(qs.length===1?'':'s')+' to price</div>'+
           (bits?'<div class="sp-pagehead-tip">'+bits+'</div>':'')+
         '</div>';
-      if(!qs.length){
+      if(!reqs.length){
         h+='<div class="sp-card"><div class="sp-empty" style="padding:6px 0">No quote has been requested yet.</div></div>';
       }else{
-        const dates=[...new Set(qs.map(r=>r.inHandsDate).filter(Boolean))].sort();
-        h+='<div class="sp-card"><div class="sp-h2">Project details</div>'+
-          '<p style="margin:0 0 10px;font-size:15px;font-weight:700">In-hands date: '+(dates.length?esc(dates.map(fmtYMD).join(', '))+(isUrgentDate(dates[0])?' <span class="sp-quotetag" style="position:static;display:inline-block;margin-left:6px">URGENT, '+esc(daysLabel(dates[0]))+'</span>':''):'<span style="font-weight:600;color:var(--mut)">no firm date</span>')+'</p>'+
-          (proj.length?proj.map(t=>'<p style="margin:0 0 8px;font-size:15px;line-height:1.5;white-space:pre-wrap">'+esc(t)+'</p>').join(''):'<div class="sp-empty" style="padding:6px 0">No details added.</div>')+
-          '</div>'+
-          '<div class="sp-card"><div class="sp-h2">Photos to price</div><div class="sp-thumbs">'+
-          qs.map(r=>{ const v=vById[r.vendorId];
-            return '<div class="sp-thumb"><img src="'+r.thumb+'" alt="Photo to price" loading="lazy" data-pid="'+esc(r.photoId||'')+'" data-code="'+esc(v?v.code:'')+'" style="cursor:zoom-in">'+
-              (v&&v.code?'<div class="cap" style="font-weight:700;color:var(--ink)">Table '+esc(v.code)+'</div>':'')+
-              (r.note?'<div class="cap">'+esc(r.note)+'</div>':'')+'</div>'; }).join('')+
-          '</div></div>';
+        // One block per request, so each set of photos stays with its own details and date.
+        reqs.forEach((g,i)=>{
+          const urgent=g.date && isUrgentDate(g.date);
+          h+='<div class="sp-card sp-card-primary">'+
+            '<div class="sp-h2">Request '+(i+1)+(reqs.length>1?' of '+reqs.length:'')+
+              ' <span style="font-size:14px;font-weight:600;color:var(--mut);font-family:inherit">\u00b7 '+g.items.length+' item'+(g.items.length===1?'':'s')+'</span></div>'+
+            '<p style="margin:0 0 10px;font-size:15px;font-weight:700">In-hands date: '+
+              (g.date?esc(fmtYMD(g.date))+(urgent?' <span class="sp-quotetag" style="position:static;display:inline-block;margin-left:6px">URGENT, '+esc(daysLabel(g.date))+'</span>':''):'<span style="font-weight:600;color:var(--mut)">no firm date</span>')+'</p>'+
+            (g.altEmail?'<p style="margin:0 0 10px;font-size:14px"><b>Also send quote to:</b> '+esc(g.altEmail)+'</p>':'')+
+            '<div class="sp-label" style="margin:0 0 4px">Project details</div>'+
+            '<p style="margin:0 0 4px;font-size:15px;line-height:1.5;white-space:pre-wrap">'+(g.note?esc(g.note):'<span style="color:var(--mut)">No details added.</span>')+'</p>'+
+            '<div class="sp-thumbs">'+
+            g.items.map(r=>{ const v=vById[r.vendorId];
+              return '<div class="sp-thumb"><img src="'+r.thumb+'" alt="Photo to price" loading="lazy" data-pid="'+esc(r.photoId||'')+'" data-code="'+esc(v?v.code:'')+'" style="cursor:zoom-in">'+
+                (v&&v.code?'<div class="cap" style="font-weight:700;color:var(--ink)">Table '+esc(v.code)+'</div>':'')+
+                (r.note?'<div class="cap">'+esc(r.note)+'</div>':'')+'</div>'; }).join('')+
+            '</div></div>';
+        });
       }
       h+='<button class="sp-btn ghost block" id="sp-seeall">See all of their photos</button>';
       body.innerHTML=h;
@@ -1935,7 +1941,7 @@ async function renderRecap(pid){
         const noteEl=document.getElementById('sp-quoterecap-note');
         const projectNote=(noteEl.value||'').trim().slice(0,500);
         if(projectNote.length<10){
-          await bamAlert('Tell us a little about your project so your Branding Specialist can quote it right. Quantities, sizes and colors all help.');
+          await bamAlert('Tell us a little more about your project so your Branding Specialist can quote it right. A few more words helps, like quantities, sizes and colors.');
           noteEl.focus();
           return;
         }
@@ -1988,6 +1994,22 @@ function fmtLocal(ms){
   if(!ms) return '';
   try{ return new Date(ms).toLocaleString('en-US',{timeZone:REPORT_TZ,month:'short',day:'numeric',hour:'numeric',minute:'2-digit'}); }
   catch(e){ return new Date(ms).toISOString(); }
+}
+// Splits a person's quoted photos into separate quote REQUESTS. Photos sent together share the
+// same project details, in-hands date and extra email, so those three values identify a request.
+function groupQuoteRequests(list){
+  const map=new Map();
+  list.filter(r=>r.quote).forEach(r=>{
+    const note=String(r.quoteNote||'').trim(), date=String(r.inHandsDate||'').trim(), alt=String(r.quoteEmail||'').trim();
+    const key=[note,date,alt.toLowerCase()].join('\u0001');
+    if(!map.has(key)) map.set(key,{note,date,altEmail:alt,items:[]});
+    map.get(key).items.push(r);
+  });
+  const groups=[...map.values()];
+  groups.forEach(g=>g.items.sort((a,b)=>(a.tsClient||0)-(b.tsClient||0)));
+  // Dated requests first (soonest on top), then by when the photos were taken
+  groups.sort((a,b)=>(a.date||'9999-99-99').localeCompare(b.date||'9999-99-99')||(a.items[0].tsClient||0)-(b.items[0].tsClient||0));
+  return groups;
 }
 // 'YYYY-MM-DD' (from a date input) -> 'Dec 1, 2026'
 function fmtYMD(ymd){
@@ -2100,7 +2122,7 @@ function buildLeads(subs,repNotes){
 
   const heatRank={Urgent:0,Hot:1,Warm:2,Browsing:3};
   const priRank={HOT:0,WARM:1,COLD:2};
-  const people=[];
+  const people=[]; const quoteRows=[];
   const finalize=p=>{
     const evs=[];
     p.subs.forEach(r=>evs.push({ts:r.tsClient||0,name:r.name,company:r.company,email:r.email,rep:r.repPref,look:r.lookbook}));
@@ -2113,10 +2135,13 @@ function buildLeads(subs,repNotes){
     const favs=p.subs.filter(r=>r.fav).length;
     const qItems=p.subs.filter(r=>r.quote).length;
     const boothQuote=p.booth.some(n=>n.quote);
-    const quote=qItems?('YES - '+qItems+' item'+(qItems===1?'':'s')+(boothQuote?' + booth':'')):(boothQuote?'YES - asked at booth':'');
+    const reqGroups=groupQuoteRequests(p.subs);
+    const quote=qItems?('YES - '+qItems+' item'+(qItems===1?'':'s')+(reqGroups.length>1?(' ('+reqGroups.length+' requests)'):'')+(boothQuote?' + booth':'')):(boothQuote?'YES - asked at booth':'');
     const inhandsAll=p.subs.filter(r=>r.quote&&r.inHandsDate).map(r=>r.inHandsDate).sort();
     const altEmails=[]; [...p.subs].reverse().forEach(r=>{ const q=String(r.quoteEmail||'').trim(); if(r.quote&&q&&!altEmails.some(x=>norm(x)===norm(q))) altEmails.push(q); });
-    const projects=[]; p.subs.forEach(r=>{ const q=String(r.quoteNote||'').trim(); if(q && !projects.includes(q)) projects.push(q); });
+    const projects=reqGroups.length>1
+      ? reqGroups.map((g,i)=>'Request '+(i+1)+(g.date?' (needed '+fmtYMD(g.date)+')':'')+': '+(g.note||'no details'))
+      : reqGroups.map(g=>g.note).filter(Boolean);
     const tableMap={}; p.subs.forEach(r=>{ tableMap[r.vendorId||vLabel(r)]={label:vLabel(r),code:vSort(r)}; });
     const tables=Object.values(tableMap).sort((a,b)=>String(a.code).localeCompare(String(b.code),undefined,{numeric:true})||a.label.localeCompare(b.label,undefined,{numeric:true})).map(x=>x.label);
     const photoNotes=p.subs.filter(r=>String(r.note||'').trim()).map(r=>vLabel(r)+': '+String(r.note).trim());
@@ -2131,11 +2156,24 @@ function buildLeads(subs,repNotes){
     else if(favs||photoNotes.length||boothNotes.length||boothPri==='WARM') heat='Warm';
     const flags=[];
     if(urgent) flags.push('URGENT: needed in hand by '+fmtYMD(earliest)+' ('+daysLabel(earliest)+')');
+    if(reqGroups.length>1) flags.push('Sent '+reqGroups.length+' separate quote requests, see the Quote requests tab');
     if(p.pids.size>1) flags.push('Signed in '+p.pids.size+' times (merged)');
     if(!latest('email')) flags.push('No email on file');
     if(reps.length>1) flags.push('Asked for more than one rep: '+reps.join(', '));
     p.matchFlags.forEach(f=>flags.push(f));
     const lastPid=[...p.subs].reverse().map(r=>r.attendeeId).find(Boolean);
+    const lastPidQ=[...p.subs].reverse().map(r=>r.attendeeId).find(Boolean);
+    reqGroups.forEach((g,i)=>{
+      const u=g.date && isUrgentDate(g.date);
+      quoteRows.push({
+        heat:u?'Urgent':'Hot', name:latest('name'), company:companies.join(' / '), email:latest('email'), rep,
+        quoteEmail:g.altEmail, inhands:g.date?(fmtYMD(g.date)+' ('+daysLabel(g.date)+')'):'No firm date',
+        items:g.items.length, tables:[...new Set(g.items.map(r=>vLabel(r)))].join(', '),
+        project:g.note, itemNotes:g.items.filter(r=>String(r.note||'').trim()).map(r=>vLabel(r)+': '+String(r.note).trim()).join('\n'),
+        label:(reqGroups.length>1?('Request '+(i+1)+' of '+reqGroups.length):'Request 1'),
+        qlink:lastPidQ?(location.origin+location.pathname+'?me='+lastPidQ+'&quoted=1'):'', _inh:g.date||'9999-99-99'
+      });
+    });
     people.push({
       heat, name:latest('name'), company:companies.join(' / '), email:latest('email'), rep,
       quote, quoteEmail:altEmails.join(', '), project:projects.join('\n'), favs, photos:p.subs.length, tables:tables.join(', '),
@@ -2160,14 +2198,15 @@ function buildLeads(subs,repNotes){
     name:r.name||'', company:r.company||'', email:r.email||'', rep:r.repPref||NO_PREF, table:vLabel(r),
     fav:r.fav?'YES':'', quote:r.quote?'YES':'', note:r.note||'', project:r.quoteNote||'', inhands:(r.quote&&r.inHandsDate)?(fmtYMD(r.inHandsDate)+' ('+daysLabel(r.inHandsDate)+')'):'', time:fmtLocal(r.tsClient), _ts:r.tsClient||0
   })).sort((a,b)=>String(a.name).localeCompare(String(b.name),undefined,{sensitivity:'base'})||a._ts-b._ts);
-  return {people,photoRows};
+  quoteRows.sort((a,b)=>(a.heat==='Urgent'?0:1)-(b.heat==='Urgent'?0:1)||String(a._inh).localeCompare(String(b._inh))||repRank(a.rep)-repRank(b.rep)||String(a.rep).localeCompare(String(b.rep))||String(a.name).localeCompare(String(b.name)));
+  return {people,photoRows,quoteRows};
 }
 function activeLeadCols(people){
   return LEAD_COLS.filter(c=>c.always || people.some(p=>String(p[c.k]||'').length>0));
 }
 async function buildLeadsWorkbook(subs,evName,repNotes){
   const ExcelJS=await loadExcelJS();
-  const {people,photoRows}=buildLeads(subs,repNotes);
+  const {people,photoRows,quoteRows}=buildLeads(subs,repNotes);
   const cols=activeLeadCols(people);
   const RED='FFBC112A';
   const wb=new ExcelJS.Workbook(); wb.creator='Brandabulls Live!'; wb.created=new Date();
@@ -2186,7 +2225,8 @@ async function buildLeadsWorkbook(subs,evName,repNotes){
     });
     ws.autoFilter={from:{row:1,column:1},to:{row:1,column:ws.columns.length}};
   };
-  const peopleSheet=(name,list)=>{
+  const peopleSheet=(name,list,colSpec)=>{
+    const cols=colSpec||activeLeadCols(people);
     const ws=wb.addWorksheet(tabName(name),{views:[{state:'frozen',xSplit:2,ySplit:1}]});
     ws.columns=cols.map(c=>({header:c.h,key:c.k,width:c.w}));
     list.forEach(p=>{
@@ -2208,6 +2248,16 @@ async function buildLeadsWorkbook(subs,evName,repNotes){
     return ws;
   };
   peopleSheet('All leads',people);
+  if(quoteRows.length){
+    // One row per quote request, so each request keeps its own date, details and items.
+    peopleSheet('Quote requests',quoteRows,[
+      {h:'Lead',k:'heat',w:11},{h:'Request',k:'label',w:15},{h:'Name',k:'name',w:22},{h:'Company/Department',k:'company',w:26},
+      {h:'Email',k:'email',w:30},{h:'Also send quote to',k:'quoteEmail',w:28},{h:'Requested rep',k:'rep',w:15},
+      {h:'In-hands date',k:'inhands',w:20},{h:'Items',k:'items',w:8,num:1},{h:'Tables',k:'tables',w:22},
+      {h:'Project details',k:'project',w:42,wrap:1},{h:'Item notes',k:'itemNotes',w:42,wrap:1},
+      {h:'Quote request',k:'qlink',w:19,link:1,linkText:'View quote request'}
+    ]);
+  }
   const repOrder=[]; people.forEach(p=>{ if(!repOrder.includes(p.rep)) repOrder.push(p.rep); });
   repOrder.forEach(rep=>peopleSheet(rep,people.filter(p=>p.rep===rep)));
 
