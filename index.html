@@ -317,11 +317,14 @@ const ORGANIZER_PASSCODE = "toro2026";
 const EMAILJS_PUBLIC_KEY = "KXcdoZGlBF-WMGCx-";
 const EMAILJS_SERVICE_ID = "Lexi"; // must match the Service ID shown in EmailJS exactly (case counts)
 const EMAILJS_TEMPLATE_ID = "template_dcxg9ec";
+// Optional second template that emails the visitor their own copy of the request.
+// Leave blank to skip the visitor copy. Paste the new template's ID here to turn it on.
+const EMAILJS_CLIENT_TEMPLATE_ID = "template_pnkel9a";
 // Quote routing: each quote email is addressed to the rep the visitor asked for.
 // Visitors who chose "No preference" (or a rep with a blank address below) go to
 // QUOTE_DEFAULT_EMAIL. For this to work, the EmailJS template's "To Email" field
 // must be {{to_email}} (see SETUP.md).
-const QUOTE_DEFAULT_EMAIL = "stephen@toromerch.com";
+const QUOTE_DEFAULT_EMAIL = "lexi@toromerch.com"; // temporary while testing; switch back to stephen@toromerch.com
 const REP_EMAILS = {
   Shannon: "shannon@toromerch.com",
   Stephen: "stephen@toromerch.com",
@@ -674,7 +677,7 @@ async function processQueueItem(it){
       linkedPid:it.linkedPid||'', ts:serverTimestamp(), tsClient:it.tsClient
     });
   } else if(kind==='email'){
-    try{ await postQuoteEmail(it.params); }
+    try{ await postQuoteEmail(it.params,it.templateId); }
     catch(e){ if(e.retry) throw e; console.error('Dropping quote email that can\u2019t be sent:',e); }
   } else if(kind==='update'){
     // deferred field update on an existing submission (quote / fav / lookbook / quoteNote / note)
@@ -761,12 +764,12 @@ async function submitPhoto(full,thumb,note,quote){
 // Posts one quote email through EmailJS. Returns normally on success, throws
 // {retry:true} for problems worth retrying later (no signal, server hiccup) and
 // {retry:false} for problems that will never fix themselves (bad template, etc).
-async function postQuoteEmail(params){
+async function postQuoteEmail(params,templateId){
   let res;
   try{
     res=await fetch('https://api.emailjs.com/api/v1.0/email/send',{
       method:'POST', headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({service_id:EMAILJS_SERVICE_ID, template_id:EMAILJS_TEMPLATE_ID, user_id:EMAILJS_PUBLIC_KEY, template_params:params})
+      body:JSON.stringify({service_id:EMAILJS_SERVICE_ID, template_id:templateId||EMAILJS_TEMPLATE_ID, user_id:EMAILJS_PUBLIC_KEY, template_params:params})
     });
   }catch(e){ const err=new Error('Network error'); err.retry=true; throw err; }
   if(res.ok) return;
@@ -775,50 +778,100 @@ async function postQuoteEmail(params){
   err.retry=(res.status>=500||res.status===429);
   throw err;
 }
-async function notifyQuote(items,projectNote){
-  if(!EMAILJS_PUBLIC_KEY||!EMAILJS_SERVICE_ID||!EMAILJS_TEMPLATE_ID) return; // notifications not configured
-  if(!items||!items.length) return;
+// Builds both emails for a quote request: the internal one for the rep, and a
+// friendly copy for the visitor (table codes only, never vendor names).
+function buildQuoteEmails(items,projectNote){
   const first=items[0];
   const vendorNames=[...new Set(items.map(r=>r.vendorName).filter(Boolean))];
   const vendorSummary=vendorNames.length? vendorNames.join(', ') : 'the showcase floor';
   const noteText=(projectNote?'PROJECT DETAILS: '+projectNote+' | ':'')+items.map((r,i)=>'Item '+(i+1)+' ('+(r.vendorName||'table')+'): '+(r.note||'(no note)')).join(' | ');
-  // One line per photo, in table order, so the email reads as a list instead of a run-on.
   const codeOf=r=>{ const v=allVendors.find(x=>x.id===r.vendorId); return (v&&v.code)||''; };
   const sortedItems=[...items].sort((a,b)=>String(codeOf(a)).localeCompare(String(codeOf(b)),undefined,{numeric:true})||(a.tsClient||0)-(b.tsClient||0));
-  const itemsText=sortedItems.map((r,i)=>(i+1)+'. '+(r.vendorName||'table')+': '+(String(r.note||'').trim()||'no note')).join('\n');
-  const itemsHtml='<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="font-size:14px;color:#333333;">'+
+  const noteOf=r=>String(r.note||'').trim();
+  const listHtml=label=>'<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="font-size:14px;color:#333333;">'+
     sortedItems.map((r,i)=>'<tr><td width="28" valign="top" style="padding:8px 0;font-weight:bold;color:#BC112A;border-bottom:1px solid #eeeeee;">'+(i+1)+'.</td>'+
-      '<td style="padding:8px 0;border-bottom:1px solid #eeeeee;"><b>'+esc(r.vendorName||'table')+'</b><br><span style="color:#555555;">'+(String(r.note||'').trim()?esc(String(r.note).trim()):'No note')+'</span></td></tr>').join('')+
+      '<td style="padding:8px 0;border-bottom:1px solid #eeeeee;"><b>'+esc(label(r))+'</b><br><span style="color:#555555;">'+(noteOf(r)?esc(noteOf(r)):'No note')+'</span></td></tr>').join('')+
     '</table>';
+  const listText=label=>sortedItems.map((r,i)=>(i+1)+'. '+label(r)+': '+(noteOf(r)||'no note')).join('\n');
+  const internalLabel=r=>r.vendorName||'table';
+  const clientLabel=r=>{ const c=codeOf(r); return c?('Table '+c):'Photo'; };
   const repPref=first.repPref||(attendee&&attendee.repPref)||'';
   const toEmail=(repPref&&REP_EMAILS[repPref])||QUOTE_DEFAULT_EMAIL;
   const base=location.origin+location.pathname;
   const pid=first.attendeeId||(attendee&&attendee.pid)||'';
-  const params={
+  const firstDate=(items.find(r=>r.inHandsDate)||{}).inHandsDate||'';
+  const itemCount=items.length+' item'+(items.length===1?'':'s');
+  const clientEmail=String(first.email||(attendee&&attendee.email)||'').trim();
+  const altEmail=String((items.find(r=>r.quoteEmail)||{}).quoteEmail||'').trim();
+  const emailOk=e=>/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e);
+  const quoteLink=pid?(base+'?me='+pid+'&quoted=1'):'';
+  const recapLink=pid?(base+'?me='+pid):'';
+  const when=new Date().toLocaleString('en-US',{timeZone:REPORT_TZ});
+  const repParams={
     to_email:toEmail,
     rep_requested:repPref||'No preference',
     attendee_name:first.name||(attendee&&attendee.name)||'',
     attendee_company:first.company||(attendee&&attendee.company)||'(none given)',
-    attendee_email:first.email||(attendee&&attendee.email)||'(none given)',
+    attendee_email:clientEmail||'(none given)',
+    quote_email:altEmail||'Same as above',
     vendor_name:vendorSummary,
-    item_count:items.length+' item'+(items.length===1?'':'s')+' to price',
+    item_count:itemCount+' to price',
     project_details:projectNote||'None added',
-    items_html:itemsHtml,
-    items_text:itemsText,
-    note:items.length+' item'+(items.length===1?'':'s')+' selected. '+noteText,
-    quote_link:pid?(base+'?me='+pid+'&quoted=1'):'',
-    recap_link:pid?(base+'?me='+pid):'',
-    in_hands_date:(function(){ const d=(items.find(r=>r.inHandsDate)||{}).inHandsDate; return d?(fmtYMD(d)+(isUrgentDate(d)?' (URGENT, '+daysLabel(d)+')':'')):'No firm date'; })(),
-    urgent_tag:isUrgentDate((items.find(r=>r.inHandsDate)||{}).inHandsDate)?'URGENT: ':'',
-    time:new Date().toLocaleString('en-US',{timeZone:REPORT_TZ})
+    items_html:listHtml(internalLabel),
+    items_text:listText(internalLabel),
+    note:itemCount+' selected. '+noteText,
+    quote_link:quoteLink,
+    recap_link:recapLink,
+    in_hands_date:firstDate?(fmtYMD(firstDate)+(isUrgentDate(firstDate)?' (URGENT, '+daysLabel(firstDate)+')':'')):'No firm date',
+    urgent_tag:isUrgentDate(firstDate)?'URGENT: ':'',
+    time:when
   };
-  try{ await postQuoteEmail(params); }
-  catch(e){
-    console.error('Quote notification failed:',e);
-    if(e.retry){ // no signal or a server hiccup: keep it on the device and try again later
-      try{ await qAdd({qid:'m'+Date.now().toString(36)+Math.random().toString(36).slice(2,7), kind:'email', params, tsClient:Date.now()}); updateQueueBanner(); }catch(e2){}
+  let clientParams=null, clientAltParams=null;
+  if(EMAILJS_CLIENT_TEMPLATE_ID && emailOk(clientEmail)){
+    clientParams={
+      client_email:clientEmail,
+      client_name:first.name||(attendee&&attendee.name)||'there',
+      intro_line:'Thanks for stopping by the showcase.',
+      rep_name:repPref||'A TORO Branding Specialist',
+      rep_email:toEmail,
+      item_count:itemCount,
+      project_details:projectNote||'None added',
+      in_hands_date:firstDate?fmtYMD(firstDate):'Flexible, no firm date',
+      items_html:listHtml(clientLabel),
+      items_text:listText(clientLabel),
+      quote_link:quoteLink,
+      recap_link:recapLink,
+      time:when
+    };
+    // Second address (a coworker, purchasing, etc.) gets the same details, worded for someone else.
+    if(emailOk(altEmail)){
+      clientAltParams=Object.assign({},clientParams,{
+        client_email:altEmail,
+        client_name:'there',
+        intro_line:(first.name||'A visitor')+' asked us to send you a copy of their quote request from the Brandabulls Live! Showcase.'
+      });
     }
-  } // never block the attendee flow
+  }
+  return {repParams,clientParams,clientAltParams};
+}
+// Sends one email now; if there is no signal (or a server hiccup) keep it on the
+// device and retry later. Problems that will never fix themselves are only logged.
+async function sendOrQueueEmail(params,templateId){
+  try{ await postQuoteEmail(params,templateId); }
+  catch(e){
+    console.error('Quote email failed:',e);
+    if(e.retry){
+      try{ await qAdd({qid:'m'+Date.now().toString(36)+Math.random().toString(36).slice(2,7), kind:'email', params, templateId:templateId||'', tsClient:Date.now()}); updateQueueBanner(); }catch(e2){}
+    }
+  }
+}
+async function notifyQuote(items,projectNote){
+  if(!EMAILJS_PUBLIC_KEY||!EMAILJS_SERVICE_ID||!EMAILJS_TEMPLATE_ID) return; // notifications not configured
+  if(!items||!items.length) return;
+  const {repParams,clientParams,clientAltParams}=buildQuoteEmails(items,projectNote);
+  await sendOrQueueEmail(repParams,EMAILJS_TEMPLATE_ID);
+  if(clientParams) await sendOrQueueEmail(clientParams,EMAILJS_CLIENT_TEMPLATE_ID);
+  if(clientAltParams) await sendOrQueueEmail(clientAltParams,EMAILJS_CLIENT_TEMPLATE_ID); // never block the attendee flow
 }
 async function fetchFullPhoto(photoId){
   const d=await getDoc(doc(db,'photos',photoId));
@@ -1581,7 +1634,8 @@ async function renderRecap(pid){
     function paintQuoteView(){
       const qs=recs.filter(r=>r.quote).sort((a,b)=>(a.tsClient||0)-(b.tsClient||0));
       const proj=[...new Set(qs.map(r=>String(r.quoteNote||'').trim()).filter(Boolean))];
-      const bits=[who.company, who.email, who.repPref?('Wants to work with '+who.repPref):''].filter(Boolean).map(esc).join(' \u00b7 ');
+      const altQ=[...new Set(qs.map(r=>String(r.quoteEmail||'').trim()).filter(Boolean))].join(', ');
+      const bits=[who.company, who.email, altQ?('Also send quote to '+altQ):'', who.repPref?('Wants to work with '+who.repPref):''].filter(Boolean).map(esc).join(' \u00b7 ');
       let h=actingBannerHTML()+
         '<div class="sp-pagehead"><div class="sp-pagehead-kicker">Quote request</div>'+
           '<h2 class="sp-pagehead-title">'+esc(who.name)+'</h2>'+
@@ -1676,15 +1730,18 @@ async function renderRecap(pid){
                 '<div class="sp-thumbs" id="sp-quoterecap-browsegrid" style="display:none"></div>'+
               '</div>'+
               '<div id="sp-quoterecap-form" style="display:none;margin-top:14px">'+
-                (knownEmail
-                  ? '<p class="sp-note" style="margin:0 0 12px">We\u2019ll send your quote to <b>'+esc(knownEmail)+'</b>.</p>'
-                  : '<span class="sp-label">Your email (required, so we can respond)</span>'+
-                    '<input class="sp-input" type="email" id="sp-quoterecap-email" autocomplete="email" inputmode="email" maxlength="120" placeholder="you@yourschool.edu" style="margin-bottom:12px">')+
+                '<span class="sp-label">'+(knownEmail?'Confirm your email':'Your email (required)')+'</span>'+
+                '<input class="sp-input" type="email" id="sp-quoterecap-email" autocomplete="email" inputmode="email" maxlength="120" placeholder="you@yourschool.edu" value="'+esc(knownEmail)+'" style="margin-bottom:6px">'+
+                '<p class="sp-note" style="margin:0 0 14px">'+(knownEmail
+                  ? 'Your quote and request details go here. Is this the right email? Fix it here if it\u2019s not.'
+                  : 'We\u2019ll send your quote and request details here, so please double check it.')+'</p>'+
+                '<span class="sp-label">Send the quote somewhere else too? (optional)</span>'+
+                '<input class="sp-input" type="email" id="sp-quoterecap-email2" autocomplete="off" inputmode="email" maxlength="120" placeholder="Another email, like a coworker or purchasing" style="margin-bottom:14px">'+
                 '<label style="display:flex;align-items:center;gap:9px;font-size:14px;font-weight:600;color:var(--ink);cursor:pointer;margin-bottom:8px">'+
                   '<input type="checkbox" id="sp-quoterecap-firm" style="width:18px;height:18px;flex:none"><span>I have a firm in-hands date</span></label>'+
                 '<div id="sp-quoterecap-datebox" style="display:none;margin-bottom:12px"><span class="sp-label">Date you need it in hand (required)</span>'+
                   '<input class="sp-input" type="date" id="sp-quoterecap-date"></div>'+
-                '<span class="sp-label">Project details (optional)</span>'+
+                '<span class="sp-label">Project details (required)</span>'+
                 '<textarea class="sp-input" id="sp-quoterecap-note" rows="3" maxlength="500" placeholder="Anything that helps us quote it right: quantities, sizes, colors, logo placement, budget\u2026" style="resize:vertical;font-family:inherit"></textarea>'+
                 '<button class="sp-btn block" id="sp-quoterecap-send" style="margin-top:12px" disabled>Request quote</button>'+
               '</div>'+
@@ -1848,17 +1905,24 @@ async function renderRecap(pid){
       sendBtn.onclick=async ()=>{
         if(!selected.size) return;
         // We can't answer a quote without a way to reach them, so email is required here.
-        let emailVal=knownEmail;
-        if(!emailVal){
-          const emailEl=document.getElementById('sp-quoterecap-email');
-          const v=(emailEl&&emailEl.value||'').trim();
-          if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v)){
-            await bamAlert('Add your email so we can respond to your quote request.');
-            if(emailEl) emailEl.focus();
-            return;
-          }
-          emailVal=v.slice(0,120);
+        // They confirm (or change) the email every time, so the quote lands where they want it.
+        const emailEl=document.getElementById('sp-quoterecap-email');
+        const typedEmail=(emailEl&&emailEl.value||'').trim();
+        if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(typedEmail)){
+          await bamAlert('Add a valid email so we can respond to your quote request.');
+          if(emailEl) emailEl.focus();
+          return;
         }
+        const emailVal=typedEmail.slice(0,120);
+        // Optional second address that also receives the quote. The first stays their contact email.
+        const email2El=document.getElementById('sp-quoterecap-email2');
+        let quoteEmail=((email2El&&email2El.value)||'').trim().slice(0,120);
+        if(quoteEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(quoteEmail)){
+          await bamAlert('That second email doesn\u2019t look right. Fix it, or clear the box if you only want the quote sent to your own email.');
+          if(email2El) email2El.focus();
+          return;
+        }
+        if(quoteEmail.toLowerCase()===emailVal.toLowerCase()) quoteEmail='';
         let inHands='';
         if(firmEl&&firmEl.checked){
           inHands=(dateEl&&dateEl.value)||'';
@@ -1868,14 +1932,19 @@ async function renderRecap(pid){
             return;
           }
         }
+        const noteEl=document.getElementById('sp-quoterecap-note');
+        const projectNote=(noteEl.value||'').trim().slice(0,500);
+        if(projectNote.length<10){
+          await bamAlert('Tell us a little about your project so your Branding Specialist can quote it right. Quantities, sizes and colors all help.');
+          noteEl.focus();
+          return;
+        }
         sendBtn.disabled=true; sendBtn.textContent='Sending\u2026';
         const chosen=scope.filter(r=>selected.has(r.id));
-        const projectNote=(document.getElementById('sp-quoterecap-note').value||'').trim().slice(0,500);
         try{
-          // First time we have their email: save it on every photo so the report shows it.
-          if(emailVal!==knownEmail){
+          // New or changed email: save it on every photo so the report and emails use it.
+          if(emailVal.toLowerCase()!==knownEmail.toLowerCase()){
             for(const r of recs){
-              if(String(r.email||'').trim()) continue;
               try{ await updateDoc(doc(db,'submissions',r.id),{email:emailVal}); }
               catch(err){ await queueUpdate(r.id,{email:emailVal}); }
               r.email=emailVal;
@@ -1884,10 +1953,10 @@ async function renderRecap(pid){
             if(attendee&&attendee.pid===pid){ attendee.email=emailVal; saveAttendee(); }
           }
           for(const r of chosen){
-            const f={quote:true,quoteNote:projectNote,inHandsDate:inHands};
+            const f={quote:true,quoteNote:projectNote,inHandsDate:inHands,quoteEmail:quoteEmail};
             try{ await updateDoc(doc(db,'submissions',r.id),f); }
             catch(err){ await queueUpdate(r.id,f); }
-            r.quote=true; r.quoteNote=projectNote; r.inHandsDate=inHands;
+            r.quote=true; r.quoteNote=projectNote; r.inHandsDate=inHands; r.quoteEmail=quoteEmail;
           }
           touchPresence(true);
           notifyQuote(chosen,projectNote);
@@ -1958,6 +2027,7 @@ const LEAD_COLS=[
   {h:'Company/Department',k:'company',w:26,always:1},
   {h:'Email',k:'email',w:30,always:1},
   {h:'Requested rep',k:'rep',w:15,always:1},
+  {h:'Also send quote to',k:'quoteEmail',w:28},
   {h:'Quote requested',k:'quote',w:17},
   {h:'Quote request',k:'qlink',w:19,link:1,linkText:'View quote request'},
   {h:'In-hands date',k:'inhands',w:20,always:1},
@@ -2045,6 +2115,7 @@ function buildLeads(subs,repNotes){
     const boothQuote=p.booth.some(n=>n.quote);
     const quote=qItems?('YES - '+qItems+' item'+(qItems===1?'':'s')+(boothQuote?' + booth':'')):(boothQuote?'YES - asked at booth':'');
     const inhandsAll=p.subs.filter(r=>r.quote&&r.inHandsDate).map(r=>r.inHandsDate).sort();
+    const altEmails=[]; [...p.subs].reverse().forEach(r=>{ const q=String(r.quoteEmail||'').trim(); if(r.quote&&q&&!altEmails.some(x=>norm(x)===norm(q))) altEmails.push(q); });
     const projects=[]; p.subs.forEach(r=>{ const q=String(r.quoteNote||'').trim(); if(q && !projects.includes(q)) projects.push(q); });
     const tableMap={}; p.subs.forEach(r=>{ tableMap[r.vendorId||vLabel(r)]={label:vLabel(r),code:vSort(r)}; });
     const tables=Object.values(tableMap).sort((a,b)=>String(a.code).localeCompare(String(b.code),undefined,{numeric:true})||a.label.localeCompare(b.label,undefined,{numeric:true})).map(x=>x.label);
@@ -2067,7 +2138,7 @@ function buildLeads(subs,repNotes){
     const lastPid=[...p.subs].reverse().map(r=>r.attendeeId).find(Boolean);
     people.push({
       heat, name:latest('name'), company:companies.join(' / '), email:latest('email'), rep,
-      quote, project:projects.join('\n'), favs, photos:p.subs.length, tables:tables.join(', '),
+      quote, quoteEmail:altEmails.join(', '), project:projects.join('\n'), favs, photos:p.subs.length, tables:tables.join(', '),
       photoNotes:photoNotes.join('\n'), booth:boothNotes.join('\n'), boothPri,
       lookbook:evs.some(e=>e.look)?'YES':'', flags:flags.join('\n'),
       link:lastPid?(location.origin+location.pathname+'?me='+lastPid):'',
@@ -2449,16 +2520,24 @@ async function renderAdmin(){
     };
     document.getElementById('sp-testmail').onclick=async ()=>{
       const btn=document.getElementById('sp-testmail'); const orig=btn.textContent;
+      // Test emails go only to the address typed here, never to a rep or a real visitor.
+      let last=''; try{ last=localStorage.getItem('sp-test-email')||''; }catch(e){}
+      const addr=((await bamPrompt('Send the test emails to which address?','email',last))||'').trim();
+      if(!addr) return;
+      if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(addr)){ await bamAlert('That email doesn\u2019t look right. Try again.'); return; }
+      try{ localStorage.setItem('sp-test-email',addr); }catch(e){}
       btn.disabled=true; btn.textContent='Sending\u2026';
       try{
-        await postQuoteEmail({
-          to_email:QUOTE_DEFAULT_EMAIL, rep_requested:'TEST', attendee_name:'Test Visitor', attendee_company:'Test Company',
-          attendee_email:'test@example.com', vendor_name:'Test table', note:'This is a test quote email sent from the Organizer view.',
-          quote_link:'', recap_link:'', time:new Date().toLocaleString('en-US',{timeZone:REPORT_TZ})
-        });
-        await bamAlert('Test email sent to '+QUOTE_DEFAULT_EMAIL+'. Give it a minute, then check the inbox and spam. If nothing shows up, open Email History in EmailJS.');
+        const sample=[{vendorId:'',vendorName:'Test table',note:'Sample note from the test button',name:'Test Visitor',company:'Test Company',email:addr,attendeeId:'',repPref:'',inHandsDate:'',tsClient:Date.now()}];
+        const {repParams,clientParams}=buildQuoteEmails(sample,'Sample project details');
+        repParams.to_email=addr; repParams.rep_requested='TEST (no rep)';
+        await postQuoteEmail(repParams,EMAILJS_TEMPLATE_ID);
+        let msg='Team email sent to '+addr+'.';
+        if(clientParams){ await postQuoteEmail(clientParams,EMAILJS_CLIENT_TEMPLATE_ID); msg+=' Visitor copy sent there too.'; }
+        else msg+=' The visitor copy is off (no client template ID in the app).';
+        await bamAlert(msg+' Give it a minute, then check the inbox and spam. If nothing shows up, open Email History in EmailJS.');
       }catch(e){
-        await bamAlert('The test email did not go through. '+e.message+' | Service ID in the app: '+EMAILJS_SERVICE_ID+' | Template ID in the app: '+EMAILJS_TEMPLATE_ID);
+        await bamAlert('The test email did not go through. '+e.message+' | Service ID in the app: '+EMAILJS_SERVICE_ID+' | Template ID in the app: '+EMAILJS_TEMPLATE_ID+(EMAILJS_CLIENT_TEMPLATE_ID?(' | Client template ID: '+EMAILJS_CLIENT_TEMPLATE_ID):''));
       }finally{ btn.textContent=orig; btn.disabled=false; }
     };
     document.getElementById('sp-zip').onclick=async ()=>{
