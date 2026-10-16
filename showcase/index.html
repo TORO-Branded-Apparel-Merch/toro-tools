@@ -258,6 +258,9 @@
   .sp-vpstat.ok{color:var(--ok);font-weight:700;}
   .sp-vpstat.err{color:#b3261e;font-weight:700;}
   .sp-vpguest{font-weight:700;font-size:15px;margin:18px 0 0;}
+  .sp-rvitem{font-size:13px;margin-top:6px;line-height:1.35;}
+  .sp-rvitem b{color:var(--ink);}
+  .sp-rvnone{font-size:12px;color:var(--mut);margin-top:6px;font-style:italic;}
   .sp-qr a{font-size:var(--fs-xs);color:var(--lanyard);}
 
   /* ---- booth mode: grouped sections instead of one long scroll ---- */
@@ -320,6 +323,10 @@ const firebaseConfig = {
 // Leave as "" to keep organizer view open (fine for a one-day event).
 const ORGANIZER_PASSCODE = "toro2026";
 
+// Passcode for the rep view of a vendor link (?rv=). Reps type it once per device.
+// It shows guest names with each photo and the vendor's item numbers, read only.
+const REP_PASSCODE = "toroteam";
+
 // Optional: instant email notifications when someone taps "Get me a quote".
 // Uses EmailJS (free tier, ~200 emails/month). See SETUP.md Part D to fill these in.
 // Leave blank to disable notifications; the quote flag still gets saved either way.
@@ -357,7 +364,7 @@ const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 
 let mode='attendee', vendors=[], attendee=null, currentVendor=null, pendingFiles=[], adminUnlocked=false, pendingBooth=false, actingAsRep=false;
-const APP_BUILD='2026.10.15-a';
+const APP_BUILD='2026.10.16-a';
 let recapFromVendorId=null, autoOpenQuote=false, quoteViewOnly=false;
 const body=document.getElementById('sp-body'), modeBtn=document.getElementById('sp-modebtn'), quoteBtn=document.getElementById('sp-quotebtn'), sub=document.getElementById('sp-sub');
 // The Request a Quote tab only makes sense once someone is a signed-in attendee
@@ -2398,7 +2405,8 @@ async function renderAdmin(){
     const url=base+'?vp='+p.key;
     return '<div class="sp-meta" style="margin-top:8px">Vendor review link: '+tagged+' of '+n+' photos have an item number</div>'+
       '<div class="sp-qr"><a href="'+url+'" target="_blank" rel="noopener">'+url+'</a></div>'+
-      '<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:6px"><button class="sp-del" '+btn+' data-vpcopy="'+p.key+'">Copy link</button>'+
+      '<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:6px"><button class="sp-del" '+btn+' data-vpcopy="'+p.key+'">Copy vendor link</button>'+
+      '<button class="sp-del" '+btn+' data-rvcopy="'+p.key+'">Copy rep link</button>'+
       '<button class="sp-del" '+btn+' data-vpupdate="'+p.key+'" data-vpvendor="'+v.id+'">Update photos</button>'+
       '<button class="sp-del" data-vpoff="'+p.key+'">Turn off link</button></div>';
   };
@@ -2444,7 +2452,7 @@ async function renderAdmin(){
   '<div class="sp-card"><div class="sp-h2">Vendor tables - '+esc(eventLabel(selEvent))+'</div>'+
     '<div class="sp-fieldgroup" style="display:flex;gap:8px"><input class="sp-input" id="sp-vname" placeholder="Add vendor, e.g. Maple &amp; Co. Furniture" style="flex:1"><button class="sp-btn small" id="sp-vadd">Add</button></div>'+
     '<p class="sp-note" style="margin-top:0">Each vendor has its own link below. Turn each into a QR code for its table. Scanning takes attendees straight to that vendor\u2019s upload page.</p>'+
-    '<p class="sp-note" style="margin-top:0">After the show, create a vendor review link and send it to that vendor. It shows only their table\u2019s photos (no guest names, emails or notes) and lets them add an item number and a short note under each photo. Press "Update photos" if photos change after the link is created.</p>'+
+    '<p class="sp-note" style="margin-top:0">After the show, create a vendor review link and send it to that vendor. It shows only their table\u2019s photos (no guest names, emails or notes) and lets them add an item number and a short note under each photo. Press "Update photos" if photos change after the link is created. The rep link shows the same photos with guest names and the vendor\u2019s item numbers, read only, behind the rep passcode.</p>'+
     (vendors.length?vendors.map(v=>'<div class="sp-adminrow"><div style="display:flex;justify-content:space-between;align-items:center;gap:8px"><span class="sp-who">'+esc(v.name)+'</span><span style="display:flex;gap:6px;flex-shrink:0"><button class="sp-del" data-renamevendor="'+v.id+'" style="color:var(--ink);border-color:var(--line)">Rename</button><button class="sp-del" data-delvendor="'+v.id+'">Delete table</button></span></div><div class="sp-meta">Code '+esc(v.code)+'</div><div class="sp-qr"><a href="'+base+'?vendor='+v.id+'">'+base+'?vendor='+v.id+'</a></div>'+portalHtml(v)+'</div>').join(''):'<div class="sp-empty">No vendors yet.</div>')+
   '</div>';
 
@@ -2614,7 +2622,12 @@ async function renderAdmin(){
     });
     body.querySelectorAll('[data-vpcopy]').forEach(b=>b.onclick=async ()=>{
       const url=base+'?vp='+b.dataset.vpcopy;
-      try{ await navigator.clipboard.writeText(url); b.textContent='Copied!'; setTimeout(()=>{ b.textContent='Copy link'; },1500); }
+      try{ await navigator.clipboard.writeText(url); b.textContent='Copied!'; setTimeout(()=>{ b.textContent='Copy vendor link'; },1500); }
+      catch(e){ await bamPrompt('Copy this link:','text',url); }
+    });
+    body.querySelectorAll('[data-rvcopy]').forEach(b=>b.onclick=async ()=>{
+      const url=base+'?rv='+b.dataset.rvcopy;
+      try{ await navigator.clipboard.writeText(url); b.textContent='Copied!'; setTimeout(()=>{ b.textContent='Copy rep link'; },1500); }
       catch(e){ await bamPrompt('Copy this link:','text',url); }
     });
     body.querySelectorAll('[data-vpupdate]').forEach(b=>b.onclick=async ()=>{
@@ -2887,6 +2900,64 @@ async function renderVendorPortal(key){
   });
 }
 
+// ---------- REP VIEW (?rv=key) ----------
+// Read-only partner to a vendor link for TORO reps: same table, but grouped by
+// guest name with the vendor's item numbers and notes. Behind REP_PASSCODE.
+async function renderRepView(key){
+  mode='vendor';
+  sub.textContent='Rep view: vendor item numbers';
+  let ok=false;
+  try{ ok=localStorage.getItem('sp-rep-unlocked')==='1' || localStorage.getItem('sp-admin-unlocked')==='1'; }catch(e){}
+  if(!ok && REP_PASSCODE){
+    const pass=await bamPrompt('Rep passcode:','password');
+    if(pass!==REP_PASSCODE){ body.innerHTML='<div class="sp-card"><div class="sp-h2">Passcode needed</div><p class="sp-note" style="margin:0">This page is for the TORO team. Reload to try the passcode again.</p></div>'; return; }
+    try{ localStorage.setItem('sp-rep-unlocked','1'); }catch(e){}
+  }
+  body.innerHTML='<div class="sp-empty">Loading\u2026</div>';
+  let portal=null;
+  try{ const p=await getDoc(doc(db,'vendorportal',key)); portal=p.exists()?p.data():null; }catch(e){ portal=null; }
+  if(!portal){ body.innerHTML='<div class="sp-card"><div class="sp-h2">This link isn\u2019t active</div><p class="sp-note" style="margin:0">The vendor link may have been turned off in the Organizer view.</p></div>'; return; }
+  const [ss,is]=await Promise.all([
+    getDocs(query(collection(db,'submissions'),where('vendorId','==',portal.vendorId))),
+    getDocs(query(collection(db,'itemnums'),where('vendorId','==',portal.vendorId))).catch(()=>({docs:[]}))
+  ]);
+  const subs=ss.docs.map(d=>({id:d.id,...d.data()})).filter(r=>r.thumb);
+  const items={}; is.docs.forEach(d=>{ items[d.id]=d.data(); });
+  const people={}; const order=[];
+  subs.sort((a,b)=>String(a.name||'').localeCompare(String(b.name||''),undefined,{sensitivity:'base'})||(a.tsClient||0)-(b.tsClient||0));
+  subs.forEach(r=>{ const k=(r.name||'(no name)')+'|'+(r.company||''); if(!people[k]){ people[k]=[]; order.push(k); } people[k].push(r); });
+  const tagged=subs.filter(r=>items[r.id]&&String(items[r.id].item||'').trim()).length;
+  let html='<div class="sp-card sp-card-primary"><div class="sp-h2">'+esc(portal.vendorName)+(portal.vendorCode?' <span class="sp-count">'+esc(portal.vendorCode)+'</span>':'')+'</div>'+
+    '<p class="sp-note" style="margin:0 0 8px">Item numbers and notes from the vendor, grouped by guest. This page is read only. It updates as the vendor works, so reload to see their latest entries.</p>'+
+    '<div class="sp-badge" style="margin:8px 0 10px"><span>'+tagged+' of '+subs.length+' photos have an item number</span></div>'+
+    '<input class="sp-input" id="rv-search" placeholder="Search a guest or company" aria-label="Search a guest or company"></div>';
+  if(!subs.length) html+='<div class="sp-card"><div class="sp-empty">No photos for this table.</div></div>';
+  else{
+    html+='<div class="sp-card">';
+    order.forEach(k=>{
+      const rs=people[k];
+      html+='<div class="rv-person" data-q="'+esc((rs[0].name+' '+(rs[0].company||'')).toLowerCase())+'"><div class="sp-vpguest">'+esc(rs[0].name||'(no name)')+(rs[0].company?' <span class="sp-count">'+esc(rs[0].company)+'</span>':'')+'</div><div class="sp-vpgrid">'+
+        rs.map(r=>{ const it=items[r.id]||{};
+          return '<div class="sp-vpitem"><img src="'+r.thumb+'" alt="Photo from '+esc(r.name)+'" loading="lazy" data-full="'+esc(r.photoId||'')+'">'+
+            (it.item?'<div class="sp-rvitem"><b>Item #</b> '+esc(it.item)+'</div>':'<div class="sp-rvnone">No item number yet</div>')+
+            (it.note?'<div class="sp-rvitem"><b>Vendor note:</b> '+esc(it.note)+'</div>':'')+
+            (r.note?'<div class="sp-rvitem"><b>Guest note:</b> '+esc(r.note)+'</div>':'')+
+            (r.quote?'<span class="sp-quotetag">&#128002; QUOTE</span>':'')+'</div>';
+        }).join('')+'</div></div>';
+    });
+    html+='</div>';
+  }
+  body.innerHTML=html;
+  const search=document.getElementById('rv-search');
+  if(search) search.oninput=()=>{ const q=search.value.trim().toLowerCase(); body.querySelectorAll('.rv-person').forEach(el=>{ el.style.display=(!q||el.dataset.q.includes(q))?'':'none'; }); };
+  body.querySelectorAll('.sp-vpitem img[data-full]').forEach(im=>im.onclick=async ()=>{
+    const pid=im.dataset.full; if(!pid) return;
+    im.style.opacity='.5';
+    try{ const full=await fetchFullPhoto(pid); im.style.opacity=''; if(full) showPhotoOverlay(full); else bamAlert('Full photo not found.'); }
+    catch(e){ im.style.opacity=''; bamAlert('Could not load photo. Check your connection.'); }
+  });
+}
+
 // ---- boot ----
 modeBtn.onclick=()=>{
   if(mode==='booth'){ mode='attendee'; modeBtn.textContent='Organizer view'; boothVisitor=null; vendors=eventVendors(activeEventId); renderVendorPicker(); return; }
@@ -2898,6 +2969,8 @@ modeBtn.onclick=()=>{
   try{
     const vp=new URLSearchParams(location.search).get('vp');
     if(vp){ await renderVendorPortal(vp); return; }
+    const rv=new URLSearchParams(location.search).get('rv');
+    if(rv){ await renderRepView(rv); return; }
     await loadAll();
     const params=new URLSearchParams(location.search);
     const me=params.get('me');
