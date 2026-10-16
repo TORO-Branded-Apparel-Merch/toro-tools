@@ -258,7 +258,9 @@
   .sp-vpstat.ok{color:var(--ok);font-weight:700;}
   .sp-vpstat.err{color:#b3261e;font-weight:700;}
   .sp-vpguest{font-weight:700;font-size:15px;margin:18px 0 0;}
-  .sp-rvitem{font-size:13px;margin-top:6px;line-height:1.35;}
+  .sp-rvitem{font-size:13px;margin-top:6px;line-height:1.35;overflow-wrap:anywhere;word-break:break-word;}
+  .sp-rvitem a{color:var(--lanyard);font-weight:600;text-decoration:underline;}
+  .sp-vpitem{min-width:0;}
   .sp-rvitem b{color:var(--ink);}
   .sp-rvnone{font-size:12px;color:var(--mut);margin-top:6px;font-style:italic;}
   .sp-qr a{font-size:var(--fs-xs);color:var(--lanyard);}
@@ -364,7 +366,7 @@ const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 
 let mode='attendee', vendors=[], attendee=null, currentVendor=null, pendingFiles=[], adminUnlocked=false, pendingBooth=false, actingAsRep=false;
-const APP_BUILD='2026.10.16-a';
+const APP_BUILD='2026.10.16-b';
 let recapFromVendorId=null, autoOpenQuote=false, quoteViewOnly=false;
 const body=document.getElementById('sp-body'), modeBtn=document.getElementById('sp-modebtn'), quoteBtn=document.getElementById('sp-quotebtn'), sub=document.getElementById('sp-sub');
 // The Request a Quote tab only makes sense once someone is a signed-in attendee
@@ -2903,6 +2905,19 @@ async function renderVendorPortal(key){
 // ---------- REP VIEW (?rv=key) ----------
 // Read-only partner to a vendor link for TORO reps: same table, but grouped by
 // guest name with the vendor's item numbers and notes. Behind REP_PASSCODE.
+// Turns web addresses in vendor text into short, tappable links
+// (e.g. "picnicpromotions.com" instead of the whole address).
+function linkify(text){
+  const parts=String(text||'').split(/((?:https?:\/\/|www\.)[^\s<>"']+)/i);
+  return parts.map((p,i)=>{
+    if(i%2===0) return esc(p);
+    let url=p.replace(/[.,;:!?)]+$/,''); const tail=p.slice(url.length);
+    const href=/^https?:/i.test(url)?url:'https://'+url;
+    let label=url;
+    try{ const u=new URL(href); label=u.hostname.replace(/^www\./,'')+((u.pathname&&u.pathname!=='/')||u.search?'/\u2026':''); }catch(e){}
+    return '<a href="'+esc(href)+'" target="_blank" rel="noopener noreferrer">'+esc(label)+' &#8599;</a>'+esc(tail);
+  }).join('');
+}
 async function renderRepView(key){
   mode='vendor';
   sub.textContent='Rep view: vendor item numbers';
@@ -2939,8 +2954,8 @@ async function renderRepView(key){
       html+='<div class="rv-person" data-q="'+esc((rs[0].name+' '+(rs[0].company||'')).toLowerCase())+'"><div class="sp-vpguest">'+esc(rs[0].name||'(no name)')+(rs[0].company?' <span class="sp-count">'+esc(rs[0].company)+'</span>':'')+'</div><div class="sp-vpgrid">'+
         rs.map(r=>{ const it=items[r.id]||{};
           return '<div class="sp-vpitem"><img src="'+r.thumb+'" alt="Photo from '+esc(r.name)+'" loading="lazy" data-full="'+esc(r.photoId||'')+'">'+
-            (it.item?'<div class="sp-rvitem"><b>Item #</b> '+esc(it.item)+'</div>':'<div class="sp-rvnone">No item number yet</div>')+
-            (it.note?'<div class="sp-rvitem"><b>Vendor note:</b> '+esc(it.note)+'</div>':'')+
+            (it.item?'<div class="sp-rvitem"><b>Item #</b> '+linkify(it.item)+'</div>':'<div class="sp-rvnone">No item number yet</div>')+
+            (it.note?'<div class="sp-rvitem"><b>Vendor note:</b> '+linkify(it.note)+'</div>':'')+
             (r.note?'<div class="sp-rvitem"><b>Guest note:</b> '+esc(r.note)+'</div>':'')+
             (r.quote?'<span class="sp-quotetag">&#128002; QUOTE</span>':'')+'</div>';
         }).join('')+'</div></div>';
