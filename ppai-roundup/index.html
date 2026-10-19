@@ -1,0 +1,820 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>PPAI Roundup</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<meta name="theme-color" content="#BC112A">
+<style>
+/* Layout: phone-first app shell. Red gradient header, one column of cards, fixed bottom tab bar. */
+:root{
+  --red:#BC112A; --red-dk:#9e0f22; --red-lt:#fff0f2; --red-ink:#BC112A;
+  --grad:linear-gradient(160deg,#BC112A 0%,#E9553A 100%);
+  --bg:#F5F5F7; --card:#ffffff; --line:#E2E3E6; --ink:#1a1a1f; --muted:#5d5f66;
+  --chip:#efeff2; --ok:#1d7a46; --ok-bg:#e6f4ec; --warn:#BC112A; --warn-bg:#fff0f2;
+  --shadow:0 1px 2px rgba(26,26,31,.06),0 4px 14px rgba(26,26,31,.05);
+  --font:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  --mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#131316; --card:#1d1d22; --line:#33343b; --ink:#f2f2f4; --muted:#a4a6ae;
+  --chip:#2a2a31; --red-lt:#3a131b; --red-ink:#ff7486; --ok:#62d394; --ok-bg:#15301f; --warn:#ff8796; --warn-bg:#3a131b;
+  --shadow:none; color-scheme:dark }}
+:root[data-theme="dark"]{
+  --bg:#131316; --card:#1d1d22; --line:#33343b; --ink:#f2f2f4; --muted:#a4a6ae;
+  --chip:#2a2a31; --red-lt:#3a131b; --red-ink:#ff7486; --ok:#62d394; --ok-bg:#15301f; --warn:#ff8796; --warn-bg:#3a131b;
+  --shadow:none; color-scheme:dark }
+*{box-sizing:border-box}
+html,body{margin:0}
+body{background:var(--bg);color:var(--ink);font:15px/1.45 var(--font);-webkit-font-smoothing:antialiased}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:30;background:var(--red)}
+button,input,select,textarea{font:inherit;color:inherit}
+button{cursor:pointer}
+:focus-visible{outline:2px solid var(--red-ink);outline-offset:2px}
+.gutter{padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+.wrap{max-width:680px;margin:0 auto}
+
+/* Header */
+.top{position:sticky;top:env(safe-area-inset-top,0px);z-index:20;background:var(--grad);color:#fff}
+.top .wrap{display:flex;align-items:center;gap:12px;padding-block:12px}
+.chip-logo{background:#fff;color:var(--red);font-weight:800;letter-spacing:.06em;border-radius:10px;padding:6px 9px;font-size:13px;line-height:1}
+.top h1{font-size:17px;margin:0;line-height:1.15;text-wrap:balance}
+.top .sub{font-size:12px;opacity:.88}
+.top .who{margin-left:auto;background:rgba(255,255,255,.18);border:0;color:#fff;border-radius:999px;padding:6px 11px;font-size:13px;font-weight:600}
+.banner{background:var(--red-lt);color:var(--red-ink);font-size:13px;border-bottom:1px solid var(--line)}
+.banner .wrap{padding-block:8px}
+
+main{padding-block:16px 120px}
+main.ask{padding-block:16px 48px}
+.stack{display:flex;flex-direction:column;gap:14px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px;box-shadow:var(--shadow);min-width:0}
+h2{font-size:20px;margin:0;text-wrap:balance}
+h3{font-size:15px;margin:0}
+.muted{color:var(--muted)}
+.small{font-size:13px}
+.eyebrow{font-size:11.5px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);font-weight:700}
+.row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.between{justify-content:space-between}
+.grow{flex:1;min-width:0}
+
+/* Forms */
+label.f{display:flex;flex-direction:column;gap:6px;font-size:13px;font-weight:600;color:var(--muted)}
+label.f > span b{color:var(--red-ink)}
+input[type=text],input[type=email],input[type=password],input[type=date],input[type=search],select,textarea{
+  width:100%;background:var(--card);border:1px solid var(--line);border-radius:10px;padding:11px 12px;font-size:16px;font-weight:400;color:var(--ink)}
+textarea{min-height:76px;resize:vertical}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.two.wide-left{grid-template-columns:2fr 1fr}
+@media (max-width:420px){.two{grid-template-columns:1fr}.two.wide-left{grid-template-columns:2fr 1fr}}
+
+.btn{border:0;border-radius:12px;padding:12px 16px;font-weight:700;background:var(--red);color:#fff}
+.btn:active{transform:translateY(1px)}
+.btn.block{width:100%}
+.btn.ghost{background:var(--chip);color:var(--ink)}
+.btn.line{background:transparent;border:1px solid var(--line);color:var(--ink)}
+.btn.sm{padding:8px 12px;font-size:13px;border-radius:10px}
+.btn.danger{background:var(--warn-bg);color:var(--warn)}
+.btn[disabled]{opacity:.55}
+
+.chips{display:flex;flex-wrap:wrap;gap:8px}
+.chip{border:1px solid var(--line);background:var(--card);border-radius:999px;padding:7px 12px;font-size:14px;line-height:1.2;color:var(--ink)}
+.chip.on{background:var(--red);border-color:var(--red);color:#fff}
+.chip .x{opacity:.7;margin-left:4px}
+.tag{display:inline-block;background:var(--chip);border-radius:6px;padding:2px 7px;font-size:12px;color:var(--muted);margin:2px 4px 0 0}
+.tag.t{background:var(--red-lt);color:var(--red-ink)}
+.pill{display:inline-flex;align-items:center;gap:5px;border-radius:999px;padding:3px 9px;font-size:12px;font-weight:700;white-space:nowrap}
+.pill.ok{background:var(--ok-bg);color:var(--ok)}
+.pill.no{background:var(--warn-bg);color:var(--warn)}
+.pill.rep{background:var(--chip);color:var(--muted)}
+.code{font-family:var(--mono);font-size:12px;letter-spacing:.02em}
+
+.seg{display:grid;grid-template-columns:1fr 1fr;background:var(--chip);border-radius:12px;padding:4px;gap:4px}
+.seg button{border:0;background:transparent;border-radius:9px;padding:9px;font-weight:700;color:var(--muted)}
+.seg button.on{background:var(--card);color:var(--ink);box-shadow:var(--shadow)}
+
+.photo-drop{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;border:2px dashed var(--line);border-radius:14px;min-height:150px;color:var(--muted);text-align:center;padding:16px;cursor:pointer}
+.photo-drop strong{color:var(--ink);font-size:16px}
+.photo-prev{position:relative}
+.photo-prev img{display:block;width:100%;max-height:340px;object-fit:cover;border-radius:12px}
+.photo-prev .acts{position:absolute;right:8px;bottom:8px;display:flex;gap:6px}
+.photo-prev .acts .btn{background:rgba(20,20,24,.72);color:#fff}
+.visually-hidden{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+
+.savebar{position:sticky;bottom:calc(76px + env(safe-area-inset-bottom,0px));z-index:5}
+
+/* Needs */
+.need-head{display:flex;gap:10px;align-items:flex-start;justify-content:space-between}
+.need dl{display:grid;grid-template-columns:auto 1fr;gap:4px 12px;margin:12px 0 0;font-size:14px}
+.need dt{color:var(--muted);font-size:12.5px;padding-top:1px}
+.need dd{margin:0;min-width:0}
+.thumbs{display:flex;gap:8px;overflow-x:auto;padding-top:10px}
+.thumbs img{width:76px;height:76px;object-fit:cover;border-radius:10px;flex:none;cursor:pointer}
+.sumbar{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+.sum{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:10px 12px}
+.sum b{display:block;font-size:22px;font-variant-numeric:tabular-nums;line-height:1.1}
+.sum span{font-size:12px;color:var(--muted)}
+
+/* Trends */
+.trend{cursor:pointer}
+.cbar{display:flex;gap:2px;height:26px;border-radius:7px;overflow:hidden;background:var(--card)}
+.cbar i{display:block;height:100%;min-width:3px;box-shadow:inset 0 0 0 1px rgba(128,128,140,.25);cursor:pointer}
+.crow{display:grid;grid-template-columns:16px 1fr auto;gap:10px;align-items:center;padding:7px 0;border-top:1px solid var(--line);cursor:pointer;font-size:14px}
+.crow .pct{font-variant-numeric:tabular-nums;font-weight:700}
+.sw{display:inline-block;width:14px;height:14px;border-radius:50%;box-shadow:0 0 0 1px var(--line);vertical-align:-2px;flex:none}
+.swrow{display:flex;gap:4px;margin-top:5px}
+.swrow .sw{width:12px;height:12px}
+.lead{font-size:15px;margin:0}
+.trend .bar{height:8px;border-radius:99px;background:var(--chip);overflow:hidden;margin-top:10px}
+.trend .bar i{display:block;height:100%;background:var(--grad);border-radius:99px}
+.trend .proof{font-size:13.5px;color:var(--muted);margin-top:6px}
+.trend .nums{display:flex;gap:14px;font-variant-numeric:tabular-nums;font-size:13px;color:var(--muted)}
+.trend .nums b{color:var(--ink);font-size:15px}
+.rank{font-variant-numeric:tabular-nums;font-weight:800;color:var(--red-ink);font-size:13px;min-width:22px}
+
+/* Finds */
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:12px}
+.find{padding:0;overflow:hidden;cursor:pointer;text-align:left;border:1px solid var(--line);background:var(--card);border-radius:14px}
+.find img,.find .noimg{display:block;width:100%;aspect-ratio:1/1;object-fit:cover;max-width:100%;background:var(--chip)}
+.find .noimg{display:flex;align-items:center;justify-content:center;color:var(--muted);font-size:13px}
+.find .b{padding:9px 10px 11px}
+.find .v{font-weight:700;font-size:14px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.star{color:#E9553A;font-weight:800}
+
+/* Sheet */
+.scrim{position:fixed;inset:0;background:rgba(10,10,14,.5);z-index:40;display:flex;align-items:flex-end;justify-content:center}
+.sheet{background:var(--bg);width:100%;max-width:680px;max-height:92vh;overflow:auto;border-radius:18px 18px 0 0;padding:16px max(16px,env(safe-area-inset-right,0px)) calc(20px + env(safe-area-inset-bottom,0px)) max(16px,env(safe-area-inset-left,0px))}
+.sheet img.big{width:100%;max-height:420px;object-fit:contain;border-radius:12px;background:var(--chip)}
+.kv{display:grid;grid-template-columns:auto 1fr;gap:6px 14px;font-size:14px}
+.kv dt{color:var(--muted)}
+.kv dd{margin:0;min-width:0;overflow-wrap:anywhere}
+
+/* Tab bar */
+.tabs{position:fixed;left:0;right:0;bottom:0;z-index:20;background:var(--card);border-top:1px solid var(--line);padding-bottom:env(safe-area-inset-bottom,0px)}
+.tabs .wrap{display:grid;grid-template-columns:repeat(5,1fr)}
+.tabs button{border:0;background:transparent;padding:9px 2px 10px;display:flex;flex-direction:column;align-items:center;gap:3px;font-size:11.5px;font-weight:600;color:var(--muted)}
+.tabs button svg{width:22px;height:22px}
+.tabs button.on{color:var(--red-ink)}
+.tabs button.snap .dot{background:var(--grad);color:#fff;border-radius:12px;width:44px;height:30px;display:flex;align-items:center;justify-content:center}
+.tabs button.snap .dot svg{width:20px;height:20px}
+
+.toast{position:fixed;left:50%;top:calc(76px + env(safe-area-inset-top,0px));transform:translateX(-50%);background:#1a1a1f;color:#fff;padding:10px 16px;border-radius:12px;font-size:14px;font-weight:600;z-index:60;max-width:calc(100% - 32px);box-shadow:0 6px 20px rgba(0,0,0,.25)}
+
+/* Gate + ask */
+.gate{max-width:420px;margin:7vh auto 0}
+.hero-ask{background:var(--grad);color:#fff;border-radius:16px;padding:20px}
+.hero-ask h2{font-size:23px;color:#fff}
+.hero-ask p{margin:8px 0 0;opacity:.95}
+.preview-bar{background:var(--ink);color:var(--bg);font-size:13px}
+.preview-bar .wrap{display:flex;align-items:center;gap:10px;padding-block:8px}
+.preview-bar button{margin-left:auto;background:var(--bg);color:var(--ink);border:0;border-radius:8px;padding:6px 10px;font-weight:700;font-size:13px}
+.linkbox{font-family:var(--mono);font-size:12.5px;background:var(--chip);border-radius:8px;padding:8px 10px;overflow-wrap:anywhere;user-select:all}
+.empty{text-align:center;padding:28px 16px;color:var(--muted)}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+</style>
+</head>
+<body>
+<div id="app"></div>
+<div id="toast" class="toast" hidden></div>
+<input type="file" id="fileIn" accept="image/*" capture="environment" class="visually-hidden" aria-label="Take a photo">
+<script>
+/* PPAI Roundup: TORO's PPAI Expo 2027 show app (fork of Brandabulls Live!) */
+const APP_VERSION = '2026.10.18-d';
+
+/* Paste the new Firebase project's web config here to go live. Leave null for demo mode. */
+const FIREBASE_CONFIG = null;
+
+const REPS = ['Shannon', 'Stephen', 'Julia', 'Lexi', 'Amy', 'Debbie'];
+const TEAM = ['Lexi', 'Stephen', 'Shannon'];
+const STARTER_TRENDS = ['Earth tones and muted color', 'Recycled and eco materials', 'Texture: corduroy, waffle, sherpa', 'Patches and embroidery over print', 'Outdoor and adventure gear', 'Wellness and self-care', 'Tech that charges', 'Elevated drinkware', 'Vintage and heritage look', 'Curated kits and bundles'];
+const CATEGORIES = ['Apparel', 'Headwear', 'Drinkware', 'Bags', 'Tech', 'Outdoor', 'Wellness', 'Office and desk', 'Home and kitchen', 'Awards', 'Kits and bundles', 'Event giveaways'];
+const BUDGETS = ['Under $5', '$5 to $15', '$15 to $30', '$30 to $60', '$60 and up', 'Not sure yet'];
+const QTYS = ['Under 50', '50 to 150', '150 to 500', '500 to 1,000', '1,000 and up', 'Not sure yet'];
+const VIBES = ['Eco-friendly', 'USA-made', 'Premium', 'Fun and playful', 'Classic', 'Outdoorsy', 'Techy'];
+const FB = 'https://cdn.jsdelivr.net/npm/firebase@10.12.2/';
+const LIBS = { xlsx: 'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js', zip: 'https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js' };
+
+const LS = {
+  get(k, d) { try { const v = localStorage.getItem(k); return v == null ? d : JSON.parse(v); } catch (e) { return d; } },
+  set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); return true; } catch (e) { return false; } },
+  del(k) { try { localStorage.removeItem(k); } catch (e) {} }
+};
+let QS; try { QS = new URLSearchParams(location.search); } catch (e) { QS = new URLSearchParams(''); }
+const ASK_REP = QS.get('ask');
+
+const S = {
+  needs: [], finds: [], trends: STARTER_TRENDS.slice(),
+  live: false, ready: false,
+  user: LS.get('ppai_user', null), unlocked: !!LS.get('ppai_unlocked', false),
+  tab: 'snap', form: null, ask: null, askDone: false, askPreview: false,
+  needRep: 'all', findFilter: 'all', openTrend: null, openNeed: null, colorDay: '', openColor: null,
+  sheet: null, gate: { name: '', other: '' }, confirm: null, saving: false, pending: false
+};
+
+/* ---------- helpers ---------- */
+const $ = s => document.querySelector(s);
+const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+const plural = (n, one, many) => `${n} ${n === 1 ? one : (many || one + 's')}`;
+const slug = s => String(s || '').replace(/[^\w\- ]+/g, '').trim().replace(/\s+/g, ' ').slice(0, 40) || 'item';
+const fmtTime = ts => { try { return new Date(ts).toLocaleString([], { weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }); } catch (e) { return ''; } };
+const fmtDate = d => { if (!d) return ''; try { return new Date(d + 'T12:00:00').toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' }); } catch (e) { return d; } };
+const needById = id => S.needs.find(n => n.id === id);
+const findsForNeed = id => S.finds.filter(f => (f.clients || []).includes(id));
+let toastTimer;
+function toast(msg) { const t = $('#toast'); t.textContent = msg; t.hidden = false; clearTimeout(toastTimer); toastTimer = setTimeout(() => { t.hidden = true; }, 2600); }
+function loadScript(src) { return new Promise((res, rej) => { if ([...document.scripts].some(s => s.src === src)) return res(); const s = document.createElement('script'); s.src = src; s.onload = res; s.onerror = () => rej(new Error('Could not load ' + src)); document.head.appendChild(s); }); }
+function newCode() { const A = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; let c; do { c = 'PPAI27-' + Array.from({ length: 4 }, () => A[Math.floor(Math.random() * A.length)]).join(''); } while (S.finds.some(f => f.code === c)); return c; }
+function allTrends() { const set = new Map(); S.trends.forEach(t => set.set(t.toLowerCase(), t)); S.finds.forEach(f => (f.trends || []).forEach(t => { if (!set.has(t.toLowerCase())) set.set(t.toLowerCase(), t); })); return [...set.values()]; }
+function vendorsKnown() { return [...new Set(S.finds.map(f => f.vendor).filter(Boolean))].sort(); }
+
+/* ---------- data store: Firebase when configured, this device otherwise ---------- */
+const store = {
+  fs: null, warned: false,
+  async init() {
+    if (FIREBASE_CONFIG && FIREBASE_CONFIG.apiKey) {
+      try {
+        await loadScript(FB + 'firebase-app-compat.js');
+        await loadScript(FB + 'firebase-firestore-compat.js');
+        firebase.initializeApp(FIREBASE_CONFIG);
+        this.fs = firebase.firestore();
+        S.live = true;
+        if (!ASK_REP) this.listen();
+        S.ready = true; return;
+      } catch (e) { console.warn(e); toast('Could not reach the database. Running in demo mode.'); }
+    }
+    this.loadLocal(); S.ready = true;
+  },
+  listen() {
+    ['needs', 'finds'].forEach(c => this.fs.collection(c).onSnapshot(snap => {
+      S[c] = snap.docs.map(d => Object.assign({}, d.data(), { id: d.id })).sort((a, b) => (b.created || 0) - (a.created || 0));
+      render(); if (c === 'finds') backfillColors();
+    }, err => toast('Sync problem: ' + err.message)));
+    this.fs.collection('config').doc('trends').onSnapshot(d => { if (d.exists && Array.isArray(d.data().list)) { S.trends = d.data().list; render(); } });
+  },
+  loadLocal() {
+    const d = LS.get('ppai_demo', null);
+    if (d && d.v === 1) { S.needs = d.needs || []; S.finds = d.finds || []; S.trends = d.trends || S.trends; }
+    else seedDemo();
+  },
+  persist() {
+    if (S.live) return;
+    const ok = LS.set('ppai_demo', { v: 1, needs: S.needs, finds: S.finds, trends: S.trends });
+    if (!ok && !this.warned) { this.warned = true; toast('Demo storage on this device is full. New items stay until you reload.'); }
+  },
+  async save(col, obj) {
+    obj.updated = Date.now();
+    if (S.live) { const data = Object.assign({}, obj); delete data.id; await this.fs.collection(col).doc(obj.id).set(data); return; }
+    const arr = S[col]; const i = arr.findIndex(x => x.id === obj.id);
+    if (i >= 0) arr[i] = obj; else arr.unshift(obj);
+    this.persist();
+  },
+  async remove(col, id) {
+    if (S.live) { await this.fs.collection(col).doc(id).delete(); return; }
+    S[col] = S[col].filter(x => x.id !== id); this.persist();
+  },
+  async setTrends(list) {
+    S.trends = list;
+    if (S.live) await this.fs.collection('config').doc('trends').set({ list }); else this.persist();
+  }
+};
+
+/* ---------- sample data for demo mode ---------- */
+function samplePhoto(label, hue) {
+  const c = document.createElement('canvas'); c.width = c.height = 480; const x = c.getContext('2d');
+  const g = x.createLinearGradient(0, 0, 480, 480); g.addColorStop(0, `hsl(${hue},45%,82%)`); g.addColorStop(1, `hsl(${(hue + 30) % 360},50%,62%)`);
+  x.fillStyle = g; x.fillRect(0, 0, 480, 480);
+  x.fillStyle = `hsla(${hue},40%,28%,.18)`; x.beginPath(); x.arc(240, 205, 120, 0, Math.PI * 2); x.fill();
+  x.fillStyle = `hsl(${hue},35%,22%)`; x.font = '700 30px -apple-system,Segoe UI,Arial,sans-serif'; x.textAlign = 'center';
+  const words = label.split(' '); const lines = []; let cur = '';
+  words.forEach(w => { const t = cur ? cur + ' ' + w : w; if (x.measureText(t).width > 400) { lines.push(cur); cur = w; } else cur = t; }); lines.push(cur);
+  lines.forEach((l, i) => x.fillText(l, 240, 210 + (i - (lines.length - 1) / 2) * 38));
+  x.font = '700 15px -apple-system,Segoe UI,Arial,sans-serif'; x.fillStyle = `hsla(${hue},35%,22%,.7)`; x.fillText('SAMPLE PHOTO', 240, 440);
+  try { return c.toDataURL('image/jpeg', 0.72); } catch (e) { return null; }
+}
+function seedDemo() {
+  const t0 = Date.UTC(2027, 0, 12, 17, 0);
+  const N = (id, company, contact, rep, categories, budget, qty, projects, inHands, vibes, notes) => ({ id, company, contact, email: contact.split(' ')[0].toLowerCase() + '@example.com', rep, categories, budget, qty, projects, inHands, vibes, notes, created: t0 - 86400000 * 20, source: 'sample' });
+  S.needs = [
+    N('n1', 'Trinity Bend Credit Union', 'Maria Lopez', 'Lexi', ['Drinkware', 'Bags'], '$15 to $30', '150 to 500', 'Member appreciation month', '2027-04-15', ['Premium', 'Eco-friendly'], 'No plastic water bottles.'),
+    N('n2', 'Cowtown Roofing Co.', 'Dale Harper', 'Stephen', ['Apparel', 'Headwear'], '$15 to $30', '50 to 150', 'Crew uniforms for summer', '2027-05-01', ['Classic'], 'Needs moisture-wicking.'),
+    N('n3', 'Panther Creek ISD', 'Tasha Green', 'Shannon', ['Wellness', 'Office and desk', 'Kits and bundles'], '$5 to $15', '500 to 1,000', 'Teacher appreciation week', '2027-05-03', ['Fun and playful'], ''),
+    N('n4', 'Northside Dental Group', 'Kevin Tran', 'Julia', ['Tech', 'Event giveaways'], 'Under $5', '1,000 and up', 'Health fair booth', '2027-03-20', ['Techy', 'Fun and playful'], 'Logo is light blue.'),
+    N('n5', 'Alamo Ridge Builders', 'Rachel Kim', 'Amy', ['Outdoor', 'Drinkware'], '$30 to $60', '50 to 150', 'Client closing gifts', '', ['Premium', 'Outdoorsy', 'USA-made'], ''),
+    N('n6', 'Prairie Hops Brewing', 'Sam Ortiz', 'Debbie', ['Apparel', 'Home and kitchen'], '$5 to $15', '150 to 500', 'Taproom merch refresh', '2027-03-01', ['Classic', 'Fun and playful'], 'Wants a retro look.')
+  ];
+  const F = (i, item, hue, vendor, booth, clients, trends, extra) => Object.assign({ id: 'f' + i, code: 'PPAI27-' + ['K3F9', 'M7QA', 'R2XD', 'B8NT', 'W4HC', 'J6PL', 'T9EZ', 'H5VU', 'C2SY', 'P8GR', 'D3LK'][i], photo: samplePhoto(item, hue), vendor, booth, item, price: '', special: '', notes: '', clients, trends, pick: false, by: ['Lexi', 'Stephen', 'Shannon'][i % 3], created: t0 + (i < 6 ? i * 2400000 : 86400000 + (i - 6) * 2400000), sample: true }, extra || {});
+  S.finds = [
+    F(0, 'Recycled canvas tote', 28, 'Lone Star Bags Co.', '2417', ['n1'], ['Recycled and eco materials', 'Earth tones and muted color'], { price: 'Around $9 at 250', special: 'Free setup through Feb 28', pick: true }),
+    F(1, 'Sherpa-lined trucker jacket', 18, 'Canyon Apparel', '1830', ['n2', 'n6'], ['Texture: corduroy, waffle, sherpa', 'Vintage and heritage look'], { price: 'Around $34', pick: true }),
+    F(2, 'Ceramic-lined tumbler', 200, 'Summit Drinkware', '3105', ['n1', 'n5'], ['Elevated drinkware', 'Earth tones and muted color'], { price: '$18 to $22', special: '10% off orders placed by Mar 1' }),
+    F(3, 'Magnetic wireless charger', 220, 'Brightline Tech', '4422', ['n4'], ['Tech that charges'], { price: 'Around $6 at 1,000' }),
+    F(4, 'Corduroy rope hat', 35, 'Canyon Apparel', '1830', ['n2', 'n6'], ['Texture: corduroy, waffle, sherpa', 'Vintage and heritage look'], { pick: true }),
+    F(5, 'Weekend camp blanket', 140, 'Mesa Outdoor Goods', '2960', ['n5'], ['Outdoor and adventure gear', 'Earth tones and muted color'], { price: 'Around $42' }),
+    F(6, 'Self-care desk kit', 320, 'Juniper Wellness', '1204', ['n3'], ['Wellness and self-care', 'Curated kits and bundles'], { price: 'Around $12', pick: true }),
+    F(7, 'Embroidered patch beanie', 0, 'Canyon Apparel', '1830', ['n6'], ['Patches and embroidery over print'], {}),
+    F(8, 'Waffle-knit blanket', 30, 'Juniper Wellness', '1204', [], ['Texture: corduroy, waffle, sherpa', 'Wellness and self-care'], {}),
+    F(9, 'Solar power bank', 100, 'Mesa Outdoor Goods', '2960', ['n4'], ['Tech that charges', 'Outdoor and adventure gear', 'Recycled and eco materials'], {}),
+    F(10, 'Stoneware mug set', 24, 'Summit Drinkware', '3105', ['n6'], ['Earth tones and muted color', 'Elevated drinkware'], {})
+  ];
+  S.trends = STARTER_TRENDS.slice();
+  store.persist();
+}
+
+/* ---------- forms ---------- */
+const newItemForm = (vendor, booth) => ({ mode: 'item', id: null, code: null, photo: null, colors: null, vendor: vendor || '', booth: booth || '', item: '', price: '', special: '', notes: '', clients: [], trends: [], pick: false, newTrend: '' });
+const newAsk = rep => ({ rep: rep || '', company: '', contact: '', email: '', categories: [], budget: '', qty: '', projects: '', inHands: '', vibes: [], notes: '' });
+
+async function compressPhoto(file) {
+  const max = S.live ? 1280 : 900, q = S.live ? 0.72 : 0.62;
+  const url = URL.createObjectURL(file);
+  try {
+    const img = await new Promise((res, rej) => { const i = new Image(); i.onload = () => res(i); i.onerror = () => rej(new Error('That file is not a photo this browser can read.')); i.src = url; });
+    const r = Math.min(1, max / Math.max(img.width, img.height));
+    const c = document.createElement('canvas'); c.width = Math.round(img.width * r); c.height = Math.round(img.height * r);
+    c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+    return c.toDataURL('image/jpeg', q);
+  } finally { URL.revokeObjectURL(url); }
+}
+
+async function addTrend(name) {
+  name = (name || '').trim(); if (!name) return null;
+  const hit = allTrends().find(t => t.toLowerCase() === name.toLowerCase());
+  if (hit) return hit;
+  await store.setTrends(S.trends.concat(name));
+  return name;
+}
+
+async function saveForm() {
+  if (S.saving) return;
+  const f = S.form;
+  if (!f.vendor.trim()) return toast('Add the vendor name first.');
+  if (!f.photo && !f.item.trim()) return toast('Add a photo or an item name.');
+  S.saving = true; render();
+  try {
+    const prev = S.finds.find(x => x.id === f.id) || {};
+    const obj = Object.assign({}, prev, { id: f.id || uid(), code: f.code || newCode(), photo: f.photo || null, colors: f.photo ? (f.colors || null) : null, vendor: f.vendor.trim(), booth: f.booth.trim(), item: f.item.trim(), price: f.price.trim(), special: f.special.trim(), notes: f.notes.trim(), clients: f.clients.slice(), trends: f.trends.slice(), pick: !!f.pick, by: prev.by || S.user, created: prev.created || Date.now() });
+    await store.save('finds', obj);
+    toast(f.id ? `Updated ${obj.code}` : `Saved ${obj.code}. Same booth is ready for the next one.`);
+    S.form = newItemForm(obj.vendor, obj.booth);
+  } catch (e) { toast('Not saved: ' + e.message); }
+  S.saving = false; render(); window.scrollTo({ top: 0 });
+}
+
+async function submitAsk() {
+  const a = S.ask;
+  if (!a.company.trim() || !a.contact.trim()) return toast('Add your company and your name.');
+  if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(a.email.trim())) return toast('Add an email we can reach you at.');
+  if (!a.rep) return toast('Pick your Branding Specialist.');
+  if (!a.categories.length) return toast('Pick at least one category you are shopping for.');
+  S.saving = true; render();
+  try {
+    await store.save('needs', { id: uid(), company: a.company.trim(), contact: a.contact.trim(), email: a.email.trim(), rep: a.rep, categories: a.categories, budget: a.budget, qty: a.qty, projects: a.projects.trim(), inHands: a.inHands, vibes: a.vibes, notes: a.notes.trim(), created: Date.now(), source: 'client' });
+    S.askDone = true;
+  } catch (e) { toast('That did not go through: ' + e.message); }
+  S.saving = false; render(); window.scrollTo({ top: 0 });
+}
+
+/* ---------- trend tally ---------- */
+function tally() {
+  return allTrends().map(t => {
+    const fs = S.finds.filter(f => (f.trends || []).includes(t));
+    const showV = [...new Set(fs.map(f => f.vendor).filter(Boolean))];
+    return { t, fs, photos: fs.length, booths: showV.length, showV, score: showV.length };
+  }).sort((a, b) => b.score - a.score || b.photos - a.photos || a.t.localeCompare(b.t));
+}
+/* ---------- color trends: read from each photo right on the phone ---------- */
+const COLOR_FAMILIES = [['Earth tones', '#8a6a45'], ['White and cream', '#efe8da'], ['Gray', '#9a9ca3'], ['Black', '#24252b'], ['Red', '#c0283a'], ['Orange', '#e7782f'], ['Yellow', '#e9c433'], ['Green', '#3f9a52'], ['Teal', '#1f9aa0'], ['Blue', '#3a78d0'], ['Navy', '#1e2f5e'], ['Purple', '#7b4bb8'], ['Pink', '#e06aa5'], ['Neon', '#b8f02a']];
+const FAM_HEX = Object.fromEntries(COLOR_FAMILIES);
+const COLOR_CACHE = {};
+function colorFamily(r, g, b) {
+  r /= 255; g /= 255; b /= 255;
+  const mx = Math.max(r, g, b), mn = Math.min(r, g, b), l = (mx + mn) / 2, d = mx - mn;
+  let s = 0, h = 0;
+  if (d) { s = d / (1 - Math.abs(2 * l - 1)); h = mx === r ? 60 * (((g - b) / d) % 6) : mx === g ? 60 * ((b - r) / d + 2) : 60 * ((r - g) / d + 4); if (h < 0) h += 360; }
+  if (l < 0.13) return 'Black';
+  if (s < 0.12) return l > 0.86 ? 'White and cream' : 'Gray';
+  if (l > 0.82 && s < 0.45 && h >= 25 && h <= 65) return 'White and cream';
+  if (s > 0.85 && l >= 0.45 && l <= 0.72 && ((h >= 65 && h < 150) || (h >= 290 && h < 340))) return 'Neon';
+  if (h >= 12 && h < 52 && l < 0.78 && (s < 0.6 || l < 0.42)) return 'Earth tones';
+  if (h >= 52 && h < 160 && s < 0.32 && l >= 0.2 && l < 0.75) return 'Earth tones';
+  if (h < 12 || h >= 345) return 'Red';
+  if (h < 40) return 'Orange';
+  if (h < 65) return 'Yellow';
+  if (h < 165) return 'Green';
+  if (h < 195) return 'Teal';
+  if (h < 250) return l < 0.3 ? 'Navy' : 'Blue';
+  if (h < 290) return 'Purple';
+  return 'Pink';
+}
+function readColors(src) {
+  return new Promise(res => {
+    const img = new Image();
+    img.onload = () => {
+      try {
+        const N = 40, c = document.createElement('canvas'); c.width = c.height = N;
+        const x = c.getContext('2d'), w = img.width, h = img.height;
+        x.drawImage(img, w * 0.15, h * 0.15, w * 0.7, h * 0.7, 0, 0, N, N);
+        const px = x.getImageData(0, 0, N, N).data, cnt = {}; let tot = 0;
+        for (let i = 0; i < px.length; i += 4) { if (px[i + 3] < 128) continue; const f = colorFamily(px[i], px[i + 1], px[i + 2]); cnt[f] = (cnt[f] || 0) + 1; tot++; }
+        const out = {};
+        Object.entries(cnt).sort((a, b) => b[1] - a[1]).slice(0, 4).forEach(([f, n]) => { const sh = Math.round(n / tot * 100) / 100; if (sh >= 0.08) out[f] = sh; });
+        res(Object.keys(out).length ? out : null);
+      } catch (e) { res(null); }
+    };
+    img.onerror = () => res(null);
+    img.src = src;
+  });
+}
+const getColors = f => f.colors || COLOR_CACHE[f.id] || null;
+const topColor = f => { const c = getColors(f); return c ? Object.entries(c).sort((a, b) => b[1] - a[1])[0][0] : null; };
+const colorText = f => { const c = getColors(f); return c ? Object.entries(c).sort((a, b) => b[1] - a[1]).map(([k, v]) => `${k} ${Math.round(v * 100)}%`).join(', ') : ''; };
+const swatches = f => { const c = getColors(f); return c ? `<span class="swrow">${Object.keys(c).map(k => `<span class="sw" style="background:${FAM_HEX[k]}" title="${esc(k)}"></span>`).join('')}</span>` : ''; };
+let backfilling = false;
+async function backfillColors() {
+  if (backfilling) return; backfilling = true;
+  let changed = false;
+  for (const f of S.finds) { if (f.photo && !getColors(f) && !(f.id in COLOR_CACHE)) { COLOR_CACHE[f.id] = await readColors(f.photo); changed = true; } }
+  backfilling = false;
+  if (changed) render();
+}
+const SHOW_TZ = 'America/Los_Angeles';
+const DAY_NAMES = { Mon: 'Monday', Tue: 'Tuesday', Wed: 'Wednesday', Thu: 'Thursday', Fri: 'Friday', Sat: 'Saturday', Sun: 'Sunday' };
+function showDay(ts) { try { return new Date(ts).toLocaleDateString('en-US', { weekday: 'short', timeZone: SHOW_TZ }); } catch (e) { return ''; } }
+function colorReport(day) {
+  const fs = S.finds.filter(f => getColors(f) && (!day || showDay(f.created) === day));
+  const sum = {}, lead = {}, ex = {};
+  fs.forEach(f => {
+    const c = getColors(f), tot = Object.values(c).reduce((a, b) => a + b, 0) || 1;
+    Object.entries(c).forEach(([k, v]) => { sum[k] = (sum[k] || 0) + v / tot; });
+    const t = topColor(f); lead[t] = (lead[t] || 0) + 1; (ex[t] = ex[t] || []).push(f);
+  });
+  const n = fs.length;
+  return { n, rows: Object.keys(sum).map(k => ({ k, share: sum[k] / n, lead: lead[k] || 0, fs: ex[k] || [] })).sort((a, b) => b.share - a.share) };
+}
+function colorDays() { const seen = []; S.finds.filter(getColors).slice().sort((a, b) => (a.created || 0) - (b.created || 0)).forEach(f => { const d = showDay(f.created); if (d && !seen.includes(d)) seen.push(d); }); return seen; }
+
+const proof = r => r.score ? `Seen at ${plural(r.booths, 'booth')} in ${plural(r.photos, 'photo')}.` : 'Nothing logged yet.';
+
+/* ---------- exports ---------- */
+function download(blob, name) {
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = name;
+  document.body.appendChild(a); a.click();
+  setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 3000);
+}
+const photoFile = f => `${f.code} ${slug(f.vendor)}.jpg`;
+function findRow(f, n) {
+  return { 'Find ID': f.code, 'Client': n ? n.company : '', 'Vendor': f.vendor, 'Booth': f.booth, 'Item': f.item, 'Price notes': f.price, 'Show special': f.special, 'Trends': (f.trends || []).join(', '), 'Main colors': colorText(f), 'Notes': f.notes, 'Report pick': f.pick ? 'Yes' : '', 'Captured by': f.by, 'Captured': fmtTime(f.created), 'Photo file': f.photo ? photoFile(f) : '' };
+}
+function needRow(n) {
+  return { 'Client': n.company, 'Contact': n.contact, 'Email': n.email, 'Branding Specialist': n.rep, 'Categories': (n.categories || []).join(', '), 'Budget per piece': n.budget, 'Quantity': n.qty, 'Projects': n.projects, 'In-hands date': n.inHands, 'Vibe': (n.vibes || []).join(', '), 'Notes': n.notes, 'Ideas tagged': findsForNeed(n.id).length };
+}
+function sheetFrom(rows, emptyNote) {
+  const ws = XLSX.utils.json_to_sheet(rows.length ? rows : [{ Note: emptyNote }]);
+  const keys = Object.keys(rows[0] || { Note: '' });
+  ws['!cols'] = keys.map(k => ({ wch: Math.min(48, Math.max(k.length + 2, ...rows.map(r => String(r[k] || '').length + 2))) }));
+  return ws;
+}
+function repWorkbook(rep) {
+  const needs = S.needs.filter(n => n.rep === rep);
+  const rows = []; needs.forEach(n => findsForNeed(n.id).forEach(f => rows.push(findRow(f, n))));
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, sheetFrom(rows, 'No finds tagged to these clients yet.'), 'Ideas by client');
+  XLSX.utils.book_append_sheet(wb, sheetFrom(needs.map(needRow), 'No client asks for this Branding Specialist.'), 'Client asks');
+  return wb;
+}
+const wbBlob = wb => new Blob([XLSX.write(wb, { type: 'array', bookType: 'xlsx' })], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+function trendWorkbook() {
+  const wb = XLSX.utils.book_new();
+  const rows = tally().map((r, i) => ({ 'Rank': i + 1, 'Trend': r.t, 'Proof line': proof(r), 'Booths showing it': r.booths, 'Photos': r.photos, 'Report picks': r.fs.filter(f => f.pick).length, 'Vendors showing it': r.showV.join(', ') }));
+  XLSX.utils.book_append_sheet(wb, sheetFrom(rows, 'No trends yet.'), 'Trend tally');
+  const days = colorDays(), byDay = Object.fromEntries(days.map(d => [d, colorReport(d)]));
+  const crows = colorReport('').rows.map(c => { const o = { 'Color family': c.k, 'Share of all photos': Math.round(c.share * 100) + '%', 'Finds where it leads': c.lead }; days.forEach(d => { const hit = byDay[d].rows.find(x => x.k === c.k); o[DAY_NAMES[d] || d] = hit ? Math.round(hit.share * 100) + '%' : '0%'; }); return o; });
+  XLSX.utils.book_append_sheet(wb, sheetFrom(crows, 'No photos read yet.'), 'Color report');
+  XLSX.utils.book_append_sheet(wb, sheetFrom(S.finds.map(f => findRow(f, null)).map((r, i) => Object.assign(r, { 'Client': (S.finds[i].clients || []).map(id => (needById(id) || {}).company).filter(Boolean).join(', ') })), 'No finds yet.'), 'All finds');
+  return wb;
+}
+async function runExport(kind, rep) {
+  try {
+    toast('Building your file...');
+    await loadScript(LIBS.xlsx);
+    if (kind === 'repxlsx') return download(wbBlob(repWorkbook(rep)), `PPAI27 ${rep} packet.xlsx`);
+    if (kind === 'trendxlsx') return download(wbBlob(trendWorkbook()), 'PPAI27 trend tally.xlsx');
+    await loadScript(LIBS.zip);
+    const zip = new JSZip();
+    if (kind === 'repzip') {
+      zip.file(`PPAI27 ${rep} packet.xlsx`, XLSX.write(repWorkbook(rep), { type: 'array', bookType: 'xlsx' }));
+      S.needs.filter(n => n.rep === rep).forEach(n => {
+        const dir = zip.folder(slug(n.company)); const fs = findsForNeed(n.id);
+        dir.file('notes.txt', [`${n.company} (${n.contact})`, `Asked for: ${(n.categories || []).join(', ')}`, `Budget: ${n.budget || 'n/a'}   Qty: ${n.qty || 'n/a'}`, n.projects ? `Project: ${n.projects}${n.inHands ? ' by ' + fmtDate(n.inHands) : ''}` : '', '', ...fs.map(f => `${f.code}  ${f.vendor} booth ${f.booth}  ${f.item}${f.price ? '  ' + f.price : ''}${f.special ? '  SPECIAL: ' + f.special : ''}${f.notes ? '  ' + f.notes : ''}`)].filter(l => l !== null).join('\n'));
+        fs.forEach(f => { if (f.photo) dir.file(photoFile(f), f.photo.split(',')[1], { base64: true }); });
+      });
+      return download(await zip.generateAsync({ type: 'blob' }), `PPAI27 ${rep} packet.zip`);
+    }
+    if (kind === 'trendzip') {
+      zip.file('PPAI27 trend tally.xlsx', XLSX.write(trendWorkbook(), { type: 'array', bookType: 'xlsx' }));
+      tally().filter(r => r.photos).forEach((r, i) => {
+        const dir = zip.folder(`${String(i + 1).padStart(2, '0')} ${slug(r.t)}`);
+        r.fs.forEach(f => { if (f.photo) dir.file((f.pick ? 'PICK ' : '') + photoFile(f), f.photo.split(',')[1], { base64: true }); });
+      });
+      return download(await zip.generateAsync({ type: 'blob' }), 'PPAI27 trend photos.zip');
+    }
+  } catch (e) { toast('Export failed: ' + e.message); }
+}
+
+/* ---------- views ---------- */
+const ICON = {
+  snap: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/></svg>',
+  needs: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="3.5"/><path d="M3 20c0-3.3 2.7-6 6-6s6 2.7 6 6"/><path d="M16 4.5a3.5 3.5 0 0 1 0 7M18 14.5c1.8.8 3 2.9 3 5.5"/></svg>',
+  trends: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 17l6-6 4 4 8-8"/><path d="M15 7h6v6"/></svg>',
+  finds: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7.5" height="7.5" rx="1.5"/><rect x="13.5" y="3" width="7.5" height="7.5" rx="1.5"/><rect x="3" y="13.5" width="7.5" height="7.5" rx="1.5"/><rect x="13.5" y="13.5" width="7.5" height="7.5" rx="1.5"/></svg>',
+  more: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 3v12M7 10l5 5 5-5M4 20h16"/></svg>'
+};
+
+function header(sub) {
+  return `<header class="top gutter"><div class="wrap"><span class="chip-logo">TORO</span><div class="grow"><h1>PPAI Roundup '27</h1><div class="sub">${esc(sub || 'Mandalay Bay, Jan 12 to 14')}</div></div>${S.unlocked && S.user && !ASK_REP && !S.askPreview ? `<button class="who" data-act="switch-user" aria-label="Switch person">${esc(S.user)}</button>` : ''}</div></header>`;
+}
+const demoBanner = () => S.live ? '' : `<div class="banner gutter"><div class="wrap">Demo mode. Sample clients and finds are examples, and anything you add stays on this device.</div></div>`;
+
+function viewGate() {
+  const g = S.gate;
+  return header('For the Vegas team') + demoBanner() + `<main class="gutter"><div class="gate stack">
+  <div class="card stack"><div><h2>Who's shopping today?</h2><p class="muted small" style="margin:6px 0 0">Every find gets your name on it.</p></div>
+  <div class="chips">${TEAM.map(n => `<button class="chip ${g.name === n ? 'on' : ''}" data-act="gate-name" data-v="${esc(n)}">${esc(n)}</button>`).join('')}<button class="chip ${g.name === '__other' ? 'on' : ''}" data-act="gate-name" data-v="__other">Someone else</button></div>
+  ${g.name === '__other' ? `<label class="f"><span>Your first name</span><input type="text" id="gate-other" data-bind="gate.other" value="${esc(g.other)}" autocomplete="given-name"></label>` : ''}
+  <button class="btn block" data-act="gate-go">Start shopping</button></div>
+  <button class="btn line block" data-act="ask-preview">Preview the client ask</button>
+  <p class="small muted" style="text-align:center;margin:0">v${APP_VERSION}</p></div></main>`;
+}
+
+function viewAsk() {
+  const a = S.ask, locked = !!ASK_REP && REPS.includes(ASK_REP);
+  const top = (S.askPreview ? `<div class="preview-bar gutter"><div class="wrap">This is what clients see.<button data-act="ask-close">Back to the app</button></div></div>` : '') + header('PPAI Expo, January 2027');
+  if (S.askDone) return top + `<main class="ask gutter"><div class="wrap stack"><div class="hero-ask"><h2>Got it. Thank you!</h2><p>${esc(a.rep || 'Your Branding Specialist')} will have your list in hand on the show floor. Watch for fresh ideas after the show.</p></div>${S.askPreview ? `<button class="btn line block" data-act="ask-again">Fill out another</button>` : ''}</div></main>`;
+  const pills = (key, opts, multi) => `<div class="chips">${opts.map(o => { const on = multi ? a[key].includes(o) : a[key] === o; return `<button type="button" class="chip ${on ? 'on' : ''}" data-act="ask-pick" data-k="${key}" data-v="${esc(o)}" data-multi="${multi ? 1 : 0}" aria-pressed="${on}">${esc(o)}</button>`; }).join('')}</div>`;
+  return top + `<main class="ask gutter"><div class="wrap stack">
+  <div class="hero-ask"><h2>We're shopping for you in Vegas!</h2><p>${locked ? esc(ASK_REP) + ', your Branding Specialist, is' : 'Your TORO Branding Specialist is'} heading to the PPAI Expo in January. It's the biggest promo products show of the year. Tell us what's on your 2027 radar and we'll bring fresh ideas your way after the show.</p></div>
+  <form class="card stack" id="askForm" novalidate>
+    <div class="two"><label class="f"><span>Company <b>*</b></span><input type="text" id="ask-company" data-bind="ask.company" value="${esc(a.company)}" autocomplete="organization"></label>
+    <label class="f"><span>Your name <b>*</b></span><input type="text" id="ask-contact" data-bind="ask.contact" value="${esc(a.contact)}" autocomplete="name"></label></div>
+    <label class="f"><span>Email <b>*</b></span><input type="email" id="ask-email" data-bind="ask.email" value="${esc(a.email)}" autocomplete="email"></label>
+    ${locked ? '' : `<div class="f"><span class="eyebrow">Your Branding Specialist <b style="color:var(--red-ink)">*</b></span>${pills('rep', REPS, false)}</div>`}
+    <div class="stack" style="gap:8px"><span class="eyebrow">What are you shopping for? <b style="color:var(--red-ink)">*</b></span>${pills('categories', CATEGORIES, true)}</div>
+    <div class="stack" style="gap:8px"><span class="eyebrow">Budget per piece</span>${pills('budget', BUDGETS, false)}</div>
+    <div class="stack" style="gap:8px"><span class="eyebrow">Rough quantity</span>${pills('qty', QTYS, false)}</div>
+    <div class="two wide-left"><label class="f"><span>Upcoming projects or events</span><textarea id="ask-projects" data-bind="ask.projects" placeholder="Summer kickoff, new hire kits, holiday gifts...">${esc(a.projects)}</textarea></label>
+    <label class="f"><span>Earliest in-hands date</span><input type="date" id="ask-inhands" data-bind="ask.inHands" value="${esc(a.inHands)}"></label></div>
+    <div class="stack" style="gap:8px"><span class="eyebrow">Your vibe</span>${pills('vibes', VIBES, true)}</div>
+    <label class="f"><span>Must-haves or things to avoid</span><textarea id="ask-notes" data-bind="ask.notes" placeholder="Brand colors, sustainability goals, items you're tired of...">${esc(a.notes)}</textarea></label>
+    <button class="btn block" type="submit" ${S.saving ? 'disabled' : ''}>${S.saving ? 'Sending...' : 'Send my wish list'}</button>
+    <p class="small muted" style="margin:0">Takes about two minutes. We'll only use this to shop for you.</p>
+  </form></div></main>`;
+}
+
+function viewSnap() {
+  const f = S.form;
+  const vendors = vendorsKnown();
+  const byRep = REPS.map(r => [r, S.needs.filter(n => n.rep === r)]).filter(x => x[1].length);
+  const trendChips = allTrends().map(t => { const on = f.trends.includes(t); return `<button type="button" class="chip ${on ? 'on' : ''}" data-act="tog-trend" data-v="${esc(t)}" aria-pressed="${on}">${esc(t)}</button>`; }).join('');
+  return `<div class="stack">
+  ${f.id ? `<div class="banner" style="border-radius:10px;border:0"><div class="wrap gutter row between" style="padding-block:8px">Editing ${esc(f.code)}<button class="btn sm ghost" data-act="cancel-edit">Cancel</button></div></div>` : ''}
+  <div class="card stack">
+    ${f.photo ? `<div class="photo-prev"><img src="${f.photo}" alt="Photo of this find"><div class="acts"><button class="btn sm" data-act="photo">Retake</button><button class="btn sm" data-act="photo-clear">Remove</button></div></div>${f.colors ? `<div class="row small" style="gap:8px"><span class="muted">Colors spotted:</span>${Object.entries(f.colors).map(([k, v]) => `<span class="row" style="gap:5px"><span class="sw" style="background:${FAM_HEX[k]}"></span>${esc(k)} ${Math.round(v * 100)}%</span>`).join('')}</div>` : ''}`
+      : `<div class="photo-drop" data-act="photo" role="button" tabindex="0"><span style="width:36px;height:36px">${ICON.snap}</span><strong>Snap the item</strong><span class="small">Camera opens on your phone.</span></div>`}
+    <div class="two wide-left"><label class="f"><span>Vendor <b>*</b></span><input type="text" id="snap-vendor" list="vendorList" data-bind="form.vendor" value="${esc(f.vendor)}" autocomplete="off"></label>
+    <label class="f"><span>Booth #</span><input type="text" id="snap-booth" data-bind="form.booth" value="${esc(f.booth)}" inputmode="numeric" autocomplete="off"></label></div>
+    <datalist id="vendorList">${vendors.map(v => `<option value="${esc(v)}"></option>`).join('')}</datalist>
+    <label class="f"><span>Item name or number</span><input type="text" id="snap-item" data-bind="form.item" value="${esc(f.item)}" autocomplete="off"></label>
+    <div class="two"><label class="f"><span>Price notes</span><input type="text" id="snap-price" data-bind="form.price" value="${esc(f.price)}" placeholder="Around $12 at 250" autocomplete="off"></label>
+    <label class="f"><span>Show special</span><input type="text" id="snap-special" data-bind="form.special" value="${esc(f.special)}" placeholder="Free setup through Feb" autocomplete="off"></label></div>
+    <label class="f"><span>Notes</span><textarea id="snap-notes" data-bind="form.notes" placeholder="Colors, decoration options, lead time...">${esc(f.notes)}</textarea></label>
+  </div>
+  <div class="card stack"><div class="row between"><h3>Tag to a client</h3><span class="small muted">${f.clients.length ? plural(f.clients.length, 'client') + ' picked' : 'Optional'}</span></div>
+    ${byRep.length ? byRep.map(([r, ns]) => `<div class="stack" style="gap:6px"><span class="eyebrow">${esc(r)}</span><div class="chips">${ns.map(n => { const on = f.clients.includes(n.id); return `<button type="button" class="chip ${on ? 'on' : ''}" data-act="tog-client" data-v="${n.id}" aria-pressed="${on}">${esc(n.company)}</button>`; }).join('')}</div></div>`).join('') : '<p class="muted small" style="margin:0">Client asks show up here once clients fill out the form.</p>'}
+  </div>
+  <div class="card stack"><div class="row between"><h3>Trends it fits</h3><span class="small muted">${f.trends.length ? plural(f.trends.length, 'trend') : 'Pick any'}</span></div>
+    <div class="chips">${trendChips}</div>
+    <div class="row"><input type="text" id="snap-newtrend" class="grow" style="flex:1" data-bind="form.newTrend" value="${esc(f.newTrend)}" placeholder="New trend" autocomplete="off" aria-label="New trend name"><button type="button" class="btn sm ghost" data-act="add-trend">Add</button></div>
+    <label class="row small" style="gap:8px;font-weight:600"><input type="checkbox" id="snap-pick" data-act="tog-pick" ${f.pick ? 'checked' : ''}> Trend report pick (a photo worth putting in the February look book)</label>
+  </div>
+  <div class="savebar"><button class="btn block" data-act="save" ${S.saving ? 'disabled' : ''}>${S.saving ? 'Saving...' : (f.id ? 'Save changes' : 'Save find')}</button></div>
+  </div>`;
+}
+
+function viewNeeds() {
+  const reps = REPS.filter(r => S.needs.some(n => n.rep === r));
+  const list = S.needs.filter(n => S.needRep === 'all' || n.rep === S.needRep)
+    .sort((a, b) => (findsForNeed(a.id).length - findsForNeed(b.id).length) || a.company.localeCompare(b.company));
+  const open = S.needs.filter(n => !findsForNeed(n.id).length).length;
+  return `<div class="stack">
+  <div class="sumbar"><div class="sum"><b>${S.needs.length}</b><span>client asks</span></div><div class="sum"><b style="color:${open ? 'var(--warn)' : 'var(--ok)'}">${open}</b><span>still need ideas</span></div><div class="sum"><b>${S.finds.length}</b><span>finds so far</span></div></div>
+  ${reps.length > 1 ? `<div class="chips"><button class="chip ${S.needRep === 'all' ? 'on' : ''}" data-act="need-rep" data-v="all">Everyone</button>${reps.map(r => `<button class="chip ${S.needRep === r ? 'on' : ''}" data-act="need-rep" data-v="${esc(r)}">${esc(r)}</button>`).join('')}</div>` : ''}
+  ${list.length ? list.map(n => {
+    const fs = findsForNeed(n.id), openThis = S.openNeed === n.id;
+    return `<article class="card need"><div class="need-head"><div class="grow"><h3>${esc(n.company)}</h3><div class="small muted">${esc(n.contact)}${n.source === 'sample' ? ' · example' : ''}</div></div><div class="stack" style="gap:6px;align-items:flex-end">${fs.length ? `<span class="pill ok">${plural(fs.length, 'idea')}</span>` : '<span class="pill no">No ideas yet</span>'}<span class="pill rep">${esc(n.rep)}</span></div></div>
+    <dl><dt>Wants</dt><dd>${esc((n.categories || []).join(', ')) || '<span class="muted">Not given</span>'}</dd>
+    <dt>Budget</dt><dd>${n.budget ? esc(n.budget) + ' per piece' : '<span class="muted">Not given</span>'}${n.qty ? ', ' + esc(n.qty) : ''}</dd>
+    ${n.projects ? `<dt>Project</dt><dd>${esc(n.projects)}${n.inHands ? ` <span class="muted">(by ${esc(fmtDate(n.inHands))})</span>` : ''}</dd>` : ''}
+    ${(n.vibes || []).length ? `<dt>Vibe</dt><dd>${esc(n.vibes.join(', '))}</dd>` : ''}
+    ${n.notes ? `<dt>Notes</dt><dd>${esc(n.notes)}</dd>` : ''}</dl>
+    ${openThis && fs.length ? `<div class="thumbs">${fs.map(f => f.photo ? `<img src="${f.photo}" alt="${esc(f.item || f.vendor)}" data-act="open-find" data-v="${f.id}">` : '').join('')}</div>` : ''}
+    <div class="row" style="margin-top:12px">${fs.length ? `<button class="btn sm ghost" data-act="toggle-need" data-v="${n.id}">${openThis ? 'Hide ideas' : 'Show ideas'}</button>` : ''}<button class="btn sm line" data-act="snap-for" data-v="${n.id}">Snap for this client</button></div></article>`;
+  }).join('') : `<div class="card empty">No client asks yet. Send the client ask link from the Export tab.</div>`}
+  </div>`;
+}
+
+function viewTrends() {
+  const rows = tally(), max = Math.max(1, ...rows.map(r => r.score));
+  const untagged = S.finds.filter(f => !(f.trends || []).length).length;
+  return `<div class="stack">
+  ${viewColors()}
+  <div class="card"><h2>Trend tally</h2><p class="muted small" style="margin:6px 0 0">Ranked by how many booths showed each trend. This is the backbone of the February trend report.${untagged ? ` ${plural(untagged, 'find')} still ${untagged === 1 ? 'has' : 'have'} no trend tag.` : ''}</p></div>
+  ${rows.map((r, i) => { const open = S.openTrend === r.t; return `<article class="card trend" data-act="open-trend" data-v="${esc(r.t)}" aria-expanded="${open}">
+    <div class="row between" style="flex-wrap:nowrap;align-items:flex-start"><div class="row grow" style="flex-wrap:nowrap;align-items:flex-start"><span class="rank">${i + 1}</span><h3 class="grow">${esc(r.t)}</h3></div><div class="nums"><span><b>${r.booths}</b> booths</span><span><b>${r.photos}</b> photos</span></div></div>
+    <div class="bar"><i style="width:${Math.round(r.score / max * 100)}%"></i></div><div class="proof">${esc(proof(r))}</div>
+    ${open ? `${r.fs.length ? `<div class="thumbs">${r.fs.slice().sort((a, b) => (b.pick ? 1 : 0) - (a.pick ? 1 : 0)).map(f => f.photo ? `<img src="${f.photo}" alt="${esc(f.item || f.vendor)}" data-act="open-find" data-v="${f.id}">` : '').join('')}</div>` : ''}
+      ${r.showV.length ? `<p class="small" style="margin:10px 0 0"><span class="muted">Showed it:</span> ${esc(r.showV.join(', '))}</p>` : ''}` : ''}
+  </article>`; }).join('')}
+  </div>`;
+}
+
+function viewColors() {
+  const days = colorDays(); if (S.colorDay && !days.includes(S.colorDay)) S.colorDay = '';
+  const rep = colorReport(S.colorDay);
+  if (!rep.n) return `<div class="card"><h2>Color report</h2><p class="muted small" style="margin:6px 0 0">The app reads the main colors in every photo you snap. They'll show up here as soon as the first find is saved.</p></div>`;
+  const top = rep.rows[0], when = S.colorDay ? ` on ${DAY_NAMES[S.colorDay] || S.colorDay}` : '';
+  return `<div class="card stack"><div><h2>Color report</h2><p class="muted small" style="margin:6px 0 0">Read automatically from ${plural(rep.n, 'photo')}. No tagging needed.</p></div>
+  ${days.length > 1 ? `<div class="chips"><button class="chip ${!S.colorDay ? 'on' : ''}" data-act="color-day" data-v="">Whole show</button>${days.map(d => `<button class="chip ${S.colorDay === d ? 'on' : ''}" data-act="color-day" data-v="${d}">${DAY_NAMES[d] || d}</button>`).join('')}</div>` : ''}
+  <p class="lead"><b>${esc(top.k)}</b> lead${top.k.endsWith('s') ? '' : 's'} at ${Math.round(top.share * 100)}% of what we photographed${when}.</p>
+  <div class="cbar" role="img" aria-label="Color share across photos">${rep.rows.map(c => `<i style="width:${(c.share * 100).toFixed(1)}%;background:${FAM_HEX[c.k]}" title="${esc(c.k)} ${Math.round(c.share * 100)}%" data-act="open-color" data-v="${esc(c.k)}"></i>`).join('')}</div>
+  <div>${rep.rows.filter(c => c.share >= 0.03).map(c => { const open = S.openColor === c.k; return `<div class="crow" data-act="open-color" data-v="${esc(c.k)}" aria-expanded="${open}"><span class="sw" style="background:${FAM_HEX[c.k]}"></span><span>${esc(c.k)} <span class="muted small">${c.lead ? `leads in ${plural(c.lead, 'find')}` : 'accent color'}</span></span><span class="pct">${Math.round(c.share * 100)}%</span></div>${open && c.fs.length ? `<div class="thumbs" style="padding-bottom:6px">${c.fs.map(f => `<img src="${f.photo}" alt="${esc(f.item || f.vendor)}" data-act="open-find" data-v="${f.id}">`).join('')}</div>` : ''}`; }).join('')}</div>
+  </div>`;
+}
+
+function viewFinds() {
+  const ff = S.findFilter;
+  const opts = [['all', 'All finds'], ['picks', 'Trend report picks'], ['untagged', 'No client yet'], ['notrend', 'No trend yet'],
+    ...COLOR_FAMILIES.map(c => c[0]).filter(k => S.finds.some(f => topColor(f) === k)).map(k => ['c:' + k, 'Mostly ' + k.toLowerCase()]),
+    ...[...new Set(S.finds.map(f => f.by).filter(Boolean))].map(p => ['by:' + p, 'Snapped by ' + p]),
+    ...allTrends().map(t => ['t:' + t, 'Trend: ' + t]),
+    ...S.needs.map(n => ['n:' + n.id, 'Client: ' + n.company])];
+  const pass = f => ff === 'all' || (ff === 'picks' && f.pick) || (ff === 'untagged' && !(f.clients || []).length) || (ff === 'notrend' && !(f.trends || []).length) || (ff.startsWith('by:') && f.by === ff.slice(3)) || (ff.startsWith('t:') && (f.trends || []).includes(ff.slice(2))) || (ff.startsWith('n:') && (f.clients || []).includes(ff.slice(2))) || (ff.startsWith('c:') && topColor(f) === ff.slice(2));
+  const list = S.finds.filter(pass);
+  return `<div class="stack">
+  <select id="find-filter" data-act-change="find-filter" aria-label="Filter finds">${opts.map(([v, l]) => `<option value="${esc(v)}" ${v === ff ? 'selected' : ''}>${esc(l)}</option>`).join('')}</select>
+  ${list.length ? `<div class="grid">${list.map(f => `<button class="find" data-act="open-find" data-v="${f.id}">${f.photo ? `<img src="${f.photo}" alt="" loading="lazy">` : `<span class="noimg">No photo</span>`}<span class="b" style="display:block"><span class="v" style="display:block">${f.pick ? '<span class="star" title="Trend report pick">★ </span>' : ''}${esc(f.item || f.vendor)}</span><span class="small muted" style="display:block">${esc(f.vendor)}${f.booth ? ' #' + esc(f.booth) : ''}</span><span class="code muted">${esc(f.code)}</span>${swatches(f)}</span></button>`).join('')}</div>` : `<div class="card empty">Nothing matches that filter yet.</div>`}
+  </div>`;
+}
+
+function viewMore() {
+  let base = ''; try { base = location.origin + location.pathname; } catch (e) {}
+  const linkable = /^https?:/.test(base) && !/claude\.ai|claudeusercontent/.test(base);
+  return `<div class="stack">
+  <div class="card stack"><h2>Rep packets</h2><p class="muted small" style="margin:0">One packet per Branding Specialist: their clients, the ideas tagged to each one, vendor details and specials. The ZIP adds photos in a folder per client.</p>
+    ${REPS.map(r => { const ns = S.needs.filter(n => n.rep === r); const c = new Set(ns.flatMap(n => findsForNeed(n.id).map(f => f.id))).size; return `<div class="row between" style="border-top:1px solid var(--line);padding-top:10px"><div><b>${esc(r)}</b><div class="small muted">${plural(ns.length, 'client')}, ${plural(c, 'idea')}</div></div><div class="row"><button class="btn sm ghost" data-act="export" data-k="repxlsx" data-v="${esc(r)}" ${ns.length ? '' : 'disabled'}>Excel</button><button class="btn sm ghost" data-act="export" data-k="repzip" data-v="${esc(r)}" ${ns.length ? '' : 'disabled'}>Photo ZIP</button></div></div>`; }).join('')}
+  </div>
+  <div class="card stack"><h2>Trend report</h2><p class="muted small" style="margin:0">The tally and every find, ready for Morgan. The ZIP sorts photos into a folder per trend, with report picks marked.</p>
+    <div class="row"><button class="btn sm" data-act="export" data-k="trendxlsx">Trend tally Excel</button><button class="btn sm ghost" data-act="export" data-k="trendzip">Trend photos ZIP</button></div>
+  </div>
+  ${S.live ? '' : `<p class="small muted" style="margin:-4px 4px 0">Downloads can be blocked inside a preview window. They work on the live app.</p>`}
+  <div class="card stack"><h2>Client ask links</h2><p class="muted small" style="margin:0">Each Branding Specialist sends their own link the week of December 14. Answers land on the Needs tab with their name on them.</p>
+    ${linkable ? REPS.map(r => `<div class="stack" style="gap:6px"><b class="small">${esc(r)}</b><div class="row" style="flex-wrap:nowrap"><div class="linkbox grow">${esc(base + '?ask=' + encodeURIComponent(r))}</div><button class="btn sm ghost" data-act="copy" data-v="${esc(base + '?ask=' + encodeURIComponent(r))}">Copy</button></div></div>`).join('') : `<p class="small" style="margin:0">Links appear here once the app is on GitHub Pages. Each one ends in <span class="code">?ask=Name</span>.</p>`}
+    <button class="btn line" data-act="ask-preview">Preview the client ask</button>
+  </div>
+  <div class="card stack"><h2>Starter trends</h2><p class="muted small" style="margin:0">Set these in December so tagging on the floor is quick. Anyone can still add one on the spot.</p>
+    <div class="chips">${S.trends.map(t => `<span class="chip">${esc(t)}<button class="x" style="border:0;background:none;padding:0 0 0 6px;color:inherit" data-act="del-trend" data-v="${esc(t)}" aria-label="Remove ${esc(t)}">×</button></span>`).join('')}</div>
+    <div class="row"><input type="text" id="more-newtrend" class="grow" style="flex:1" placeholder="Add a trend" aria-label="Add a trend"><button class="btn sm ghost" data-act="add-trend-list">Add</button></div>
+  </div>
+  <div class="card stack"><h2>This device</h2>
+    <p class="small" style="margin:0">Signed in as <b>${esc(S.user)}</b>. ${S.live ? 'Live: everyone on the team sees finds as they are saved.' : 'Demo mode: nothing leaves this device.'}</p>
+    <div class="row"><button class="btn sm ghost" data-act="switch-user">Switch person</button>${S.live ? '' : (S.confirm === 'reset' ? `<button class="btn sm danger" data-act="reset-demo">Yes, reset sample data</button><button class="btn sm line" data-act="confirm-clear">Keep it</button>` : `<button class="btn sm line" data-act="confirm" data-v="reset">Reset sample data</button>`)}</div>
+    <p class="small muted" style="margin:0">PPAI Roundup v${APP_VERSION}</p>
+  </div></div>`;
+}
+
+function viewSheet() {
+  const sh = S.sheet; if (!sh) return '';
+  const f = S.finds.find(x => x.id === sh.id); if (!f) return '';
+  const clients = (f.clients || []).map(id => needById(id)).filter(Boolean);
+  return `<div class="scrim" data-act="close-sheet"><div class="sheet stack" role="dialog" aria-modal="true" aria-label="Find details" data-stop="1">
+    <div class="row between"><span class="code">${esc(f.code)}</span><button class="btn sm ghost" data-act="close-sheet">Close</button></div>
+    ${f.photo ? `<img class="big" src="${f.photo}" alt="${esc(f.item || f.vendor)}">` : ''}
+    <div><h2>${f.pick ? '<span class="star">★ </span>' : ''}${esc(f.item || 'Untitled find')}</h2><p class="muted" style="margin:4px 0 0">${esc(f.vendor)}${f.booth ? ', booth ' + esc(f.booth) : ''}</p></div>
+    <dl class="kv">${f.price ? `<dt>Price</dt><dd>${esc(f.price)}</dd>` : ''}${f.special ? `<dt>Special</dt><dd>${esc(f.special)}</dd>` : ''}${f.notes ? `<dt>Notes</dt><dd>${esc(f.notes)}</dd>` : ''}
+    <dt>Clients</dt><dd>${clients.length ? clients.map(n => `<span class="tag">${esc(n.company)} (${esc(n.rep)})</span>`).join('') : '<span class="muted">None yet</span>'}</dd>
+    ${getColors(f) ? `<dt>Colors</dt><dd>${esc(colorText(f))}</dd>` : ''}
+    <dt>Trends</dt><dd>${(f.trends || []).length ? f.trends.map(t => `<span class="tag t">${esc(t)}</span>`).join('') : '<span class="muted">None yet</span>'}</dd>
+    <dt>Snapped</dt><dd>${esc(f.by || '')}, ${esc(fmtTime(f.created))}</dd></dl>
+    <p class="small muted" style="margin:0">Put <span class="code">${esc(f.code)}</span> in the Antera quote notes and tag the quote PPAI27.</p>
+    <div class="row">${sh.confirm ? `<button class="btn danger" data-act="del-find" data-v="${f.id}">Yes, delete it</button><button class="btn line" data-act="sheet-unconfirm">Keep it</button>` : `<button class="btn" data-act="edit-find" data-v="${f.id}">Edit</button><button class="btn line" data-act="sheet-confirm">Delete</button>`}</div>
+  </div></div>`;
+}
+
+function render() {
+  if (!S.ready) return;
+  const ae = document.activeElement;
+  if (ae && ae.matches && ae.matches('input[type=text],input[type=email],input[type=search],textarea') && S.live) { S.pending = true; return; }
+  S.pending = false;
+  const app = $('#app');
+  if (ASK_REP || S.askPreview) { app.innerHTML = viewAsk(); return; }
+  if (!S.unlocked || !S.user) { app.innerHTML = viewGate(); return; }
+  if (!S.form) S.form = newItemForm();
+  const views = { snap: viewSnap, needs: viewNeeds, trends: viewTrends, finds: viewFinds, more: viewMore };
+  const tabs = [['snap', 'Snap'], ['needs', 'Needs'], ['trends', 'Trends'], ['finds', 'Finds'], ['more', 'Export']];
+  app.innerHTML = header() + demoBanner() + `<main class="gutter"><div class="wrap">${views[S.tab]()}</div></main>
+  <nav class="tabs gutter" aria-label="Sections"><div class="wrap">${tabs.map(([k, l]) => `<button class="${k === 'snap' ? 'snap ' : ''}${S.tab === k ? 'on' : ''}" data-act="tab" data-v="${k}" aria-current="${S.tab === k ? 'page' : 'false'}">${k === 'snap' ? `<span class="dot">${ICON.snap}</span>` : ICON[k]}${l}</button>`).join('')}</div></nav>` + viewSheet();
+}
+
+/* ---------- events ---------- */
+document.addEventListener('input', e => {
+  const b = e.target.getAttribute && e.target.getAttribute('data-bind'); if (!b) return;
+  const [obj, key] = b.split('.'); if (S[obj]) S[obj][key] = e.target.value;
+});
+document.addEventListener('focusout', () => { if (S.pending) setTimeout(() => { const ae = document.activeElement; if (!ae || !ae.matches || !ae.matches('input,textarea')) render(); }, 50); });
+document.addEventListener('change', e => {
+  if (e.target.id === 'find-filter') { S.findFilter = e.target.value; render(); }
+});
+document.addEventListener('submit', e => { if (e.target.id === 'askForm') { e.preventDefault(); submitAsk(); } });
+document.addEventListener('keydown', e => {
+  if (e.key === 'Enter' && e.target.id === 'snap-newtrend') { e.preventDefault(); act('add-trend'); }
+  if (e.key === 'Enter' && e.target.id === 'more-newtrend') { e.preventDefault(); act('add-trend-list'); }
+  if (e.key === 'Enter' && e.target.id === 'gate-other') { e.preventDefault(); act('gate-go'); }
+  if (e.key === 'Escape' && S.sheet) { S.sheet = null; render(); }
+  if ((e.key === 'Enter' || e.key === ' ') && e.target.classList && e.target.classList.contains('photo-drop')) { e.preventDefault(); act('photo'); }
+});
+$('#fileIn').addEventListener('change', async e => {
+  const file = e.target.files && e.target.files[0]; e.target.value = ''; if (!file) return;
+  try { S.form.photo = await compressPhoto(file); S.form.colors = await readColors(S.form.photo); render(); } catch (err) { toast(err.message); }
+});
+document.addEventListener('click', e => {
+  const el = e.target.closest('[data-act]'); if (!el) return;
+  const a = el.getAttribute('data-act');
+  if (a === 'close-sheet' && e.target.closest('[data-stop]') && !e.target.closest('button[data-act="close-sheet"]')) return;
+  if (el.tagName === 'INPUT' && el.type === 'checkbox') { act(a, el.getAttribute('data-v'), el); return; }
+  e.preventDefault();
+  act(a, el.getAttribute('data-v'), el);
+});
+
+async function act(a, v, el) {
+  const f = S.form;
+  switch (a) {
+    case 'tab': S.tab = v; S.confirm = null; render(); window.scrollTo({ top: 0 }); break;
+    case 'gate-name': S.gate.name = v; render(); break;
+    case 'gate-go': {
+      const name = S.gate.name === '__other' ? S.gate.other.trim() : S.gate.name;
+      if (!name) return toast('Pick who is shopping.');
+      S.user = name; S.unlocked = true; LS.set('ppai_user', name); LS.set('ppai_unlocked', true); render(); break;
+    }
+    case 'switch-user': S.unlocked = false; S.gate = { name: '', other: '' }; LS.del('ppai_unlocked'); render(); break;
+    case 'ask-preview': S.askPreview = true; S.askDone = false; S.ask = newAsk(''); render(); window.scrollTo({ top: 0 }); break;
+    case 'ask-close': S.askPreview = false; S.askDone = false; if (S.unlocked) S.tab = 'needs'; render(); window.scrollTo({ top: 0 }); break;
+    case 'ask-again': S.askDone = false; S.ask = newAsk(''); render(); break;
+    case 'ask-pick': {
+      const k = el.getAttribute('data-k'), multi = el.getAttribute('data-multi') === '1';
+      if (multi) { const arr = S.ask[k]; const i = arr.indexOf(v); if (i >= 0) arr.splice(i, 1); else arr.push(v); }
+      else S.ask[k] = S.ask[k] === v ? '' : v;
+      render(); break;
+    }
+    case 'photo': $('#fileIn').click(); break;
+    case 'photo-clear': f.photo = null; f.colors = null; render(); break;
+    case 'tog-client': { const i = f.clients.indexOf(v); if (i >= 0) f.clients.splice(i, 1); else f.clients.push(v); render(); break; }
+    case 'tog-trend': { const i = f.trends.indexOf(v); if (i >= 0) f.trends.splice(i, 1); else f.trends.push(v); render(); break; }
+    case 'tog-pick': f.pick = el.checked; break;
+    case 'add-trend': {
+      const name = await addTrend(f.newTrend); if (!name) return toast('Type the trend first.');
+      if (!f.trends.includes(name)) f.trends.push(name);
+      f.newTrend = ''; render(); break;
+    }
+    case 'add-trend-list': { const inp = $('#more-newtrend'); const name = await addTrend(inp && inp.value); if (!name) return toast('Type the trend first.'); render(); toast(`Added ${name}.`); break; }
+    case 'del-trend': await store.setTrends(S.trends.filter(t => t !== v)); render(); break;
+    case 'save': saveForm(); break;
+    case 'cancel-edit': S.form = newItemForm(); render(); break;
+    case 'need-rep': S.needRep = v; render(); break;
+    case 'toggle-need': S.openNeed = S.openNeed === v ? null : v; render(); break;
+    case 'snap-for': S.form = newItemForm(); S.form.clients = [v]; S.tab = 'snap'; render(); window.scrollTo({ top: 0 }); toast(`Tagging to ${(needById(v) || {}).company}.`); break;
+    case 'open-trend': if (el.tagName === 'IMG') break; S.openTrend = S.openTrend === v ? null : v; render(); break;
+    case 'open-find': S.sheet = { id: v, confirm: false }; render(); break;
+    case 'color-day': S.colorDay = v || ''; S.openColor = null; render(); break;
+    case 'open-color': S.openColor = S.openColor === v ? null : v; render(); break;
+    case 'close-sheet': S.sheet = null; render(); break;
+    case 'sheet-confirm': S.sheet.confirm = true; render(); break;
+    case 'sheet-unconfirm': S.sheet.confirm = false; render(); break;
+    case 'del-find': try { await store.remove('finds', v); S.sheet = null; render(); toast('Deleted.'); } catch (e) { toast('Not deleted: ' + e.message); } break;
+    case 'edit-find': { const x = S.finds.find(y => y.id === v); if (!x) break; S.form = Object.assign(newItemForm(), { id: x.id, code: x.code, photo: x.photo, colors: getColors(x), vendor: x.vendor || '', booth: x.booth || '', item: x.item || '', price: x.price || '', special: x.special || '', notes: x.notes || '', clients: (x.clients || []).slice(), trends: (x.trends || []).slice(), pick: !!x.pick }); S.sheet = null; S.tab = 'snap'; render(); window.scrollTo({ top: 0 }); break; }
+    case 'export': runExport(el.getAttribute('data-k'), v); break;
+    case 'copy': try { await navigator.clipboard.writeText(v); toast('Link copied.'); } catch (e) { const box = el.parentElement.querySelector('.linkbox'); if (box) { const r = document.createRange(); r.selectNodeContents(box); const s = getSelection(); s.removeAllRanges(); s.addRange(r); } toast('Selected. Copy it from there.'); } break;
+    case 'confirm': S.confirm = v; render(); break;
+    case 'confirm-clear': S.confirm = null; render(); break;
+    case 'reset-demo': S.confirm = null; seedDemo(); S.form = newItemForm(); render(); backfillColors(); toast('Sample data is back.'); break;
+  }
+}
+
+(async function boot() {
+  if (ASK_REP) S.ask = newAsk(REPS.includes(ASK_REP) ? ASK_REP : '');
+  await store.init();
+  render();
+  backfillColors();
+})();
+</script>
+</body>
+</html>
