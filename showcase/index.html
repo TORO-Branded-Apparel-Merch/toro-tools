@@ -325,9 +325,9 @@ const firebaseConfig = {
 // Leave as "" to keep organizer view open (fine for a one-day event).
 const ORGANIZER_PASSCODE = "toro2026";
 
-// Passcode for the rep view of a vendor link (?rv=). Reps type it once per device.
-// It shows guest names with each photo and the vendor's item numbers, read only.
-const REP_PASSCODE = "toroteam";
+// Passcode for the rep view of a vendor link (?rv=). Leave empty ("") to open the
+// rep view with no passcode. Put a word back in the quotes to turn it on again.
+const REP_PASSCODE = "";
 
 // Optional: instant email notifications when someone taps "Get me a quote".
 // Uses EmailJS (free tier, ~200 emails/month). See SETUP.md Part D to fill these in.
@@ -366,7 +366,7 @@ const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 
 let mode='attendee', vendors=[], attendee=null, currentVendor=null, pendingFiles=[], adminUnlocked=false, pendingBooth=false, actingAsRep=false;
-const APP_BUILD='2026.10.16-b';
+const APP_BUILD='2026.11.09-a';
 let recapFromVendorId=null, autoOpenQuote=false, quoteViewOnly=false;
 const body=document.getElementById('sp-body'), modeBtn=document.getElementById('sp-modebtn'), quoteBtn=document.getElementById('sp-quotebtn'), sub=document.getElementById('sp-sub');
 // The Request a Quote tab only makes sense once someone is a signed-in attendee
@@ -437,7 +437,6 @@ function showHowTo(){
       '<div style="font-size:16px;font-weight:700;color:var(--lanyard);margin-bottom:12px">Welcome, '+esc(attendee.name.split(' ')[0])+'! Here\u2019s how it works:</div>'+
       '<div style="display:flex;flex-direction:column;gap:12px;font-size:14.5px;line-height:1.45">'+
         '<div style="display:flex;gap:10px"><span style="font-size:20px">&#128247;</span><span><b style="color:var(--lanyard)">Photos</b> are for anything that catches your eye. Snap as many as you like at every table, and they all save to My Photos.</span></div>'+
-        '<div style="display:flex;gap:10px"><span style="font-size:20px">&#10084;&#65039;</span><span><b style="color:var(--lanyard)">Favorites</b> are your top picks. Tap the heart on any photo, right at the table or later under My Photos, and it moves into your favorites section.</span></div>'+
         '<div style="display:flex;gap:10px"><span style="font-size:20px">&#128002;</span><span><b style="color:var(--lanyard)">Quotes</b> are for when you have a real project or order in mind. Select the items and add your details, and your Branding Specialist will follow up after the show with concrete pricing and next steps to move your order across the finish line.</span></div>'+
         '<div style="display:flex;gap:10px"><span style="font-size:20px">&#128233;</span><span><b style="color:var(--lanyard)">Then leave the rest to us.</b> Our team will reach out after the show to help with anything you saved.</span></div>'+
       '</div>';
@@ -658,7 +657,7 @@ async function publishVendorPhotos(key,v,subs){
   for(let i=0;i<recs.length;i+=10){
     await Promise.all(recs.slice(i,i+10).map(r=>{
       const gk=r.attendeeId||((r.name||'')+'|'+(r.company||''));
-      if(!gmap[gk]) gmap[gk]='Guest '+(++n);
+      if(!gmap[gk]) gmap[gk]=guestCode(r);
       keep.add(key+'_'+r.id);
       return setDoc(doc(db,'vendorphotos',key+'_'+r.id),{key,vendorId:v.id,subId:r.id,photoId:r.photoId||'',thumb:r.thumb,guest:gmap[gk],tsClient:r.tsClient||0});
     }));
@@ -672,6 +671,29 @@ async function removeVendorPortal(key){
   const old=await getDocs(query(collection(db,'vendorphotos'),where('key','==',key)));
   for(const d of old.docs){ try{ await deleteDoc(d.ref); }catch(e){} }
   await deleteDoc(doc(db,'vendorportal',key));
+}
+// Short one-way code for a guest, so vendor links can group a guest's photos
+// without carrying anything that leads back to them.
+function guestCode(rec){
+  const s=String(rec.attendeeId||((rec.name||'')+'|'+(rec.company||'')));
+  let h=2166136261; for(let i=0;i<s.length;i++){ h^=s.charCodeAt(i); h=Math.imul(h,16777619); }
+  return 'g'+(h>>>0).toString(36);
+}
+// New photos go straight onto any vendor review link for that table, so vendors
+// can tag items live during the show. Never blocks or fails a guest's save.
+const _portalCache={};
+async function mirrorToVendorLinks(subId,rec){
+  try{
+    if(!rec||!rec.vendorId||!rec.thumb) return;
+    const c=_portalCache[rec.vendorId];
+    let keys;
+    if(c && Date.now()-c.t<300000) keys=c.keys;
+    else{
+      const snap=await getDocs(query(collection(db,'vendorportal'),where('vendorId','==',rec.vendorId)));
+      keys=snap.docs.map(d=>d.id); _portalCache[rec.vendorId]={t:Date.now(),keys};
+    }
+    await Promise.all(keys.map(k=>setDoc(doc(db,'vendorphotos',k+'_'+subId),{key:k,vendorId:rec.vendorId,subId,photoId:rec.photoId||'',thumb:rec.thumb,guest:guestCode(rec),tsClient:rec.tsClient||Date.now()})));
+  }catch(e){ /* vendor links are a bonus; the guest's photo is already saved */ }
 }
 async function loadSubs(){
   const snap=await getDocs(query(collection(db,'submissions'),orderBy('ts','desc')));
@@ -718,12 +740,14 @@ async function processQueueItem(it){
   const kind=it.kind||'photo';
   if(kind==='photo'){
     const photoDoc=await addDoc(collection(db,'photos'),{ img:it.full, vendorId:it.vendorId, tsClient:it.tsClient });
-    await addDoc(collection(db,'submissions'),{
+    const qsub={
       vendorId:it.vendorId, vendorName:it.vendorName,
       name:it.name, company:it.company||'', email:it.email||'', attendeeId:it.attendeeId||'',
       note:it.note||'', quote:false, fav:false, lookbook:!!it.lookbook, repPref:it.repPref||'', thumb:it.thumb, photoId:photoDoc.id,
       ts:serverTimestamp(), tsClient:it.tsClient
-    });
+    };
+    const qref=await addDoc(collection(db,'submissions'),qsub);
+    mirrorToVendorLinks(qref.id,qsub);
   } else if(kind==='repnote'){
     await addDoc(collection(db,'repnotes'),{
       eventId:it.eventId||'', visitorName:it.visitorName||'', visitorEmail:it.visitorEmail||'', visitorCompany:it.visitorCompany||'',
@@ -808,12 +832,14 @@ async function submitPhoto(full,thumb,note,quote){
   // the lead record carries just a small thumbnail, keeping the admin view fast at scale.
   if(full.length > 950000) throw new Error('Photo too large after compression. Try again.');
   const photoDoc=await addDoc(collection(db,'photos'),{ img:full, vendorId:currentVendor.id, tsClient:Date.now() });
-  await addDoc(collection(db,'submissions'),{
+  const nsub={
     vendorId:currentVendor.id, vendorName:currentVendor.name,
     name:attendee.name, company:attendee.company||'', email:attendee.email||'', attendeeId:attendee.pid||'',
     note:note||'', quote:!!quote, fav:false, lookbook:!!(attendee&&attendee.lookbook), repPref:(attendee&&attendee.repPref)||'', thumb, photoId:photoDoc.id,
     ts:serverTimestamp(), tsClient:Date.now()
-  });
+  };
+  const nref=await addDoc(collection(db,'submissions'),nsub);
+  mirrorToVendorLinks(nref.id,nsub);
 }
 // Posts one quote email through EmailJS. Returns normally on success, throws
 // {retry:true} for problems worth retrying later (no signal, server hiccup) and
@@ -1102,7 +1128,8 @@ function renderIdentify(){
 }
 
 function renderDrop(){
-  body.innerHTML=actingBannerHTML()+'<button class="sp-back" id="sp-back">&larr; All tables</button>'+
+  body.innerHTML=actingBannerHTML()+'<div style="display:flex;justify-content:space-between;align-items:center;gap:8px"><button class="sp-back" id="sp-back">&larr; All tables</button>'+
+    (attendee&&attendee.pid?'<button class="sp-linkbtn" id="sp-showcode2" style="margin-bottom:12px">Show my code</button>':'')+'</div>'+
     '<div class="sp-card sp-card-primary"><div class="sp-h2">'+esc(currentVendor.name)+'</div>'+
     '<div class="sp-drop" id="sp-drop"><span class="icon">&#128247;</span><p class="big">Tap here to take a photo</p><p class="small">Point your camera at the item you love. It saves straight to your collection, no other steps needed.</p></div>'+
     '<input type="file" id="sp-file" accept="image/*" capture="environment" multiple style="display:none">'+
@@ -1119,13 +1146,14 @@ function renderDrop(){
     '<div class="sp-thumbs" id="sp-thumbs"></div>'+
     '<div class="sp-toast" id="sp-toast"></div>'+
     '</div>'+
-    '<div class="sp-offnote" id="sp-quoteoffnote">You\u2019re offline right now. You can still favorite photos, and everything saves on your device and syncs the moment you\u2019re back online.</div>'+
+    '<div class="sp-offnote" id="sp-quoteoffnote">You\u2019re offline right now. You can still take photos and add notes, and everything saves on your device and syncs the moment you\u2019re back online.</div>'+
     '<div class="sp-card" id="sp-quotecard" style="display:none">'+
       '<div class="sp-h2" style="margin:0 0 8px">Your photos from this table</div>'+
-      '<p class="sp-note" style="margin:0 0 10px">Tap the heart on anything you love to add it to your favorites. Head back to the tables list to see photos from everywhere in \u201cMy Photos.\u201d Favoriting a photo will help keep it at the top of the list!</p>'+
+      '<p class="sp-note" style="margin:0 0 10px">Here\u2019s what you\u2019ve saved at this table. Head back to the tables list to see photos from everywhere in \u201cMy Photos.\u201d</p>'+
       '<div class="sp-thumbs" id="sp-quoteitems"></div>'+
     '</div>';
   document.getElementById('sp-back').onclick=renderVendorPicker;
+  const sc2=document.getElementById('sp-showcode2'); if(sc2) sc2.onclick=showMyCode;
   wireActingBanner();
   const fileInput=document.getElementById('sp-file');
   let addingMore=false;
@@ -1258,7 +1286,7 @@ async function showMyCode(){
   ov.style.cssText='position:fixed;inset:0;background:rgba(20,25,35,.94);display:flex;align-items:center;justify-content:center;z-index:200;padding:24px;cursor:zoom-out';
   ov.innerHTML='<div style="background:#fff;border-radius:16px;padding:26px 28px;text-align:center;max-width:340px">'+
     '<div style="font-size:17px;font-weight:700;color:#1a1a1f;margin-bottom:6px">'+esc(attendee.name)+'</div>'+
-    '<div style="font-size:13px;color:#888;margin-bottom:16px">Show this to your TORO Branding Specialist so they can assist you while you shop.</div>'+
+    '<div style="font-size:13px;color:#888;margin-bottom:16px">Show this at any table so they can note what you\u2019re interested in while you shop.</div>'+
     '<div id="sp-qrbox" style="display:flex;justify-content:center;min-height:200px;align-items:center"><span style="color:#888;font-size:13px">Loading code\u2026</span></div>'+
     '<button id="sp-qrclose" style="margin-top:18px;padding:10px 22px;background:#BC112A;color:#fff;border:none;border-radius:8px;font-size:14px;font-weight:600;cursor:pointer">Done</button>'+
   '</div>';
@@ -1394,7 +1422,9 @@ async function renderBooth(){
       };
       try{
         const photoDoc=await addDoc(collection(db,'photos'),{ img:p.full, vendorId:subRec.vendorId, tsClient:subRec.tsClient });
-        await addDoc(collection(db,'submissions'),{...subRec, thumb:p.thumb, photoId:photoDoc.id, ts:serverTimestamp()});
+        const bsub={...subRec, thumb:p.thumb, photoId:photoDoc.id, ts:serverTimestamp()};
+        const bref=await addDoc(collection(db,'submissions'),bsub);
+        mirrorToVendorLinks(bref.id,bsub);
       }catch(e){
         allOk=false;
         await qAdd({qid:'q'+Date.now().toString(36)+Math.random().toString(36).slice(2,7), kind:'photo',
@@ -1572,7 +1602,6 @@ async function loadQuoteSection(){
     grid.innerHTML=recs.map(r=>
       '<div class="sp-thumb" data-id="'+r.id+'">'+
         '<img src="'+r.thumb+'" alt="Your item">'+
-        '<div class="sp-heart sp-needsnet'+(r.fav?' on':'')+'" data-fav="'+r.id+'" role="button" aria-label="Favorite">'+(r.fav?'&#9829;':'&#9825;')+'</div>'+
         (r.quote?'<span class="sp-quotetag">QUOTE REQUESTED</span>':'')+
         (r.note?'<div class="cap">'+esc(r.note)+'</div>':'')+noteBtnHTML(r)+
       '</div>').join('');
@@ -1663,7 +1692,6 @@ async function renderRecap(pid){
     const card=r=>{
       const v=vById[r.vendorId];
       return '<div class="sp-thumb"><img src="'+r.thumb+'" alt="Your photo" loading="lazy" data-pid="'+esc(r.photoId||'')+'" data-code="'+esc(v?v.code:'')+'" style="cursor:zoom-in">'+
-      '<div class="sp-heart'+(r.fav?' on':'')+'" data-fav="'+r.id+'" role="button" aria-label="Favorite">'+(r.fav?'&#9829;':'&#9825;')+'</div>'+
       (r.quote?'<span class="sp-quotetag">QUOTE</span>':'')+
       (r.note?'<div class="cap">'+esc(r.note)+'</div>':'')+noteBtnHTML(r)+'</div>';
     };
@@ -1729,7 +1757,7 @@ async function renderRecap(pid){
       if(quoteViewOnly){ paintQuoteView(); return; }
       recs.sort((a,b)=>(a.tsClient||0)-(b.tsClient||0));
       const scope=multiEvent?recs.filter(r=>r._eid===viewEid):recs;
-      const favs=scope.filter(r=>r.fav), rest=scope.filter(r=>!r.fav);
+      const favs=[], rest=scope; // favorites retired in 2026.10.16-c
       // Quotes can be requested from any event's photos now, not just today's.
       const canQuote=scope.length>0;
 
@@ -1757,13 +1785,22 @@ async function renderRecap(pid){
           '<div class="sp-pagehead-stats">'+
             (multiEvent && pastExpanded
               ? 'You\u2019ve joined us at '+eventOrder.length+' showcases. Pick one below to look back through it.'
-              : scope.length+' photo'+(scope.length===1?'':'s')+' \u00b7 '+favs.length+' favorite'+(favs.length===1?'':'s')+(scope.some(r=>r.quote)?' \u00b7 '+scope.filter(r=>r.quote).length+' in a quote':''))+
+              : scope.length+' photo'+(scope.length===1?'':'s')+(scope.some(r=>r.quote)?' \u00b7 '+scope.filter(r=>r.quote).length+' in a quote':''))+
           '</div>'+
           '<div class="sp-pagehead-tip">Bookmark this page to come back anytime. TORO will follow up after the show.</div>'+
           (recs.some(r=>r.quote)?'<button class="sp-linkbtn" id="sp-viewquotes" type="button" style="margin-top:10px">View my quote '+(groupQuoteRequests(recs).length>1?'requests':'request')+'</button>':'')+
           switcherHtml+
         '</div>'+
-        '<div class="sp-card">'+lookbookRowHTML('sp-lb-photos')+'</div>';
+        '<div class="sp-card">'+lookbookRowHTML('sp-lb-photos')+'</div>'+
+        (()=>{ const link=location.origin+location.pathname+'?me='+encodeURIComponent(pid);
+          const msg='Here\u2019s my Brandabulls Live! photo gallery: '+link;
+          return '<div class="sp-card"><div class="sp-h2">Send yourself this page</div>'+
+            '<p class="sp-note" style="margin:0 0 12px">Email or text yourself the link so you can come back to your photos anytime.</p>'+
+            '<div style="display:flex;gap:8px;flex-wrap:wrap">'+
+              '<a class="sp-btn small" href="mailto:'+encodeURIComponent(knownEmail||'').replace(/%40/g,'@')+'?subject='+encodeURIComponent('My Brandabulls Live! photos')+'&body='+encodeURIComponent(msg)+'">&#9993;&#65039; Email it to me</a>'+
+              '<a class="sp-btn small ghost" href="sms:?&body='+encodeURIComponent(msg)+'">&#128172; Text it to me</a>'+
+              '<button class="sp-btn small ghost" type="button" id="sp-copymylink" data-link="'+esc(link)+'">&#128279; Copy link</button>'+
+            '</div></div>'; })();
 
       if(multiEvent && pastExpanded){
         html+='<div class="sp-note" style="margin:-4px 2px 10px">Showing '+scope.length+' photo'+(scope.length===1?'':'s')+' from '+esc(eventName(viewEid))+(viewEid===activeEventId?' - today\u2019s show':' - a past show, now closed')+'.</div>';
@@ -1818,16 +1855,10 @@ async function renderRecap(pid){
       }
       html+=quoteCardHtml;
 
-      html+='<div class="sp-card"><div class="sp-h2">Your favorites</div>';
-      html+= favs.length
-        ? '<div class="sp-thumbs">'+favs.map(card).join('')+'</div>'
-        : '<div class="sp-empty" style="padding:6px 0">Nothing here yet. Tap the heart on any photo below to move it up here.</div>';
-      html+='</div>';
-
       html+='<div class="sp-card"><div class="sp-h2">All your photos</div>';
       html+= rest.length
-        ? '<p class="sp-note" style="margin:0 0 10px">Tap the heart on the ones you love most to move them into your favorites.</p><div class="sp-thumbs">'+rest.map(card).join('')+'</div>'
-        : '<div class="sp-empty" style="padding:6px 0">Every photo you\u2019ve taken is a favorite. Nicely done.</div>';
+        ? '<div class="sp-thumbs">'+rest.map(card).join('')+'</div>'
+        : '<div class="sp-empty" style="padding:6px 0">No photos here yet.</div>';
       html+='</div>';
 
       html+='<div style="text-align:center;font-size:11px;color:var(--mut);opacity:.7;margin:18px 0 6px">App version '+APP_BUILD+'</div>';
@@ -1843,6 +1874,8 @@ async function renderRecap(pid){
 
     function bindPhotoHandlers(){
       wireRecapBack();
+      const cl=document.getElementById('sp-copymylink');
+      if(cl) cl.onclick=async ()=>{ const l=cl.dataset.link; try{ await navigator.clipboard.writeText(l); cl.textContent='Copied!'; setTimeout(()=>{ cl.innerHTML='&#128279; Copy link'; },1500); }catch(e){ await bamPrompt('Copy your link:','text',l); } };
       ['sp-viewquotes','sp-viewquotes2'].forEach(id=>{ const el=document.getElementById(id); if(el) el.onclick=()=>{ quoteViewOnly=true; quoteFromPhotos=true; try{ history.replaceState(null,'','?me='+encodeURIComponent(pid)+'&quoted=1'); }catch(e){} paint(); window.scrollTo({top:0}); }; });
       const bq=document.getElementById('sp-backquote');
       if(bq) bq.onclick=()=>{ quoteViewOnly=true; try{ history.replaceState(null,'','?me='+encodeURIComponent(pid)+'&quoted=1'); }catch(e){} paint(); window.scrollTo({top:0}); };
@@ -2120,7 +2153,6 @@ const LEAD_COLS=[
   {h:'Quote request',k:'qlink',w:19,link:1,linkText:'View quote request'},
   {h:'In-hands date',k:'inhands',w:20,always:1},
   {h:'Project details',k:'project',w:38,wrap:1},
-  {h:'Favorites',k:'favs',w:10,always:1,num:1},
   {h:'Photos',k:'photos',w:8,always:1,num:1},
   {h:'Tables visited',k:'tables',w:22,always:1},
   {h:'Photo notes',k:'photoNotes',w:42,wrap:1},
@@ -2330,7 +2362,7 @@ async function buildLeadsWorkbook(subs,evName,repNotes){
   // Photo-level detail
   const pcols=[
     {h:'Name',k:'name',w:22},{h:'Company/Department',k:'company',w:26},{h:'Email',k:'email',w:30},
-    {h:'Requested rep',k:'rep',w:15},{h:'Table',k:'table',w:14},{h:'Favorited',k:'fav',w:10},
+    {h:'Requested rep',k:'rep',w:15},{h:'Table',k:'table',w:14},
     {h:'Quote requested',k:'quote',w:16},{h:'Photo note',k:'note',w:42,wrap:1},{h:'Item #',k:'item',w:16},{h:'Vendor note',k:'vnote',w:30,wrap:1},{h:'Project details',k:'project',w:38,wrap:1},{h:'In-hands date',k:'inhands',w:15},{h:'Time',k:'time',w:17}
   ].filter(c=>!['project','inhands','item','vnote'].includes(c.k) || photoRows.some(r=>r[c.k]));
   const ws=wb.addWorksheet(tabName('Photo detail'),{views:[{state:'frozen',xSplit:1,ySplit:1}]});
@@ -2498,13 +2530,13 @@ async function renderAdmin(){
     reportsHtml+='<div class="sp-card"><div class="sp-h2">&#128200; Vendor trends across all events</div>';
     if(!ranked.length){ reportsHtml+='<div class="sp-empty">No photos anywhere yet.</div>'; }
     else{
-      reportsHtml+='<p class="sp-note" style="margin:0 0 10px">Vendors matched by name across events. Photos / &#10084;&#65039; favorites / &#128002; quotes.</p>';
+      reportsHtml+='<p class="sp-note" style="margin:0 0 10px">Vendors matched by name across events. Photos / &#128002; quotes.</p>';
       for(const g of ranked){
         reportsHtml+='<div class="sp-adminrow"><div style="display:flex;justify-content:space-between;gap:8px;align-items:baseline"><span class="sp-who">'+esc(g.name)+'</span>'+
-          '<span class="sp-count">'+g.photos+' / '+g.favs+' &#10084;&#65039; / '+g.quotes+' &#128002;</span></div>'+
+          '<span class="sp-count">'+g.photos+' / '+g.quotes+' &#128002;</span></div>'+
           '<div class="sp-meta">'+events.map(e=>{
             const m=g.byEvent[e.id];
-            return esc(eventLabel(e))+': '+(m?m.p+' photo'+(m.p===1?'':'s')+(m.f?', '+m.f+' fav'+(m.f===1?'':'s'):'')+(m.q?', '+m.q+' quote'+(m.q===1?'':'s'):''):'0');
+            return esc(eventLabel(e))+': '+(m?m.p+' photo'+(m.p===1?'':'s')+(m.q?', '+m.q+' quote'+(m.q===1?'':'s'):''):'0');
           }).join(' &middot; ')+'</div></div>';
       }
     }
@@ -2534,7 +2566,7 @@ async function renderAdmin(){
       const rs=byPerson[pk];
       leadsHtml+='<div class="sp-adminrow"><div style="display:flex;justify-content:space-between;align-items:center;gap:8px"><span class="sp-who">'+esc(rs[0].name)+(rs[0].repPref?'<span class="sp-reptag">&#128100; '+esc(rs[0].repPref)+'</span>':'')+'</span><button class="sp-del" data-delperson="'+rs.map(x=>x.id).join(',')+'">Delete entries ('+rs.length+')</button></div>'+
         '<div class="sp-meta">'+(rs[0].company?esc(rs[0].company)+' &middot; ':'')+(rs[0].email?esc(rs[0].email)+' &middot; ':'')+new Date(rs[0].tsClient||0).toLocaleString()+'</div>'+
-        '<div class="sp-thumbs">'+rs.map(r=>'<div class="sp-thumb"><img src="'+r.thumb+'" alt="Photo from '+esc(r.name)+'" loading="lazy" data-pid="'+esc(r.photoId||'')+'" style="cursor:zoom-in">'+(r.fav?'<span class="sp-favtag">&#10084;&#65039; FAV</span>':'')+(r.quote?'<span class="sp-quotetag">&#128002; QUOTE</span>'+(r.quoteNote?'<div class="cap" style="color:#5c4300;font-weight:600">'+esc(r.quoteNote)+'</div>':''):'')+'<button class="sp-del" data-delsub="'+r.id+'" style="width:100%;margin-top:3px;border-radius:0 0 6px 6px">Delete</button>'+(r.note?'<div class="cap">'+esc(r.note)+'</div>':'')+(ITEMS[r.id]&&ITEMS[r.id].item?'<div class="cap" style="color:var(--ink);font-weight:700">Item # '+esc(ITEMS[r.id].item)+'</div>':'')+'</div>').join('')+'</div></div>';
+        '<div class="sp-thumbs">'+rs.map(r=>'<div class="sp-thumb"><img src="'+r.thumb+'" alt="Photo from '+esc(r.name)+'" loading="lazy" data-pid="'+esc(r.photoId||'')+'" style="cursor:zoom-in">'+(r.quote?'<span class="sp-quotetag">&#128002; QUOTE</span>'+(r.quoteNote?'<div class="cap" style="color:#5c4300;font-weight:600">'+esc(r.quoteNote)+'</div>':''):'')+'<button class="sp-del" data-delsub="'+r.id+'" style="width:100%;margin-top:3px;border-radius:0 0 6px 6px">Delete</button>'+(r.note?'<div class="cap">'+esc(r.note)+'</div>':'')+(ITEMS[r.id]&&ITEMS[r.id].item?'<div class="cap" style="color:var(--ink);font-weight:700">Item # '+esc(ITEMS[r.id].item)+'</div>':'')+'</div>').join('')+'</div></div>';
     }
   }
   leadsHtml+='</div>';
@@ -2745,7 +2777,7 @@ async function renderAdmin(){
             const notesPath=personFolder+'/notes.txt';
             const existing=zip.file(notesPath);
             let txt = existing ? await existing.async('string') : '';
-            txt += fname+': '+(r.repPref?'[REQUESTED REP: '+r.repPref+'] ':'')+(r.fav?'[FAVORITED] ':'')+(r.quote?'[QUOTE REQUESTED'+(r.quoteNote?' - '+r.quoteNote:'')+'] ':'')+(it.item?'[ITEM #: '+it.item+'] ':'')+(it.note?'[VENDOR NOTE: '+it.note+'] ':'')+(r.note||'')+'\r\n';
+            txt += fname+': '+(r.repPref?'[REQUESTED REP: '+r.repPref+'] ':'')+(r.quote?'[QUOTE REQUESTED'+(r.quoteNote?' - '+r.quoteNote:'')+'] ':'')+(it.item?'[ITEM #: '+it.item+'] ':'')+(it.note?'[VENDOR NOTE: '+it.note+'] ':'')+(r.note||'')+'\r\n';
             zip.file(notesPath, txt);
           }
         }
@@ -2845,29 +2877,39 @@ function showPhotoOverlay(full){
 async function renderVendorPortal(key){
   mode='vendor';
   sub.textContent='Vendor photo review';
+  if(renderVendorPortal._timer){ clearInterval(renderVendorPortal._timer); renderVendorPortal._timer=null; }
   body.innerHTML='<div class="sp-empty">Loading your table\u2019s photos\u2026</div>';
   let portal=null;
   try{ const p=await getDoc(doc(db,'vendorportal',key)); portal=p.exists()?p.data():null; }catch(e){ portal=null; }
   if(!portal){ body.innerHTML='<div class="sp-card"><div class="sp-h2">This link isn\u2019t active</div><p class="sp-note" style="margin:0">Please reach out to your TORO contact for a new link.</p></div>'; return; }
-  const [ps,is]=await Promise.all([
+  const [ps,is,ns]=await Promise.all([
     getDocs(query(collection(db,'vendorphotos'),where('key','==',key))),
-    getDocs(query(collection(db,'itemnums'),where('vendorId','==',portal.vendorId))).catch(()=>({docs:[]}))
+    getDocs(query(collection(db,'itemnums'),where('vendorId','==',portal.vendorId))).catch(()=>({docs:[]})),
+    getDocs(query(collection(db,'repnotes'),where('vendorId','==',portal.vendorId))).catch(()=>({docs:[]}))
   ]);
   const photos=ps.docs.map(d=>d.data()).sort((a,b)=>(a.tsClient||0)-(b.tsClient||0));
+  const myNotes=ns.docs.map(d=>d.data()).sort((a,b)=>(b.tsClient||0)-(a.tsClient||0));
   const items={}; is.docs.forEach(d=>{ items[d.id]=d.data(); });
   const guests=[]; const byGuest={};
   photos.forEach(p=>{ if(!byGuest[p.guest]){ byGuest[p.guest]=[]; guests.push(p.guest); } byGuest[p.guest].push(p); });
   const tagged=()=>photos.filter(p=>items[p.subId]&&String(items[p.subId].item||'').trim()).length;
   let html='<div class="sp-card sp-card-primary"><div class="sp-h2">Hi, '+esc(portal.vendorName)+'!</div>'+
-    '<p class="sp-note" style="margin:0 0 8px">These are the items guests photographed at your table'+(portal.vendorCode?' ('+esc(portal.vendorCode)+')':'')+(portal.eventName?' during '+esc(portal.eventName):'')+'. Please add your item number under each photo so our team can look them up fast. The note is optional, for things like colors, price breaks or a similar item.</p>'+
+    '<p class="sp-note" style="margin:0 0 8px">These are the items guests photographed at your table'+(portal.vendorCode?' ('+esc(portal.vendorCode)+')':'')+(portal.eventName?' during '+esc(portal.eventName):'')+'. New photos show up here as guests take them. Please add your item number under each photo so our team can look them up fast. The note is optional, for things like colors, price breaks or a similar item.</p>'+
     '<p class="sp-note" style="margin:0 0 8px">Everything saves on its own when you leave a box. Tap a photo to see it full size. If two guests photographed the same item, enter the same number on both.</p>'+
-    '<div class="sp-badge" style="margin:8px 0 0"><span id="vp-count"></span></div></div>';
+    '<div class="sp-badge" style="margin:8px 0 0"><span id="vp-count"></span></div>'+
+    '<div id="vp-new" style="display:none;margin-top:10px"><button class="sp-btn block" id="vp-newbtn" type="button"></button></div></div>'+
+    '<div class="sp-card"><div class="sp-h2">Talking with a guest?</div>'+
+      '<p class="sp-note" style="margin:0 0 10px">Ask them to tap \u201cShow my code\u201d in their app, scan it, and jot down what they\u2019re interested in. Your note goes straight to their TORO Branding Specialist.</p>'+
+      '<button class="sp-btn block" id="vp-scan" type="button">&#128247; Scan a guest\u2019s code</button>'+
+      (myNotes.length?'<div class="sp-label" style="margin:14px 0 4px">Notes you\u2019ve added ('+myNotes.length+')</div>'+
+        myNotes.slice(0,30).map(n=>'<div class="sp-adminrow"><span class="sp-who">'+esc(String(n.visitorName||'Guest').split(' ')[0])+(n.quote?' <span class="sp-quotetag">QUOTE</span>':'')+'</span><div class="cap" style="margin-top:2px">'+esc(n.vendorNote||n.notes||'')+'</div></div>').join(''):'')+
+    '</div>';
   if(!photos.length) html+='<div class="sp-card"><div class="sp-empty">No photos yet for your table.</div></div>';
   else{
     html+='<div class="sp-card">';
-    guests.forEach(g=>{
+    guests.forEach((g,gi)=>{
       const ps=byGuest[g];
-      html+='<div class="sp-vpguest">'+esc(g)+' <span class="sp-count">'+ps.length+' photo'+(ps.length===1?'':'s')+'</span></div><div class="sp-vpgrid">'+
+      html+='<div class="sp-vpguest">Guest '+(gi+1)+' <span class="sp-count">'+ps.length+' photo'+(ps.length===1?'':'s')+'</span></div><div class="sp-vpgrid">'+
         ps.map(p=>{ const it=items[p.subId]||{};
           return '<div class="sp-vpitem" data-sub="'+esc(p.subId)+'"><img src="'+p.thumb+'" alt="Guest photo" loading="lazy" data-full="'+esc(p.photoId||'')+'">'+
             '<input class="sp-input" data-f="item" maxlength="60" placeholder="Item #" value="'+esc(it.item||'')+'" aria-label="Item number">'+
@@ -2878,6 +2920,17 @@ async function renderVendorPortal(key){
     html+='</div>';
   }
   body.innerHTML=html;
+  document.getElementById('vp-scan').onclick=()=>vendorScanNote(portal,key);
+  // check for new guest photos every 30 seconds while this page is open
+  renderVendorPortal._timer=setInterval(async ()=>{
+    if(mode!=='vendor' || document.visibilityState!=='visible') return;
+    try{
+      const snap=await getDocs(query(collection(db,'vendorphotos'),where('key','==',key)));
+      const extra=snap.docs.length-photos.length;
+      const box=document.getElementById('vp-new'), btn=document.getElementById('vp-newbtn');
+      if(box && extra>0){ btn.textContent=extra+' new photo'+(extra===1?'':'s')+'. Tap to show '+(extra===1?'it':'them')+'.'; box.style.display='block'; btn.onclick=()=>renderVendorPortal(key); }
+    }catch(e){}
+  },30000);
   const countEl=document.getElementById('vp-count');
   const updateCount=()=>{ countEl.textContent=tagged()+' of '+photos.length+' photos have an item number'; };
   updateCount();
@@ -2900,6 +2953,58 @@ async function renderVendorPortal(key){
     };
     inItem.addEventListener('change',save); inNote.addEventListener('change',save);
   });
+}
+
+// Vendor scans a guest's "Show my code" QR and leaves a note for TORO. Saved as a
+// booth-style rep note linked to that guest, so it lands in their lead.
+async function vendorScanNote(portal,key){
+  const found=await new Promise(res=>{
+    const ov=document.createElement('div');
+    ov.style.cssText='position:fixed;inset:0;background:rgba(20,25,35,.96);z-index:200;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:20px';
+    ov.innerHTML='<div style="color:#fff;font-size:15px;font-weight:600;margin-bottom:14px">Point at the guest\u2019s code</div>'+
+      '<div id="vp-reader" style="width:280px;max-width:90vw;background:#000;border-radius:12px;overflow:hidden"></div>'+
+      '<button id="vp-scancancel" style="margin-top:18px;padding:10px 22px;background:#fff;color:#1a1a1f;border:none;border-radius:8px;font-size:14px;font-weight:600;cursor:pointer">Cancel</button>';
+    document.body.appendChild(ov);
+    let scanner=null, done=false;
+    const finish=v=>{ if(done) return; done=true; const rm=()=>{ ov.remove(); res(v); }; if(scanner){ scanner.stop().then(rm).catch(rm); } else rm(); };
+    ov.querySelector('#vp-scancancel').onclick=()=>finish(null);
+    (async ()=>{
+      try{
+        await loadScanner();
+        scanner=new window.Html5Qrcode('vp-reader');
+        await scanner.start({facingMode:'environment'},{fps:10,qrbox:220},(txt)=>{
+          if(txt&&txt.indexOf('visitor:')===0){
+            const parts=txt.slice(8).split('|');
+            finish({pid:parts[0]||'', name:decodeURIComponent(parts[1]||''), email:decodeURIComponent(parts[2]||'')});
+          }
+        },()=>{});
+      }catch(e){ console.error(e); finish(null); bamAlert('Couldn\u2019t start the camera. Allow camera access and try again.'); }
+    })();
+  });
+  if(!found||!found.pid) return;
+  const first=String(found.name||'this guest').split(' ')[0];
+  const ov=document.createElement('div');
+  ov.style.cssText='position:fixed;inset:0;background:rgba(20,25,35,.6);z-index:200;display:flex;align-items:center;justify-content:center;padding:20px';
+  ov.innerHTML='<div class="sp-card" style="max-width:420px;width:100%;margin:0">'+
+    '<div class="sp-h2">Note for '+esc(first)+'</div>'+
+    '<textarea class="sp-input" id="vp-notetext" rows="4" maxlength="500" placeholder="What are they interested in? Items, quantities, colors, timing\u2026" style="resize:vertical;font-family:inherit"></textarea>'+
+    '<label style="display:flex;align-items:center;gap:9px;font-size:14px;font-weight:600;margin:10px 0 14px;cursor:pointer"><input type="checkbox" id="vp-notequote" style="width:18px;height:18px"><span>They\u2019d like a quote</span></label>'+
+    '<div style="display:flex;gap:8px"><button class="sp-btn" id="vp-notesave" type="button" style="flex:1">Save note</button><button class="sp-btn ghost" id="vp-notecancel" type="button">Cancel</button></div>'+
+  '</div>';
+  document.body.appendChild(ov);
+  ov.querySelector('#vp-notecancel').onclick=()=>ov.remove();
+  ov.querySelector('#vp-notetext').focus();
+  ov.querySelector('#vp-notesave').onclick=async ()=>{
+    const text=ov.querySelector('#vp-notetext').value.trim();
+    const quote=ov.querySelector('#vp-notequote').checked;
+    if(!text && !quote){ ov.querySelector('#vp-notetext').focus(); return; }
+    const btn=ov.querySelector('#vp-notesave'); btn.disabled=true; btn.textContent='Saving\u2026';
+    const rec={ eventId:portal.eventId||'', visitorName:found.name||'', visitorEmail:found.email||'', visitorCompany:'',
+      notes:'[Vendor note from '+portal.vendorName+'] '+text, vendorNote:text, quote:!!quote, lookbook:false, priority:'', repPref:'', linkedPid:found.pid,
+      source:'vendor', vendorId:portal.vendorId, vendorName:portal.vendorName };
+    try{ await addDoc(collection(db,'repnotes'),{...rec, ts:serverTimestamp(), tsClient:Date.now()}); ov.remove(); renderVendorPortal(key); }
+    catch(e){ btn.disabled=false; btn.textContent='Save note'; bamAlert('That note didn\u2019t save. Check your connection and try again.'); }
+  };
 }
 
 // ---------- REP VIEW (?rv=key) ----------
@@ -2932,15 +3037,20 @@ async function renderRepView(key){
   let portal=null;
   try{ const p=await getDoc(doc(db,'vendorportal',key)); portal=p.exists()?p.data():null; }catch(e){ portal=null; }
   if(!portal){ body.innerHTML='<div class="sp-card"><div class="sp-h2">This link isn\u2019t active</div><p class="sp-note" style="margin:0">The vendor link may have been turned off in the Organizer view.</p></div>'; return; }
-  const [ss,is]=await Promise.all([
+  const [ss,is,ns]=await Promise.all([
     getDocs(query(collection(db,'submissions'),where('vendorId','==',portal.vendorId))),
-    getDocs(query(collection(db,'itemnums'),where('vendorId','==',portal.vendorId))).catch(()=>({docs:[]}))
+    getDocs(query(collection(db,'itemnums'),where('vendorId','==',portal.vendorId))).catch(()=>({docs:[]})),
+    getDocs(query(collection(db,'repnotes'),where('vendorId','==',portal.vendorId))).catch(()=>({docs:[]}))
   ]);
+  const vnotes=ns.docs.map(d=>d.data());
   const subs=ss.docs.map(d=>({id:d.id,...d.data()})).filter(r=>r.thumb);
   const items={}; is.docs.forEach(d=>{ items[d.id]=d.data(); });
   const people={}; const order=[];
   subs.sort((a,b)=>String(a.name||'').localeCompare(String(b.name||''),undefined,{sensitivity:'base'})||(a.tsClient||0)-(b.tsClient||0));
-  subs.forEach(r=>{ const k=(r.name||'(no name)')+'|'+(r.company||''); if(!people[k]){ people[k]=[]; order.push(k); } people[k].push(r); });
+  const pidKey={};
+  subs.forEach(r=>{ const k=(r.name||'(no name)')+'|'+(r.company||''); if(!people[k]){ people[k]=[]; order.push(k); } people[k].push(r); if(r.attendeeId) pidKey[r.attendeeId]=k; });
+  const notesBy={};
+  vnotes.forEach(n=>{ let k=pidKey[n.linkedPid]; if(!k){ k=(n.visitorName||'(no name)')+'|'; if(!people[k]){ people[k]=[]; order.push(k); } } (notesBy[k]=notesBy[k]||[]).push(n); });
   const tagged=subs.filter(r=>items[r.id]&&String(items[r.id].item||'').trim()).length;
   let html='<div class="sp-card sp-card-primary"><div class="sp-h2">'+esc(portal.vendorName)+(portal.vendorCode?' <span class="sp-count">'+esc(portal.vendorCode)+'</span>':'')+'</div>'+
     '<p class="sp-note" style="margin:0 0 8px">Item numbers and notes from the vendor, grouped by guest. This page is read only. It updates as the vendor works, so reload to see their latest entries.</p>'+
@@ -2950,8 +3060,9 @@ async function renderRepView(key){
   else{
     html+='<div class="sp-card">';
     order.forEach(k=>{
-      const rs=people[k];
-      html+='<div class="rv-person" data-q="'+esc((rs[0].name+' '+(rs[0].company||'')).toLowerCase())+'"><div class="sp-vpguest">'+esc(rs[0].name||'(no name)')+(rs[0].company?' <span class="sp-count">'+esc(rs[0].company)+'</span>':'')+'</div><div class="sp-vpgrid">'+
+      const rs=people[k]; const nm=k.split('|')[0], co=k.split('|').slice(1).join('|');
+      const vn=(notesBy[k]||[]).map(n=>'<div class="sp-rvitem"><b>Vendor talked with them:</b> '+linkify(n.vendorNote||n.notes||'')+(n.quote?' <span class="sp-quotetag">&#128002; QUOTE</span>':'')+'</div>').join('');
+      html+='<div class="rv-person" data-q="'+esc((nm+' '+co).toLowerCase())+'"><div class="sp-vpguest">'+esc(nm)+(co?' <span class="sp-count">'+esc(co)+'</span>':'')+'</div>'+vn+'<div class="sp-vpgrid">'+
         rs.map(r=>{ const it=items[r.id]||{};
           return '<div class="sp-vpitem"><img src="'+r.thumb+'" alt="Photo from '+esc(r.name)+'" loading="lazy" data-full="'+esc(r.photoId||'')+'">'+
             (it.item?'<div class="sp-rvitem"><b>Item #</b> '+linkify(it.item)+'</div>':'<div class="sp-rvnone">No item number yet</div>')+
